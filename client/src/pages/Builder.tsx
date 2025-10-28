@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfitLossChart } from "@/components/ProfitLossChart";
 import { GreeksDashboard } from "@/components/GreeksDashboard";
 import { StrategyMetricsCard } from "@/components/StrategyMetricsCard";
 import { OptionLegEditor } from "@/components/OptionLegEditor";
 import { StrategyTemplateCard } from "@/components/StrategyTemplateCard";
+import { SymbolSearchBar } from "@/components/SymbolSearchBar";
+import { ExpirationTimeline } from "@/components/ExpirationTimeline";
+import { StrikeLadder } from "@/components/StrikeLadder";
+import { PLHeatmap } from "@/components/PLHeatmap";
 import {
   Dialog,
   DialogContent,
@@ -17,37 +18,40 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TrendingUp, Plus, Home } from "lucide-react";
-import type { OptionLeg, Greeks } from "@shared/schema";
-import { calculateGreeks, calculateStrategyMetrics } from "@/lib/options-pricing";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, Plus, Home, BarChart3, Table } from "lucide-react";
+import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation } from "wouter";
+import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 
 export default function Builder() {
   const [, setLocation] = useLocation();
-  const [underlyingPrice, setUnderlyingPrice] = useState(100);
-  const [legs, setLegs] = useState<OptionLeg[]>([
-    {
-      id: "1",
-      type: "call",
-      position: "long",
-      strike: 105,
-      quantity: 1,
-      premium: 3.5,
-      expirationDays: 30,
-    },
-  ]);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  
+  const {
+    symbolInfo,
+    setSymbolInfo,
+    legs,
+    setLegs,
+    totalGreeks,
+    metrics,
+    uniqueExpirationDays,
+    strikeRange,
+    scenarioGrid,
+    selectedExpirationDays,
+    setSelectedExpirationDays,
+  } = useStrategyEngine();
 
   const addLeg = () => {
     const newLeg: OptionLeg = {
       id: Date.now().toString(),
       type: "call",
       position: "long",
-      strike: underlyingPrice,
+      strike: symbolInfo.price,
       quantity: 1,
       premium: 5.0,
-      expirationDays: 30,
+      expirationDays: uniqueExpirationDays[0] || 30,
     };
     setLegs([...legs, newLeg]);
   };
@@ -67,22 +71,6 @@ export default function Builder() {
     setLegs(template.legs.map(leg => ({ ...leg, id: Date.now().toString() + leg.id })));
     setTemplateDialogOpen(false);
   };
-
-  const totalGreeks: Greeks = legs.reduce(
-    (acc, leg) => {
-      const legGreeks = calculateGreeks(leg, underlyingPrice);
-      return {
-        delta: acc.delta + legGreeks.delta,
-        gamma: acc.gamma + legGreeks.gamma,
-        theta: acc.theta + legGreeks.theta,
-        vega: acc.vega + legGreeks.vega,
-        rho: acc.rho + legGreeks.rho,
-      };
-    },
-    { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 }
-  );
-
-  const metrics = calculateStrategyMetrics(legs, underlyingPrice);
 
   const getRiskLevel = (legCount: number): "Low" | "Medium" | "High" => {
     if (legCount === 1) return "Medium";
@@ -143,53 +131,78 @@ export default function Builder() {
       </header>
 
       <div className="container mx-auto px-4 md:px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <ProfitLossChart legs={legs} underlyingPrice={underlyingPrice} />
+        <div className="space-y-6">
+          <SymbolSearchBar 
+            symbolInfo={symbolInfo} 
+            onSymbolChange={setSymbolInfo} 
+          />
 
-            <GreeksDashboard greeks={totalGreeks} />
-          </div>
-
-          <div className="space-y-6">
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Underlying Asset</h3>
-              <div>
-                <Label htmlFor="underlying-price">Current Price</Label>
-                <Input
-                  id="underlying-price"
-                  type="number"
-                  value={underlyingPrice}
-                  onChange={(e) => setUnderlyingPrice(Number(e.target.value))}
-                  className="font-mono"
-                  step="0.5"
-                  data-testid="input-underlying-price"
-                />
-              </div>
-            </Card>
-
-            <StrategyMetricsCard metrics={metrics} />
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Option Legs</h3>
-            <Button onClick={addLeg} data-testid="button-add-leg">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Leg
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {legs.map((leg) => (
-              <OptionLegEditor
-                key={leg.id}
-                leg={leg}
-                onUpdate={(updatedLeg) => updateLeg(leg.id, updatedLeg)}
-                onRemove={() => removeLeg(leg.id)}
-                underlyingPrice={underlyingPrice}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <ExpirationTimeline
+                expirationDays={uniqueExpirationDays}
+                selectedDays={selectedExpirationDays}
+                onSelectDays={setSelectedExpirationDays}
               />
-            ))}
+
+              <StrikeLadder
+                legs={legs}
+                currentPrice={symbolInfo.price}
+                strikeRange={strikeRange}
+              />
+
+              <Tabs defaultValue="chart" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="chart" data-testid="tab-chart">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    P/L Chart
+                  </TabsTrigger>
+                  <TabsTrigger value="heatmap" data-testid="tab-heatmap">
+                    <Table className="h-4 w-4 mr-2" />
+                    Heatmap
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="chart" className="mt-4">
+                  <ProfitLossChart legs={legs} underlyingPrice={symbolInfo.price} />
+                </TabsContent>
+                <TabsContent value="heatmap" className="mt-4">
+                  <PLHeatmap
+                    grid={scenarioGrid.grid}
+                    strikes={scenarioGrid.strikes}
+                    days={scenarioGrid.days}
+                    currentPrice={symbolInfo.price}
+                  />
+                </TabsContent>
+              </Tabs>
+
+              <GreeksDashboard greeks={totalGreeks} />
+            </div>
+
+            <div className="space-y-6">
+              <StrategyMetricsCard metrics={metrics} />
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Option Legs</h3>
+              <Button onClick={addLeg} data-testid="button-add-leg">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Leg
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {legs.map((leg) => (
+                <OptionLegEditor
+                  key={leg.id}
+                  leg={leg}
+                  onUpdate={(updatedLeg) => updateLeg(leg.id, updatedLeg)}
+                  onRemove={() => removeLeg(leg.id)}
+                  underlyingPrice={symbolInfo.price}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
