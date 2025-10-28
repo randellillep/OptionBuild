@@ -127,6 +127,45 @@ export function calculateProfitLoss(
   return pnl;
 }
 
+export function calculateProfitLossAtDate(
+  legs: OptionLeg[],
+  underlyingPrice: number,
+  atPrice: number,
+  daysToExpiration: number,
+  volatility: number = 0.3,
+  riskFreeRate: number = 0.05
+): number {
+  let pnl = 0;
+  
+  for (const leg of legs) {
+    const daysRemaining = Math.max(0, daysToExpiration);
+    
+    let optionValue: number;
+    if (daysRemaining <= 0) {
+      optionValue = leg.type === "call" 
+        ? Math.max(atPrice - leg.strike, 0)
+        : Math.max(leg.strike - atPrice, 0);
+    } else {
+      optionValue = calculateOptionPrice(
+        leg.type,
+        atPrice,
+        leg.strike,
+        daysRemaining,
+        volatility,
+        riskFreeRate
+      );
+    }
+    
+    const legPnl = leg.position === "long"
+      ? (optionValue - leg.premium) * leg.quantity * 100
+      : (leg.premium - optionValue) * leg.quantity * 100;
+    
+    pnl += legPnl;
+  }
+  
+  return pnl;
+}
+
 export function calculateStrategyMetrics(
   legs: OptionLeg[],
   underlyingPrice: number

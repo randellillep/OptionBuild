@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import type { OptionLeg, Greeks, StrategyMetrics } from "@shared/schema";
-import { calculateGreeks, calculateStrategyMetrics, calculateProfitLoss } from "@/lib/options-pricing";
+import { calculateGreeks, calculateStrategyMetrics, calculateProfitLoss, calculateProfitLossAtDate } from "@/lib/options-pricing";
 
 export interface SymbolInfo {
   symbol: string;
@@ -90,19 +90,19 @@ export function useStrategyEngine() {
     const maxDays = Math.max(...uniqueExpirationDays);
     const dayStep = maxDays / (dateCount - 1);
     const days = Array.from({ length: dateCount }, (_, i) => 
-      Math.max(1, Math.round(i * dayStep))
+      Math.max(0, Math.round(i * dayStep))
     );
 
     const grid: ScenarioPoint[][] = strikes.map(strike => 
       days.map(daysLeft => ({
         strike,
         daysToExpiration: daysLeft,
-        pnl: calculateProfitLoss(legs, symbolInfo.price, strike),
+        pnl: calculateProfitLossAtDate(legs, symbolInfo.price, strike, daysLeft, volatility),
       }))
     );
 
     return { grid, strikes, days };
-  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays]);
+  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility]);
 
   return {
     symbolInfo,
