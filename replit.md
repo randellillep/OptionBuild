@@ -8,7 +8,13 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 11, 2025)
 
-- **Enhanced Heatmap and Strike Ladder UI** (LATEST):
+- **Dynamic Strategy Templates with Current Price** (LATEST):
+  - Strategy templates now automatically adjust strikes relative to current stock price
+  - Smart strike rounding: $0.50 increments (<$25), $1 ($25-$100), $2.50 ($100-$200), $5 (>$200)
+  - Directional rounding ensures OTM strikes stay properly spaced (calls round up, puts round down)
+  - Strategy-specific logic: straddles at ATM, spreads at ±5% OTM, condors at ±5%/±10%
+  - Graceful fallback to template strikes if price data unavailable
+- **Enhanced Heatmap and Strike Ladder UI**:
   - Added percentage column to P/L heatmap showing % change from current price for each strike
   - "RANGE: ±X%" badge displays current range slider value in heatmap header
   - Strike Ladder now shows strike prices with option types (e.g., "275C", "110P") in prominent badges

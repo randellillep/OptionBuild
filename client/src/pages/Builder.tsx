@@ -78,7 +78,88 @@ export default function Builder() {
 
   const loadTemplate = (templateIndex: number) => {
     const template = strategyTemplates[templateIndex];
-    setLegs(template.legs.map(leg => ({ ...leg, id: Date.now().toString() + leg.id })));
+    const currentPrice = symbolInfo.price;
+    
+    // Validate price before proceeding
+    if (!currentPrice || !isFinite(currentPrice) || currentPrice <= 0) {
+      // Fallback to template's original strikes if no valid price
+      setLegs(template.legs.map(leg => ({ ...leg, id: Date.now().toString() + leg.id })));
+      return;
+    }
+    
+    // Helper to round strike with directional bias (up for calls, down for puts)
+    const roundStrike = (strike: number, direction: 'up' | 'down' | 'nearest' = 'nearest'): number => {
+      let increment: number;
+      if (strike < 25) increment = 0.5; // $0.50 increments
+      else if (strike < 100) increment = 1; // $1 increments
+      else if (strike < 200) increment = 2.5; // $2.50 increments
+      else increment = 5; // $5 increments
+      
+      if (direction === 'up') {
+        return Math.ceil(strike / increment) * increment;
+      } else if (direction === 'down') {
+        return Math.floor(strike / increment) * increment;
+      } else {
+        return Math.round(strike / increment) * increment;
+      }
+    };
+    
+    // Calculate ATM strike
+    const atmStrike = roundStrike(currentPrice, 'nearest');
+    
+    // Map template legs to current price-relative strikes
+    const adjustedLegs = template.legs.map((leg, index) => {
+      let newStrike = atmStrike;
+      
+      // Strategy-specific strike adjustments
+      switch (template.name) {
+        case "Long Call":
+          newStrike = atmStrike; // ATM
+          break;
+        case "Long Put":
+          newStrike = atmStrike; // ATM
+          break;
+        case "Covered Call":
+          newStrike = roundStrike(currentPrice * 1.05, 'up'); // 5% OTM (round up)
+          break;
+        case "Protective Put":
+          newStrike = roundStrike(currentPrice * 0.95, 'down'); // 5% OTM (round down)
+          break;
+        case "Bull Call Spread":
+          newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 1.05, 'up'); // ATM + 5% OTM
+          break;
+        case "Bear Put Spread":
+          newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 0.95, 'down'); // ATM + 5% OTM (matched to bull spread)
+          break;
+        case "Long Straddle":
+          newStrike = atmStrike; // Both at ATM
+          break;
+        case "Long Strangle":
+          newStrike = leg.type === "call" ? roundStrike(currentPrice * 1.05, 'up') : roundStrike(currentPrice * 0.95, 'down');
+          break;
+        case "Iron Condor":
+          // Short put, long put, short call, long call
+          if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down'); // Short put -5%
+          else if (index === 1) newStrike = roundStrike(currentPrice * 0.90, 'down'); // Long put -10%
+          else if (index === 2) newStrike = roundStrike(currentPrice * 1.05, 'up'); // Short call +5%
+          else if (index === 3) newStrike = roundStrike(currentPrice * 1.10, 'up'); // Long call +10%
+          break;
+        case "Butterfly Spread":
+          // Low wing, body (2x), high wing
+          if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down'); // -5%
+          else if (index === 1) newStrike = atmStrike; // ATM
+          else if (index === 2) newStrike = roundStrike(currentPrice * 1.05, 'up'); // +5%
+          break;
+      }
+      
+      return {
+        ...leg,
+        strike: newStrike,
+        id: Date.now().toString() + leg.id + index,
+      };
+    });
+    
+    setLegs(adjustedLegs);
   };
 
   return (
