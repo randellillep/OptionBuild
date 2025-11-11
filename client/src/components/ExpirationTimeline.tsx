@@ -60,8 +60,9 @@ export function ExpirationTimeline({
     });
   }, [expirationDates, today]);
   
-  // Use calculated expirations if no custom ones provided
-  const allDays = expirationDays.length > 0 ? expirationDays : calculatedExpirationDays;
+  // Always use calculated standard Friday expirations for the timeline
+  // The expirationDays prop is kept for future API integration
+  const allDays = calculatedExpirationDays;
   
   const getDaysLabel = (days: number) => {
     const targetDate = new Date(today);
