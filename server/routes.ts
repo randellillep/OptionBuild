@@ -10,6 +10,10 @@ const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 const MARKETDATA_API_KEY = process.env.MARKETDATA_API_KEY;
 const MARKETDATA_BASE_URL = "https://api.marketdata.app/v1";
 
+const ALPACA_API_KEY = process.env.ALPACA_API_KEY;
+const ALPACA_API_SECRET = process.env.ALPACA_API_SECRET;
+const ALPACA_BASE_URL = "https://data.alpaca.markets/v1beta1";
+
 const optionsChainQuerySchema = z.object({
   expiration: z.string().optional(),
   strike: z.string().transform(Number).optional(),
@@ -133,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Options chain endpoint - fetches real options chain data with caching
+  // Options chain endpoint - fetches real options chain data with caching (Alpaca)
   app.get("/api/options/chain/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
@@ -146,10 +150,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+        return res.status(500).json({ error: "Alpaca API credentials not configured" });
+      }
+
       const { expiration, strike, side } = queryParseResult.data;
       
       // Create cache key from params
-      const cacheKey = `${symbol.toUpperCase()}-${expiration || 'all'}-${strike || 'all'}-${side || 'all'}`;
+      const cacheKey = `alpaca-${symbol.toUpperCase()}-${expiration || 'all'}-${strike || 'all'}-${side || 'all'}`;
       
       // Check cache first
       const cachedData = await storage.getOptionsChainCache(cacheKey);
@@ -157,22 +165,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(cachedData);
       }
 
-      // Build URL with optional API key and filters
-      const url = new URL(`${MARKETDATA_BASE_URL}/options/chain/${symbol.toUpperCase()}`);
-      if (MARKETDATA_API_KEY) {
-        url.searchParams.append("token", MARKETDATA_API_KEY);
-      }
-      if (expiration) {
-        url.searchParams.append("expiration", expiration);
-      }
-      if (strike !== undefined) {
-        url.searchParams.append("strike", strike.toString());
-      }
-      if (side) {
-        url.searchParams.append("side", side);
-      }
+      // Build Alpaca API URL
+      const url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}`;
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url, {
+        headers: {
+          'APCA-API-KEY-ID': ALPACA_API_KEY,
+          'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+        }
+      });
 
       if (response.status === 429) {
         return res.status(429).json({ 
@@ -182,47 +183,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!response.ok) {
-        throw new Error(`Market Data API error: ${response.status}`);
+        throw new Error(`Alpaca API error: ${response.status}`);
       }
 
       const data = await response.json();
       
-      // Market Data returns arrays for each field
-      if (data.s !== "ok") {
-        throw new Error("Market Data API returned error status");
-      }
-
-      // Transform array-based response to object-based quotes
+      // Alpaca returns { snapshots: { "SYMBOL": { latestQuote, latestTrade, greeks, impliedVolatility } } }
+      const snapshots = data.snapshots || {};
       const quotes: MarketOptionQuote[] = [];
-      const length = data.optionSymbol?.length || 0;
       
-      for (let i = 0; i < length; i++) {
+      // Parse option symbol to extract strike, expiration, type
+      // Format: AAPL251219C00225000 (ticker + YYMMDD + C/P + strike*1000)
+      const parseOptionSymbol = (optionSymbol: string) => {
+        const match = optionSymbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
+        if (!match) return null;
+        
+        const [, , dateStr, callPut, strikeStr] = match;
+        const year = 2000 + parseInt(dateStr.substring(0, 2));
+        const month = parseInt(dateStr.substring(2, 4));
+        const day = parseInt(dateStr.substring(4, 6));
+        const expDate = new Date(year, month - 1, day);
+        const strike = parseInt(strikeStr) / 1000;
+        const side = callPut === 'C' ? 'call' : 'put';
+        
+        return { strike, expiration: Math.floor(expDate.getTime() / 1000), side };
+      };
+
+      for (const [optionSymbol, snapshot] of Object.entries(snapshots) as [string, any][]) {
+        const parsed = parseOptionSymbol(optionSymbol);
+        if (!parsed) continue;
+
+        // Apply filters
+        if (side && parsed.side !== side) continue;
+        if (strike && Math.abs(parsed.strike - strike) > 0.01) continue;
+        if (expiration) {
+          const expDate = new Date(expiration);
+          const targetExp = Math.floor(expDate.getTime() / 1000);
+          if (Math.abs(parsed.expiration - targetExp) > 86400) continue; // Allow 1 day difference
+        }
+
+        const quote = snapshot.latestQuote || {};
+        const trade = snapshot.latestTrade || {};
+        const greeks = snapshot.greeks || {};
+        
+        const bid = quote.bp || 0;
+        const ask = quote.ap || 0;
+        const mid = (bid + ask) / 2;
+        
         quotes.push({
-          optionSymbol: data.optionSymbol[i],
-          underlying: data.underlying[i],
-          expiration: data.expiration[i],
-          side: data.side[i] as OptionType,
-          strike: data.strike[i],
-          bid: data.bid[i],
-          bidSize: data.bidSize[i],
-          mid: data.mid[i],
-          ask: data.ask[i],
-          askSize: data.askSize[i],
-          last: data.last[i],
-          openInterest: data.openInterest[i],
-          volume: data.volume[i],
-          inTheMoney: data.inTheMoney[i],
-          intrinsicValue: data.intrinsicValue[i],
-          extrinsicValue: data.extrinsicValue[i],
-          underlyingPrice: data.underlyingPrice[i],
-          iv: data.iv[i],
-          delta: data.delta[i],
-          gamma: data.gamma[i],
-          theta: data.theta[i],
-          vega: data.vega[i],
-          rho: data.rho[i],
-          dte: data.dte[i],
-          updated: data.updated[i],
+          optionSymbol,
+          underlying: symbol.toUpperCase(),
+          expiration: parsed.expiration,
+          side: parsed.side as OptionType,
+          strike: parsed.strike,
+          bid,
+          bidSize: quote.bs || 0,
+          mid,
+          ask,
+          askSize: quote.as || 0,
+          last: trade.p || 0,
+          openInterest: 0, // Alpaca doesn't provide OI in snapshots
+          volume: 0, // Alpaca doesn't provide volume in snapshots
+          inTheMoney: false, // Calculate this on frontend
+          intrinsicValue: 0, // Calculate this on frontend
+          extrinsicValue: mid, // Approximate
+          underlyingPrice: 0, // Need to fetch separately or calculate
+          iv: snapshot.impliedVolatility || 0,
+          delta: greeks.delta || 0,
+          gamma: greeks.gamma || 0,
+          theta: greeks.theta || 0,
+          vega: greeks.vega || 0,
+          rho: greeks.rho || 0,
+          dte: Math.max(0, Math.floor((parsed.expiration * 1000 - Date.now()) / (1000 * 60 * 60 * 24))),
+          updated: Date.now(),
         });
       }
 
@@ -234,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const summary: MarketOptionChainSummary = {
         symbol: symbol.toUpperCase(),
-        expirations,
+        expirations: expirations.sort(),
         minStrike,
         maxStrike,
         quotes,
