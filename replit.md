@@ -2,9 +2,18 @@
 
 ## Overview
 
-OptionFlow is a professional options trading strategy builder and analysis platform. It allows users to construct, visualize, and analyze options strategies with real-time profit/loss charts, Greeks calculations, and comprehensive risk metrics. The application features 10+ pre-built strategy templates (spreads, straddles, condors, butterflies) and uses the Black-Scholes model for accurate option pricing.
+OptionFlow is a professional options trading strategy builder and analysis platform inspired by OptionStrat.com. It allows users to construct, visualize, and analyze options strategies with real-time profit/loss charts, Greeks calculations, and comprehensive risk metrics. The application features 10+ pre-built strategy templates (spreads, straddles, condors, butterflies), interactive volatility controls, and 6-tab analysis section. Uses the Black-Scholes model for accurate option pricing with time decay.
 
-The platform targets traders who need to understand complex options positions through visual analysis, P/L scenarios, and risk exposure metrics before executing trades.
+The platform targets traders who need to understand complex options positions through visual analysis, P/L scenarios across time and price, and risk exposure metrics before executing trades.
+
+## Recent Updates (November 11, 2025)
+
+- **OptionStrat-Style Navigation**: Added Build (with strategy dropdown), Optimize, and Market Trends buttons in header
+- **Quick Add Functionality**: Implemented Add button dropdown for rapidly adding option legs (Buy Call, Buy Put, Sell Call, Sell Put)
+- **Interactive Controls**: Added Range (±5-50%) and Implied Volatility (10-100%) sliders that dynamically update calculations
+- **Analysis Tabs**: Created 6-tab section below heatmap (Greeks, Expected Move, Volatility Skew, Option Overview, Analysis, Open Interest)
+- **Dynamic Volatility**: Connected IV slider to Black-Scholes pricing engine for real-time heatmap updates
+- **Time Decay Visualization**: Fixed P/L heatmap to properly show option value changes across different dates using calculateProfitLossAtDate
 
 ## User Preferences
 

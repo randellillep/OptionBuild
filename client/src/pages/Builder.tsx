@@ -27,13 +27,14 @@ import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 export default function Builder() {
   const [, setLocation] = useLocation();
   const [range, setRange] = useState(14);
-  const [volatilityPercent, setVolatilityPercent] = useState(30);
   
   const {
     symbolInfo,
     setSymbolInfo,
     legs,
     setLegs,
+    volatility,
+    setVolatility,
     totalGreeks,
     metrics,
     uniqueExpirationDays,
@@ -42,6 +43,11 @@ export default function Builder() {
     selectedExpirationDays,
     setSelectedExpirationDays,
   } = useStrategyEngine();
+
+  const volatilityPercent = Math.round(volatility * 100);
+  const handleVolatilityChange = (percent: number) => {
+    setVolatility(percent / 100);
+  };
 
   const addLeg = (legTemplate: Omit<OptionLeg, "id">) => {
     const newLeg: OptionLeg = {
@@ -192,7 +198,7 @@ export default function Builder() {
                     range={range}
                     onRangeChange={setRange}
                     impliedVolatility={volatilityPercent}
-                    onVolatilityChange={setVolatilityPercent}
+                    onVolatilityChange={handleVolatilityChange}
                   />
 
                   <AnalysisTabs greeks={totalGreeks} />
@@ -204,7 +210,7 @@ export default function Builder() {
                     range={range}
                     onRangeChange={setRange}
                     impliedVolatility={volatilityPercent}
-                    onVolatilityChange={setVolatilityPercent}
+                    onVolatilityChange={handleVolatilityChange}
                   />
 
                   <AnalysisTabs greeks={totalGreeks} />

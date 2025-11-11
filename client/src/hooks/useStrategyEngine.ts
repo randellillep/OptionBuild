@@ -31,7 +31,7 @@ export function useStrategyEngine() {
     },
   ]);
 
-  const [volatility] = useState(0.3);
+  const [volatility, setVolatility] = useState(0.3);
   const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(null);
 
   const totalGreeks: Greeks = useMemo(() => {
@@ -110,6 +110,7 @@ export function useStrategyEngine() {
     legs,
     setLegs,
     volatility,
+    setVolatility,
     totalGreeks,
     metrics,
     uniqueExpirationDays,
