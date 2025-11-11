@@ -190,6 +190,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Alpaca returns { snapshots: { "SYMBOL": { latestQuote, latestTrade, greeks, impliedVolatility } } }
       const snapshots = data.snapshots || {};
+      console.log(`[Options Chain] Fetched ${Object.keys(snapshots).length} snapshots for ${symbol.toUpperCase()}`);
+      if (expiration) {
+        console.log(`[Options Chain] Filtering for expiration: ${expiration}`);
+      }
       const quotes: MarketOptionQuote[] = [];
       
       // Parse option symbol to extract strike, expiration, type
@@ -261,6 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Compute metadata
       const expirations = Array.from(new Set(quotes.map(q => new Date(q.expiration * 1000).toISOString().split('T')[0])));
+      console.log(`[Options Chain] After filtering: ${quotes.length} quotes, expirations found:`, expirations.slice(0, 5));
       const strikes = quotes.map(q => q.strike);
       const minStrike = strikes.length > 0 ? Math.min(...strikes) : 0;
       const maxStrike = strikes.length > 0 ? Math.max(...strikes) : 0;
