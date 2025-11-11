@@ -8,6 +8,11 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 11, 2025)
 
+- **Live Stock Price Integration**: Integrated Finnhub API for real-time US stock quotes with 15-minute delayed data fallback
+  - Symbol search with autocomplete (300ms debounced)
+  - Real-time price updates (refreshes every 60 seconds)
+  - Popular symbols with live percentage changes
+  - Loading states and error handling
 - **OptionStrat-Style Navigation**: Added Build (with strategy dropdown), Optimize, and Market Trends buttons in header
 - **Quick Add Functionality**: Implemented Add button dropdown for rapidly adding option legs (Buy Call, Buy Put, Sell Call, Sell Put)
 - **Interactive Controls**: Added Range (±5-50%) and Implied Volatility (10-100%) sliders that dynamically update calculations
@@ -67,6 +72,13 @@ Preferred communication style: Simple, everyday language.
 - Route registration through `registerRoutes` function
 - Request/response logging middleware with JSON response capture
 - Session support via connect-pg-simple (configured for PostgreSQL sessions)
+
+**Market Data Integration**:
+- Finnhub API for real-time US stock prices
+- Two endpoints: `/api/stock/quote/:symbol` and `/api/stock/search?q=query`
+- Free tier: 60 API calls per minute
+- Environment variable: `FINNHUB_API_KEY`
+- Error handling with graceful fallbacks
 
 **Storage Layer**:
 - Abstracted storage interface (`IStorage`) for CRUD operations
@@ -173,4 +185,5 @@ Preferred communication style: Simple, everyday language.
 - Database configured but strategy persistence not implemented
 - User authentication schema present but auth routes not implemented
 - Options pricing and Greeks calculations fully client-side
-- No external market data APIs currently integrated
+- Finnhub API integrated for live stock prices and symbol search
+- React Query used for data fetching with 60-second cache and auto-refresh
