@@ -19,6 +19,7 @@ export type User = typeof users.$inferSelect;
 
 export type OptionType = "call" | "put";
 export type PositionType = "long" | "short";
+export type PremiumSource = "market" | "theoretical";
 
 export interface OptionLeg {
   id: string;
@@ -28,6 +29,9 @@ export interface OptionLeg {
   quantity: number;
   premium: number;
   expirationDays: number;
+  marketQuoteId?: string;
+  premiumSource?: PremiumSource;
+  impliedVolatility?: number;
 }
 
 export interface Strategy {
@@ -52,4 +56,41 @@ export interface StrategyMetrics {
   breakeven: number[];
   netPremium: number;
   riskRewardRatio: number | null;
+}
+
+export interface MarketOptionQuote {
+  optionSymbol: string;
+  underlying: string;
+  expiration: number;
+  side: OptionType;
+  strike: number;
+  bid: number;
+  bidSize: number;
+  mid: number;
+  ask: number;
+  askSize: number;
+  last: number;
+  openInterest: number;
+  volume: number;
+  inTheMoney: boolean;
+  intrinsicValue: number;
+  extrinsicValue: number;
+  underlyingPrice: number;
+  iv: number;
+  delta: number;
+  gamma: number;
+  theta: number;
+  vega: number;
+  rho: number;
+  dte: number;
+  updated: number;
+}
+
+export interface MarketOptionChainSummary {
+  symbol: string;
+  expirations: string[];
+  minStrike: number;
+  maxStrike: number;
+  quotes: MarketOptionQuote[];
+  cachedAt: number;
 }
