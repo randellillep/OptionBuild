@@ -33,6 +33,7 @@ export function useStrategyEngine() {
 
   const [volatility, setVolatility] = useState(0.3);
   const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(null);
+  const [selectedExpirationDate, setSelectedExpirationDate] = useState<string>("");
 
   const totalGreeks: Greeks = useMemo(() => {
     return legs.reduce(
@@ -104,6 +105,11 @@ export function useStrategyEngine() {
     return { grid, strikes, days };
   }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility]);
 
+  const setSelectedExpiration = (days: number, date: string) => {
+    setSelectedExpirationDays(days);
+    setSelectedExpirationDate(date);
+  };
+
   return {
     symbolInfo,
     setSymbolInfo,
@@ -117,6 +123,7 @@ export function useStrategyEngine() {
     strikeRange,
     scenarioGrid,
     selectedExpirationDays,
-    setSelectedExpirationDays,
+    selectedExpirationDate,
+    setSelectedExpiration,
   };
 }

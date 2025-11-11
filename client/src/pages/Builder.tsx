@@ -18,11 +18,13 @@ import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { RangeVolatilitySliders } from "@/components/RangeVolatilitySliders";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, ChevronDown, BarChart3, Table, BookOpen, FileText, User } from "lucide-react";
+import { TrendingUp, ChevronDown, BarChart3, Table, BookOpen, FileText, User, DollarSign } from "lucide-react";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation } from "wouter";
 import { useStrategyEngine } from "@/hooks/useStrategyEngine";
+import { useOptionsChain } from "@/hooks/useOptionsChain";
+import { OptionsChainTable } from "@/components/OptionsChainTable";
 
 export default function Builder() {
   const [, setLocation] = useLocation();
@@ -41,13 +43,20 @@ export default function Builder() {
     strikeRange,
     scenarioGrid,
     selectedExpirationDays,
-    setSelectedExpirationDays,
+    selectedExpirationDate,
+    setSelectedExpiration,
   } = useStrategyEngine();
 
   const volatilityPercent = Math.round(volatility * 100);
   const handleVolatilityChange = (percent: number) => {
     setVolatility(percent / 100);
   };
+
+  const { data: optionsChainData, isLoading: isLoadingChain, error: chainError } = useOptionsChain({
+    symbol: symbolInfo.symbol,
+    expiration: selectedExpirationDate || undefined,
+    enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
+  });
 
   const addLeg = (legTemplate: Omit<OptionLeg, "id">) => {
     const newLeg: OptionLeg = {
@@ -166,7 +175,7 @@ export default function Builder() {
               <ExpirationTimeline
                 expirationDays={uniqueExpirationDays}
                 selectedDays={selectedExpirationDays}
-                onSelectDays={setSelectedExpirationDays}
+                onSelectDays={setSelectedExpiration}
                 symbol={symbolInfo.symbol}
               />
 
@@ -177,7 +186,7 @@ export default function Builder() {
               />
 
               <Tabs defaultValue="heatmap" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="heatmap" data-testid="tab-heatmap-view">
                     <Table className="h-4 w-4 mr-2" />
                     Heatmap
@@ -185,6 +194,10 @@ export default function Builder() {
                   <TabsTrigger value="chart" data-testid="tab-chart-view">
                     <BarChart3 className="h-4 w-4 mr-2" />
                     P/L Chart
+                  </TabsTrigger>
+                  <TabsTrigger value="chain" data-testid="tab-chain-view">
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    Options Chain
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="heatmap" className="mt-4 space-y-6">
@@ -215,6 +228,62 @@ export default function Builder() {
                   />
 
                   <AnalysisTabs greeks={totalGreeks} />
+                </TabsContent>
+                <TabsContent value="chain" className="mt-4 space-y-6">
+                  {!selectedExpirationDate ? (
+                    <div className="flex items-center justify-center p-12">
+                      <div className="text-center space-y-2">
+                        <div className="text-lg font-semibold">Select an expiration date</div>
+                        <div className="text-sm text-muted-foreground">
+                          Choose an expiration date above to view real market options data
+                        </div>
+                      </div>
+                    </div>
+                  ) : chainError ? (
+                    <div className="flex items-center justify-center p-12">
+                      <div className="text-center space-y-2">
+                        <div className="text-lg font-semibold text-destructive">Error loading options chain</div>
+                        <div className="text-sm text-muted-foreground">
+                          {chainError instanceof Error ? chainError.message : 'Failed to fetch market data'}
+                        </div>
+                      </div>
+                    </div>
+                  ) : isLoadingChain ? (
+                    <div className="flex items-center justify-center p-12">
+                      <div className="text-center space-y-2">
+                        <div className="text-lg font-semibold">Loading market data...</div>
+                        <div className="text-sm text-muted-foreground">Fetching real options prices and Greeks for {symbolInfo.symbol}</div>
+                      </div>
+                    </div>
+                  ) : optionsChainData && optionsChainData.quotes.length > 0 ? (
+                    <OptionsChainTable
+                      quotes={optionsChainData.quotes}
+                      onSelectOption={(quote) => {
+                        const newLeg: OptionLeg = {
+                          id: Date.now().toString(),
+                          type: quote.side,
+                          position: "long",
+                          strike: quote.strike,
+                          quantity: 1,
+                          premium: quote.mid,
+                          expirationDays: quote.dte,
+                          marketQuoteId: quote.optionSymbol,
+                          premiumSource: "market",
+                          impliedVolatility: quote.iv,
+                        };
+                        setLegs([...legs, newLeg]);
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center p-12">
+                      <div className="text-center space-y-2">
+                        <div className="text-lg font-semibold">No options data available</div>
+                        <div className="text-sm text-muted-foreground">
+                          No options contracts found for {symbolInfo.symbol} expiring on {selectedExpirationDate}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>

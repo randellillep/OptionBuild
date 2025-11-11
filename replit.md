@@ -8,6 +8,15 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 11, 2025)
 
+- **Real Options Chain Data Integration** (LATEST):
+  - Integrated Alpaca API for real-time options market data with bid/ask prices and Greeks
+  - New Options Chain tab displays live market data: strikes, bid/ask, spread %, IV, delta, gamma, theta, vega
+  - Backend endpoint `/api/options/chain/:symbol` with 60s server-side caching (1,000 API calls/minute free tier)
+  - Dual-track expiration state: canonical ISO dates from API + day offsets for UI calculations
+  - Click-to-add functionality: select any option from chain to instantly add as strategy leg with market pricing
+  - Comprehensive error handling: loading states, API errors, empty data messages
+  - React Query integration: 30s staleTime, 5min gcTime for optimal caching
+  - ATM strike highlighting and separate call/put tables for professional UX
 - **Real Options Expiration Dates**: Integrated Market Data API for actual market expiration dates
   - Backend endpoint `/api/options/expirations/:symbol` fetches real expiration dates
   - 100 free API requests/day (optional MARKETDATA_API_KEY environment variable)

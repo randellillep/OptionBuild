@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 interface ExpirationTimelineProps {
   expirationDays: number[];
   selectedDays: number | null;
-  onSelectDays: (days: number) => void;
+  onSelectDays: (days: number, date: string) => void;
   symbol?: string;
 }
 
@@ -68,27 +68,42 @@ export function ExpirationTimeline({
   // Generate standard options expiration dates as fallback
   const expirationDates = useMemo(() => getOptionsExpirationDates(), []);
   
-  // Convert API expiration dates to days from today
-  const apiExpirationDays = useMemo(() => {
-    if (!apiExpirations?.expirations) return [];
+  // Convert API expiration dates to days from today and create mapping
+  const { apiExpirationDays, daysToDateMap } = useMemo(() => {
+    if (!apiExpirations?.expirations) return { apiExpirationDays: [], daysToDateMap: new Map<number, string>() };
     
-    return apiExpirations.expirations.map((dateStr: string) => {
-      const expirationDate = new Date(dateStr);
-      const diffTime = expirationDate.getTime() - today.getTime();
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    }).filter((days: number) => days >= 0); // Only future dates
+    const mapping = new Map<number, string>();
+    const days = apiExpirations.expirations
+      .map((dateStr: string) => {
+        const expirationDate = new Date(dateStr);
+        const diffTime = expirationDate.getTime() - today.getTime();
+        const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (dayCount >= 0) {
+          mapping.set(dayCount, dateStr);
+          return dayCount;
+        }
+        return -1;
+      })
+      .filter((days: number) => days >= 0);
+    
+    return { apiExpirationDays: days, daysToDateMap: mapping };
   }, [apiExpirations, today]);
   
-  // Convert calculated dates to days from today (fallback)
-  const calculatedExpirationDays = useMemo(() => {
-    return expirationDates.map(date => {
+  // Convert calculated dates to days from today (fallback) and create mapping
+  const { calculatedExpirationDays, calculatedDaysToDateMap } = useMemo(() => {
+    const mapping = new Map<number, string>();
+    const days = expirationDates.map(date => {
       const diffTime = date.getTime() - today.getTime();
-      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      mapping.set(dayCount, date.toISOString().split('T')[0]);
+      return dayCount;
     });
+    return { calculatedExpirationDays: days, calculatedDaysToDateMap: mapping };
   }, [expirationDates, today]);
   
   // Use API data if available, otherwise use calculated Friday expirations
   const allDays = apiExpirationDays.length > 0 ? apiExpirationDays : calculatedExpirationDays;
+  const activeDaysToDateMap = apiExpirationDays.length > 0 ? daysToDateMap : calculatedDaysToDateMap;
   
   const getDaysLabel = (days: number) => {
     const targetDate = new Date(today);
@@ -159,7 +174,10 @@ export function ExpirationTimeline({
                 return (
                   <button
                     key={`${days}-${idx}`}
-                    onClick={() => onSelectDays(days)}
+                    onClick={() => {
+                      const dateStr = activeDaysToDateMap.get(days) || '';
+                      onSelectDays(days, dateStr);
+                    }}
                     className={`flex items-center justify-center min-w-[40px] px-3 py-2 text-sm font-semibold transition-colors border-r border-border last:border-r-0 ${
                       isSelected
                         ? 'bg-primary text-primary-foreground'
