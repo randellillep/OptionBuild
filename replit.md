@@ -8,6 +8,17 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 11, 2025)
 
+- **Real Options Expiration Dates**: Integrated Market Data API for actual market expiration dates
+  - Backend endpoint `/api/options/expirations/:symbol` fetches real expiration dates
+  - 100 free API requests/day (optional MARKETDATA_API_KEY environment variable)
+  - Intelligent fallback to calculated Friday expirations if API unavailable
+  - Shows ~20 real expiration dates spanning weeks, months, and years
+  - 1-hour caching via React Query to minimize API calls
+- **Horizontal Expiration Bar**: Redesigned ExpirationTimeline to match OptionStrat.com style
+  - Month-grouped horizontal layout with scrollable dates
+  - "EXPIRATION: Xd" label showing days until selected expiration
+  - Date count indicator (e.g., "(20 dates)")
+  - Year indicators for future expirations (e.g., "Jan '26")
 - **Live Stock Price Integration**: Integrated Finnhub API for real-time US stock quotes with 15-minute delayed data fallback
   - Symbol search with autocomplete (300ms debounced)
   - Real-time price updates (refreshes every 60 seconds)

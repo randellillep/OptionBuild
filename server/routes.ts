@@ -5,6 +5,9 @@ import { storage } from "./storage";
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 
+const MARKETDATA_API_KEY = process.env.MARKETDATA_API_KEY;
+const MARKETDATA_BASE_URL = "https://api.marketdata.app/v1";
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stock quote endpoint - fetches real-time price for a symbol
   app.get("/api/stock/quote/:symbol", async (req, res) => {
@@ -84,6 +87,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error searching stocks:", error);
       res.status(500).json({ error: "Failed to search stocks" });
+    }
+  });
+
+  // Options expirations endpoint - fetches real options expiration dates
+  app.get("/api/options/expirations/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      
+      // Build URL with optional API key
+      const url = new URL(`${MARKETDATA_BASE_URL}/options/expirations/${symbol.toUpperCase()}`);
+      if (MARKETDATA_API_KEY) {
+        url.searchParams.append("token", MARKETDATA_API_KEY);
+      }
+
+      const response = await fetch(url.toString());
+
+      if (!response.ok) {
+        throw new Error(`Market Data API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Market Data returns { s: "ok", expirations: ["2024-11-15", ...], updated: timestamp }
+      if (data.s !== "ok") {
+        throw new Error("Market Data API returned error status");
+      }
+
+      res.json({
+        symbol: symbol.toUpperCase(),
+        expirations: data.expirations || [],
+        updated: data.updated,
+      });
+    } catch (error) {
+      console.error("Error fetching options expirations:", error);
+      res.status(500).json({ error: "Failed to fetch options expirations" });
     }
   });
 

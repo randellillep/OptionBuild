@@ -1,9 +1,17 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 interface ExpirationTimelineProps {
   expirationDays: number[];
   selectedDays: number | null;
   onSelectDays: (days: number) => void;
+  symbol?: string;
+}
+
+interface OptionsExpirationsResponse {
+  symbol: string;
+  expirations: string[];
+  updated: number;
 }
 
 // Calculate standard options expiration dates
@@ -46,13 +54,32 @@ export function ExpirationTimeline({
   expirationDays,
   selectedDays,
   onSelectDays,
+  symbol = "SPY",
 }: ExpirationTimelineProps) {
   const today = new Date();
   
-  // Generate standard options expiration dates
+  // Fetch real options expiration dates from API
+  const { data: apiExpirations, isLoading } = useQuery<OptionsExpirationsResponse>({
+    queryKey: ["/api/options/expirations", symbol],
+    enabled: !!symbol,
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour (expirations don't change frequently)
+  });
+  
+  // Generate standard options expiration dates as fallback
   const expirationDates = useMemo(() => getOptionsExpirationDates(), []);
   
-  // Convert dates to days from today
+  // Convert API expiration dates to days from today
+  const apiExpirationDays = useMemo(() => {
+    if (!apiExpirations?.expirations) return [];
+    
+    return apiExpirations.expirations.map((dateStr: string) => {
+      const expirationDate = new Date(dateStr);
+      const diffTime = expirationDate.getTime() - today.getTime();
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }).filter((days: number) => days >= 0); // Only future dates
+  }, [apiExpirations, today]);
+  
+  // Convert calculated dates to days from today (fallback)
   const calculatedExpirationDays = useMemo(() => {
     return expirationDates.map(date => {
       const diffTime = date.getTime() - today.getTime();
@@ -60,9 +87,8 @@ export function ExpirationTimeline({
     });
   }, [expirationDates, today]);
   
-  // Always use calculated standard Friday expirations for the timeline
-  // The expirationDays prop is kept for future API integration
-  const allDays = calculatedExpirationDays;
+  // Use API data if available, otherwise use calculated Friday expirations
+  const allDays = apiExpirationDays.length > 0 ? apiExpirationDays : calculatedExpirationDays;
   
   const getDaysLabel = (days: number) => {
     const targetDate = new Date(today);
@@ -82,7 +108,7 @@ export function ExpirationTimeline({
     let currentMonth = '';
     let currentYear = '';
     
-    allDays.forEach(days => {
+    allDays.forEach((days: number) => {
       const { month, day, year } = getDaysLabel(days);
       const monthYear = `${month}${year}`;
       
@@ -105,6 +131,14 @@ export function ExpirationTimeline({
       <div className="flex items-center gap-2 mb-3">
         <span className="text-sm font-semibold text-foreground">EXPIRATION:</span>
         <span className="text-sm font-bold text-foreground">{selectedExpirationDays}d</span>
+        {isLoading && (
+          <span className="text-xs text-muted-foreground">(Loading...)</span>
+        )}
+        {apiExpirations && (
+          <span className="text-xs text-muted-foreground">
+            ({apiExpirations.expirations.length} dates)
+          </span>
+        )}
       </div>
 
       <div className="flex items-stretch gap-0 overflow-x-auto pb-2">

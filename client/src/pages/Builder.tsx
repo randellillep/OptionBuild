@@ -167,6 +167,7 @@ export default function Builder() {
                 expirationDays={uniqueExpirationDays}
                 selectedDays={selectedExpirationDays}
                 onSelectDays={setSelectedExpirationDays}
+                symbol={symbolInfo.symbol}
               />
 
               <StrikeLadder
