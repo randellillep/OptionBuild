@@ -8,7 +8,13 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 11, 2025)
 
-- **Real Options Chain Data Integration** (LATEST):
+- **Enhanced Heatmap and Strike Ladder UI** (LATEST):
+  - Added percentage column to P/L heatmap showing % change from current price for each strike
+  - "RANGE: ±X%" badge displays current range slider value in heatmap header
+  - Strike Ladder now shows strike prices with option types (e.g., "275C", "110P") in prominent badges
+  - Green badges for calls, red badges for puts positioned above strike lines
+  - Automatic inclusion of actual leg strikes in Strike Ladder for precise visualization
+- **Real Options Chain Data Integration**:
   - Integrated Alpaca API for real-time options market data with bid/ask prices and Greeks
   - New Options Chain tab displays live market data: strikes, bid/ask, spread %, IV, delta, gamma, theta, vega
   - Backend endpoint `/api/options/chain/:symbol` with 60s server-side caching (1,000 API calls/minute free tier)

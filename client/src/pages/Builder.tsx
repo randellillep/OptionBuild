@@ -206,6 +206,7 @@ export default function Builder() {
                     strikes={scenarioGrid.strikes}
                     days={scenarioGrid.days}
                     currentPrice={symbolInfo.price}
+                    rangePercent={range}
                   />
                   
                   <RangeVolatilitySliders

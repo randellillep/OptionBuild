@@ -7,9 +7,10 @@ interface PLHeatmapProps {
   strikes: number[];
   days: number[];
   currentPrice: number;
+  rangePercent?: number;
 }
 
-export function PLHeatmap({ grid, strikes, days, currentPrice }: PLHeatmapProps) {
+export function PLHeatmap({ grid, strikes, days, currentPrice, rangePercent = 14 }: PLHeatmapProps) {
   const allPnlValues = grid.flatMap(row => row.map(cell => cell.pnl));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
 
@@ -53,7 +54,10 @@ export function PLHeatmap({ grid, strikes, days, currentPrice }: PLHeatmapProps)
             P/L across different strike prices and expiration dates
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-xs font-semibold">
+            RANGE: ±{rangePercent}%
+          </Badge>
           <Badge variant="secondary" className="text-xs">
             <span className="text-green-600 dark:text-green-500 mr-1">■</span>
             Profit
@@ -69,8 +73,11 @@ export function PLHeatmap({ grid, strikes, days, currentPrice }: PLHeatmapProps)
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="text-xs font-semibold text-left p-2 border-b border-border sticky left-0 bg-background z-10">
+              <th className="text-xs font-semibold text-left p-2 border-b border-border sticky left-0 bg-background z-10 w-[100px]">
                 Strike
+              </th>
+              <th className="text-xs font-semibold text-right p-2 border-b border-border bg-background w-[60px]">
+                %
               </th>
               {days.map((day) => (
                 <th
@@ -89,6 +96,7 @@ export function PLHeatmap({ grid, strikes, days, currentPrice }: PLHeatmapProps)
           <tbody>
             {grid.map((row, rowIdx) => {
               const strike = strikes[rowIdx];
+              const percentChange = ((strike - currentPrice) / currentPrice) * 100;
               const isNearCurrent = Math.abs(strike - currentPrice) < (currentPrice * 0.02);
               
               return (
@@ -101,8 +109,18 @@ export function PLHeatmap({ grid, strikes, days, currentPrice }: PLHeatmapProps)
                   >
                     ${strike.toFixed(2)}
                     {isNearCurrent && (
-                      <Badge className="ml-2 text-[8px] h-4 px-1">Current</Badge>
+                      <Badge className="ml-2 text-[8px] h-4 px-1">ATM</Badge>
                     )}
+                  </td>
+                  <td
+                    className={`text-xs font-mono text-right p-2 border-b border-border bg-background ${
+                      percentChange > 0 ? 'text-green-600 dark:text-green-400' : 
+                      percentChange < 0 ? 'text-red-600 dark:text-red-400' : 
+                      'text-muted-foreground'
+                    }`}
+                    data-testid={`percent-${strike.toFixed(2)}`}
+                  >
+                    {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%
                   </td>
                   {row.map((cell, colIdx) => (
                     <td

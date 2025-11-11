@@ -11,20 +11,28 @@ interface StrikeLadderProps {
 export function StrikeLadder({ legs, currentPrice, strikeRange }: StrikeLadderProps) {
   const strikeCount = 20;
   const strikeStep = (strikeRange.max - strikeRange.min) / (strikeCount - 1);
-  const strikes = Array.from({ length: strikeCount }, (_, i) => 
+  const baseStrikes = Array.from({ length: strikeCount }, (_, i) => 
     strikeRange.min + i * strikeStep
   );
+  
+  // Add actual leg strikes to ensure they appear on the ladder
+  const legStrikes = legs.map(leg => leg.strike);
+  const allStrikes = Array.from(new Set([...baseStrikes, ...legStrikes]))
+    .filter(s => s >= strikeRange.min && s <= strikeRange.max)
+    .sort((a, b) => a - b);
+  
+  const strikes = allStrikes;
 
   const getStrikeInfo = (strike: number) => {
-    const tolerance = strikeStep / 2;
     const legsAtStrike = legs.filter(
-      leg => Math.abs(leg.strike - strike) < tolerance
+      leg => Math.abs(leg.strike - strike) < 0.01
     );
     
     return {
       hasLegs: legsAtStrike.length > 0,
       calls: legsAtStrike.filter(l => l.type === "call").length,
       puts: legsAtStrike.filter(l => l.type === "put").length,
+      legs: legsAtStrike,
     };
   };
 
@@ -32,15 +40,15 @@ export function StrikeLadder({ legs, currentPrice, strikeRange }: StrikeLadderPr
     ((currentPrice - strikeRange.min) / (strikeRange.max - strikeRange.min)) * 100;
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 pb-6">
       <div className="mb-3">
-        <h3 className="text-sm font-semibold mb-1">Strike Prices</h3>
+        <h3 className="text-sm font-semibold mb-1">STRIKE:</h3>
         <p className="text-xs text-muted-foreground">
           Visual representation of strike price range
         </p>
       </div>
 
-      <div className="relative h-20 bg-muted/30 rounded-md overflow-hidden">
+      <div className="relative h-24 bg-muted/30 rounded-md overflow-visible">
         <div className="absolute inset-0 flex items-center justify-between px-2">
           {strikes.map((strike, idx) => {
             const info = getStrikeInfo(strike);
@@ -60,19 +68,19 @@ export function StrikeLadder({ legs, currentPrice, strikeRange }: StrikeLadderPr
                   }`}
                 />
                 {info.hasLegs && (
-                  <div className="absolute -bottom-2 flex gap-1">
+                  <div className="absolute -top-7 flex gap-1 flex-col items-center">
                     {info.calls > 0 && (
                       <Badge 
-                        className="text-[8px] h-4 px-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                        className="text-[10px] h-5 px-2 bg-green-500 text-white hover:bg-green-600 font-bold whitespace-nowrap"
                       >
-                        C
+                        {strike.toFixed(0)}C
                       </Badge>
                     )}
                     {info.puts > 0 && (
                       <Badge 
-                        className="text-[8px] h-4 px-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                        className="text-[10px] h-5 px-2 bg-red-500 text-white hover:bg-red-600 font-bold whitespace-nowrap"
                       >
-                        P
+                        {strike.toFixed(0)}P
                       </Badge>
                     )}
                   </div>
