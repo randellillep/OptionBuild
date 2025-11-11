@@ -1,25 +1,24 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfitLossChart } from "@/components/ProfitLossChart";
-import { GreeksDashboard } from "@/components/GreeksDashboard";
 import { StrategyMetricsCard } from "@/components/StrategyMetricsCard";
 import { OptionLegEditor } from "@/components/OptionLegEditor";
-import { StrategyTemplateCard } from "@/components/StrategyTemplateCard";
 import { SymbolSearchBar } from "@/components/SymbolSearchBar";
 import { ExpirationTimeline } from "@/components/ExpirationTimeline";
 import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { AddLegDropdown } from "@/components/AddLegDropdown";
+import { RangeVolatilitySliders } from "@/components/RangeVolatilitySliders";
+import { AnalysisTabs } from "@/components/AnalysisTabs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Plus, Home, BarChart3, Table } from "lucide-react";
+import { TrendingUp, ChevronDown, BarChart3, Table, BookOpen, FileText, User } from "lucide-react";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation } from "wouter";
@@ -27,7 +26,8 @@ import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 
 export default function Builder() {
   const [, setLocation] = useLocation();
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [range, setRange] = useState(14);
+  const [volatilityPercent, setVolatilityPercent] = useState(30);
   
   const {
     symbolInfo,
@@ -43,15 +43,10 @@ export default function Builder() {
     setSelectedExpirationDays,
   } = useStrategyEngine();
 
-  const addLeg = () => {
+  const addLeg = (legTemplate: Omit<OptionLeg, "id">) => {
     const newLeg: OptionLeg = {
+      ...legTemplate,
       id: Date.now().toString(),
-      type: "call",
-      position: "long",
-      strike: symbolInfo.price,
-      quantity: 1,
-      premium: 5.0,
-      expirationDays: uniqueExpirationDays[0] || 30,
     };
     setLegs([...legs, newLeg]);
   };
@@ -69,62 +64,85 @@ export default function Builder() {
   const loadTemplate = (templateIndex: number) => {
     const template = strategyTemplates[templateIndex];
     setLegs(template.legs.map(leg => ({ ...leg, id: Date.now().toString() + leg.id })));
-    setTemplateDialogOpen(false);
-  };
-
-  const getRiskLevel = (legCount: number): "Low" | "Medium" | "High" => {
-    if (legCount === 1) return "Medium";
-    if (legCount === 2) return "Low";
-    return "High";
   };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
+          <div className="flex items-center gap-6">
+            <div 
+              className="flex items-center gap-2 cursor-pointer" 
               onClick={() => setLocation("/")}
-              data-testid="button-home"
             >
-              <Home className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2">
               <TrendingUp className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">OptionFlow Builder</span>
+              <span className="text-xl font-bold">OptionFlow</span>
             </div>
+
+            <nav className="hidden md:flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" data-testid="button-build-menu">
+                    Build
+                    <ChevronDown className="ml-1 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  {strategyTemplates.slice(0, 10).map((template, idx) => (
+                    <DropdownMenuItem
+                      key={idx}
+                      onClick={() => loadTemplate(idx)}
+                      data-testid={`menu-strategy-${template.name.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      <div>
+                        <div className="font-medium">{template.name}</div>
+                        <div className="text-xs text-muted-foreground">{template.description.substring(0, 50)}...</div>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button variant="ghost" data-testid="button-optimize">
+                Optimize
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" data-testid="button-market-trends">
+                    Market Trends
+                    <ChevronDown className="ml-1 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem data-testid="menu-market-movers">
+                    Market Movers
+                  </DropdownMenuItem>
+                  <DropdownMenuItem data-testid="menu-earnings-calendar">
+                    Earnings Calendar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem data-testid="menu-volatility-leaders">
+                    Volatility Leaders
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </nav>
           </div>
 
           <div className="flex items-center gap-2">
-            <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" data-testid="button-load-template">
-                  Load Template
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Choose a Strategy Template</DialogTitle>
-                  <DialogDescription>
-                    Select from {strategyTemplates.length} pre-built options strategies
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  {strategyTemplates.map((template, idx) => (
-                    <StrategyTemplateCard
-                      key={idx}
-                      name={template.name}
-                      description={template.description}
-                      legCount={template.legs.length}
-                      riskLevel={getRiskLevel(template.legs.length)}
-                      onSelect={() => loadTemplate(idx)}
-                    />
-                  ))}
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button variant="ghost" size="sm" data-testid="button-tutorials">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Tutorials
+            </Button>
+            <Button variant="ghost" size="sm" data-testid="button-blog">
+              <FileText className="h-4 w-4 mr-2" />
+              Blog
+            </Button>
+            <Button variant="ghost" size="sm" data-testid="button-my-account">
+              <User className="h-4 w-4 mr-2" />
+              My Account
+            </Button>
+            <AddLegDropdown currentPrice={symbolInfo.price} onAddLeg={addLeg} />
             <ThemeToggle />
           </div>
         </div>
@@ -151,57 +169,64 @@ export default function Builder() {
                 strikeRange={strikeRange}
               />
 
-              <Tabs defaultValue="chart" className="w-full">
+              <Tabs defaultValue="heatmap" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="chart" data-testid="tab-chart">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    P/L Chart
-                  </TabsTrigger>
-                  <TabsTrigger value="heatmap" data-testid="tab-heatmap">
+                  <TabsTrigger value="heatmap" data-testid="tab-heatmap-view">
                     <Table className="h-4 w-4 mr-2" />
                     Heatmap
                   </TabsTrigger>
+                  <TabsTrigger value="chart" data-testid="tab-chart-view">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    P/L Chart
+                  </TabsTrigger>
                 </TabsList>
-                <TabsContent value="chart" className="mt-4">
-                  <ProfitLossChart legs={legs} underlyingPrice={symbolInfo.price} />
-                </TabsContent>
-                <TabsContent value="heatmap" className="mt-4">
+                <TabsContent value="heatmap" className="mt-4 space-y-6">
                   <PLHeatmap
                     grid={scenarioGrid.grid}
                     strikes={scenarioGrid.strikes}
                     days={scenarioGrid.days}
                     currentPrice={symbolInfo.price}
                   />
+                  
+                  <RangeVolatilitySliders
+                    range={range}
+                    onRangeChange={setRange}
+                    impliedVolatility={volatilityPercent}
+                    onVolatilityChange={setVolatilityPercent}
+                  />
+
+                  <AnalysisTabs greeks={totalGreeks} />
+                </TabsContent>
+                <TabsContent value="chart" className="mt-4 space-y-6">
+                  <ProfitLossChart legs={legs} underlyingPrice={symbolInfo.price} />
+                  
+                  <RangeVolatilitySliders
+                    range={range}
+                    onRangeChange={setRange}
+                    impliedVolatility={volatilityPercent}
+                    onVolatilityChange={setVolatilityPercent}
+                  />
+
+                  <AnalysisTabs greeks={totalGreeks} />
                 </TabsContent>
               </Tabs>
-
-              <GreeksDashboard greeks={totalGreeks} />
             </div>
 
             <div className="space-y-6">
               <StrategyMetricsCard metrics={metrics} />
-            </div>
-          </div>
 
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Option Legs</h3>
-              <Button onClick={addLeg} data-testid="button-add-leg">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Leg
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {legs.map((leg) => (
-                <OptionLegEditor
-                  key={leg.id}
-                  leg={leg}
-                  onUpdate={(updatedLeg) => updateLeg(leg.id, updatedLeg)}
-                  onRemove={() => removeLeg(leg.id)}
-                  underlyingPrice={symbolInfo.price}
-                />
-              ))}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Option Legs</h3>
+                {legs.map((leg) => (
+                  <OptionLegEditor
+                    key={leg.id}
+                    leg={leg}
+                    onUpdate={(updatedLeg) => updateLeg(leg.id, updatedLeg)}
+                    onRemove={() => removeLeg(leg.id)}
+                    underlyingPrice={symbolInfo.price}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
