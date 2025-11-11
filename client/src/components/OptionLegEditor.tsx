@@ -22,10 +22,10 @@ export function OptionLegEditor({ leg, onUpdate, onRemove, underlyingPrice }: Op
     : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50";
 
   return (
-    <Card className={`p-4 ${bgColor}`}>
+    <Card className={`p-4 ${bgColor}`} data-testid="leg-card">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h4 className="font-semibold">
+          <h4 className="font-semibold" data-testid={`leg-title-${leg.id}`}>
             {isLong ? "Long" : "Short"} {isCall ? "Call" : "Put"}
           </h4>
           <p className="text-xs text-muted-foreground">
