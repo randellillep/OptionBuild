@@ -165,8 +165,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(cachedData);
       }
 
-      // Build Alpaca API URL
-      const url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}`;
+      // Build Alpaca API URL with feed parameter for free tier (indicative pricing)
+      const url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}?feed=indicative`;
 
       const response = await fetch(url, {
         headers: {
