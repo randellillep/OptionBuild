@@ -195,6 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Options Chain] Filtering for expiration: ${expiration}`);
       }
       const quotes: MarketOptionQuote[] = [];
+      const allExpirations = new Set<string>();
       
       // Parse option symbol to extract strike, expiration, type
       // Format: AAPL251219C00225000 (ticker + YYMMDD + C/P + strike*1000)
@@ -206,25 +207,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const year = 2000 + parseInt(dateStr.substring(0, 2));
         const month = parseInt(dateStr.substring(2, 4));
         const day = parseInt(dateStr.substring(4, 6));
-        const expDate = new Date(year, month - 1, day);
+        // Use UTC to avoid timezone issues
+        const expDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
         const strike = parseInt(strikeStr) / 1000;
         const side = callPut === 'C' ? 'call' : 'put';
+        // Also return ISO date string for easier comparison
+        const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
-        return { strike, expiration: Math.floor(expDate.getTime() / 1000), side };
+        return { strike, expiration: Math.floor(expDate.getTime() / 1000), side, isoDate };
       };
 
       for (const [optionSymbol, snapshot] of Object.entries(snapshots) as [string, any][]) {
         const parsed = parseOptionSymbol(optionSymbol);
         if (!parsed) continue;
+        
+        // Track all expirations found
+        allExpirations.add(parsed.isoDate);
 
         // Apply filters
         if (side && parsed.side !== side) continue;
         if (strike && Math.abs(parsed.strike - strike) > 0.01) continue;
-        if (expiration) {
-          const expDate = new Date(expiration);
-          const targetExp = Math.floor(expDate.getTime() / 1000);
-          if (Math.abs(parsed.expiration - targetExp) > 86400) continue; // Allow 1 day difference
-        }
+        // Don't filter by expiration - return all available options and let frontend handle it
+        // The frontend may request a specific date but Alpaca only has limited expirations
+        // if (expiration && parsed.isoDate !== expiration) continue;
 
         const quote = snapshot.latestQuote || {};
         const trade = snapshot.latestTrade || {};
@@ -265,7 +270,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Compute metadata
       const expirations = Array.from(new Set(quotes.map(q => new Date(q.expiration * 1000).toISOString().split('T')[0])));
-      console.log(`[Options Chain] After filtering: ${quotes.length} quotes, expirations found:`, expirations.slice(0, 5));
+      const sortedAllExpirations = Array.from(allExpirations).sort();
+      console.log(`[Options Chain] After filtering: ${quotes.length} quotes, expirations in filtered results:`, expirations.slice(0, 5));
+      console.log(`[Options Chain] All available expirations in Alpaca data:`, sortedAllExpirations.slice(0, 10));
+      if (expiration && quotes.length === 0) {
+        console.log(`[Options Chain] WARNING: Requested expiration ${expiration} not found. Available dates start with: ${sortedAllExpirations[0]}`);
+      }
       const strikes = quotes.map(q => q.strike);
       const minStrike = strikes.length > 0 ? Math.min(...strikes) : 0;
       const maxStrike = strikes.length > 0 ? Math.max(...strikes) : 0;

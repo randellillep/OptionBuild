@@ -59,28 +59,25 @@ export function StrikeLadder({
     ((currentPrice - strikeRange.min) / (strikeRange.max - strikeRange.min)) * 100;
 
   const getMarketDataForLeg = (leg: OptionLeg) => {
-    if (!optionsChainData) return undefined;
+    if (!optionsChainData || !optionsChainData.quotes) return undefined;
     
-    const chainType = leg.type === "call" ? "calls" : "puts";
-    const chain = optionsChainData[chainType] || [];
-    
-    // Find option with matching strike
-    const option = chain.find((opt: any) => 
-      Math.abs(parseFloat(opt.strike_price) - leg.strike) < 0.01
+    // Find option with matching strike and type
+    const option = optionsChainData.quotes.find((opt: any) => 
+      Math.abs(opt.strike - leg.strike) < 0.01 && opt.side === leg.type
     );
     
     if (!option) return undefined;
     
     return {
-      bid: parseFloat(option.bid_price || "0"),
-      ask: parseFloat(option.ask_price || "0"),
-      iv: parseFloat(option.implied_volatility || "0"),
-      delta: parseFloat(option.greeks?.delta || "0"),
-      gamma: parseFloat(option.greeks?.gamma || "0"),
-      theta: parseFloat(option.greeks?.theta || "0"),
-      vega: parseFloat(option.greeks?.vega || "0"),
-      rho: parseFloat(option.greeks?.rho || "0"),
-      volume: parseInt(option.volume || "0"),
+      bid: option.bid || 0,
+      ask: option.ask || 0,
+      iv: option.iv || 0,
+      delta: option.delta || 0,
+      gamma: option.gamma || 0,
+      theta: option.theta || 0,
+      vega: option.vega || 0,
+      rho: option.rho || 0,
+      volume: option.volume || 0,
     };
   };
 
