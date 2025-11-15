@@ -66,8 +66,8 @@ export default function Builder() {
     setLegs([...legs, newLeg]);
   };
 
-  const updateLeg = (id: string, updatedLeg: OptionLeg) => {
-    setLegs(legs.map((leg) => (leg.id === id ? updatedLeg : leg)));
+  const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
+    setLegs(legs.map((leg) => (leg.id === id ? { ...leg, ...updates } : leg)));
   };
 
   const removeLeg = (id: string) => {
@@ -264,6 +264,11 @@ export default function Builder() {
                 legs={legs}
                 currentPrice={symbolInfo.price}
                 strikeRange={strikeRange}
+                symbol={symbolInfo.symbol}
+                expirationDate={selectedExpirationDate}
+                onUpdateLeg={updateLeg}
+                onRemoveLeg={removeLeg}
+                optionsChainData={optionsChainData}
               />
 
               <Tabs defaultValue="heatmap" className="w-full">

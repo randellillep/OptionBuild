@@ -1,14 +1,33 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
 import type { OptionLeg } from "@shared/schema";
 
 interface StrikeLadderProps {
   legs: OptionLeg[];
   currentPrice: number;
   strikeRange: { min: number; max: number };
+  symbol: string;
+  expirationDate: string | null;
+  onUpdateLeg: (legId: string, updates: Partial<OptionLeg>) => void;
+  onRemoveLeg: (legId: string) => void;
+  optionsChainData?: any; // TODO: type this properly
 }
 
-export function StrikeLadder({ legs, currentPrice, strikeRange }: StrikeLadderProps) {
+export function StrikeLadder({ 
+  legs, 
+  currentPrice, 
+  strikeRange,
+  symbol,
+  expirationDate,
+  onUpdateLeg,
+  onRemoveLeg,
+  optionsChainData,
+}: StrikeLadderProps) {
+  const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const strikeCount = 20;
   const strikeStep = (strikeRange.max - strikeRange.min) / (strikeCount - 1);
   const baseStrikes = Array.from({ length: strikeCount }, (_, i) => 
@@ -38,6 +57,37 @@ export function StrikeLadder({ legs, currentPrice, strikeRange }: StrikeLadderPr
 
   const currentPricePercent = 
     ((currentPrice - strikeRange.min) / (strikeRange.max - strikeRange.min)) * 100;
+
+  const getMarketDataForLeg = (leg: OptionLeg) => {
+    if (!optionsChainData) return undefined;
+    
+    const chainType = leg.type === "call" ? "calls" : "puts";
+    const chain = optionsChainData[chainType] || [];
+    
+    // Find option with matching strike
+    const option = chain.find((opt: any) => 
+      Math.abs(parseFloat(opt.strike_price) - leg.strike) < 0.01
+    );
+    
+    if (!option) return undefined;
+    
+    return {
+      bid: parseFloat(option.bid_price || "0"),
+      ask: parseFloat(option.ask_price || "0"),
+      iv: parseFloat(option.implied_volatility || "0"),
+      delta: parseFloat(option.greeks?.delta || "0"),
+      gamma: parseFloat(option.greeks?.gamma || "0"),
+      theta: parseFloat(option.greeks?.theta || "0"),
+      vega: parseFloat(option.greeks?.vega || "0"),
+      rho: parseFloat(option.greeks?.rho || "0"),
+      volume: parseInt(option.volume || "0"),
+    };
+  };
+
+  const handleBadgeClick = (leg: OptionLeg) => {
+    setSelectedLeg(leg);
+    setPopoverOpen(true);
+  };
 
   return (
     <Card className="p-4 pb-6">
@@ -69,20 +119,102 @@ export function StrikeLadder({ legs, currentPrice, strikeRange }: StrikeLadderPr
                 />
                 {info.hasLegs && (
                   <div className="absolute -top-7 flex gap-1 flex-col items-center">
-                    {info.calls > 0 && (
-                      <Badge 
-                        className="text-[10px] h-5 px-2 bg-green-500 text-white hover:bg-green-600 font-bold whitespace-nowrap"
-                      >
-                        {strike.toFixed(0)}C
-                      </Badge>
-                    )}
-                    {info.puts > 0 && (
-                      <Badge 
-                        className="text-[10px] h-5 px-2 bg-red-500 text-white hover:bg-red-600 font-bold whitespace-nowrap"
-                      >
-                        {strike.toFixed(0)}P
-                      </Badge>
-                    )}
+                    {info.calls > 0 && info.legs.filter(l => l.type === "call").map(leg => (
+                      <Popover key={leg.id} open={popoverOpen && selectedLeg?.id === leg.id} onOpenChange={(open) => {
+                        if (!open && selectedLeg?.id === leg.id) {
+                          setPopoverOpen(false);
+                          setSelectedLeg(null);
+                        }
+                      }}>
+                        <PopoverTrigger asChild>
+                          <Badge 
+                            className="text-[10px] h-5 px-2 bg-green-500 text-white hover:bg-green-600 font-bold whitespace-nowrap cursor-pointer"
+                            onClick={() => handleBadgeClick(leg)}
+                            data-testid={`badge-call-${strike.toFixed(0)}`}
+                          >
+                            {strike.toFixed(0)}C
+                          </Badge>
+                        </PopoverTrigger>
+                        {selectedLeg?.id === leg.id && (
+                          <PopoverContent className="p-0" align="start" side="right">
+                            <OptionDetailsPanel
+                              leg={leg}
+                              symbol={symbol}
+                              expirationDate={expirationDate}
+                              marketData={getMarketDataForLeg(leg)}
+                              onUpdateQuantity={(quantity) => {
+                                onUpdateLeg(leg.id, { quantity });
+                              }}
+                              onSwitchType={() => {
+                                onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                              onChangePosition={() => {
+                                onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
+                              }}
+                              onRemove={() => {
+                                onRemoveLeg(leg.id);
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                              onClose={() => {
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                            />
+                          </PopoverContent>
+                        )}
+                      </Popover>
+                    ))}
+                    {info.puts > 0 && info.legs.filter(l => l.type === "put").map(leg => (
+                      <Popover key={leg.id} open={popoverOpen && selectedLeg?.id === leg.id} onOpenChange={(open) => {
+                        if (!open && selectedLeg?.id === leg.id) {
+                          setPopoverOpen(false);
+                          setSelectedLeg(null);
+                        }
+                      }}>
+                        <PopoverTrigger asChild>
+                          <Badge 
+                            className="text-[10px] h-5 px-2 bg-red-500 text-white hover:bg-red-600 font-bold whitespace-nowrap cursor-pointer"
+                            onClick={() => handleBadgeClick(leg)}
+                            data-testid={`badge-put-${strike.toFixed(0)}`}
+                          >
+                            {strike.toFixed(0)}P
+                          </Badge>
+                        </PopoverTrigger>
+                        {selectedLeg?.id === leg.id && (
+                          <PopoverContent className="p-0" align="start" side="right">
+                            <OptionDetailsPanel
+                              leg={leg}
+                              symbol={symbol}
+                              expirationDate={expirationDate}
+                              marketData={getMarketDataForLeg(leg)}
+                              onUpdateQuantity={(quantity) => {
+                                onUpdateLeg(leg.id, { quantity });
+                              }}
+                              onSwitchType={() => {
+                                onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                              onChangePosition={() => {
+                                onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
+                              }}
+                              onRemove={() => {
+                                onRemoveLeg(leg.id);
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                              onClose={() => {
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                            />
+                          </PopoverContent>
+                        )}
+                      </Popover>
+                    ))}
                   </div>
                 )}
               </div>
