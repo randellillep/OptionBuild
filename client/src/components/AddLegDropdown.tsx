@@ -11,9 +11,10 @@ import type { OptionLeg } from "@shared/schema";
 interface AddLegDropdownProps {
   currentPrice: number;
   onAddLeg: (leg: Omit<OptionLeg, "id">) => void;
+  onOpenDetails?: (leg: OptionLeg) => void;
 }
 
-export function AddLegDropdown({ currentPrice, onAddLeg }: AddLegDropdownProps) {
+export function AddLegDropdown({ currentPrice, onAddLeg, onOpenDetails }: AddLegDropdownProps) {
   const legTemplates = [
     {
       label: "Buy Call",
@@ -37,19 +38,42 @@ export function AddLegDropdown({ currentPrice, onAddLeg }: AddLegDropdownProps) 
     },
   ];
 
-  const handleAddLeg = (template: typeof legTemplates[0]) => {
-    const strike = template.type === "call" 
-      ? Math.round(currentPrice * 1.05) 
-      : Math.round(currentPrice * 0.95);
+  // Helper to round strike with directional bias
+  const roundStrike = (strike: number, direction: 'up' | 'down' = 'up'): number => {
+    let increment: number;
+    if (strike < 25) increment = 0.5;
+    else if (strike < 100) increment = 1;
+    else if (strike < 200) increment = 2.5;
+    else increment = 5;
     
-    onAddLeg({
+    return direction === 'up' 
+      ? Math.ceil(strike / increment) * increment
+      : Math.floor(strike / increment) * increment;
+  };
+
+  const handleAddLeg = (template: typeof legTemplates[0]) => {
+    // Calculate ATM strike with proper rounding
+    const strike = template.type === "call" 
+      ? roundStrike(currentPrice, 'up')
+      : roundStrike(currentPrice, 'down');
+    
+    const newLeg: OptionLeg = {
+      id: Date.now().toString(),
       type: template.type,
       position: template.position,
       strike,
       quantity: 1,
       premium: 3.5,
       expirationDays: 30,
-    });
+    };
+
+    // If onOpenDetails is provided, open the details panel instead of directly adding
+    if (onOpenDetails) {
+      onOpenDetails(newLeg);
+    } else {
+      // Fallback to direct add
+      onAddLeg(newLeg);
+    }
   };
 
   return (

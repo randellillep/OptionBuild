@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Minus, Plus, X } from "lucide-react";
-import type { OptionLeg } from "@shared/schema";
+import type { OptionLeg, MarketOptionChainSummary } from "@shared/schema";
 
 interface OptionMarketData {
   bid?: number;
@@ -19,27 +19,62 @@ interface OptionMarketData {
 
 interface OptionDetailsPanelProps {
   leg: OptionLeg;
-  symbol: string;
-  expirationDate: string | null;
-  marketData?: OptionMarketData;
-  onUpdateQuantity: (quantity: number) => void;
-  onSwitchType: () => void;
-  onChangePosition: () => void;
-  onRemove: () => void;
+  optionsChainData?: MarketOptionChainSummary;
+  onUpdateLeg?: (updates: Partial<OptionLeg>) => void;
+  onAddToStrategy?: () => void;
   onClose: () => void;
+  // Legacy props for backward compatibility
+  symbol?: string;
+  expirationDate?: string | null;
+  marketData?: OptionMarketData;
+  onUpdateQuantity?: (quantity: number) => void;
+  onSwitchType?: () => void;
+  onChangePosition?: () => void;
+  onRemove?: () => void;
 }
 
 export function OptionDetailsPanel({
   leg,
-  symbol,
-  expirationDate,
-  marketData,
+  optionsChainData,
+  onUpdateLeg,
+  onAddToStrategy,
+  onClose,
+  // Legacy props
+  symbol: legacySymbol,
+  expirationDate: legacyExpirationDate,
+  marketData: legacyMarketData,
   onUpdateQuantity,
   onSwitchType,
   onChangePosition,
   onRemove,
-  onClose,
 }: OptionDetailsPanelProps) {
+  // Extract market data from optionsChainData if available
+  const getMarketData = (): OptionMarketData | undefined => {
+    if (legacyMarketData) return legacyMarketData;
+    if (!optionsChainData || !optionsChainData.quotes) return undefined;
+    
+    const option = optionsChainData.quotes.find((opt: any) => 
+      Math.abs(opt.strike - leg.strike) < 0.01 && opt.side === leg.type
+    );
+    
+    if (!option) return undefined;
+    
+    return {
+      bid: option.bid || 0,
+      ask: option.ask || 0,
+      iv: option.iv || 0,
+      delta: option.delta || 0,
+      gamma: option.gamma || 0,
+      theta: option.theta || 0,
+      vega: option.vega || 0,
+      rho: option.rho || 0,
+      volume: option.volume || 0,
+    };
+  };
+
+  const marketData = getMarketData();
+  const symbol = legacySymbol || optionsChainData?.symbol || "N/A";
+  const expirationDate = legacyExpirationDate || (optionsChainData?.expirations?.[0] || null);
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
     const date = new Date(dateStr);
@@ -95,7 +130,11 @@ export function OptionDetailsPanel({
           <Button
             size="icon"
             variant="outline"
-            onClick={() => onUpdateQuantity(Math.max(1, leg.quantity - 1))}
+            onClick={() => {
+              const newQuantity = Math.max(1, leg.quantity - 1);
+              if (onUpdateQuantity) onUpdateQuantity(newQuantity);
+              if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
+            }}
             className="h-8 w-8"
             data-testid="button-decrease-quantity"
           >
@@ -107,7 +146,11 @@ export function OptionDetailsPanel({
           <Button
             size="icon"
             variant="outline"
-            onClick={() => onUpdateQuantity(leg.quantity + 1)}
+            onClick={() => {
+              const newQuantity = leg.quantity + 1;
+              if (onUpdateQuantity) onUpdateQuantity(newQuantity);
+              if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
+            }}
             className="h-8 w-8"
             data-testid="button-increase-quantity"
           >
@@ -171,33 +214,55 @@ export function OptionDetailsPanel({
 
       {/* Actions */}
       <div className="space-y-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-start text-xs"
-          onClick={onSwitchType}
-          data-testid="button-switch-type"
-        >
-          Switch to {leg.type === "call" ? "Put" : "Call"}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-start text-xs"
-          onClick={onChangePosition}
-          data-testid="button-change-position"
-        >
-          {oppositePosition} to Close
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-start text-xs text-destructive hover:text-destructive"
-          onClick={onRemove}
-          data-testid="button-remove-leg"
-        >
-          Remove
-        </Button>
+        {onAddToStrategy ? (
+          // Add mode - show "Add to Strategy" button
+          <Button
+            variant="default"
+            size="sm"
+            className="w-full text-xs"
+            onClick={onAddToStrategy}
+            data-testid="button-add-to-strategy"
+          >
+            Add to Strategy
+          </Button>
+        ) : (
+          // Edit mode - show edit/remove actions
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start text-xs"
+              onClick={() => {
+                if (onSwitchType) onSwitchType();
+                if (onUpdateLeg) onUpdateLeg({ type: leg.type === "call" ? "put" : "call" });
+              }}
+              data-testid="button-switch-type"
+            >
+              Switch to {leg.type === "call" ? "Put" : "Call"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start text-xs"
+              onClick={() => {
+                if (onChangePosition) onChangePosition();
+                if (onUpdateLeg) onUpdateLeg({ position: leg.position === "long" ? "short" : "long" });
+              }}
+              data-testid="button-change-position"
+            >
+              {oppositePosition} to Close
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start text-xs text-destructive hover:text-destructive"
+              onClick={onRemove}
+              data-testid="button-remove-leg"
+            >
+              Remove
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

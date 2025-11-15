@@ -6,6 +6,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfitLossChart } from "@/components/ProfitLossChart";
 import { StrategyMetricsCard } from "@/components/StrategyMetricsCard";
@@ -17,6 +22,7 @@ import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { RangeVolatilitySliders } from "@/components/RangeVolatilitySliders";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
+import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, ChevronDown, BarChart3, Table, BookOpen, FileText, User, DollarSign } from "lucide-react";
 import type { OptionLeg } from "@shared/schema";
@@ -29,6 +35,8 @@ import { OptionsChainTable } from "@/components/OptionsChainTable";
 export default function Builder() {
   const [, setLocation] = useLocation();
   const [range, setRange] = useState(14);
+  const [selectedLegForDetails, setSelectedLegForDetails] = useState<OptionLeg | null>(null);
+  const [detailsPopoverOpen, setDetailsPopoverOpen] = useState(false);
   
   const {
     symbolInfo,
@@ -64,6 +72,19 @@ export default function Builder() {
       id: Date.now().toString(),
     };
     setLegs([...legs, newLeg]);
+  };
+
+  const handleOpenLegDetails = (leg: OptionLeg) => {
+    setSelectedLegForDetails(leg);
+    setDetailsPopoverOpen(true);
+  };
+
+  const handleAddLegFromDetails = () => {
+    if (selectedLegForDetails) {
+      addLeg(selectedLegForDetails);
+      setDetailsPopoverOpen(false);
+      setSelectedLegForDetails(null);
+    }
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
@@ -238,7 +259,30 @@ export default function Builder() {
               <User className="h-4 w-4 mr-2" />
               My Account
             </Button>
-            <AddLegDropdown currentPrice={symbolInfo.price} onAddLeg={addLeg} />
+            <Popover open={detailsPopoverOpen} onOpenChange={setDetailsPopoverOpen}>
+              <PopoverTrigger asChild>
+                <div>
+                  <AddLegDropdown 
+                    currentPrice={symbolInfo.price} 
+                    onAddLeg={addLeg}
+                    onOpenDetails={handleOpenLegDetails}
+                  />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-96 p-0" align="end">
+                {selectedLegForDetails && (
+                  <OptionDetailsPanel
+                    leg={selectedLegForDetails}
+                    optionsChainData={optionsChainData}
+                    onUpdateLeg={(updates) => {
+                      setSelectedLegForDetails({ ...selectedLegForDetails, ...updates });
+                    }}
+                    onAddToStrategy={handleAddLegFromDetails}
+                    onClose={() => setDetailsPopoverOpen(false)}
+                  />
+                )}
+              </PopoverContent>
+            </Popover>
             <ThemeToggle />
           </div>
         </div>
