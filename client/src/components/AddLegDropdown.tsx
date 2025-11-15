@@ -6,14 +6,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Plus } from "lucide-react";
-import type { OptionLeg } from "@shared/schema";
+import type { OptionLeg, MarketOptionChainSummary } from "@shared/schema";
 
 interface AddLegDropdownProps {
   currentPrice: number;
   onAddLeg: (leg: Omit<OptionLeg, "id">) => void;
+  optionsChainData?: MarketOptionChainSummary;
 }
 
-export function AddLegDropdown({ currentPrice, onAddLeg }: AddLegDropdownProps) {
+export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: AddLegDropdownProps) {
   const legTemplates = [
     {
       label: "Buy Call",
@@ -51,10 +52,36 @@ export function AddLegDropdown({ currentPrice, onAddLeg }: AddLegDropdownProps) 
   };
 
   const handleAddLeg = (template: typeof legTemplates[0]) => {
-    // Calculate ATM strike with proper rounding
-    const strike = template.type === "call" 
-      ? roundStrike(currentPrice, 'up')
-      : roundStrike(currentPrice, 'down');
+    let strike: number;
+    
+    // If we have options chain data, find the nearest available strike for this option type
+    if (optionsChainData && optionsChainData.quotes && optionsChainData.quotes.length > 0) {
+      // Filter options by type (call or put)
+      const optionsOfType = optionsChainData.quotes.filter(
+        (opt: any) => opt.side === template.type
+      );
+      
+      if (optionsOfType.length > 0) {
+        // Find the strike closest to ATM
+        const targetStrike = currentPrice;
+        const nearestOption = optionsOfType.reduce((closest: any, current: any) => {
+          const closestDiff = Math.abs(closest.strike - targetStrike);
+          const currentDiff = Math.abs(current.strike - targetStrike);
+          return currentDiff < closestDiff ? current : closest;
+        });
+        strike = nearestOption.strike;
+      } else {
+        // Fallback to calculated strike if no options of this type found
+        strike = template.type === "call" 
+          ? roundStrike(currentPrice, 'up')
+          : roundStrike(currentPrice, 'down');
+      }
+    } else {
+      // Fallback to calculated strike if no options chain data
+      strike = template.type === "call" 
+        ? roundStrike(currentPrice, 'up')
+        : roundStrike(currentPrice, 'down');
+    }
     
     onAddLeg({
       type: template.type,

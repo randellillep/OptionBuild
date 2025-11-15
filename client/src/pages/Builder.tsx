@@ -238,7 +238,11 @@ export default function Builder() {
               <User className="h-4 w-4 mr-2" />
               My Account
             </Button>
-            <AddLegDropdown currentPrice={symbolInfo.price} onAddLeg={addLeg} />
+            <AddLegDropdown 
+              currentPrice={symbolInfo.price} 
+              onAddLeg={addLeg}
+              optionsChainData={optionsChainData}
+            />
             <ThemeToggle />
           </div>
         </div>
