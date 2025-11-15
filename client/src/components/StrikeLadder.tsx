@@ -127,13 +127,13 @@ export function StrikeLadder({
                         }
                       }}>
                         <PopoverTrigger asChild>
-                          <Badge 
-                            className="text-[10px] h-5 px-2 bg-green-500 text-white hover:bg-green-600 font-bold whitespace-nowrap cursor-pointer"
+                          <button
                             onClick={() => handleBadgeClick(leg)}
                             data-testid={`badge-call-${strike.toFixed(0)}`}
+                            className="text-[10px] h-5 px-2 bg-green-500 text-white hover:bg-green-600 font-bold whitespace-nowrap cursor-pointer rounded-md border-0"
                           >
                             {strike.toFixed(0)}C
-                          </Badge>
+                          </button>
                         </PopoverTrigger>
                         {selectedLeg?.id === leg.id && (
                           <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
@@ -175,13 +175,13 @@ export function StrikeLadder({
                         }
                       }}>
                         <PopoverTrigger asChild>
-                          <Badge 
-                            className="text-[10px] h-5 px-2 bg-red-500 text-white hover:bg-red-600 font-bold whitespace-nowrap cursor-pointer"
+                          <button
                             onClick={() => handleBadgeClick(leg)}
                             data-testid={`badge-put-${strike.toFixed(0)}`}
+                            className="text-[10px] h-5 px-2 bg-red-500 text-white hover:bg-red-600 font-bold whitespace-nowrap cursor-pointer rounded-md border-0"
                           >
                             {strike.toFixed(0)}P
-                          </Badge>
+                          </button>
                         </PopoverTrigger>
                         {selectedLeg?.id === leg.id && (
                           <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
