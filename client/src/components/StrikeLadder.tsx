@@ -140,6 +140,9 @@ export function StrikeLadder({
                               symbol={symbol}
                               expirationDate={expirationDate}
                               marketData={getMarketDataForLeg(leg)}
+                              onUpdateLeg={(updates) => {
+                                onUpdateLeg(leg.id, updates);
+                              }}
                               onUpdateQuantity={(quantity) => {
                                 onUpdateLeg(leg.id, { quantity });
                               }}
@@ -188,6 +191,9 @@ export function StrikeLadder({
                               symbol={symbol}
                               expirationDate={expirationDate}
                               marketData={getMarketDataForLeg(leg)}
+                              onUpdateLeg={(updates) => {
+                                onUpdateLeg(leg.id, updates);
+                              }}
                               onUpdateQuantity={(quantity) => {
                                 onUpdateLeg(leg.id, { quantity });
                               }}
@@ -241,6 +247,9 @@ export function StrikeLadder({
                               symbol={symbol}
                               expirationDate={expirationDate}
                               marketData={getMarketDataForLeg(leg)}
+                              onUpdateLeg={(updates) => {
+                                onUpdateLeg(leg.id, updates);
+                              }}
                               onUpdateQuantity={(quantity) => {
                                 onUpdateLeg(leg.id, { quantity });
                               }}
@@ -289,6 +298,9 @@ export function StrikeLadder({
                               symbol={symbol}
                               expirationDate={expirationDate}
                               marketData={getMarketDataForLeg(leg)}
+                              onUpdateLeg={(updates) => {
+                                onUpdateLeg(leg.id, updates);
+                              }}
                               onUpdateQuantity={(quantity) => {
                                 onUpdateLeg(leg.id, { quantity });
                               }}
