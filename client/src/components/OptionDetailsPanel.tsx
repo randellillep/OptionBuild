@@ -66,7 +66,7 @@ export function OptionDetailsPanel({
   const oppositePosition = leg.position === "long" ? "Sell" : "Buy";
 
   return (
-    <div className="w-80 p-4 space-y-3" data-testid="option-details-panel">
+    <div className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg" data-testid="option-details-panel">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

@@ -136,7 +136,7 @@ export function StrikeLadder({
                           </Badge>
                         </PopoverTrigger>
                         {selectedLeg?.id === leg.id && (
-                          <PopoverContent className="p-0" align="start" side="right">
+                          <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
                             <OptionDetailsPanel
                               leg={leg}
                               symbol={symbol}
@@ -184,7 +184,7 @@ export function StrikeLadder({
                           </Badge>
                         </PopoverTrigger>
                         {selectedLeg?.id === leg.id && (
-                          <PopoverContent className="p-0" align="start" side="right">
+                          <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
                             <OptionDetailsPanel
                               leg={leg}
                               symbol={symbol}
