@@ -117,9 +117,12 @@ export function calculateProfitLoss(
       ? Math.max(atPrice - leg.strike, 0)
       : Math.max(leg.strike - atPrice, 0);
     
+    // Normalize premium to always be positive (absolute value)
+    const premium = Math.abs(leg.premium);
+    
     const legPnl = leg.position === "long"
-      ? (intrinsicValue - leg.premium) * leg.quantity * 100
-      : (leg.premium - intrinsicValue) * leg.quantity * 100;
+      ? (intrinsicValue - premium) * Math.abs(leg.quantity) * 100
+      : (premium - intrinsicValue) * Math.abs(leg.quantity) * 100;
     
     pnl += legPnl;
   }
@@ -156,9 +159,12 @@ export function calculateProfitLossAtDate(
       );
     }
     
+    // Normalize premium to always be positive (absolute value)
+    const premium = Math.abs(leg.premium);
+    
     const legPnl = leg.position === "long"
-      ? (optionValue - leg.premium) * leg.quantity * 100
-      : (leg.premium - optionValue) * leg.quantity * 100;
+      ? (optionValue - premium) * Math.abs(leg.quantity) * 100
+      : (premium - optionValue) * Math.abs(leg.quantity) * 100;
     
     pnl += legPnl;
   }
@@ -170,8 +176,11 @@ export function calculateStrategyMetrics(
   legs: OptionLeg[],
   underlyingPrice: number
 ): StrategyMetrics {
+  // Net premium: normalize premium to positive, then apply position multiplier
   const netPremium = legs.reduce((sum, leg) => {
-    return sum + (leg.position === "long" ? -leg.premium : leg.premium) * leg.quantity * 100;
+    const premium = Math.abs(leg.premium);
+    const quantity = Math.abs(leg.quantity);
+    return sum + (leg.position === "long" ? -premium : premium) * quantity * 100;
   }, 0);
   
   const priceRange = Array.from({ length: 200 }, (_, i) => {

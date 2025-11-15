@@ -105,7 +105,7 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: Add
       type: template.type,
       position: template.position,
       strike,
-      quantity: template.position === "short" ? -1 : 1,
+      quantity: 1,
       premium: 3.5,
       expirationDays: 30,
     });

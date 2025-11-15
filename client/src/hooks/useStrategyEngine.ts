@@ -19,17 +19,7 @@ export function useStrategyEngine() {
     price: 100,
   });
   
-  const [legs, setLegs] = useState<OptionLeg[]>([
-    {
-      id: "1",
-      type: "call",
-      position: "long",
-      strike: 105,
-      quantity: 1,
-      premium: 3.5,
-      expirationDays: 30,
-    },
-  ]);
+  const [legs, setLegs] = useState<OptionLeg[]>([]);
 
   const [volatility, setVolatility] = useState(0.3);
   const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(null);
