@@ -50,7 +50,18 @@ export function OptionDetailsPanel({
 }: OptionDetailsPanelProps) {
   // Extract market data from optionsChainData if available
   const getMarketData = (): OptionMarketData | undefined => {
-    if (legacyMarketData) return legacyMarketData;
+    if (legacyMarketData) {
+      // Legacy market data - apply position multiplier for Greeks
+      const multiplier = leg.position === "long" ? 1 : -1;
+      return {
+        ...legacyMarketData,
+        delta: legacyMarketData.delta !== undefined ? legacyMarketData.delta * multiplier : undefined,
+        gamma: legacyMarketData.gamma !== undefined ? legacyMarketData.gamma * multiplier : undefined,
+        theta: legacyMarketData.theta !== undefined ? legacyMarketData.theta * multiplier : undefined,
+        vega: legacyMarketData.vega !== undefined ? legacyMarketData.vega * multiplier : undefined,
+        rho: legacyMarketData.rho !== undefined ? legacyMarketData.rho * multiplier : undefined,
+      };
+    }
     if (!optionsChainData || !optionsChainData.quotes) return undefined;
     
     const option = optionsChainData.quotes.find((opt: any) => 
@@ -59,15 +70,19 @@ export function OptionDetailsPanel({
     
     if (!option) return undefined;
     
+    // Market data Greeks are always for long positions
+    // Invert them for short positions
+    const multiplier = leg.position === "long" ? 1 : -1;
+    
     return {
       bid: option.bid || 0,
       ask: option.ask || 0,
       iv: option.iv || 0,
-      delta: option.delta || 0,
-      gamma: option.gamma || 0,
-      theta: option.theta || 0,
-      vega: option.vega || 0,
-      rho: option.rho || 0,
+      delta: (option.delta || 0) * multiplier,
+      gamma: (option.gamma || 0) * multiplier,
+      theta: (option.theta || 0) * multiplier,
+      vega: (option.vega || 0) * multiplier,
+      rho: (option.rho || 0) * multiplier,
       volume: option.volume || 0,
     };
   };
