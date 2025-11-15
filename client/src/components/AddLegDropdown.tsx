@@ -69,7 +69,19 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: Add
           const currentDiff = Math.abs(current.strike - targetStrike);
           return currentDiff < closestDiff ? current : closest;
         });
-        strike = nearestOption.strike;
+        
+        // Check if the nearest option is too far from ATM (>20% away)
+        // If so, use calculated strike so it appears on the ladder
+        const distancePercent = Math.abs(nearestOption.strike - currentPrice) / currentPrice;
+        if (distancePercent > 0.20) {
+          // Too far - use calculated strike near ATM
+          strike = template.type === "call" 
+            ? roundStrike(currentPrice, 'up')
+            : roundStrike(currentPrice, 'down');
+        } else {
+          // Close enough - use market strike
+          strike = nearestOption.strike;
+        }
       } else {
         // Fallback to calculated strike if no options of this type found
         strike = template.type === "call" 
