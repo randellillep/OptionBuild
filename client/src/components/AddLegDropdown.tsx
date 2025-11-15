@@ -62,11 +62,10 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: Add
       );
       
       if (optionsOfType.length > 0) {
-        // Find the strike closest to ATM
-        const targetStrike = currentPrice;
+        // Find the strike closest to current price (absolute nearest)
         const nearestOption = optionsOfType.reduce((closest: any, current: any) => {
-          const closestDiff = Math.abs(closest.strike - targetStrike);
-          const currentDiff = Math.abs(current.strike - targetStrike);
+          const closestDiff = Math.abs(closest.strike - currentPrice);
+          const currentDiff = Math.abs(current.strike - currentPrice);
           return currentDiff < closestDiff ? current : closest;
         });
         
@@ -74,32 +73,39 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: Add
         // If so, use calculated strike so it appears on the ladder
         const distancePercent = Math.abs(nearestOption.strike - currentPrice) / currentPrice;
         if (distancePercent > 0.20) {
-          // Too far - use calculated strike near ATM
-          strike = template.type === "call" 
-            ? roundStrike(currentPrice, 'up')
-            : roundStrike(currentPrice, 'down');
+          // Too far - find the closest rounded strike to current price
+          strike = roundStrike(currentPrice, 'up');
+          const strikeDown = roundStrike(currentPrice, 'down');
+          // Pick whichever is closer to current price
+          if (Math.abs(strikeDown - currentPrice) < Math.abs(strike - currentPrice)) {
+            strike = strikeDown;
+          }
         } else {
           // Close enough - use market strike
           strike = nearestOption.strike;
         }
       } else {
-        // Fallback to calculated strike if no options of this type found
-        strike = template.type === "call" 
-          ? roundStrike(currentPrice, 'up')
-          : roundStrike(currentPrice, 'down');
+        // Fallback to calculated strike - find closest to current price
+        strike = roundStrike(currentPrice, 'up');
+        const strikeDown = roundStrike(currentPrice, 'down');
+        if (Math.abs(strikeDown - currentPrice) < Math.abs(strike - currentPrice)) {
+          strike = strikeDown;
+        }
       }
     } else {
-      // Fallback to calculated strike if no options chain data
-      strike = template.type === "call" 
-        ? roundStrike(currentPrice, 'up')
-        : roundStrike(currentPrice, 'down');
+      // Fallback to calculated strike - find closest to current price
+      strike = roundStrike(currentPrice, 'up');
+      const strikeDown = roundStrike(currentPrice, 'down');
+      if (Math.abs(strikeDown - currentPrice) < Math.abs(strike - currentPrice)) {
+        strike = strikeDown;
+      }
     }
     
     onAddLeg({
       type: template.type,
       position: template.position,
       strike,
-      quantity: 1,
+      quantity: template.position === "short" ? -1 : 1,
       premium: 3.5,
       expirationDays: 30,
     });

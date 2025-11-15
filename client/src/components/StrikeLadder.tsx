@@ -114,9 +114,10 @@ export function StrikeLadder({
                       : 'bg-border'
                   }`}
                 />
+                {/* Long positions - above the strike line */}
                 {info.hasLegs && (
                   <div className="absolute -top-7 flex gap-1 flex-col items-center">
-                    {info.calls > 0 && info.legs.filter(l => l.type === "call").map(leg => (
+                    {info.calls > 0 && info.legs.filter(l => l.type === "call" && l.position === "long").map(leg => (
                       <Popover key={leg.id} open={popoverOpen && selectedLeg?.id === leg.id} onOpenChange={(open) => {
                         if (!open && selectedLeg?.id === leg.id) {
                           setPopoverOpen(false);
@@ -164,7 +165,7 @@ export function StrikeLadder({
                         )}
                       </Popover>
                     ))}
-                    {info.puts > 0 && info.legs.filter(l => l.type === "put").map(leg => (
+                    {info.puts > 0 && info.legs.filter(l => l.type === "put" && l.position === "long").map(leg => (
                       <Popover key={leg.id} open={popoverOpen && selectedLeg?.id === leg.id} onOpenChange={(open) => {
                         if (!open && selectedLeg?.id === leg.id) {
                           setPopoverOpen(false);
@@ -175,6 +176,107 @@ export function StrikeLadder({
                           <button
                             onClick={() => handleBadgeClick(leg)}
                             data-testid={`badge-put-${strike.toFixed(0)}`}
+                            className="text-[10px] h-5 px-2 bg-red-500 text-white hover:bg-red-600 font-bold whitespace-nowrap cursor-pointer rounded-md border-0"
+                          >
+                            {strike.toFixed(0)}P
+                          </button>
+                        </PopoverTrigger>
+                        {selectedLeg?.id === leg.id && (
+                          <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
+                            <OptionDetailsPanel
+                              leg={leg}
+                              symbol={symbol}
+                              expirationDate={expirationDate}
+                              marketData={getMarketDataForLeg(leg)}
+                              onUpdateQuantity={(quantity) => {
+                                onUpdateLeg(leg.id, { quantity });
+                              }}
+                              onSwitchType={() => {
+                                onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                              onChangePosition={() => {
+                                onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
+                              }}
+                              onRemove={() => {
+                                onRemoveLeg(leg.id);
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                              onClose={() => {
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                            />
+                          </PopoverContent>
+                        )}
+                      </Popover>
+                    ))}
+                  </div>
+                )}
+                {/* Short positions - below the strike line */}
+                {info.hasLegs && (
+                  <div className="absolute -bottom-7 flex gap-1 flex-col items-center">
+                    {info.calls > 0 && info.legs.filter(l => l.type === "call" && l.position === "short").map(leg => (
+                      <Popover key={leg.id} open={popoverOpen && selectedLeg?.id === leg.id} onOpenChange={(open) => {
+                        if (!open && selectedLeg?.id === leg.id) {
+                          setPopoverOpen(false);
+                          setSelectedLeg(null);
+                        }
+                      }}>
+                        <PopoverTrigger asChild>
+                          <button
+                            onClick={() => handleBadgeClick(leg)}
+                            data-testid={`badge-call-short-${strike.toFixed(0)}`}
+                            className="text-[10px] h-5 px-2 bg-green-500 text-white hover:bg-green-600 font-bold whitespace-nowrap cursor-pointer rounded-md border-0"
+                          >
+                            {strike.toFixed(0)}C
+                          </button>
+                        </PopoverTrigger>
+                        {selectedLeg?.id === leg.id && (
+                          <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
+                            <OptionDetailsPanel
+                              leg={leg}
+                              symbol={symbol}
+                              expirationDate={expirationDate}
+                              marketData={getMarketDataForLeg(leg)}
+                              onUpdateQuantity={(quantity) => {
+                                onUpdateLeg(leg.id, { quantity });
+                              }}
+                              onSwitchType={() => {
+                                onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                              onChangePosition={() => {
+                                onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
+                              }}
+                              onRemove={() => {
+                                onRemoveLeg(leg.id);
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                              onClose={() => {
+                                setPopoverOpen(false);
+                                setSelectedLeg(null);
+                              }}
+                            />
+                          </PopoverContent>
+                        )}
+                      </Popover>
+                    ))}
+                    {info.puts > 0 && info.legs.filter(l => l.type === "put" && l.position === "short").map(leg => (
+                      <Popover key={leg.id} open={popoverOpen && selectedLeg?.id === leg.id} onOpenChange={(open) => {
+                        if (!open && selectedLeg?.id === leg.id) {
+                          setPopoverOpen(false);
+                          setSelectedLeg(null);
+                        }
+                      }}>
+                        <PopoverTrigger asChild>
+                          <button
+                            onClick={() => handleBadgeClick(leg)}
+                            data-testid={`badge-put-short-${strike.toFixed(0)}`}
                             className="text-[10px] h-5 px-2 bg-red-500 text-white hover:bg-red-600 font-bold whitespace-nowrap cursor-pointer rounded-md border-0"
                           >
                             {strike.toFixed(0)}P
