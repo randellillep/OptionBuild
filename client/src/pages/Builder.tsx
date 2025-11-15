@@ -259,30 +259,28 @@ export default function Builder() {
               <User className="h-4 w-4 mr-2" />
               My Account
             </Button>
-            <Popover open={detailsPopoverOpen} onOpenChange={setDetailsPopoverOpen}>
-              <PopoverTrigger asChild>
-                <div>
-                  <AddLegDropdown 
-                    currentPrice={symbolInfo.price} 
-                    onAddLeg={addLeg}
-                    onOpenDetails={handleOpenLegDetails}
-                  />
+            <div className="relative">
+              <AddLegDropdown 
+                currentPrice={symbolInfo.price} 
+                onAddLeg={addLeg}
+                onOpenDetails={handleOpenLegDetails}
+              />
+              {detailsPopoverOpen && selectedLegForDetails && (
+                <div className="absolute right-0 top-full mt-2 z-50">
+                  <div className="w-96 bg-background border border-border rounded-lg shadow-lg">
+                    <OptionDetailsPanel
+                      leg={selectedLegForDetails}
+                      optionsChainData={optionsChainData}
+                      onUpdateLeg={(updates: Partial<OptionLeg>) => {
+                        setSelectedLegForDetails({ ...selectedLegForDetails, ...updates });
+                      }}
+                      onAddToStrategy={handleAddLegFromDetails}
+                      onClose={() => setDetailsPopoverOpen(false)}
+                    />
+                  </div>
                 </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-96 p-0" align="end">
-                {selectedLegForDetails && (
-                  <OptionDetailsPanel
-                    leg={selectedLegForDetails}
-                    optionsChainData={optionsChainData}
-                    onUpdateLeg={(updates) => {
-                      setSelectedLegForDetails({ ...selectedLegForDetails, ...updates });
-                    }}
-                    onAddToStrategy={handleAddLegFromDetails}
-                    onClose={() => setDetailsPopoverOpen(false)}
-                  />
-                )}
-              </PopoverContent>
-            </Popover>
+              )}
+            </div>
             <ThemeToggle />
           </div>
         </div>
