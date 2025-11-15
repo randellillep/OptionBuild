@@ -54,7 +54,7 @@ export function OptionDetailsPanel({
     if (!optionsChainData || !optionsChainData.quotes) return undefined;
     
     const option = optionsChainData.quotes.find((opt: any) => 
-      Math.abs(opt.strike - leg.strike) < 0.01 && opt.side === leg.type
+      Math.abs(opt.strike - leg.strike) < 0.01 && opt.side.toLowerCase() === leg.type
     );
     
     if (!option) return undefined;

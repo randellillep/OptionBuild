@@ -24,8 +24,8 @@ export function OptionsChainTable({
     }
 
     const underlyingPrice = quotes[0]?.underlyingPrice || 0;
-    const callQuotes = quotes.filter(q => q.side === "call").sort((a, b) => a.strike - b.strike);
-    const putQuotes = quotes.filter(q => q.side === "put").sort((a, b) => a.strike - b.strike);
+    const callQuotes = quotes.filter(q => q.side.toLowerCase() === "call").sort((a, b) => a.strike - b.strike);
+    const putQuotes = quotes.filter(q => q.side.toLowerCase() === "put").sort((a, b) => a.strike - b.strike);
 
     const atmStrike = callQuotes.reduce((closest, quote) => {
       return Math.abs(quote.strike - underlyingPrice) < Math.abs(closest - underlyingPrice)

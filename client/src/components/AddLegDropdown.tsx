@@ -56,9 +56,9 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: Add
     
     // If we have options chain data, find the nearest available strike for this option type
     if (optionsChainData && optionsChainData.quotes && optionsChainData.quotes.length > 0) {
-      // Filter options by type (call or put)
+      // Filter options by type (call or put) - normalize to lowercase for matching
       const optionsOfType = optionsChainData.quotes.filter(
-        (opt: any) => opt.side === template.type
+        (opt: any) => opt.side.toLowerCase() === template.type
       );
       
       if (optionsOfType.length > 0) {
