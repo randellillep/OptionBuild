@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Minus, Plus, X, RotateCcw } from "lucide-react";
 import type { OptionLeg, MarketOptionChainSummary } from "@shared/schema";
 
 interface OptionMarketData {
@@ -117,6 +118,28 @@ export function OptionDetailsPanel({
   
   const displayQuantity = leg.position === "long" ? leg.quantity : -leg.quantity;
   
+  // Calculate average of bid/ask for cost basis
+  const calculateAverageCost = () => {
+    if (marketData?.bid && marketData?.ask) {
+      return (marketData.bid + marketData.ask) / 2;
+    }
+    return leg.premium;
+  };
+  
+  const [costBasis, setCostBasis] = useState<number>(leg.premium);
+  
+  // Update cost basis when market data changes
+  useEffect(() => {
+    const avgCost = calculateAverageCost();
+    setCostBasis(avgCost);
+  }, [marketData?.bid, marketData?.ask]);
+  
+  const handleCostBasisChange = (value: number) => {
+    const newCost = Math.max(0.01, value || 0.01);
+    setCostBasis(newCost);
+    if (onUpdateLeg) onUpdateLeg({ premium: newCost });
+  };
+  
   const handleQuantityDecrease = () => {
     if (leg.position === "long") {
       // Long position: decrease from positive (2 → 1)
@@ -168,52 +191,85 @@ export function OptionDetailsPanel({
 
       <Separator />
 
-      {/* Quantity Controls */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-muted-foreground">Quantity</label>
-        <div className="flex items-center gap-2">
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={handleQuantityDecrease}
-            className="h-8 w-8"
-            data-testid="button-decrease-quantity"
-          >
-            <Minus className="h-4 w-4" />
-          </Button>
-          <div className="flex-1 text-center font-mono font-semibold" data-testid="text-quantity">
-            {displayQuantity}
+      {/* Quantity and Cost Basis - Side by Side */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Quantity Controls */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">Quantity</label>
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleQuantityDecrease}
+              className="h-8 w-8"
+              data-testid="button-decrease-quantity"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <div className="flex-1 text-center font-mono font-semibold" data-testid="text-quantity">
+              {displayQuantity}
+            </div>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={handleQuantityIncrease}
+              className="h-8 w-8"
+              data-testid="button-increase-quantity"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={handleQuantityIncrease}
-            className="h-8 w-8"
-            data-testid="button-increase-quantity"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+        </div>
+
+        {/* Cost Basis */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">Cost Basis</label>
+          <div className="flex items-center gap-1">
+            <div className="text-sm font-semibold">$</div>
+            <Input
+              type="number"
+              value={costBasis.toFixed(2)}
+              onChange={(e) => handleCostBasisChange(Number(e.target.value))}
+              className="h-8 font-mono text-center"
+              step="0.01"
+              min="0.01"
+              data-testid="input-cost-basis"
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                const avgCost = calculateAverageCost();
+                handleCostBasisChange(avgCost);
+              }}
+              className="h-8 w-8"
+              title="Reset to average"
+              data-testid="button-reset-cost-basis"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Price Section */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-muted-foreground">Price</label>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className="text-xs text-muted-foreground">Bid</div>
-            <div className="text-sm font-semibold font-mono">{formatPrice(marketData?.bid)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Ask</div>
-            <div className="text-sm font-semibold font-mono">{formatPrice(marketData?.ask)}</div>
-          </div>
+      {/* Bid/Ask and Volume */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Bid</span>
+          <span className="font-mono font-semibold text-green-600 dark:text-green-400">{formatPrice(marketData?.bid)}</span>
         </div>
-        {marketData?.volume !== undefined && (
-          <div className="text-xs text-muted-foreground">
-            Volume: <span className="font-mono">{marketData.volume}</span>
-          </div>
-        )}
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Ask</span>
+          <span className="font-mono font-semibold text-red-600 dark:text-red-400">{formatPrice(marketData?.ask)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Volume</span>
+          <span className="font-mono font-semibold">{marketData?.volume?.toLocaleString() || "—"}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">OI</span>
+          <span className="font-mono font-semibold">—</span>
+        </div>
       </div>
 
       {/* Greeks Section */}
