@@ -11,10 +11,9 @@ import type { OptionLeg } from "@shared/schema";
 interface AddLegDropdownProps {
   currentPrice: number;
   onAddLeg: (leg: Omit<OptionLeg, "id">) => void;
-  onOpenDetails?: (leg: OptionLeg) => void;
 }
 
-export function AddLegDropdown({ currentPrice, onAddLeg, onOpenDetails }: AddLegDropdownProps) {
+export function AddLegDropdown({ currentPrice, onAddLeg }: AddLegDropdownProps) {
   const legTemplates = [
     {
       label: "Buy Call",
@@ -57,23 +56,14 @@ export function AddLegDropdown({ currentPrice, onAddLeg, onOpenDetails }: AddLeg
       ? roundStrike(currentPrice, 'up')
       : roundStrike(currentPrice, 'down');
     
-    const newLeg: OptionLeg = {
-      id: Date.now().toString(),
+    onAddLeg({
       type: template.type,
       position: template.position,
       strike,
       quantity: 1,
       premium: 3.5,
       expirationDays: 30,
-    };
-
-    // If onOpenDetails is provided, open the details panel instead of directly adding
-    if (onOpenDetails) {
-      onOpenDetails(newLeg);
-    } else {
-      // Fallback to direct add
-      onAddLeg(newLeg);
-    }
+    });
   };
 
   return (
