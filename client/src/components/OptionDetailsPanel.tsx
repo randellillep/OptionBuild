@@ -120,24 +120,40 @@ export function OptionDetailsPanel({
   
   // Calculate average of bid/ask for cost basis
   const calculateAverageCost = () => {
-    if (marketData?.bid && marketData?.ask) {
+    if (marketData?.bid !== undefined && marketData?.ask !== undefined) {
       return (marketData.bid + marketData.ask) / 2;
     }
     return leg.premium;
   };
   
   const [costBasis, setCostBasis] = useState<number>(leg.premium);
+  const [isManuallyEdited, setIsManuallyEdited] = useState<boolean>(false);
   
-  // Update cost basis when market data changes
+  // Update cost basis when market data changes (only if not manually edited)
   useEffect(() => {
-    const avgCost = calculateAverageCost();
-    setCostBasis(avgCost);
-  }, [marketData?.bid, marketData?.ask]);
+    if (!isManuallyEdited && marketData?.bid !== undefined && marketData?.ask !== undefined) {
+      const avgCost = calculateAverageCost();
+      setCostBasis(avgCost);
+      // Update leg premium to match the calculated average
+      if (onUpdateLeg) {
+        onUpdateLeg({ premium: avgCost });
+      }
+    }
+  }, [marketData?.bid, marketData?.ask, isManuallyEdited]);
   
   const handleCostBasisChange = (value: number) => {
-    const newCost = Math.max(0.01, value || 0.01);
+    // Allow zero for worthless options, but prevent negative values
+    const newCost = Math.max(0, value || 0);
     setCostBasis(newCost);
+    setIsManuallyEdited(true); // Mark as manually edited
     if (onUpdateLeg) onUpdateLeg({ premium: newCost });
+  };
+  
+  const handleResetCostBasis = () => {
+    const avgCost = calculateAverageCost();
+    setCostBasis(avgCost);
+    setIsManuallyEdited(false); // Reset the manual edit flag
+    if (onUpdateLeg) onUpdateLeg({ premium: avgCost });
   };
   
   const handleQuantityDecrease = () => {
@@ -232,16 +248,13 @@ export function OptionDetailsPanel({
               onChange={(e) => handleCostBasisChange(Number(e.target.value))}
               className="h-8 font-mono text-center"
               step="0.01"
-              min="0.01"
+              min="0"
               data-testid="input-cost-basis"
             />
             <Button
               size="icon"
               variant="ghost"
-              onClick={() => {
-                const avgCost = calculateAverageCost();
-                handleCostBasisChange(avgCost);
-              }}
+              onClick={handleResetCostBasis}
               className="h-8 w-8"
               title="Reset to average"
               data-testid="button-reset-cost-basis"
