@@ -183,9 +183,16 @@ export function calculateStrategyMetrics(
     return sum + (leg.position === "long" ? -premium : premium) * quantity * 100;
   }, 0);
   
+  // Include all leg strikes in the price range
+  const allStrikes = legs.map(leg => leg.strike);
+  const minStrike = Math.min(...allStrikes);
+  const maxStrike = Math.max(...allStrikes);
+  
+  // Expand range to include strikes and some buffer
+  const minPrice = Math.min(underlyingPrice * 0.5, minStrike * 0.8);
+  const maxPrice = Math.max(underlyingPrice * 1.5, maxStrike * 1.2);
+  
   const priceRange = Array.from({ length: 200 }, (_, i) => {
-    const minPrice = underlyingPrice * 0.5;
-    const maxPrice = underlyingPrice * 1.5;
     return minPrice + (maxPrice - minPrice) * (i / 199);
   });
   

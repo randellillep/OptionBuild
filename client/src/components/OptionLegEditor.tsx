@@ -16,6 +16,14 @@ interface OptionLegEditorProps {
 export function OptionLegEditor({ leg, onUpdate, onRemove, underlyingPrice }: OptionLegEditorProps) {
   const isCall = leg.type === "call";
   const isLong = leg.position === "long";
+  
+  const displayQuantity = isLong ? leg.quantity : -leg.quantity;
+  
+  const handleQuantityChange = (value: number) => {
+    const absValue = Math.max(1, Math.abs(value || 1)); // Prevent zero/empty, minimum 1
+    const newPosition: "long" | "short" = value >= 0 ? "long" : "short";
+    onUpdate({ ...leg, quantity: absValue, position: newPosition });
+  };
 
   const bgColor = isCall 
     ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50" 
@@ -100,12 +108,11 @@ export function OptionLegEditor({ leg, onUpdate, onRemove, underlyingPrice }: Op
           <Input
             id={`quantity-${leg.id}`}
             type="number"
-            value={leg.quantity}
+            value={displayQuantity}
             onChange={(e) =>
-              onUpdate({ ...leg, quantity: Number(e.target.value) })
+              handleQuantityChange(Number(e.target.value))
             }
             className="h-9 font-mono"
-            min="1"
             data-testid={`input-quantity-${leg.id}`}
           />
         </div>

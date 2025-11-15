@@ -114,6 +114,36 @@ export function OptionDetailsPanel({
   const title = `${symbol.toUpperCase()} ${leg.strike.toFixed(0)}${leg.type === "call" ? "C" : "P"} ${formatDate(expirationDate)}`;
   const positionText = leg.position === "long" ? "Buy" : "Sell";
   const oppositePosition = leg.position === "long" ? "Sell" : "Buy";
+  
+  const displayQuantity = leg.position === "long" ? leg.quantity : -leg.quantity;
+  
+  const handleQuantityDecrease = () => {
+    if (leg.position === "long") {
+      // Long position: decrease from positive (2 → 1)
+      const newQuantity = Math.max(1, leg.quantity - 1);
+      if (onUpdateQuantity) onUpdateQuantity(newQuantity);
+      if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
+    } else {
+      // Short position: increase magnitude (-1 → -2)
+      const newQuantity = leg.quantity + 1;
+      if (onUpdateQuantity) onUpdateQuantity(newQuantity);
+      if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
+    }
+  };
+  
+  const handleQuantityIncrease = () => {
+    if (leg.position === "long") {
+      // Long position: increase to positive (1 → 2)
+      const newQuantity = leg.quantity + 1;
+      if (onUpdateQuantity) onUpdateQuantity(newQuantity);
+      if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
+    } else {
+      // Short position: decrease magnitude (but keep at least -1) (-2 → -1)
+      const newQuantity = Math.max(1, leg.quantity - 1);
+      if (onUpdateQuantity) onUpdateQuantity(newQuantity);
+      if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
+    }
+  };
 
   return (
     <div className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg" data-testid="option-details-panel">
@@ -145,27 +175,19 @@ export function OptionDetailsPanel({
           <Button
             size="icon"
             variant="outline"
-            onClick={() => {
-              const newQuantity = Math.max(1, leg.quantity - 1);
-              if (onUpdateQuantity) onUpdateQuantity(newQuantity);
-              if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
-            }}
+            onClick={handleQuantityDecrease}
             className="h-8 w-8"
             data-testid="button-decrease-quantity"
           >
             <Minus className="h-4 w-4" />
           </Button>
-          <div className="flex-1 text-center font-mono font-semibold">
-            {leg.quantity}
+          <div className="flex-1 text-center font-mono font-semibold" data-testid="text-quantity">
+            {displayQuantity}
           </div>
           <Button
             size="icon"
             variant="outline"
-            onClick={() => {
-              const newQuantity = leg.quantity + 1;
-              if (onUpdateQuantity) onUpdateQuantity(newQuantity);
-              if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
-            }}
+            onClick={handleQuantityIncrease}
             className="h-8 w-8"
             data-testid="button-increase-quantity"
           >
