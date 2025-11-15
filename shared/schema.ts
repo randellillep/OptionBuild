@@ -19,7 +19,7 @@ export type User = typeof users.$inferSelect;
 
 export type OptionType = "call" | "put";
 export type PositionType = "long" | "short";
-export type PremiumSource = "market" | "theoretical";
+export type PremiumSource = "market" | "theoretical" | "manual";
 
 export interface OptionLeg {
   id: string;

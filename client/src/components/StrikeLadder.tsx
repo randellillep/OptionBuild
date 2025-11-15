@@ -133,39 +133,37 @@ export function StrikeLadder({
                             {strike.toFixed(0)}C
                           </button>
                         </PopoverTrigger>
-                        {selectedLeg?.id === leg.id && (
-                          <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
-                            <OptionDetailsPanel
-                              leg={leg}
-                              symbol={symbol}
-                              expirationDate={expirationDate}
-                              marketData={getMarketDataForLeg(leg)}
-                              onUpdateLeg={(updates) => {
-                                onUpdateLeg(leg.id, updates);
-                              }}
-                              onUpdateQuantity={(quantity) => {
-                                onUpdateLeg(leg.id, { quantity });
-                              }}
-                              onSwitchType={() => {
-                                onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                              onChangePosition={() => {
-                                onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
-                              }}
-                              onRemove={() => {
-                                onRemoveLeg(leg.id);
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                              onClose={() => {
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                            />
-                          </PopoverContent>
-                        )}
+                        <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
+                          <OptionDetailsPanel
+                            leg={leg}
+                            symbol={symbol}
+                            expirationDate={expirationDate}
+                            marketData={getMarketDataForLeg(leg)}
+                            onUpdateLeg={(updates) => {
+                              onUpdateLeg(leg.id, updates);
+                            }}
+                            onUpdateQuantity={(quantity) => {
+                              onUpdateLeg(leg.id, { quantity });
+                            }}
+                            onSwitchType={() => {
+                              onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                            onChangePosition={() => {
+                              onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
+                            }}
+                            onRemove={() => {
+                              onRemoveLeg(leg.id);
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                            onClose={() => {
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                          />
+                        </PopoverContent>
                       </Popover>
                     ))}
                     {info.puts > 0 && info.legs.filter(l => l.type === "put" && l.position === "long").map(leg => (
@@ -184,39 +182,37 @@ export function StrikeLadder({
                             {strike.toFixed(0)}P
                           </button>
                         </PopoverTrigger>
-                        {selectedLeg?.id === leg.id && (
-                          <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
-                            <OptionDetailsPanel
-                              leg={leg}
-                              symbol={symbol}
-                              expirationDate={expirationDate}
-                              marketData={getMarketDataForLeg(leg)}
-                              onUpdateLeg={(updates) => {
-                                onUpdateLeg(leg.id, updates);
-                              }}
-                              onUpdateQuantity={(quantity) => {
-                                onUpdateLeg(leg.id, { quantity });
-                              }}
-                              onSwitchType={() => {
-                                onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                              onChangePosition={() => {
-                                onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
-                              }}
-                              onRemove={() => {
-                                onRemoveLeg(leg.id);
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                              onClose={() => {
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                            />
-                          </PopoverContent>
-                        )}
+                        <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
+                          <OptionDetailsPanel
+                            leg={leg}
+                            symbol={symbol}
+                            expirationDate={expirationDate}
+                            marketData={getMarketDataForLeg(leg)}
+                            onUpdateLeg={(updates) => {
+                              onUpdateLeg(leg.id, updates);
+                            }}
+                            onUpdateQuantity={(quantity) => {
+                              onUpdateLeg(leg.id, { quantity });
+                            }}
+                            onSwitchType={() => {
+                              onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                            onChangePosition={() => {
+                              onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
+                            }}
+                            onRemove={() => {
+                              onRemoveLeg(leg.id);
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                            onClose={() => {
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                          />
+                        </PopoverContent>
                       </Popover>
                     ))}
                   </div>
@@ -240,39 +236,37 @@ export function StrikeLadder({
                             {strike.toFixed(0)}C
                           </button>
                         </PopoverTrigger>
-                        {selectedLeg?.id === leg.id && (
-                          <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
-                            <OptionDetailsPanel
-                              leg={leg}
-                              symbol={symbol}
-                              expirationDate={expirationDate}
-                              marketData={getMarketDataForLeg(leg)}
-                              onUpdateLeg={(updates) => {
-                                onUpdateLeg(leg.id, updates);
-                              }}
-                              onUpdateQuantity={(quantity) => {
-                                onUpdateLeg(leg.id, { quantity });
-                              }}
-                              onSwitchType={() => {
-                                onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                              onChangePosition={() => {
-                                onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
-                              }}
-                              onRemove={() => {
-                                onRemoveLeg(leg.id);
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                              onClose={() => {
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                            />
-                          </PopoverContent>
-                        )}
+                        <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
+                          <OptionDetailsPanel
+                            leg={leg}
+                            symbol={symbol}
+                            expirationDate={expirationDate}
+                            marketData={getMarketDataForLeg(leg)}
+                            onUpdateLeg={(updates) => {
+                              onUpdateLeg(leg.id, updates);
+                            }}
+                            onUpdateQuantity={(quantity) => {
+                              onUpdateLeg(leg.id, { quantity });
+                            }}
+                            onSwitchType={() => {
+                              onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                            onChangePosition={() => {
+                              onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
+                            }}
+                            onRemove={() => {
+                              onRemoveLeg(leg.id);
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                            onClose={() => {
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                          />
+                        </PopoverContent>
                       </Popover>
                     ))}
                     {info.puts > 0 && info.legs.filter(l => l.type === "put" && l.position === "short").map(leg => (
@@ -291,39 +285,37 @@ export function StrikeLadder({
                             {strike.toFixed(0)}P
                           </button>
                         </PopoverTrigger>
-                        {selectedLeg?.id === leg.id && (
-                          <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
-                            <OptionDetailsPanel
-                              leg={leg}
-                              symbol={symbol}
-                              expirationDate={expirationDate}
-                              marketData={getMarketDataForLeg(leg)}
-                              onUpdateLeg={(updates) => {
-                                onUpdateLeg(leg.id, updates);
-                              }}
-                              onUpdateQuantity={(quantity) => {
-                                onUpdateLeg(leg.id, { quantity });
-                              }}
-                              onSwitchType={() => {
-                                onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                              onChangePosition={() => {
-                                onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
-                              }}
-                              onRemove={() => {
-                                onRemoveLeg(leg.id);
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                              onClose={() => {
-                                setPopoverOpen(false);
-                                setSelectedLeg(null);
-                              }}
-                            />
-                          </PopoverContent>
-                        )}
+                        <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
+                          <OptionDetailsPanel
+                            leg={leg}
+                            symbol={symbol}
+                            expirationDate={expirationDate}
+                            marketData={getMarketDataForLeg(leg)}
+                            onUpdateLeg={(updates) => {
+                              onUpdateLeg(leg.id, updates);
+                            }}
+                            onUpdateQuantity={(quantity) => {
+                              onUpdateLeg(leg.id, { quantity });
+                            }}
+                            onSwitchType={() => {
+                              onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                            onChangePosition={() => {
+                              onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" });
+                            }}
+                            onRemove={() => {
+                              onRemoveLeg(leg.id);
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                            onClose={() => {
+                              setPopoverOpen(false);
+                              setSelectedLeg(null);
+                            }}
+                          />
+                        </PopoverContent>
                       </Popover>
                     ))}
                   </div>

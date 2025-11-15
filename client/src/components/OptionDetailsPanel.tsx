@@ -127,7 +127,13 @@ export function OptionDetailsPanel({
   };
   
   const [costBasis, setCostBasis] = useState<number>(leg.premium);
-  const [isManuallyEdited, setIsManuallyEdited] = useState<boolean>(false);
+  // Check if this leg has a manually edited premium (persisted in leg data)
+  const isManuallyEdited = leg.premiumSource === "manual";
+  
+  // Sync local state with leg premium when leg changes
+  useEffect(() => {
+    setCostBasis(leg.premium);
+  }, [leg.premium]);
   
   // Update cost basis when market data changes (only if not manually edited)
   useEffect(() => {
@@ -136,7 +142,7 @@ export function OptionDetailsPanel({
       setCostBasis(avgCost);
       // Update leg premium to match the calculated average
       if (onUpdateLeg) {
-        onUpdateLeg({ premium: avgCost });
+        onUpdateLeg({ premium: avgCost, premiumSource: "market" });
       }
     }
   }, [marketData?.bid, marketData?.ask, isManuallyEdited]);
@@ -145,15 +151,15 @@ export function OptionDetailsPanel({
     // Allow zero for worthless options, but prevent negative values
     const newCost = Math.max(0, value || 0);
     setCostBasis(newCost);
-    setIsManuallyEdited(true); // Mark as manually edited
-    if (onUpdateLeg) onUpdateLeg({ premium: newCost });
+    // Mark as manually edited by setting premiumSource
+    if (onUpdateLeg) onUpdateLeg({ premium: newCost, premiumSource: "manual" });
   };
   
   const handleResetCostBasis = () => {
     const avgCost = calculateAverageCost();
     setCostBasis(avgCost);
-    setIsManuallyEdited(false); // Reset the manual edit flag
-    if (onUpdateLeg) onUpdateLeg({ premium: avgCost });
+    // Reset to market-based pricing
+    if (onUpdateLeg) onUpdateLeg({ premium: avgCost, premiumSource: "market" });
   };
   
   const handleQuantityDecrease = () => {
@@ -255,8 +261,10 @@ export function OptionDetailsPanel({
               size="icon"
               variant="ghost"
               onClick={handleResetCostBasis}
+              disabled={!marketData?.bid || !marketData?.ask}
               className="h-8 w-8"
-              title="Reset to average"
+              title={marketData?.bid && marketData?.ask ? "Reset to market average" : "No market data available"}
+              aria-label="Reset cost basis"
               data-testid="button-reset-cost-basis"
             >
               <RotateCcw className="h-3 w-3" />
