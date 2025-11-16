@@ -94,24 +94,32 @@ export default function Builder() {
     }
     
     // Now we have: different symbol, valid prices, and legs to adjust
-    const adjustedLegs = legs.map(leg => {
-      // Calculate percentage offset from previous price
-      const percentOffset = leg.strike / prev.price;
+    // User wants strikes adjusted to be "close to current price" - not proportional
+    const atmStrike = roundStrike(current.price, 'nearest');
+    
+    const adjustedLegs = legs.map((leg, index) => {
+      // Reset all strikes to be close to the new ATM price
+      // Spread them slightly based on their relative position in the original strategy
+      let newStrike: number;
       
-      // Apply same percentage to new price
-      const rawNewStrike = current.price * percentOffset;
-      
-      // Round to valid strike based on option type
-      // Calls round up if OTM, puts round down if OTM
-      const isOTM = (leg.type === 'call' && leg.strike > prev.price) || 
-                     (leg.type === 'put' && leg.strike < prev.price);
-      
-      let direction: 'up' | 'down' | 'nearest' = 'nearest';
-      if (isOTM) {
-        direction = leg.type === 'call' ? 'up' : 'down';
+      if (legs.length === 1) {
+        // Single leg - just use ATM
+        newStrike = atmStrike;
+      } else {
+        // Multiple legs - maintain relative spacing
+        // Determine if this was a higher or lower strike in the original strategy
+        const avgStrike = legs.reduce((sum, l) => sum + l.strike, 0) / legs.length;
+        const relativePosition = (leg.strike - avgStrike) / prev.price; // as percentage
+        
+        // Apply small offset from ATM
+        const offset = relativePosition * current.price;
+        const targetStrike = atmStrike + offset;
+        
+        // Round based on option type for proper spacing
+        const direction = leg.type === 'call' && offset > 0 ? 'up' : 
+                         leg.type === 'put' && offset < 0 ? 'down' : 'nearest';
+        newStrike = roundStrike(targetStrike, direction);
       }
-      
-      const newStrike = roundStrike(rawNewStrike, direction);
       
       return {
         ...leg,

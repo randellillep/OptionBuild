@@ -9,12 +9,14 @@ The platform targets traders who need to understand complex options positions th
 ## Recent Updates (November 16, 2025)
 
 - **Auto-Adjust Strikes on Symbol Change** (LATEST):
-  - Strategy strikes automatically adjust when switching between stocks to maintain relative positioning
-  - Proportional calculation: if AAPL 235C at $272 (86% of price), switching to MSFT at $510 adjusts to ~440C (same 86%)
+  - Strategy strikes automatically adjust when switching between stocks to stay close to current price
+  - Single leg strategies: resets to ATM (at-the-money) strike for new symbol
+  - Multi-leg strategies: maintains relative spacing but centers around new ATM price
   - Smart rounding to valid strike increments: $0.50 (<$25), $1 ($25-$100), $2.50 ($100-$200), $5 (>$200)
   - Directional bias: OTM calls round up, OTM puts round down to maintain proper strategy structure
-  - Preserves strategy intent while adapting to different price levels (no more 235 strikes on $510 stocks)
+  - Preserves strategy structure while adapting to different price levels (no more inappropriate strikes)
   - Automatic detection via useEffect tracking symbol and price changes
+  - Waits for valid price to load before adjusting to prevent incorrect strikes
 - **Drag-and-Drop Strike Adjustment with Market Constraints**:
   - Interactive strike ladder with draggable badges - click and drag to adjust strike prices
   - Strike ladder range constrained to actual tradeable strikes from options chain (e.g., 500-650 for SPY)
