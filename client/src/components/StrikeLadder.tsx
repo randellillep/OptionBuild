@@ -98,11 +98,13 @@ export function StrikeLadder({
     return Math.max(strikeRange.min, Math.min(strikeRange.max, snapped));
   };
 
-  const handleBadgeMouseDown = (leg: OptionLeg, e: React.MouseEvent) => {
+  const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDraggedLeg(leg.id);
     setIsDragging(true);
+    // Capture pointer for smooth dragging
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const handleBadgeClick = (leg: OptionLeg, e: React.MouseEvent) => {
@@ -116,14 +118,15 @@ export function StrikeLadder({
   useEffect(() => {
     if (!isDragging || !draggedLeg) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
+      e.preventDefault();
       const newStrike = getStrikeFromPosition(e.clientX);
       if (newStrike !== null) {
         onUpdateLeg(draggedLeg, { strike: newStrike });
       }
     };
 
-    const handleMouseUp = () => {
+    const handlePointerUp = (e: PointerEvent) => {
       setIsDragging(false);
       // Small delay to prevent popover from opening immediately after drag
       setTimeout(() => {
@@ -131,12 +134,12 @@ export function StrikeLadder({
       }, 100);
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
     };
   }, [isDragging, draggedLeg, onUpdateLeg]);
 
@@ -163,14 +166,15 @@ export function StrikeLadder({
       >
         <PopoverTrigger asChild>
           <button
-            onMouseDown={(e) => handleBadgeMouseDown(leg, e)}
+            onPointerDown={(e) => handleBadgePointerDown(leg, e)}
             onClick={(e) => handleBadgeClick(leg, e)}
             data-testid={testId}
             className={`absolute ${position === 'long' ? '-top-8' : '-bottom-8'} text-[10px] h-6 px-2 ${bgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0`}
             style={{ 
               left: `${positionPercent}%`, 
               transform: 'translateX(-50%)',
-              boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined
+              boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
+              touchAction: 'none'
             }}
           >
             {leg.strike.toFixed(0)}{isCall ? 'C' : 'P'}
