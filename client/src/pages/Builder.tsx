@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ import { OptionsChainTable } from "@/components/OptionsChainTable";
 export default function Builder() {
   const [, setLocation] = useLocation();
   const [range, setRange] = useState(14);
+  const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   
   const {
     symbolInfo,
@@ -51,6 +52,79 @@ export default function Builder() {
   const handleVolatilityChange = (percent: number) => {
     setVolatility(percent / 100);
   };
+
+  // Helper to round strike to valid increments
+  const roundStrike = (strike: number, direction: 'up' | 'down' | 'nearest' = 'nearest'): number => {
+    let increment: number;
+    if (strike < 25) increment = 0.5;
+    else if (strike < 100) increment = 1;
+    else if (strike < 200) increment = 2.5;
+    else increment = 5;
+    
+    if (direction === 'up') {
+      return Math.ceil(strike / increment) * increment;
+    } else if (direction === 'down') {
+      return Math.floor(strike / increment) * increment;
+    } else {
+      return Math.round(strike / increment) * increment;
+    }
+  };
+
+  // Auto-adjust strategy strikes when symbol changes
+  useEffect(() => {
+    const prev = prevSymbolRef.current;
+    const current = symbolInfo;
+    
+    // On initial mount, just store the current info
+    if (!prev) {
+      prevSymbolRef.current = current;
+      return;
+    }
+    
+    // If symbol hasn't changed, update price but don't adjust strikes
+    if (prev.symbol === current.symbol) {
+      prevSymbolRef.current = current;
+      return;
+    }
+    
+    // Symbol changed - but wait for valid price before adjusting
+    // Don't update prevSymbolRef yet so we can retry when price arrives
+    if (legs.length === 0 || !prev.price || !current.price || prev.price <= 0 || current.price <= 0) {
+      return; // Don't update prevSymbolRef - wait for valid price
+    }
+    
+    // Now we have: different symbol, valid prices, and legs to adjust
+    const adjustedLegs = legs.map(leg => {
+      // Calculate percentage offset from previous price
+      const percentOffset = leg.strike / prev.price;
+      
+      // Apply same percentage to new price
+      const rawNewStrike = current.price * percentOffset;
+      
+      // Round to valid strike based on option type
+      // Calls round up if OTM, puts round down if OTM
+      const isOTM = (leg.type === 'call' && leg.strike > prev.price) || 
+                     (leg.type === 'put' && leg.strike < prev.price);
+      
+      let direction: 'up' | 'down' | 'nearest' = 'nearest';
+      if (isOTM) {
+        direction = leg.type === 'call' ? 'up' : 'down';
+      }
+      
+      const newStrike = roundStrike(rawNewStrike, direction);
+      
+      return {
+        ...leg,
+        strike: newStrike,
+        // Reset premium source to theoretical since we changed the strike
+        premiumSource: 'theoretical' as const,
+      };
+    });
+    
+    setLegs(adjustedLegs);
+    // Only update prevSymbolRef after successful adjustment
+    prevSymbolRef.current = current;
+  }, [symbolInfo.symbol, symbolInfo.price, legs.length]);
 
   const { data: optionsChainData, isLoading: isLoadingChain, error: chainError } = useOptionsChain({
     symbol: symbolInfo.symbol,
@@ -103,23 +177,6 @@ export default function Builder() {
       setLegs(template.legs.map(leg => ({ ...leg, id: Date.now().toString() + leg.id })));
       return;
     }
-    
-    // Helper to round strike with directional bias (up for calls, down for puts)
-    const roundStrike = (strike: number, direction: 'up' | 'down' | 'nearest' = 'nearest'): number => {
-      let increment: number;
-      if (strike < 25) increment = 0.5; // $0.50 increments
-      else if (strike < 100) increment = 1; // $1 increments
-      else if (strike < 200) increment = 2.5; // $2.50 increments
-      else increment = 5; // $5 increments
-      
-      if (direction === 'up') {
-        return Math.ceil(strike / increment) * increment;
-      } else if (direction === 'down') {
-        return Math.floor(strike / increment) * increment;
-      } else {
-        return Math.round(strike / increment) * increment;
-      }
-    };
     
     // Calculate ATM strike
     const atmStrike = roundStrike(currentPrice, 'nearest');
