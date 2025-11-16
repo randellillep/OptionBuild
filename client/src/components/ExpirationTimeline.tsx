@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface ExpirationTimelineProps {
@@ -140,6 +140,17 @@ export function ExpirationTimeline({
   }, [allDays]);
 
   const selectedExpirationDays = selectedDays ?? (allDays.length > 0 ? allDays[0] : 0);
+
+  // Auto-select first expiration when symbol changes or data loads
+  useEffect(() => {
+    // Only auto-select if nothing is currently selected and we have expirations
+    if (selectedDays === null && allDays.length > 0) {
+      const firstDays = allDays[0];
+      const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
+      console.log('[ExpirationTimeline] Auto-selecting first expiration:', firstDays, 'days (', firstDateStr, ')');
+      onSelectDays(firstDays, firstDateStr);
+    }
+  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays]);
 
   return (
     <div className="bg-muted/30 rounded-lg p-4 border border-border">
