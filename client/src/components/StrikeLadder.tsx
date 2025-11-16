@@ -14,6 +14,11 @@ interface StrikeLadderProps {
   onUpdateLeg: (legId: string, updates: Partial<OptionLeg>) => void;
   onRemoveLeg: (legId: string) => void;
   optionsChainData?: any;
+  availableStrikes?: {
+    min: number;
+    max: number;
+    strikes: number[];
+  } | null;
 }
 
 export function StrikeLadder({ 
@@ -25,6 +30,7 @@ export function StrikeLadder({
   onUpdateLeg,
   onRemoveLeg,
   optionsChainData,
+  availableStrikes,
 }: StrikeLadderProps) {
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -93,7 +99,16 @@ export function StrikeLadder({
     const percent = (x / rect.width) * 100;
     const strike = strikeRange.min + (percent / 100) * range;
     
-    // Snap to nearest valid strike interval
+    // If we have market data, snap to nearest available strike
+    if (availableStrikes && availableStrikes.strikes.length > 0) {
+      // Find nearest available strike
+      const nearest = availableStrikes.strikes.reduce((prev, curr) => 
+        Math.abs(curr - strike) < Math.abs(prev - strike) ? curr : prev
+      );
+      return nearest;
+    }
+    
+    // Otherwise, snap to nearest valid strike interval and constrain
     const snapped = Math.round(strike / strikeInterval) * strikeInterval;
     return Math.max(strikeRange.min, Math.min(strikeRange.max, snapped));
   };

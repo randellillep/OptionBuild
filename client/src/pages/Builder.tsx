@@ -58,6 +58,23 @@ export default function Builder() {
     enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
 
+  // Calculate available strikes from market data
+  const availableStrikes = (optionsChainData?.quotes && optionsChainData.quotes.length > 0)
+    ? {
+        min: Math.min(...optionsChainData.quotes.map((q: any) => q.strike)),
+        max: Math.max(...optionsChainData.quotes.map((q: any) => q.strike)),
+        strikes: Array.from(new Set(optionsChainData.quotes.map((q: any) => q.strike))).sort((a, b) => a - b),
+      }
+    : null;
+
+  // Constrain strike range to available strikes when market data exists
+  const displayStrikeRange = availableStrikes
+    ? {
+        min: availableStrikes.min,
+        max: availableStrikes.max,
+      }
+    : strikeRange;
+
   const addLeg = (legTemplate: Omit<OptionLeg, "id">) => {
     const newLeg: OptionLeg = {
       ...legTemplate,
@@ -267,12 +284,13 @@ export default function Builder() {
               <StrikeLadder
                 legs={legs}
                 currentPrice={symbolInfo.price}
-                strikeRange={strikeRange}
+                strikeRange={displayStrikeRange}
                 symbol={symbolInfo.symbol}
                 expirationDate={selectedExpirationDate}
                 onUpdateLeg={updateLeg}
                 onRemoveLeg={removeLeg}
                 optionsChainData={optionsChainData}
+                availableStrikes={availableStrikes}
               />
 
               <Tabs defaultValue="heatmap" className="w-full">

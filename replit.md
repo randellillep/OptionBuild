@@ -8,9 +8,11 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 16, 2025)
 
-- **Drag-and-Drop Strike Adjustment** (LATEST):
+- **Drag-and-Drop Strike Adjustment with Market Constraints** (LATEST):
   - Interactive strike ladder with draggable badges - click and drag to adjust strike prices
-  - Smart strike snapping to valid intervals (5/10/20/50/100 based on price range)
+  - Strike ladder range constrained to actual tradeable strikes from options chain (e.g., 500-650 for SPY)
+  - Smart strike snapping: snaps to nearest available strike when market data loaded, otherwise uses intervals (5/10/20/50/100)
+  - Prevents unrealistic strike values - can only drag to strikes that actually exist for trading
   - Real-time P/L chart, heatmap, and strategy metrics updates during drag
   - Visual feedback: cursor changes (grab → grabbing), scale animation, shadow effects
   - Redesigned strike ladder with visible price labels and tick marks matching professional trading platforms
