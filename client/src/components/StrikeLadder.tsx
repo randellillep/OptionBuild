@@ -51,8 +51,25 @@ export function StrikeLadder({
 
   const strikeInterval = getStrikeInterval();
   
-  // Generate labeled strikes at regular intervals
+  // Generate labeled strikes - use actual strikes when available, otherwise use intervals
   const generateLabeledStrikes = () => {
+    // If we have market data, use actual available strikes (including decimals)
+    if (availableStrikes && availableStrikes.strikes.length > 0) {
+      // Filter strikes within display range and pick ~10-15 evenly spaced for labels
+      const strikesInRange = availableStrikes.strikes.filter(
+        s => s >= strikeRange.min && s <= strikeRange.max
+      );
+      
+      // If we have many strikes, thin them out for readability
+      if (strikesInRange.length > 15) {
+        const step = Math.ceil(strikesInRange.length / 12);
+        return strikesInRange.filter((_, i) => i % step === 0);
+      }
+      
+      return strikesInRange;
+    }
+    
+    // Otherwise, use interval-based strikes
     const strikes: number[] = [];
     const start = Math.ceil(strikeRange.min / strikeInterval) * strikeInterval;
     for (let strike = start; strike <= strikeRange.max; strike += strikeInterval) {
@@ -192,7 +209,7 @@ export function StrikeLadder({
               touchAction: 'none'
             }}
           >
-            {leg.strike.toFixed(0)}{isCall ? 'C' : 'P'}
+            {leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}{isCall ? 'C' : 'P'}
           </button>
         </PopoverTrigger>
         <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
@@ -258,7 +275,7 @@ export function StrikeLadder({
                 <div className="w-0.5 h-3 bg-border/60" />
                 {/* Strike label */}
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground font-mono whitespace-nowrap">
-                  {strike}
+                  {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2).replace(/\.?0+$/, '')}
                 </div>
               </div>
             );
