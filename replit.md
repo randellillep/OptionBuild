@@ -8,14 +8,7 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 16, 2025)
 
-- **Horizontal Scrolling Strike Ladder** (LATEST):
-  - Strike ladder is now horizontally scrollable for better readability when strike range is large
-  - Minimum width of 800px ensures strikes have clear spacing
-  - Smooth horizontal scrolling with styled scrollbar (thin, border-colored thumb)
-  - Prevents visual clutter when many strikes need to be displayed
-  - All drag-and-drop functionality preserved - badges remain draggable and clickable
-  - Badges intentionally float above (long) or below (short) the ladder line for visual clarity
-- **Auto-Adjust Strikes on Symbol Change**:
+- **Auto-Adjust Strikes on Symbol Change** (LATEST):
   - Strategy strikes automatically adjust when switching between stocks to stay close to current price
   - Single leg strategies: resets to ATM (at-the-money) strike for new symbol
   - Multi-leg strategies: maintains relative spacing but centers around new ATM price
