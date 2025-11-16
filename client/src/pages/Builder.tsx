@@ -75,14 +75,21 @@ export default function Builder() {
     const prev = prevSymbolRef.current;
     const current = symbolInfo;
     
+    console.log('[AUTO-ADJUST]', {
+      prev: prev ? `${prev.symbol} $${prev.price}` : 'null',
+      current: `${current.symbol} $${current.price}`,
+    });
+    
     // On initial mount, just store the current info
     if (!prev) {
+      console.log('[AUTO-ADJUST] Initial mount, storing symbol');
       prevSymbolRef.current = current;
       return;
     }
     
     // If symbol hasn't changed, update price but don't adjust strikes
     if (prev.symbol === current.symbol) {
+      console.log('[AUTO-ADJUST] Same symbol, skipping');
       prevSymbolRef.current = current;
       return;
     }
@@ -90,18 +97,24 @@ export default function Builder() {
     // Symbol changed - but wait for valid price before adjusting
     // Don't update prevSymbolRef yet so we can retry when price arrives
     if (!prev.price || !current.price || prev.price <= 0 || current.price <= 0) {
+      console.log('[AUTO-ADJUST] Waiting for valid price');
       return; // Don't update prevSymbolRef - wait for valid price
     }
     
     // Now we have: different symbol, valid prices, and legs to adjust
     // User wants strikes adjusted to be "close to current price" - not proportional
     const atmStrike = roundStrike(current.price, 'nearest');
+    console.log('[AUTO-ADJUST] Adjusting strikes, ATM:', atmStrike);
     
     // IMPORTANT: Use setLegs with function form to get current legs
     // This avoids stale closure issues when legs is not in dependency array
     setLegs(currentLegs => {
+      console.log('[AUTO-ADJUST] Current legs count:', currentLegs.length);
       // Skip if no legs to adjust
-      if (currentLegs.length === 0) return currentLegs;
+      if (currentLegs.length === 0) {
+        console.log('[AUTO-ADJUST] No legs, skipping');
+        return currentLegs;
+      }
       
       const adjustedLegs = currentLegs.map((leg, index) => {
         // Reset all strikes to be close to the new ATM price
