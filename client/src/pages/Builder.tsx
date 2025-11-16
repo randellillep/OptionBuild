@@ -75,14 +75,22 @@ export default function Builder() {
     const prev = prevSymbolRef.current;
     const current = symbolInfo;
     
+    console.log('[Auto-Adjust] Effect triggered:', { 
+      prev: prev ? `${prev.symbol} $${prev.price}` : 'null',
+      current: `${current.symbol} $${current.price}`,
+      deps: `[${symbolInfo.symbol}, ${symbolInfo.price}]`
+    });
+    
     // On initial mount, just store the current info
     if (!prev) {
+      console.log('[Auto-Adjust] Initial mount - storing symbol info');
       prevSymbolRef.current = current;
       return;
     }
     
     // If symbol hasn't changed, update price but don't adjust strikes
     if (prev.symbol === current.symbol) {
+      console.log('[Auto-Adjust] Same symbol - skipping adjustment');
       prevSymbolRef.current = current;
       return;
     }
@@ -90,18 +98,27 @@ export default function Builder() {
     // Symbol changed - but wait for valid price before adjusting
     // Don't update prevSymbolRef yet so we can retry when price arrives
     if (!prev.price || !current.price || prev.price <= 0 || current.price <= 0) {
+      console.log('[Auto-Adjust] Waiting for valid price:', { prevPrice: prev.price, currentPrice: current.price });
       return; // Don't update prevSymbolRef - wait for valid price
     }
+    
+    console.log('[Auto-Adjust] Symbol changed with valid prices - adjusting strikes');
     
     // Now we have: different symbol, valid prices, and legs to adjust
     // User wants strikes adjusted to be "close to current price" - not proportional
     const atmStrike = roundStrike(current.price, 'nearest');
+    console.log('[Auto-Adjust] ATM strike calculated:', atmStrike);
     
     // IMPORTANT: Use setLegs with function form to get current legs
     // This avoids stale closure issues when legs is not in dependency array
     setLegs(currentLegs => {
       // Skip if no legs to adjust
-      if (currentLegs.length === 0) return currentLegs;
+      if (currentLegs.length === 0) {
+        console.log('[Auto-Adjust] No legs to adjust');
+        return currentLegs;
+      }
+      
+      console.log('[Auto-Adjust] Adjusting', currentLegs.length, 'legs from', prev.symbol, 'to', current.symbol);
       
       const adjustedLegs = currentLegs.map((leg, index) => {
         // Reset all strikes to be close to the new ATM price
