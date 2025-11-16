@@ -112,7 +112,11 @@ export function OptionDetailsPanel({
     return `${(value * 100).toFixed(1)}%`;
   };
 
-  const title = `${symbol.toUpperCase()} ${leg.strike.toFixed(0)}${leg.type === "call" ? "C" : "P"} ${formatDate(expirationDate)}`;
+  const formatStrike = (strike: number) => {
+    return strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2).replace(/\.?0+$/, '');
+  };
+  
+  const title = `${symbol.toUpperCase()} ${formatStrike(leg.strike)}${leg.type === "call" ? "C" : "P"} ${formatDate(expirationDate)}`;
   const positionText = leg.position === "long" ? "Buy" : "Sell";
   const oppositePosition = leg.position === "long" ? "Sell" : "Buy";
   
