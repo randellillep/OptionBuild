@@ -13,6 +13,7 @@ import { OptionLegEditor } from "@/components/OptionLegEditor";
 import { SymbolSearchBar } from "@/components/SymbolSearchBar";
 import { ExpirationTimeline } from "@/components/ExpirationTimeline";
 import { StrikeLadder } from "@/components/StrikeLadder";
+import { StrikePriceBar } from "@/components/StrikePriceBar";
 import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { RangeVolatilitySliders } from "@/components/RangeVolatilitySliders";
@@ -357,6 +358,16 @@ export default function Builder() {
                 optionsChainData={optionsChainData}
                 availableStrikes={availableStrikes}
               />
+
+              {legs.length > 0 && (
+                <StrikePriceBar
+                  legs={legs}
+                  currentPrice={symbolInfo.price}
+                  strikeRange={displayStrikeRange}
+                  onUpdateLeg={updateLeg}
+                  availableStrikes={availableStrikes}
+                />
+              )}
 
               <Tabs defaultValue="heatmap" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
