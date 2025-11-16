@@ -6,9 +6,22 @@ OptionFlow is a professional options trading strategy builder and analysis platf
 
 The platform targets traders who need to understand complex options positions through visual analysis, P/L scenarios across time and price, and risk exposure metrics before executing trades.
 
-## Recent Updates (November 11, 2025)
+## Recent Updates (November 16, 2025)
 
-- **Dynamic Strategy Templates with Current Price** (LATEST):
+- **Drag-and-Drop Strike Adjustment** (LATEST):
+  - Interactive strike ladder with draggable badges - click and drag to adjust strike prices
+  - Smart strike snapping to valid intervals (5/10/20/50/100 based on price range)
+  - Real-time P/L chart, heatmap, and strategy metrics updates during drag
+  - Visual feedback: cursor changes (grab → grabbing), scale animation, shadow effects
+  - Redesigned strike ladder with visible price labels and tick marks matching professional trading platforms
+  - Pointer events with capture for smooth drag experience across devices
+- **Manual Cost Basis Editing with Persistence**:
+  - Edit option premium (cost basis) manually in OptionDetailsPanel
+  - Auto-calculated from (Bid + Ask) / 2 when market data available
+  - Manual edits persist across panel close/reopen using premiumSource field ("market" | "theoretical" | "manual")
+  - Reset button (⟲) restores market average
+  - Real-time updates to all charts, heatmaps, and strategy metrics when premium changes
+- **Dynamic Strategy Templates with Current Price**:
   - Strategy templates now automatically adjust strikes relative to current stock price
   - Smart strike rounding: $0.50 increments (<$25), $1 ($25-$100), $2.50 ($100-$200), $5 (>$200)
   - Directional rounding ensures OTM strikes stay properly spaced (calls round up, puts round down)
