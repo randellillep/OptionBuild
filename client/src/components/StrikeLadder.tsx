@@ -256,13 +256,14 @@ export function StrikeLadder({
         </p>
       </div>
 
-      <div className="overflow-x-auto overflow-y-visible scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
         <div 
           ref={ladderRef} 
-          className="relative h-32 bg-muted/20 rounded-md overflow-visible px-4"
+          className="relative h-32 bg-muted/20 rounded-md px-4"
           style={{ 
             userSelect: 'none',
-            minWidth: '800px'
+            minWidth: '800px',
+            overflow: 'visible'
           }}
         >
         {/* Strike price labels and tick marks */}
