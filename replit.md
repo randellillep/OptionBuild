@@ -10,6 +10,7 @@ The platform targets traders who need to understand complex options positions th
 
 - **Fixed Auto-Adjust Strikes Bug** (LATEST):
   - **Critical fix**: Resolved React stale closure issue preventing strikes from adjusting when switching symbols
+  - Removed stale `legs.length === 0` check from early return (was using closure value before getting fresh state)
   - Changed `setLegs()` to use function form `setLegs(currentLegs => ...)` to get fresh state
   - Removed `legs.length` from dependency array to prevent missing updates when leg count stays same
   - Now correctly triggers on `[symbolInfo.symbol, symbolInfo.price]` changes only

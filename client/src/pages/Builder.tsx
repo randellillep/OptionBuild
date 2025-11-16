@@ -89,7 +89,7 @@ export default function Builder() {
     
     // Symbol changed - but wait for valid price before adjusting
     // Don't update prevSymbolRef yet so we can retry when price arrives
-    if (legs.length === 0 || !prev.price || !current.price || prev.price <= 0 || current.price <= 0) {
+    if (!prev.price || !current.price || prev.price <= 0 || current.price <= 0) {
       return; // Don't update prevSymbolRef - wait for valid price
     }
     
@@ -100,6 +100,7 @@ export default function Builder() {
     // IMPORTANT: Use setLegs with function form to get current legs
     // This avoids stale closure issues when legs is not in dependency array
     setLegs(currentLegs => {
+      // Skip if no legs to adjust
       if (currentLegs.length === 0) return currentLegs;
       
       const adjustedLegs = currentLegs.map((leg, index) => {
