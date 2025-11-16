@@ -8,7 +8,13 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 16, 2025)
 
-- **Auto-Adjust Strikes on Symbol Change** (LATEST):
+- **Horizontal Scrolling Strike Ladder** (LATEST):
+  - Strike ladder is now horizontally scrollable for better readability
+  - Minimum width of 800px ensures all strikes are visible with clear spacing
+  - Smooth scrolling with styled scrollbar (thin, border-colored thumb)
+  - Prevents visual clutter when strike range is large
+  - All drag-and-drop functionality preserved within scrollable container
+- **Auto-Adjust Strikes on Symbol Change**:
   - Strategy strikes automatically adjust when switching between stocks to stay close to current price
   - Single leg strategies: resets to ATM (at-the-money) strike for new symbol
   - Multi-leg strategies: maintains relative spacing but centers around new ATM price

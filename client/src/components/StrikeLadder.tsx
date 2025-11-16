@@ -256,11 +256,15 @@ export function StrikeLadder({
         </p>
       </div>
 
-      <div 
-        ref={ladderRef} 
-        className="relative h-32 bg-muted/20 rounded-md overflow-visible px-4"
-        style={{ userSelect: 'none' }}
-      >
+      <div className="overflow-x-auto overflow-y-visible scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        <div 
+          ref={ladderRef} 
+          className="relative h-32 bg-muted/20 rounded-md overflow-visible px-4"
+          style={{ 
+            userSelect: 'none',
+            minWidth: '800px'
+          }}
+        >
         {/* Strike price labels and tick marks */}
         <div className="absolute inset-0 pointer-events-none">
           {labeledStrikes.map((strike) => {
@@ -298,6 +302,7 @@ export function StrikeLadder({
         {/* Render all option leg badges */}
         {legs.filter(l => l.position === "long").map(leg => renderBadge(leg, 'long'))}
         {legs.filter(l => l.position === "short").map(leg => renderBadge(leg, 'short'))}
+        </div>
       </div>
 
       <div className="flex justify-between mt-2 text-xs text-muted-foreground font-mono">
