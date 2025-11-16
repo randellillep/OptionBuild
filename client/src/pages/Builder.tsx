@@ -148,6 +148,42 @@ export default function Builder() {
         strikes: Array.from(new Set(optionsChainData.quotes.map((q: any) => q.strike))).sort((a, b) => a - b),
       }
     : null;
+  
+  // Helper to constrain strike to market limits
+  const constrainToMarketLimits = (strike: number): number => {
+    if (!availableStrikes) return strike;
+    
+    // Clamp to min/max range
+    if (strike < availableStrikes.min) return availableStrikes.min;
+    if (strike > availableStrikes.max) return availableStrikes.max;
+    
+    // Find nearest available strike
+    const nearest = availableStrikes.strikes.reduce((closest, current) => {
+      return Math.abs(current - strike) < Math.abs(closest - strike) ? current : closest;
+    });
+    
+    return nearest;
+  };
+  
+  // Constrain existing strikes when new options chain data loads
+  useEffect(() => {
+    if (!availableStrikes || legs.length === 0) return;
+    
+    // Check if any strikes are outside market limits
+    const hasOutOfBoundsStrikes = legs.some(
+      leg => leg.strike < availableStrikes.min || leg.strike > availableStrikes.max
+    );
+    
+    if (hasOutOfBoundsStrikes) {
+      const constrainedLegs = legs.map(leg => ({
+        ...leg,
+        strike: constrainToMarketLimits(leg.strike),
+        // Reset premium source since we changed the strike
+        premiumSource: 'theoretical' as const,
+      }));
+      setLegs(constrainedLegs);
+    }
+  }, [availableStrikes?.min, availableStrikes?.max, legs.length]);
 
   // Constrain strike range to available strikes when market data exists
   const displayStrikeRange = availableStrikes

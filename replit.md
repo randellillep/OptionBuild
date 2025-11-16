@@ -14,6 +14,8 @@ The platform targets traders who need to understand complex options positions th
   - Multi-leg strategies: maintains relative spacing but centers around new ATM price
   - Smart rounding to valid strike increments: $0.50 (<$25), $1 ($25-$100), $2.50 ($100-$200), $5 (>$200)
   - Directional bias: OTM calls round up, OTM puts round down to maintain proper strategy structure
+  - **Market-based constraints**: Adjusted strikes are automatically constrained to actual tradeable strikes from options chain
+  - Secondary validation ensures strikes stay within min/max market limits after chain data loads
   - Preserves strategy structure while adapting to different price levels (no more inappropriate strikes)
   - Automatic detection via useEffect tracking symbol and price changes
   - Waits for valid price to load before adjusting to prevent incorrect strikes
