@@ -61,11 +61,12 @@ export function useStrategyEngine() {
     const strikes = legs.map(leg => leg.strike);
     const minStrike = Math.min(...strikes);
     const maxStrike = Math.max(...strikes);
-    const buffer = (maxStrike - minStrike) * 0.2 || symbolInfo.price * 0.1;
+    // Use fixed buffer based on price to prevent bar shifting during drag
+    const buffer = symbolInfo.price * 0.15;
     
     return {
       min: Math.max(minStrike - buffer, symbolInfo.price * 0.7),
-      max: maxStrike + buffer,
+      max: Math.max(maxStrike + buffer, symbolInfo.price * 1.3),
     };
   }, [legs, symbolInfo.price]);
 

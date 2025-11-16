@@ -224,9 +224,13 @@ export function StrikeLadder({
         </p>
       </div>
 
-      <div ref={ladderRef} className="relative h-32 bg-muted/20 rounded-md overflow-visible px-4">
+      <div 
+        ref={ladderRef} 
+        className="relative h-32 bg-muted/20 rounded-md overflow-visible px-4"
+        style={{ userSelect: 'none' }}
+      >
         {/* Strike price labels and tick marks */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 pointer-events-none">
           {labeledStrikes.map((strike) => {
             const position = getStrikePosition(strike);
             return (
@@ -247,11 +251,11 @@ export function StrikeLadder({
         </div>
 
         {/* Main horizontal line */}
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border/40" />
+        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border/40 pointer-events-none" />
 
         {/* Current price indicator */}
         <div
-          className="absolute top-0 bottom-0 w-1 bg-primary z-10"
+          className="absolute top-0 bottom-0 w-1 bg-primary z-10 pointer-events-none"
           style={{ left: `${currentPricePercent}%`, transform: 'translateX(-50%)' }}
         >
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded whitespace-nowrap font-mono">
