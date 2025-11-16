@@ -97,42 +97,49 @@ export default function Builder() {
     // User wants strikes adjusted to be "close to current price" - not proportional
     const atmStrike = roundStrike(current.price, 'nearest');
     
-    const adjustedLegs = legs.map((leg, index) => {
-      // Reset all strikes to be close to the new ATM price
-      // Spread them slightly based on their relative position in the original strategy
-      let newStrike: number;
+    // IMPORTANT: Use setLegs with function form to get current legs
+    // This avoids stale closure issues when legs is not in dependency array
+    setLegs(currentLegs => {
+      if (currentLegs.length === 0) return currentLegs;
       
-      if (legs.length === 1) {
-        // Single leg - just use ATM
-        newStrike = atmStrike;
-      } else {
-        // Multiple legs - maintain relative spacing
-        // Determine if this was a higher or lower strike in the original strategy
-        const avgStrike = legs.reduce((sum, l) => sum + l.strike, 0) / legs.length;
-        const relativePosition = (leg.strike - avgStrike) / prev.price; // as percentage
+      const adjustedLegs = currentLegs.map((leg, index) => {
+        // Reset all strikes to be close to the new ATM price
+        // Spread them slightly based on their relative position in the original strategy
+        let newStrike: number;
         
-        // Apply small offset from ATM
-        const offset = relativePosition * current.price;
-        const targetStrike = atmStrike + offset;
+        if (currentLegs.length === 1) {
+          // Single leg - just use ATM
+          newStrike = atmStrike;
+        } else {
+          // Multiple legs - maintain relative spacing
+          // Determine if this was a higher or lower strike in the original strategy
+          const avgStrike = currentLegs.reduce((sum, l) => sum + l.strike, 0) / currentLegs.length;
+          const relativePosition = (leg.strike - avgStrike) / prev.price; // as percentage
+          
+          // Apply small offset from ATM
+          const offset = relativePosition * current.price;
+          const targetStrike = atmStrike + offset;
+          
+          // Round based on option type for proper spacing
+          const direction = leg.type === 'call' && offset > 0 ? 'up' : 
+                           leg.type === 'put' && offset < 0 ? 'down' : 'nearest';
+          newStrike = roundStrike(targetStrike, direction);
+        }
         
-        // Round based on option type for proper spacing
-        const direction = leg.type === 'call' && offset > 0 ? 'up' : 
-                         leg.type === 'put' && offset < 0 ? 'down' : 'nearest';
-        newStrike = roundStrike(targetStrike, direction);
-      }
+        return {
+          ...leg,
+          strike: newStrike,
+          // Reset premium source to theoretical since we changed the strike
+          premiumSource: 'theoretical' as const,
+        };
+      });
       
-      return {
-        ...leg,
-        strike: newStrike,
-        // Reset premium source to theoretical since we changed the strike
-        premiumSource: 'theoretical' as const,
-      };
+      return adjustedLegs;
     });
     
-    setLegs(adjustedLegs);
     // Only update prevSymbolRef after successful adjustment
     prevSymbolRef.current = current;
-  }, [symbolInfo.symbol, symbolInfo.price, legs.length]);
+  }, [symbolInfo.symbol, symbolInfo.price]);
 
   const { data: optionsChainData, isLoading: isLoadingChain, error: chainError } = useOptionsChain({
     symbol: symbolInfo.symbol,

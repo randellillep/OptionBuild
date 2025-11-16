@@ -8,7 +8,13 @@ The platform targets traders who need to understand complex options positions th
 
 ## Recent Updates (November 16, 2025)
 
-- **Auto-Adjust Strikes on Symbol Change** (LATEST):
+- **Fixed Auto-Adjust Strikes Bug** (LATEST):
+  - **Critical fix**: Resolved React stale closure issue preventing strikes from adjusting when switching symbols
+  - Changed `setLegs()` to use function form `setLegs(currentLegs => ...)` to get fresh state
+  - Removed `legs.length` from dependency array to prevent missing updates when leg count stays same
+  - Now correctly triggers on `[symbolInfo.symbol, symbolInfo.price]` changes only
+  - Verified: AAPL 270C → Switch to MSFT → Auto-adjusts to 510C ✅
+- **Auto-Adjust Strikes on Symbol Change**:
   - Strategy strikes automatically adjust when switching between stocks to stay close to current price
   - Single leg strategies: resets to ATM (at-the-money) strike for new symbol
   - Multi-leg strategies: maintains relative spacing but centers around new ATM price
