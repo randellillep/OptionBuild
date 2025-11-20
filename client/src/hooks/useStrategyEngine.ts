@@ -104,6 +104,41 @@ export function useStrategyEngine() {
       }
     }
 
+    // Compute date groupings for hour mode
+    const dateGroups: Array<{ dateLabel: string; startIdx: number; count: number }> = [];
+    if (useHours) {
+      const now = new Date();
+      let lastDateKey = '';
+      
+      timeSteps.forEach((daysValue, idx) => {
+        const totalHours = Math.round(daysValue * 24);
+        const targetTime = new Date(now.getTime() + totalHours * 60 * 60 * 1000);
+        const dateKey = `${targetTime.getMonth()}-${targetTime.getDate()}`;
+        
+        if (dateKey !== lastDateKey) {
+          // Generate date label
+          const month = targetTime.toLocaleString('default', { month: 'short' });
+          const day = targetTime.getDate();
+          const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
+                        day === 2 || day === 22 ? 'nd' :
+                        day === 3 || day === 23 ? 'rd' : 'th';
+          
+          // Start new group
+          dateGroups.push({
+            dateLabel: `${month} ${day}${suffix}`,
+            startIdx: idx,
+            count: 1,
+          });
+          lastDateKey = dateKey;
+        } else {
+          // Increment count of current group
+          if (dateGroups.length > 0) {
+            dateGroups[dateGroups.length - 1].count++;
+          }
+        }
+      });
+    }
+
     const grid: ScenarioPoint[][] = strikes.map(strike => 
       timeSteps.map(daysLeft => ({
         strike,
@@ -118,6 +153,7 @@ export function useStrategyEngine() {
       days: timeSteps,
       useHours,
       targetDays,
+      dateGroups,
     };
   }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, selectedExpirationDays]);
 

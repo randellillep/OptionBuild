@@ -485,6 +485,7 @@ export default function Builder() {
                     rangePercent={range}
                     useHours={scenarioGrid.useHours}
                     targetDays={scenarioGrid.targetDays}
+                    dateGroups={scenarioGrid.dateGroups}
                   />
                   
                   <RangeVolatilitySliders

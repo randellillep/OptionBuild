@@ -2,6 +2,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { ScenarioPoint } from "@/hooks/useStrategyEngine";
 
+interface DateGroup {
+  dateLabel: string;
+  startIdx: number;
+  count: number;
+}
+
 interface PLHeatmapProps {
   grid: ScenarioPoint[][];
   strikes: number[];
@@ -10,6 +16,7 @@ interface PLHeatmapProps {
   rangePercent?: number;
   useHours?: boolean;
   targetDays?: number;
+  dateGroups?: DateGroup[];
 }
 
 export function PLHeatmap({ 
@@ -20,6 +27,7 @@ export function PLHeatmap({
   rangePercent = 14,
   useHours = false,
   targetDays = 30,
+  dateGroups = [],
 }: PLHeatmapProps) {
   const allPnlValues = grid.flatMap(row => row.map(cell => cell.pnl));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
@@ -81,6 +89,13 @@ export function PLHeatmap({
     }
   };
 
+  // Helper to check if a column index starts a new date group
+  // Show separator for all date groups except the very first column
+  const isDateGroupStart = (colIdx: number) => {
+    if (colIdx === 0) return false;
+    return dateGroups.some(group => group.startIdx === colIdx);
+  };
+
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -108,17 +123,48 @@ export function PLHeatmap({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
+            {/* Date group row (only shown when useHours is true) */}
+            {dateGroups.length > 0 && (
+              <tr>
+                <th 
+                  colSpan={2} 
+                  rowSpan={1}
+                  className="text-xs font-semibold text-center p-2 border-b border-border bg-background"
+                />
+                {dateGroups.map((group, idx) => (
+                  <th
+                    key={idx}
+                    colSpan={group.count}
+                    scope="colgroup"
+                    className="text-sm font-bold text-center p-2 border-b border-border bg-muted/50"
+                    data-testid={`header-dategroup-${idx}`}
+                  >
+                    {group.dateLabel}
+                  </th>
+                ))}
+              </tr>
+            )}
+            {/* Time/day column row */}
             <tr>
-              <th className="text-xs font-semibold text-left p-2 border-b border-border sticky left-0 bg-background z-10 w-[100px]">
+              <th 
+                className="text-xs font-semibold text-left p-2 border-b border-border sticky left-0 bg-background z-10 w-[100px]"
+                scope="col"
+              >
                 Strike
               </th>
-              <th className="text-xs font-semibold text-right p-2 border-b border-border bg-background w-[60px]">
+              <th 
+                className="text-xs font-semibold text-right p-2 border-b border-border bg-background w-[60px]"
+                scope="col"
+              >
                 %
               </th>
               {days.map((day, idx) => (
                 <th
                   key={idx}
-                  className="text-xs font-semibold text-center p-2 border-b border-border min-w-[80px]"
+                  scope="col"
+                  className={`text-xs font-semibold text-center p-2 border-b border-border min-w-[80px] ${
+                    isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
+                  }`}
                   data-testid={`header-time-${idx}`}
                 >
                   <div>{getTimeLabel(day)}</div>
@@ -161,7 +207,9 @@ export function PLHeatmap({
                   {row.map((cell, colIdx) => (
                     <td
                       key={colIdx}
-                      className={`text-xs font-mono text-center p-2 border-b border-border transition-colors ${getPnlColor(cell.pnl)}`}
+                      className={`text-xs font-mono text-center p-2 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
+                        isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
+                      }`}
                       data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                     >
                       {cell.pnl >= 0 ? '+' : ''}${cell.pnl.toFixed(0)}
