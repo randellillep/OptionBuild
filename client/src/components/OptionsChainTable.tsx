@@ -140,35 +140,49 @@ export function OptionsChainTable({
         </Card>
       )}
 
-      {showPuts && puts.length > 0 && (
+      {showPuts && (
         <Card>
           <CardHeader>
             <CardTitle className="text-red-600 dark:text-red-400">Put Options</CardTitle>
-            <CardDescription>{puts.length} available strikes</CardDescription>
+            <CardDescription>
+              {puts.length > 0 
+                ? `${puts.length} available strikes` 
+                : 'No PUT data available from market'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Strike</TableHead>
-                    <TableHead className="text-right">Bid</TableHead>
-                    <TableHead className="text-right">Ask</TableHead>
-                    <TableHead className="text-right">Mid</TableHead>
-                    <TableHead className="text-right">Spread</TableHead>
-                    <TableHead className="text-right">IV</TableHead>
-                    <TableHead className="text-right">Delta</TableHead>
-                    <TableHead className="text-right">Gamma</TableHead>
-                    <TableHead className="text-right">Theta</TableHead>
-                    <TableHead className="text-right">Vega</TableHead>
-                    {onSelectOption && <TableHead>Action</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {puts.map(renderOptionRow)}
-                </TableBody>
-              </Table>
-            </div>
+            {puts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground" data-testid="message-no-puts">
+                <p className="text-sm mb-2 font-semibold" data-testid="text-no-puts-title">No PUT option prices available</p>
+                <p className="text-xs" data-testid="text-no-puts-description">
+                  Market data provider's free tier only includes CALL options. 
+                  Use "Buy Put" or "Sell Put" buttons to add puts with theoretical pricing.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Strike</TableHead>
+                      <TableHead className="text-right">Bid</TableHead>
+                      <TableHead className="text-right">Ask</TableHead>
+                      <TableHead className="text-right">Mid</TableHead>
+                      <TableHead className="text-right">Spread</TableHead>
+                      <TableHead className="text-right">IV</TableHead>
+                      <TableHead className="text-right">Delta</TableHead>
+                      <TableHead className="text-right">Gamma</TableHead>
+                      <TableHead className="text-right">Theta</TableHead>
+                      <TableHead className="text-right">Vega</TableHead>
+                      {onSelectOption && <TableHead>Action</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {puts.map(renderOptionRow)}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

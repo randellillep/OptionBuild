@@ -2,88 +2,7 @@
 
 ## Overview
 
-OptionFlow is a professional options trading strategy builder and analysis platform inspired by OptionStrat.com. It allows users to construct, visualize, and analyze options strategies with real-time profit/loss charts, Greeks calculations, and comprehensive risk metrics. The application features 10+ pre-built strategy templates (spreads, straddles, condors, butterflies), interactive volatility controls, and 6-tab analysis section. Uses the Black-Scholes model for accurate option pricing with time decay.
-
-The platform targets traders who need to understand complex options positions through visual analysis, P/L scenarios across time and price, and risk exposure metrics before executing trades.
-
-## Recent Updates (November 16, 2025)
-
-- **Fixed Auto-Adjust Strikes Bug** (LATEST):
-  - **Critical fix**: Resolved React stale closure issue preventing strikes from adjusting when switching symbols
-  - Removed stale `legs.length === 0` check from early return (was using closure value before getting fresh state)
-  - Changed `setLegs()` to use function form `setLegs(currentLegs => ...)` to get fresh state
-  - Removed `legs.length` from dependency array to prevent missing updates when leg count stays same
-  - Now correctly triggers on `[symbolInfo.symbol, symbolInfo.price]` changes only
-  - Verified: AAPL 270C → Switch to MSFT → Auto-adjusts to 510C ✅
-- **Auto-Adjust Strikes on Symbol Change**:
-  - Strategy strikes automatically adjust when switching between stocks to stay close to current price
-  - Single leg strategies: resets to ATM (at-the-money) strike for new symbol
-  - Multi-leg strategies: maintains relative spacing but centers around new ATM price
-  - Smart rounding to valid strike increments: $0.50 (<$25), $1 ($25-$100), $2.50 ($100-$200), $5 (>$200)
-  - Directional bias: OTM calls round up, OTM puts round down to maintain proper strategy structure
-  - **Market-based constraints**: Adjusted strikes are automatically constrained to actual tradeable strikes from options chain
-  - Secondary validation ensures strikes stay within min/max market limits after chain data loads
-  - Preserves strategy structure while adapting to different price levels (no more inappropriate strikes)
-  - Automatic detection via useEffect tracking symbol and price changes
-  - Waits for valid price to load before adjusting to prevent incorrect strikes
-- **Drag-and-Drop Strike Adjustment with Market Constraints**:
-  - Interactive strike ladder with draggable badges - click and drag to adjust strike prices
-  - Strike ladder range constrained to actual tradeable strikes from options chain (e.g., 500-650 for SPY)
-  - Smart strike snapping: snaps to nearest available strike when market data loaded, otherwise uses intervals (5/10/20/50/100)
-  - Prevents unrealistic strike values - can only drag to strikes that actually exist for trading
-  - Real-time P/L chart, heatmap, and strategy metrics updates during drag
-  - Visual feedback: cursor changes (grab → grabbing), scale animation, shadow effects
-  - Redesigned strike ladder with visible price labels and tick marks matching professional trading platforms
-  - Pointer events with capture for smooth drag experience across devices
-- **Manual Cost Basis Editing with Persistence**:
-  - Edit option premium (cost basis) manually in OptionDetailsPanel
-  - Auto-calculated from (Bid + Ask) / 2 when market data available
-  - Manual edits persist across panel close/reopen using premiumSource field ("market" | "theoretical" | "manual")
-  - Reset button (⟲) restores market average
-  - Real-time updates to all charts, heatmaps, and strategy metrics when premium changes
-- **Dynamic Strategy Templates with Current Price**:
-  - Strategy templates now automatically adjust strikes relative to current stock price
-  - Smart strike rounding: $0.50 increments (<$25), $1 ($25-$100), $2.50 ($100-$200), $5 (>$200)
-  - Directional rounding ensures OTM strikes stay properly spaced (calls round up, puts round down)
-  - Strategy-specific logic: straddles at ATM, spreads at ±5% OTM, condors at ±5%/±10%
-  - Graceful fallback to template strikes if price data unavailable
-- **Enhanced Heatmap and Strike Ladder UI**:
-  - Added percentage column to P/L heatmap showing % change from current price for each strike
-  - "RANGE: ±X%" badge displays current range slider value in heatmap header
-  - Strike Ladder now shows strike prices with option types (e.g., "275C", "110P") in prominent badges
-  - Green badges for calls, red badges for puts positioned above strike lines
-  - Automatic inclusion of actual leg strikes in Strike Ladder for precise visualization
-- **Real Options Chain Data Integration**:
-  - Integrated Alpaca API for real-time options market data with bid/ask prices and Greeks
-  - New Options Chain tab displays live market data: strikes, bid/ask, spread %, IV, delta, gamma, theta, vega
-  - Backend endpoint `/api/options/chain/:symbol` with 60s server-side caching (1,000 API calls/minute free tier)
-  - Dual-track expiration state: canonical ISO dates from API + day offsets for UI calculations
-  - Click-to-add functionality: select any option from chain to instantly add as strategy leg with market pricing
-  - Comprehensive error handling: loading states, API errors, empty data messages
-  - React Query integration: 30s staleTime, 5min gcTime for optimal caching
-  - ATM strike highlighting and separate call/put tables for professional UX
-- **Real Options Expiration Dates**: Integrated Market Data API for actual market expiration dates
-  - Backend endpoint `/api/options/expirations/:symbol` fetches real expiration dates
-  - 100 free API requests/day (optional MARKETDATA_API_KEY environment variable)
-  - Intelligent fallback to calculated Friday expirations if API unavailable
-  - Shows ~20 real expiration dates spanning weeks, months, and years
-  - 1-hour caching via React Query to minimize API calls
-- **Horizontal Expiration Bar**: Redesigned ExpirationTimeline to match OptionStrat.com style
-  - Month-grouped horizontal layout with scrollable dates
-  - "EXPIRATION: Xd" label showing days until selected expiration
-  - Date count indicator (e.g., "(20 dates)")
-  - Year indicators for future expirations (e.g., "Jan '26")
-- **Live Stock Price Integration**: Integrated Finnhub API for real-time US stock quotes with 15-minute delayed data fallback
-  - Symbol search with autocomplete (300ms debounced)
-  - Real-time price updates (refreshes every 60 seconds)
-  - Popular symbols with live percentage changes
-  - Loading states and error handling
-- **OptionStrat-Style Navigation**: Added Build (with strategy dropdown), Optimize, and Market Trends buttons in header
-- **Quick Add Functionality**: Implemented Add button dropdown for rapidly adding option legs (Buy Call, Buy Put, Sell Call, Sell Put)
-- **Interactive Controls**: Added Range (±5-50%) and Implied Volatility (10-100%) sliders that dynamically update calculations
-- **Analysis Tabs**: Created 6-tab section below heatmap (Greeks, Expected Move, Volatility Skew, Option Overview, Analysis, Open Interest)
-- **Dynamic Volatility**: Connected IV slider to Black-Scholes pricing engine for real-time heatmap updates
-- **Time Decay Visualization**: Fixed P/L heatmap to properly show option value changes across different dates using calculateProfitLossAtDate
+OptionFlow is a professional options trading strategy builder and analysis platform inspired by OptionStrat.com. It enables users to construct, visualize, and analyze options strategies with real-time profit/loss charts, Greeks calculations, and comprehensive risk metrics. The platform features over 10 pre-built strategy templates, interactive volatility controls, and a 6-tab analysis section. It utilizes the Black-Scholes model for accurate option pricing with time decay. OptionFlow aims to provide visual analysis, P/L scenarios across time and price, and risk exposure metrics to help traders understand complex options positions before execution.
 
 ## User Preferences
 
@@ -93,162 +12,66 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-**Framework**: React 18+ with TypeScript in strict mode
+**Framework**: React 18+ with TypeScript (strict mode)
 
-**Routing**: Wouter for lightweight client-side routing (Home page and Builder page)
+**Routing**: Wouter
 
-**State Management**: 
-- React hooks for local component state
-- Custom `useStrategyEngine` hook centralizes strategy calculations and state
-- TanStack Query (React Query) for server state management
+**State Management**: React hooks for local state, TanStack Query for server state, custom `useStrategyEngine` hook for strategy calculations.
 
-**UI Framework**: 
-- Shadcn UI component library with Radix UI primitives
-- Tailwind CSS for styling with custom design system
-- Custom theme with light/dark mode support stored in localStorage
-- Design follows "Modern Data Application Pattern" combining fintech aesthetics with trading platform patterns
+**UI Framework**: Shadcn UI with Radix UI primitives, Tailwind CSS for styling. Features a custom theme with light/dark mode and follows a "Modern Data Application Pattern" for fintech aesthetics.
 
-**Component Strategy**:
-- Presentational components in `/client/src/components/` (FeatureCard, GreeksDashboard, ProfitLossChart, etc.)
-- Page components in `/client/src/pages/` (Home, Builder, NotFound)
-- Reusable UI primitives in `/client/src/components/ui/`
+**Component Strategy**: Organizes components into presentational (`/client/src/components/`), page-level (`/client/src/pages/`), and reusable UI primitives (`/client/src/components/ui/`).
 
-**Data Visualization**:
-- Recharts library for interactive P/L charts and visualizations
-- Custom components for heatmaps, strike ladders, and expiration timelines
+**Data Visualization**: Recharts for interactive P/L charts; custom components for heatmaps, strike ladders, and expiration timelines.
 
-**Key Design Patterns**:
-- Composition over inheritance for UI components
-- Controlled components for form inputs
-- Custom hooks for business logic separation
-- TypeScript strict mode for type safety
+**Key Design Patterns**: Composition over inheritance, controlled components, custom hooks for business logic separation, and TypeScript strict mode.
 
 ### Backend Architecture
 
 **Server Framework**: Express.js with TypeScript
 
-**Development Setup**:
-- Vite for development server with HMR (Hot Module Replacement)
-- Custom middleware mode integrating Vite with Express
-- TSX for running TypeScript in development
+**Development Setup**: Vite for development with HMR, custom middleware for Vite/Express integration, TSX for development.
 
-**API Structure**:
-- RESTful API prefix convention (`/api/*`)
-- Route registration through `registerRoutes` function
-- Request/response logging middleware with JSON response capture
-- Session support via connect-pg-simple (configured for PostgreSQL sessions)
+**API Structure**: RESTful API (`/api/*`) with route registration, logging middleware, and session support via `connect-pg-simple`.
 
-**Market Data Integration**:
-- Finnhub API for real-time US stock prices
-- Two endpoints: `/api/stock/quote/:symbol` and `/api/stock/search?q=query`
-- Free tier: 60 API calls per minute
-- Environment variable: `FINNHUB_API_KEY`
-- Error handling with graceful fallbacks
+**Market Data Integration**: Finnhub API for real-time US stock quotes.
 
-**Storage Layer**:
-- Abstracted storage interface (`IStorage`) for CRUD operations
-- In-memory implementation (`MemStorage`) as default
-- Designed for future database integration via storage interface pattern
+**Storage Layer**: Abstracted `IStorage` interface with an in-memory implementation (`MemStorage`), designed for future database integration.
 
-**Build Process**:
-- Client: Vite builds to `dist/public`
-- Server: esbuild bundles to `dist/index.js` (ESM format, Node platform)
-- Production serves static client files from Express
+**Build Process**: Vite builds client to `dist/public`, esbuild bundles server to `dist/index.js`.
 
-**Key Design Decisions**:
-- Monorepo structure with shared types between client/server
-- Middleware pattern for cross-cutting concerns (logging, body parsing)
-- Separation of concerns: routes, storage, and server initialization
+**Key Design Decisions**: Monorepo structure, middleware pattern, separation of concerns.
 
 ### Data Architecture
 
-**Schema Design** (`shared/schema.ts`):
-- PostgreSQL-ready schema using Drizzle ORM
-- User authentication structure (users table with username/password)
-- Options strategy types defined in TypeScript (not persisted to DB yet):
-  - `OptionLeg`: Individual option positions with type, strike, premium, expiration
-  - `Strategy`: Collection of legs with underlying price
-  - `Greeks`: Delta, gamma, theta, vega, rho calculations
-  - `StrategyMetrics`: Max profit/loss, breakeven points, risk/reward ratios
+**Schema Design**: PostgreSQL-ready schema using Drizzle ORM and TypeScript (shared types for `OptionLeg`, `Strategy`, `Greeks`, `StrategyMetrics`).
 
-**Database Strategy**:
-- Drizzle ORM with Neon serverless PostgreSQL driver
-- Schema-first approach with Zod validation via drizzle-zod
-- Migrations stored in `/migrations` directory
-- Connection via DATABASE_URL environment variable
+**Database Strategy**: Drizzle ORM with Neon serverless PostgreSQL driver, schema-first approach with Zod validation, migrations in `/migrations`.
 
-**Pricing Engine** (`lib/options-pricing.ts`):
-- Black-Scholes model implementation for calls and puts
-- Greeks calculations (delta, gamma, theta, vega, rho)
-- Strategy-level metrics computation (max profit, max loss, breakeven)
-- Cumulative normal distribution for option pricing
-- Support for profit/loss at different time periods and price points
+**Pricing Engine**: Black-Scholes model for option pricing and Greeks calculations (delta, gamma, theta, vega, rho). Computes strategy-level metrics.
 
-**Key Design Decisions**:
-- Options calculations performed client-side for real-time responsiveness
-- Strategy data currently client-side only (not persisted)
-- Database schema prepared for future user strategy persistence
-- Type safety enforced through shared schema definitions
+**Key Design Decisions**: Client-side options calculations for real-time responsiveness, client-side strategy data (not yet persisted), type safety via shared schema definitions.
 
 ### Design System
 
-**Typography**:
-- Primary: Inter (UI/data)
-- Monospace: JetBrains Mono (numbers/prices)
-- Loaded via Google Fonts
+**Typography**: Inter (UI/data) and JetBrains Mono (numbers/prices).
 
-**Color System**:
-- CSS variables for theming (`--background`, `--foreground`, `--primary`, etc.)
-- HSL color space for alpha channel support
-- Separate color definitions for card, popover, and sidebar contexts
-- Automatic border color computation for buttons
+**Color System**: CSS variables for theming in HSL, specific definitions for contexts, automatic border color computation.
 
-**Spacing & Layout**:
-- Tailwind spacing scale (2, 4, 6, 8, 12, 16)
-- Max-width container: 7xl (80rem)
-- Responsive grid systems for strategy cards and metrics
-- Mobile-first responsive design
+**Spacing & Layout**: Tailwind spacing scale, `max-width` container, responsive grid systems, mobile-first design.
 
-**Component Styling Patterns**:
-- Hover/active states via elevation utilities (`hover-elevate`, `active-elevate-2`)
-- Shadow system for depth (shadow-xs, shadow-sm, shadow-md, shadow-lg)
-- Consistent border radius (lg: 9px, md: 6px, sm: 3px)
-- Dark mode via class-based toggle
+**Component Styling Patterns**: Hover/active states, shadow system, consistent border radius, class-based dark mode toggle.
 
 ## External Dependencies
 
-**UI & Styling**:
-- Radix UI primitives (20+ component packages) for accessible UI components
-- Tailwind CSS for utility-first styling
-- class-variance-authority & clsx for conditional className composition
-- Recharts for data visualization
+**UI & Styling**: Radix UI, Tailwind CSS, `class-variance-authority`, `clsx`, Recharts.
 
-**Frontend Infrastructure**:
-- React 18+ with React DOM
-- Wouter for routing
-- TanStack Query v5 for server state
-- React Hook Form with Zod resolvers for form validation
+**Frontend Infrastructure**: React, React DOM, Wouter, TanStack Query v5, React Hook Form, Zod.
 
-**Backend Infrastructure**:
-- Express.js for HTTP server
-- Drizzle ORM for database access
-- Neon serverless driver for PostgreSQL connections
-- connect-pg-simple for PostgreSQL session storage
+**Backend Infrastructure**: Express.js, Drizzle ORM, Neon, `connect-pg-simple`.
 
-**Development Tools**:
-- Vite for build tooling and dev server
-- TypeScript 5+ for type safety
-- ESBuild for server bundling
-- Replit plugins (runtime error modal, cartographer, dev banner)
+**Development Tools**: Vite, TypeScript, ESBuild, Replit plugins.
 
-**Utilities**:
-- date-fns for date manipulation
-- nanoid for ID generation
-- embla-carousel for carousel functionality
+**Utilities**: `date-fns`, `nanoid`, `embla-carousel`.
 
-**Current Integration Status**:
-- Database configured but strategy persistence not implemented
-- User authentication schema present but auth routes not implemented
-- Options pricing and Greeks calculations fully client-side
-- Finnhub API integrated for live stock prices and symbol search
-- React Query used for data fetching with 60-second cache and auto-refresh
+**Current Integration Status**: Finnhub API for live stock prices and search; React Query for data fetching with caching. Database configured, but strategy persistence and user authentication are not yet fully implemented. Options pricing and Greeks calculations are fully client-side.

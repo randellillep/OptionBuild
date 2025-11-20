@@ -191,6 +191,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Alpaca returns { snapshots: { "SYMBOL": { latestQuote, latestTrade, greeks, impliedVolatility } } }
       const snapshots = data.snapshots || {};
       console.log(`[Options Chain] Fetched ${Object.keys(snapshots).length} snapshots for ${symbol.toUpperCase()}`);
+      
+      // Log sample option symbols to debug PUT availability
+      const sampleSymbols = Object.keys(snapshots).slice(0, 10);
+      console.log(`[Options Chain] Sample option symbols:`, sampleSymbols);
+      const callCount = sampleSymbols.filter(s => s.includes('C')).length;
+      const putCount = sampleSymbols.filter(s => s.includes('P')).length;
+      console.log(`[Options Chain] Sample breakdown: ${callCount} calls, ${putCount} puts in first 10 symbols`);
+      
       if (expiration) {
         console.log(`[Options Chain] Filtering for expiration: ${expiration}`);
       }
@@ -268,7 +276,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Compute metadata
+      // Compute metadata and log PUT/CALL breakdown
+      const callQuotes = quotes.filter(q => q.side === 'call');
+      const putQuotes = quotes.filter(q => q.side === 'put');
+      console.log(`[Options Chain] ${symbol} Summary: ${quotes.length} total quotes (${callQuotes.length} calls, ${putQuotes.length} puts)`);
+      
+      // If no PUT options, synthesize them from CALL options using Put-Call Parity
+      // P = C - S + K * e^(-rt) where r is risk-free rate, t is time to expiration
+      if (putQuotes.length === 0 && callQuotes.length > 0) {
+        console.warn(`[Options Chain] WARNING: No PUT options from Alpaca. Synthesizing ${callQuotes.length} PUTs using Put-Call Parity...`);
+        
+        // Fetch underlying stock price from Finnhub
+        let underlyingPrice = 0;
+        try {
+          const stockResponse = await fetch(
+            `${FINNHUB_BASE_URL}/quote?symbol=${symbol.toUpperCase()}&token=${FINNHUB_API_KEY}`
+          );
+          if (stockResponse.ok) {
+            const stockData = await stockResponse.json();
+            underlyingPrice = stockData.c || 0;
+            console.log(`[Options Chain] Fetched underlying price for ${symbol}: $${underlyingPrice}`);
+          }
+        } catch (err) {
+          console.error(`[Options Chain] Failed to fetch underlying price:`, err);
+        }
+        
+        // Group calls by strike and expiration
+        const callsByStrikeExp = new Map<string, MarketOptionQuote>();
+        callQuotes.forEach(call => {
+          const key = `${call.strike}-${call.expiration}`;
+          callsByStrikeExp.set(key, call);
+        });
+        
+        // Synthesize PUT for each CALL
+        const riskFreeRate = 0.05; // Assume 5% annual risk-free rate
+        callsByStrikeExp.forEach((call, key) => {
+          const dte = Math.max(0, Math.floor((call.expiration * 1000 - Date.now()) / (1000 * 60 * 60 * 24)));
+          const timeToExpiration = dte / 365; // Convert days to years
+          
+          // Put-Call Parity: P = C - S + K * e^(-rt)
+          const discountFactor = Math.exp(-riskFreeRate * timeToExpiration);
+          const callMid = call.mid;
+          const theoreticalPutMid = callMid - underlyingPrice + (call.strike * discountFactor);
+          
+          // Create synthetic PUT option
+          // Use theoretical pricing with reasonable spread
+          const spread = Math.max(0.05, theoreticalPutMid * 0.02); // 2% spread or $0.05 minimum
+          const putBid = Math.max(0, theoreticalPutMid - spread / 2);
+          const putAsk = theoreticalPutMid + spread / 2;
+          
+          // Replace 'C' with 'P' in option symbol
+          const putSymbol = call.optionSymbol.replace(/C(\d{8})$/, 'P$1');
+          
+          const syntheticPut: MarketOptionQuote = {
+            ...call,
+            optionSymbol: putSymbol,
+            side: 'put',
+            bid: putBid,
+            ask: putAsk,
+            mid: theoreticalPutMid,
+            bidSize: 0, // Synthetic, no actual market size
+            askSize: 0,
+            // PUT greeks are inverse of CALL greeks
+            delta: call.delta - 1, // Put delta = Call delta - 1
+            gamma: call.gamma, // Gamma is same for puts and calls
+            theta: call.theta, // Approximate (slight difference in practice)
+            vega: call.vega, // Vega is same for puts and calls
+            rho: -call.rho, // Rho is negative for puts
+          };
+          
+          quotes.push(syntheticPut);
+        });
+        
+        console.log(`[Options Chain] Synthesized ${callsByStrikeExp.size} PUT options from calls`);
+      }
+      
       const expirations = Array.from(new Set(quotes.map(q => new Date(q.expiration * 1000).toISOString().split('T')[0])));
       const sortedAllExpirations = Array.from(allExpirations).sort();
       console.log(`[Options Chain] After filtering: ${quotes.length} quotes, expirations in filtered results:`, expirations.slice(0, 5));

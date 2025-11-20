@@ -177,13 +177,25 @@ export function StrikeLadder({
 
   const currentPricePercent = getStrikePosition(currentPrice);
 
-  // Render a draggable badge
-  const renderBadge = (leg: OptionLeg, position: 'long' | 'short') => {
+  // Render a draggable badge with quantity indicator
+  const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
     const isCall = leg.type === "call";
     const bgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
     const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
     const positionPercent = getStrikePosition(leg.strike);
     const isBeingDragged = draggedLeg === leg.id;
+    const quantity = leg.quantity || 1;
+    const quantityDisplay = leg.position === 'short' ? `-${quantity}` : `+${quantity}`;
+
+    // Calculate vertical position accounting for stacking
+    const baseOffset = position === 'long' ? -8 : -8;
+    const stackOffset = verticalOffset * 28; // 28px per badge (height + gap)
+    const topPosition = position === 'long' 
+      ? `${baseOffset - stackOffset}px`
+      : `auto`;
+    const bottomPosition = position === 'short'
+      ? `${baseOffset - stackOffset}px` 
+      : `auto`;
 
     return (
       <Popover 
@@ -197,20 +209,36 @@ export function StrikeLadder({
         }}
       >
         <PopoverTrigger asChild>
-          <button
-            onPointerDown={(e) => handleBadgePointerDown(leg, e)}
-            onClick={(e) => handleBadgeClick(leg, e)}
-            data-testid={testId}
-            className={`absolute ${position === 'long' ? '-top-8' : '-bottom-8'} text-[10px] h-6 px-2 ${bgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0`}
-            style={{ 
-              left: `${positionPercent}%`, 
+          <div
+            className="absolute"
+            style={{
+              left: `${positionPercent}%`,
               transform: 'translateX(-50%)',
-              boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
-              touchAction: 'none'
+              top: topPosition,
+              bottom: bottomPosition,
             }}
           >
-            {leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}{isCall ? 'C' : 'P'}
-          </button>
+            <button
+              onPointerDown={(e) => handleBadgePointerDown(leg, e)}
+              onClick={(e) => handleBadgeClick(leg, e)}
+              data-testid={testId}
+              className={`relative text-[10px] h-6 px-2 ${bgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0`}
+              style={{ 
+                boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
+                touchAction: 'none'
+              }}
+            >
+              {leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}{isCall ? 'C' : 'P'}
+              
+              {/* Quantity badge overlay - always visible */}
+              <span 
+                className="absolute -top-1 -right-1 bg-white text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-gray-300"
+                data-testid={`quantity-${leg.id}`}
+              >
+                {quantityDisplay}
+              </span>
+            </button>
+          </div>
         </PopoverTrigger>
         <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
           <OptionDetailsPanel
@@ -295,9 +323,39 @@ export function StrikeLadder({
           </div>
         </div>
 
-        {/* Render all option leg badges */}
-        {legs.filter(l => l.position === "long").map(leg => renderBadge(leg, 'long'))}
-        {legs.filter(l => l.position === "short").map(leg => renderBadge(leg, 'short'))}
+        {/* Render all option leg badges - group by strike and stack vertically */}
+        {(() => {
+          // Group long legs by strike for vertical stacking
+          const longLegs = legs.filter(l => l.position === "long");
+          const longByStrike = new Map<number, OptionLeg[]>();
+          longLegs.forEach(leg => {
+            const key = Math.round(leg.strike * 100) / 100; // Round to avoid float issues
+            if (!longByStrike.has(key)) longByStrike.set(key, []);
+            longByStrike.get(key)!.push(leg);
+          });
+
+          // Group short legs by strike for vertical stacking
+          const shortLegs = legs.filter(l => l.position === "short");
+          const shortByStrike = new Map<number, OptionLeg[]>();
+          shortLegs.forEach(leg => {
+            const key = Math.round(leg.strike * 100) / 100;
+            if (!shortByStrike.has(key)) shortByStrike.set(key, []);
+            shortByStrike.get(key)!.push(leg);
+          });
+
+          return (
+            <>
+              {/* Render long badges with vertical offsets */}
+              {Array.from(longByStrike.values()).flatMap(legsAtStrike =>
+                legsAtStrike.map((leg, index) => renderBadge(leg, 'long', index))
+              )}
+              {/* Render short badges with vertical offsets */}
+              {Array.from(shortByStrike.values()).flatMap(legsAtStrike =>
+                legsAtStrike.map((leg, index) => renderBadge(leg, 'short', index))
+              )}
+            </>
+          );
+        })()}
       </div>
 
       <div className="flex justify-between mt-2 text-xs text-muted-foreground font-mono">
