@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { OptionLeg, Greeks, StrategyMetrics } from "@shared/schema";
 import { calculateGreeks, calculateStrategyMetrics, calculateProfitLoss, calculateProfitLossAtDate } from "@/lib/options-pricing";
 
@@ -13,7 +13,7 @@ export interface ScenarioPoint {
   pnl: number;
 }
 
-export function useStrategyEngine() {
+export function useStrategyEngine(rangePercent: number = 14) {
   const [symbolInfo, setSymbolInfo] = useState<SymbolInfo>({
     symbol: "SPY",
     price: 100,
@@ -24,6 +24,27 @@ export function useStrategyEngine() {
   const [volatility, setVolatility] = useState(0.3);
   const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(null);
   const [selectedExpirationDate, setSelectedExpirationDate] = useState<string>("");
+
+  // Calculate average implied volatility from legs first (needed for auto-sync)
+  const calculatedIV = useMemo(() => {
+    if (legs.length === 0) return 0.3;
+    
+    // Average the IV from all legs that have real market data (premiumSource === 'market')
+    const marketLegs = legs.filter(leg => leg.premiumSource === 'market' && leg.impliedVolatility);
+    
+    if (marketLegs.length === 0) return 0.3; // Default fallback
+    
+    const avgIV = marketLegs.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.3), 0) / marketLegs.length;
+    return avgIV;
+  }, [legs]);
+
+  // Auto-sync volatility to calculated IV when market legs change
+  useEffect(() => {
+    const marketLegs = legs.filter(leg => leg.premiumSource === 'market' && leg.impliedVolatility);
+    if (marketLegs.length > 0) {
+      setVolatility(calculatedIV);
+    }
+  }, [calculatedIV, legs]);
 
   const totalGreeks: Greeks = useMemo(() => {
     return legs.reduce(
@@ -51,24 +72,32 @@ export function useStrategyEngine() {
   }, [legs]);
 
   const strikeRange = useMemo(() => {
-    if (legs.length === 0) {
-      return {
-        min: symbolInfo.price * 0.85,
-        max: symbolInfo.price * 1.15,
-      };
+    // Always center around current price using the range percent
+    const rangeMultiplier = rangePercent / 100;
+    let min = symbolInfo.price * (1 - rangeMultiplier);
+    let max = symbolInfo.price * (1 + rangeMultiplier);
+    
+    // If we have legs, ensure they're all visible by expanding range symmetrically
+    if (legs.length > 0) {
+      const strikes = legs.map(leg => leg.strike);
+      const minLegStrike = Math.min(...strikes);
+      const maxLegStrike = Math.max(...strikes);
+      
+      // Calculate how much we need to expand on each side
+      const lowerExpansion = Math.max(0, min - minLegStrike * 0.95);
+      const upperExpansion = Math.max(0, maxLegStrike * 1.05 - max);
+      
+      // Expand symmetrically by the larger of the two needed expansions
+      const expansion = Math.max(lowerExpansion, upperExpansion);
+      
+      if (expansion > 0) {
+        min = min - expansion;
+        max = max + expansion;
+      }
     }
     
-    const strikes = legs.map(leg => leg.strike);
-    const minStrike = Math.min(...strikes);
-    const maxStrike = Math.max(...strikes);
-    // Use fixed buffer based on price to prevent bar shifting during drag
-    const buffer = symbolInfo.price * 0.15;
-    
-    return {
-      min: Math.max(minStrike - buffer, symbolInfo.price * 0.7),
-      max: Math.max(maxStrike + buffer, symbolInfo.price * 1.3),
-    };
-  }, [legs, symbolInfo.price]);
+    return { min, max };
+  }, [legs, symbolInfo.price, rangePercent]);
 
   const scenarioGrid = useMemo(() => {
     const strikeCount = 15;
@@ -76,7 +105,7 @@ export function useStrategyEngine() {
     
     const strikeStep = (strikeRange.max - strikeRange.min) / (strikeCount - 1);
     const strikes = Array.from({ length: strikeCount }, (_, i) => 
-      strikeRange.min + i * strikeStep
+      strikeRange.max - i * strikeStep  // Reverse order: start from max, go down to min
     );
 
     // Use selected expiration if available, otherwise fall back to max from legs
@@ -169,6 +198,7 @@ export function useStrategyEngine() {
     setLegs,
     volatility,
     setVolatility,
+    calculatedIV,
     totalGreeks,
     metrics,
     uniqueExpirationDays,

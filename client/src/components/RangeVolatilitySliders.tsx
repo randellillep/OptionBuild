@@ -1,12 +1,16 @@
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
 
 interface RangeVolatilitySlidersProps {
   range: number;
   onRangeChange: (value: number) => void;
   impliedVolatility: number;
   onVolatilityChange: (value: number) => void;
+  calculatedIV?: number;
+  onResetIV?: () => void;
 }
 
 export function RangeVolatilitySliders({
@@ -14,6 +18,8 @@ export function RangeVolatilitySliders({
   onRangeChange,
   impliedVolatility,
   onVolatilityChange,
+  calculatedIV,
+  onResetIV,
 }: RangeVolatilitySlidersProps) {
   return (
     <Card className="p-6">
@@ -40,8 +46,29 @@ export function RangeVolatilitySliders({
 
         <div>
           <div className="flex items-center justify-between mb-3">
-            <Label className="text-sm font-semibold">IMPLIED VOLATILITY:</Label>
-            <span className="text-sm font-mono font-semibold">{impliedVolatility}%</span>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-semibold">IMPLIED VOLATILITY:</Label>
+              {calculatedIV && (
+                <span className="text-xs text-muted-foreground">
+                  (Base: {calculatedIV}%)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono font-semibold">{impliedVolatility}%</span>
+              {onResetIV && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onResetIV}
+                  className="h-6 px-2"
+                  data-testid="button-reset-iv"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  <span className="text-xs">Reset</span>
+                </Button>
+              )}
+            </div>
           </div>
           <Slider
             value={[impliedVolatility]}

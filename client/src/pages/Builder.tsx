@@ -38,6 +38,7 @@ export default function Builder() {
     setLegs,
     volatility,
     setVolatility,
+    calculatedIV,
     totalGreeks,
     metrics,
     uniqueExpirationDays,
@@ -46,11 +47,17 @@ export default function Builder() {
     selectedExpirationDays,
     selectedExpirationDate,
     setSelectedExpiration,
-  } = useStrategyEngine();
+  } = useStrategyEngine(range);
 
   const volatilityPercent = Math.round(volatility * 100);
+  const calculatedIVPercent = Math.round(calculatedIV * 100);
+  
   const handleVolatilityChange = (percent: number) => {
     setVolatility(percent / 100);
+  };
+  
+  const handleResetIV = () => {
+    setVolatility(calculatedIV);
   };
 
   // Helper to round strike to valid increments
@@ -493,6 +500,8 @@ export default function Builder() {
                     onRangeChange={setRange}
                     impliedVolatility={volatilityPercent}
                     onVolatilityChange={handleVolatilityChange}
+                    calculatedIV={calculatedIVPercent}
+                    onResetIV={handleResetIV}
                   />
 
                   <AnalysisTabs greeks={totalGreeks} />
@@ -505,11 +514,12 @@ export default function Builder() {
                     onRangeChange={setRange}
                     impliedVolatility={volatilityPercent}
                     onVolatilityChange={handleVolatilityChange}
+                    calculatedIV={calculatedIVPercent}
+                    onResetIV={handleResetIV}
                   />
 
                   <AnalysisTabs greeks={totalGreeks} />
-                </TabsContent>
-                <TabsContent value="chain" className="mt-4 space-y-6">
+                </TabsContent>                <TabsContent value="chain" className="mt-4 space-y-6">
                   {!selectedExpirationDate ? (
                     <div className="flex items-center justify-center p-12">
                       <div className="text-center space-y-2">
