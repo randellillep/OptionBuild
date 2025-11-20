@@ -161,6 +161,52 @@ export default function Builder() {
     enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
 
+  // Auto-update leg premiums with market data after symbol change
+  useEffect(() => {
+    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) {
+      return;
+    }
+
+    // Check if any legs need market data (have premiumSource='theoretical')
+    const legsNeedingMarketData = legs.filter(leg => leg.premiumSource === 'theoretical');
+    
+    if (legsNeedingMarketData.length === 0) {
+      return;
+    }
+
+    console.log('[MARKET-SYNC] Updating', legsNeedingMarketData.length, 'legs with market data');
+
+    // Update legs with market data
+    setLegs(currentLegs => {
+      return currentLegs.map(leg => {
+        // Skip legs that already have market data
+        if (leg.premiumSource === 'market') {
+          return leg;
+        }
+
+        // Find matching market quote (same strike and type)
+        const matchingQuote = optionsChainData.quotes.find(
+          q => Math.abs(q.strike - leg.strike) < 0.01 && q.side === leg.type
+        );
+
+        if (matchingQuote) {
+          console.log(`[MARKET-SYNC] Found market data for ${leg.type} ${leg.strike}: $${matchingQuote.mid}`);
+          return {
+            ...leg,
+            premium: matchingQuote.mid,
+            marketQuoteId: matchingQuote.optionSymbol,
+            premiumSource: 'market' as const,
+            impliedVolatility: matchingQuote.iv,
+            expirationDays: matchingQuote.dte,
+          };
+        } else {
+          console.log(`[MARKET-SYNC] No market data for ${leg.type} ${leg.strike}, keeping theoretical`);
+          return leg;
+        }
+      });
+    });
+  }, [optionsChainData, legs]);
+
   // Calculate available strikes from market data
   const availableStrikes = (optionsChainData?.quotes && optionsChainData.quotes.length > 0)
     ? {
