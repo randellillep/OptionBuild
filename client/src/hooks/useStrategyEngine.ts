@@ -79,22 +79,47 @@ export function useStrategyEngine() {
       strikeRange.min + i * strikeStep
     );
 
-    const maxDays = Math.max(...uniqueExpirationDays);
-    const dayStep = maxDays / (dateCount - 1);
-    const days = Array.from({ length: dateCount }, (_, i) => 
-      Math.max(0, Math.round(i * dayStep))
-    );
+    // Use selected expiration if available, otherwise fall back to max from legs
+    const targetDays = selectedExpirationDays !== null 
+      ? selectedExpirationDays 
+      : Math.max(...uniqueExpirationDays);
+    
+    // If expiration is very near (< 3 days), show hours instead of days
+    const useHours = targetDays < 3;
+    const timeSteps: number[] = [];
+    
+    if (useHours) {
+      // Generate hourly intervals up to expiration
+      const totalHours = targetDays * 24;
+      const hourStep = totalHours / (dateCount - 1);
+      for (let i = 0; i < dateCount; i++) {
+        const hours = Math.round(i * hourStep);
+        timeSteps.push(hours / 24); // Convert back to fractional days for calculations
+      }
+    } else {
+      // Generate day intervals
+      const dayStep = targetDays / (dateCount - 1);
+      for (let i = 0; i < dateCount; i++) {
+        timeSteps.push(Math.max(0, Math.round(i * dayStep)));
+      }
+    }
 
     const grid: ScenarioPoint[][] = strikes.map(strike => 
-      days.map(daysLeft => ({
+      timeSteps.map(daysLeft => ({
         strike,
         daysToExpiration: daysLeft,
         pnl: calculateProfitLossAtDate(legs, symbolInfo.price, strike, daysLeft, volatility),
       }))
     );
 
-    return { grid, strikes, days };
-  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility]);
+    return { 
+      grid, 
+      strikes, 
+      days: timeSteps,
+      useHours,
+      targetDays,
+    };
+  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, selectedExpirationDays]);
 
   const setSelectedExpiration = (days: number, date: string) => {
     setSelectedExpirationDays(days);

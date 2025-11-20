@@ -8,9 +8,19 @@ interface PLHeatmapProps {
   days: number[];
   currentPrice: number;
   rangePercent?: number;
+  useHours?: boolean;
+  targetDays?: number;
 }
 
-export function PLHeatmap({ grid, strikes, days, currentPrice, rangePercent = 14 }: PLHeatmapProps) {
+export function PLHeatmap({ 
+  grid, 
+  strikes, 
+  days, 
+  currentPrice, 
+  rangePercent = 14,
+  useHours = false,
+  targetDays = 30,
+}: PLHeatmapProps) {
   const allPnlValues = grid.flatMap(row => row.map(cell => cell.pnl));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
 
@@ -34,15 +44,41 @@ export function PLHeatmap({ grid, strikes, days, currentPrice, rangePercent = 14
     return 'bg-muted text-foreground';
   };
 
-  const getDaysLabel = (daysValue: number) => {
-    const today = new Date();
-    const targetDate = new Date(today);
-    targetDate.setDate(targetDate.getDate() + daysValue);
-    
-    const month = targetDate.toLocaleString('default', { month: 'short' });
-    const day = targetDate.getDate();
-    
-    return `${month} ${day}`;
+  const getTimeLabel = (daysValue: number) => {
+    if (useHours) {
+      // Convert fractional days to hours
+      const totalHours = Math.round(daysValue * 24);
+      const now = new Date();
+      const targetTime = new Date(now.getTime() + totalHours * 60 * 60 * 1000);
+      
+      // Format as time (e.g., "4:30pm")
+      const hours = targetTime.getHours();
+      const minutes = targetTime.getMinutes();
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      const displayHours = hours % 12 || 12;
+      const displayMinutes = minutes.toString().padStart(2, '0');
+      
+      return `${displayHours}:${displayMinutes}${ampm}`;
+    } else {
+      // Show date (e.g., "Nov 21")
+      const today = new Date();
+      const targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + daysValue);
+      
+      const month = targetDate.toLocaleString('default', { month: 'short' });
+      const day = targetDate.getDate();
+      
+      return `${month} ${day}`;
+    }
+  };
+
+  const getTimeSubLabel = (daysValue: number) => {
+    if (useHours) {
+      const totalHours = Math.round(daysValue * 24);
+      return `${totalHours}h`;
+    } else {
+      return `${Math.round(daysValue)}d`;
+    }
   };
 
   return (
@@ -79,15 +115,15 @@ export function PLHeatmap({ grid, strikes, days, currentPrice, rangePercent = 14
               <th className="text-xs font-semibold text-right p-2 border-b border-border bg-background w-[60px]">
                 %
               </th>
-              {days.map((day) => (
+              {days.map((day, idx) => (
                 <th
-                  key={day}
+                  key={idx}
                   className="text-xs font-semibold text-center p-2 border-b border-border min-w-[80px]"
-                  data-testid={`header-days-${day}`}
+                  data-testid={`header-time-${idx}`}
                 >
-                  <div>{getDaysLabel(day)}</div>
+                  <div>{getTimeLabel(day)}</div>
                   <div className="text-[10px] text-muted-foreground font-normal">
-                    {day}d
+                    {getTimeSubLabel(day)}
                   </div>
                 </th>
               ))}

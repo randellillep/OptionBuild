@@ -483,6 +483,8 @@ export default function Builder() {
                     days={scenarioGrid.days}
                     currentPrice={symbolInfo.price}
                     rangePercent={range}
+                    useHours={scenarioGrid.useHours}
+                    targetDays={scenarioGrid.targetDays}
                   />
                   
                   <RangeVolatilitySliders
