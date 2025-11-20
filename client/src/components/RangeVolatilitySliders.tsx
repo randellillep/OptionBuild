@@ -23,7 +23,7 @@ export function RangeVolatilitySliders({
 }: RangeVolatilitySlidersProps) {
   return (
     <Card className="p-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-8">
         <div>
           <div className="flex items-center justify-between mb-3">
             <Label className="text-sm font-semibold">RANGE:</Label>
@@ -49,13 +49,13 @@ export function RangeVolatilitySliders({
             <div className="flex items-center gap-2">
               <Label className="text-sm font-semibold">IMPLIED VOLATILITY:</Label>
               {calculatedIV && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground" data-testid="text-base-iv">
                   (Base: {calculatedIV}%)
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-mono font-semibold">{impliedVolatility}%</span>
+              <span className="text-sm font-mono font-semibold" data-testid="text-current-iv">{impliedVolatility}%</span>
               {onResetIV && (
                 <Button
                   size="sm"

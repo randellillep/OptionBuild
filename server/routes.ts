@@ -102,38 +102,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Options expirations endpoint - fetches real options expiration dates
+  // Options expirations endpoint - generates standard monthly/weekly expirations
   app.get("/api/options/expirations/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
       
-      // Build URL with optional API key
-      const url = new URL(`${MARKETDATA_BASE_URL}/options/expirations/${symbol.toUpperCase()}`);
-      if (MARKETDATA_API_KEY) {
-        url.searchParams.append("token", MARKETDATA_API_KEY);
-      }
-
-      const response = await fetch(url.toString());
-
-      if (!response.ok) {
-        throw new Error(`Market Data API error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Generate standard expiration dates (weekly + monthly for next 12 months)
+      const now = new Date();
+      const expirations: string[] = [];
       
-      // Market Data returns { s: "ok", expirations: ["2024-11-15", ...], updated: timestamp }
-      if (data.s !== "ok") {
-        throw new Error("Market Data API returned error status");
+      // Add weekly expirations for next 8 weeks (Fridays)
+      for (let i = 0; i < 8; i++) {
+        const date = new Date(now);
+        // Find next Friday
+        const daysUntilFriday = (5 - date.getDay() + 7) % 7 || 7;
+        date.setDate(date.getDate() + daysUntilFriday + (i * 7));
+        expirations.push(date.toISOString().split('T')[0]);
       }
+      
+      // Add monthly expirations for next 12 months (3rd Friday)
+      for (let i = 0; i < 12; i++) {
+        const date = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
+        // Find 3rd Friday of the month
+        const firstDay = date.getDay();
+        const thirdFriday = 1 + (5 - firstDay + 7) % 7 + 14;
+        date.setDate(thirdFriday);
+        const expDate = date.toISOString().split('T')[0];
+        if (!expirations.includes(expDate)) {
+          expirations.push(expDate);
+        }
+      }
+      
+      // Sort and deduplicate
+      const uniqueExpirations = Array.from(new Set(expirations)).sort();
 
       res.json({
         symbol: symbol.toUpperCase(),
-        expirations: data.expirations || [],
-        updated: data.updated,
+        expirations: uniqueExpirations,
+        updated: Date.now(),
       });
     } catch (error) {
-      console.error("Error fetching options expirations:", error);
-      res.status(500).json({ error: "Failed to fetch options expirations" });
+      console.error("Error generating options expirations:", error);
+      res.status(500).json({ error: "Failed to generate options expirations" });
     }
   });
 
@@ -243,9 +253,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const trade = snapshot.latestTrade || {};
         const greeks = snapshot.greeks || {};
         
+        // Log first snapshot to see what data is available
+        if (quotes.length === 0) {
+          console.log('[Options Chain] Sample snapshot structure:', JSON.stringify({
+            optionSymbol,
+            hasLatestQuote: !!snapshot.latestQuote,
+            hasGreeks: !!snapshot.greeks,
+            hasImpliedVolatility: !!snapshot.impliedVolatility,
+            impliedVolatility: snapshot.impliedVolatility,
+            greeksKeys: Object.keys(greeks),
+          }));
+        }
+        
         const bid = quote.bp || 0;
         const ask = quote.ap || 0;
         const mid = (bid + ask) / 2;
+        
+        // Calculate DTE first
+        const dte = Math.max(0, Math.floor((parsed.expiration * 1000 - Date.now()) / (1000 * 60 * 60 * 24)));
+        
+        // Estimate IV if not provided by Alpaca (their free tier doesn't include IV)
+        // Use a rough approximation: IV ≈ (option price / √(days to expiration / 365)) * constant
+        // This is a very rough estimate but better than 0
+        let estimatedIV = snapshot.impliedVolatility || 0;
+        if (!estimatedIV && mid > 0) {
+          // Rough formula: annualized option price volatility
+          // For ATM options, extrinsic value ≈ underlying * IV * √(T)
+          // So IV ≈ extrinsic / (underlying * √T)
+          // We'll use a simplified version: IV ≈ premium% * √(365/dte) * 2
+          // Use minimum 1 day to avoid division by zero for same-day expirations
+          const effectiveDTE = Math.max(1, dte);
+          const timeToExpiration = effectiveDTE / 365;
+          const sqrtTime = Math.sqrt(timeToExpiration);
+          // Assume underlying is around $600 for SPY (we could fetch this but want to keep it fast)
+          const estimatedUnderlying = parsed.strike; // Use strike as proxy for underlying
+          const premiumPercent = mid / estimatedUnderlying;
+          estimatedIV = Math.min(2.0, Math.max(0.05, premiumPercent / sqrtTime * 1.5)); // Clamp between 5% and 200%
+          
+          // Log first few estimations
+          if (quotes.length < 3) {
+            console.log(`[IV-EST] Strike ${parsed.strike} ${parsed.side}: mid=$${mid.toFixed(2)}, dte=${dte}, estimatedIV=${(estimatedIV * 100).toFixed(1)}%`);
+          }
+        }
         
         quotes.push({
           optionSymbol,
@@ -265,13 +314,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           intrinsicValue: 0, // Calculate this on frontend
           extrinsicValue: mid, // Approximate
           underlyingPrice: 0, // Need to fetch separately or calculate
-          iv: snapshot.impliedVolatility || 0,
+          iv: estimatedIV,
           delta: greeks.delta || 0,
           gamma: greeks.gamma || 0,
           theta: greeks.theta || 0,
           vega: greeks.vega || 0,
           rho: greeks.rho || 0,
-          dte: Math.max(0, Math.floor((parsed.expiration * 1000 - Date.now()) / (1000 * 60 * 60 * 24))),
+          dte,
           updated: Date.now(),
         });
       }
