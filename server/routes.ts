@@ -107,12 +107,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { symbol } = req.params;
       
-      // Generate standard expiration dates (weekly + monthly for next 12 months)
+      // Generate comprehensive expiration dates (weekly + monthly for next 2 years)
       const now = new Date();
       const expirations: string[] = [];
       
-      // Add weekly expirations for next 8 weeks (Fridays)
-      for (let i = 0; i < 8; i++) {
+      // Add weekly expirations for next 52 weeks (1 year of Fridays)
+      for (let i = 0; i < 52; i++) {
         const date = new Date(now);
         // Find next Friday
         const daysUntilFriday = (5 - date.getDay() + 7) % 7 || 7;
@@ -120,8 +120,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expirations.push(date.toISOString().split('T')[0]);
       }
       
-      // Add monthly expirations for next 12 months (3rd Friday)
-      for (let i = 0; i < 12; i++) {
+      // Add monthly expirations for next 24 months (3rd Friday of each month for 2 years)
+      for (let i = 0; i < 24; i++) {
         const date = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
         // Find 3rd Friday of the month
         const firstDay = date.getDay();
@@ -130,6 +130,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const expDate = date.toISOString().split('T')[0];
         if (!expirations.includes(expDate)) {
           expirations.push(expDate);
+        }
+      }
+      
+      // Add quarterly expirations (3rd Friday of Mar, Jun, Sep, Dec) for next 3 years
+      const quarterlyMonths = [2, 5, 8, 11]; // March, June, September, December (0-indexed)
+      for (let year = 0; year < 3; year++) {
+        for (const month of quarterlyMonths) {
+          const date = new Date(now.getFullYear() + year, month, 1);
+          const firstDay = date.getDay();
+          const thirdFriday = 1 + (5 - firstDay + 7) % 7 + 14;
+          date.setDate(thirdFriday);
+          const expDate = date.toISOString().split('T')[0];
+          if (!expirations.includes(expDate)) {
+            expirations.push(expDate);
+          }
         }
       }
       
