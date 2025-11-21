@@ -25,6 +25,7 @@ import { useLocation } from "wouter";
 import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 import { useOptionsChain } from "@/hooks/useOptionsChain";
 import { OptionsChainTable } from "@/components/OptionsChainTable";
+import { calculateImpliedVolatility } from "@/lib/options-pricing";
 
 export default function Builder() {
   const [, setLocation] = useLocation();
@@ -222,12 +223,26 @@ export default function Builder() {
             console.log('[FRONTEND-PRICE-DEBUG-MSFT480C] mid value:', matchingQuote.mid);
             console.log('[FRONTEND-PRICE-DEBUG-MSFT480C] Setting premium to:', Number(matchingQuote.mid.toFixed(2)));
           }
+          
+          // Calculate IV from market price if not provided by API
+          let calculatedIV = matchingQuote.iv;
+          if (!calculatedIV && matchingQuote.mid > 0 && symbolInfo?.price) {
+            calculatedIV = calculateImpliedVolatility(
+              matchingQuote.side as 'call' | 'put',
+              symbolInfo.price,
+              matchingQuote.strike,
+              daysToExpiration,
+              matchingQuote.mid
+            );
+            console.log(`[IV-CALC] Calculated IV for ${matchingQuote.underlying} ${matchingQuote.strike}${matchingQuote.side[0].toUpperCase()}: ${(calculatedIV * 100).toFixed(1)}%`);
+          }
+          
           return {
             ...leg,
             premium: Number(matchingQuote.mid.toFixed(2)),
             marketQuoteId: matchingQuote.optionSymbol,
             premiumSource: 'market' as const,
-            impliedVolatility: matchingQuote.iv,
+            impliedVolatility: calculatedIV,
             expirationDays: daysToExpiration, // Use calculated DTE instead of API's dte
           };
         }
@@ -607,6 +622,19 @@ export default function Builder() {
                     <OptionsChainTable
                       quotes={optionsChainData.quotes}
                       onSelectOption={(quote) => {
+                        // Calculate IV from market price if not provided by API
+                        let iv = quote.iv;
+                        if (!iv && quote.mid > 0 && symbolInfo?.price && quote.dte > 0) {
+                          iv = calculateImpliedVolatility(
+                            quote.side,
+                            symbolInfo.price,
+                            quote.strike,
+                            quote.dte,
+                            quote.mid
+                          );
+                          console.log(`[IV-CALC] Calculated IV for ${quote.underlying} ${quote.strike}${quote.side[0].toUpperCase()}: ${(iv * 100).toFixed(1)}%`);
+                        }
+                        
                         const newLeg: OptionLeg = {
                           id: Date.now().toString(),
                           type: quote.side,
@@ -617,7 +645,7 @@ export default function Builder() {
                           expirationDays: quote.dte,
                           marketQuoteId: quote.optionSymbol,
                           premiumSource: "market",
-                          impliedVolatility: quote.iv,
+                          impliedVolatility: iv,
                         };
                         setLegs([...legs, newLeg]);
                       }}

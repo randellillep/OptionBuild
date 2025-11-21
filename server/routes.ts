@@ -337,29 +337,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Calculate DTE first
         const dte = Math.max(0, Math.floor((parsed.expiration * 1000 - Date.now()) / (1000 * 60 * 60 * 24)));
         
-        // Estimate IV if not provided by Alpaca (their free tier doesn't include IV)
-        // Use a rough approximation: IV ≈ (option price / √(days to expiration / 365)) * constant
-        // This is a very rough estimate but better than 0
-        let estimatedIV = snapshot.impliedVolatility || 0;
-        if (!estimatedIV && mid > 0) {
-          // Rough formula: annualized option price volatility
-          // For ATM options, extrinsic value ≈ underlying * IV * √(T)
-          // So IV ≈ extrinsic / (underlying * √T)
-          // We'll use a simplified version: IV ≈ premium% * √(365/dte) * 2
-          // Use minimum 1 day to avoid division by zero for same-day expirations
-          const effectiveDTE = Math.max(1, dte);
-          const timeToExpiration = effectiveDTE / 365;
-          const sqrtTime = Math.sqrt(timeToExpiration);
-          // Assume underlying is around $600 for SPY (we could fetch this but want to keep it fast)
-          const estimatedUnderlying = parsed.strike; // Use strike as proxy for underlying
-          const premiumPercent = mid / estimatedUnderlying;
-          estimatedIV = Math.min(2.0, Math.max(0.05, premiumPercent / sqrtTime * 1.5)); // Clamp between 5% and 200%
-          
-          // Log first few estimations
-          if (quotes.length < 3) {
-            console.log(`[IV-EST] Strike ${parsed.strike} ${parsed.side}: mid=$${mid.toFixed(2)}, dte=${dte}, estimatedIV=${(estimatedIV * 100).toFixed(1)}%`);
-          }
-        }
+        // Use IV from Alpaca if available, otherwise will be calculated client-side
+        const impliedVol = snapshot.impliedVolatility || undefined;
         
         quotes.push({
           optionSymbol,
@@ -379,7 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           intrinsicValue: 0, // Calculate this on frontend
           extrinsicValue: mid, // Approximate
           underlyingPrice: 0, // Need to fetch separately or calculate
-          iv: estimatedIV,
+          iv: impliedVol, // Let client calculate IV from market price if undefined
           delta: greeks.delta || 0,
           gamma: greeks.gamma || 0,
           theta: greeks.theta || 0,

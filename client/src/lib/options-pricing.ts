@@ -54,6 +54,59 @@ export function calculateOptionPrice(
   }
 }
 
+// Calculate implied volatility using Newton-Raphson method
+export function calculateImpliedVolatility(
+  type: "call" | "put",
+  underlyingPrice: number,
+  strike: number,
+  daysToExpiration: number,
+  marketPrice: number,
+  riskFreeRate: number = 0.05
+): number {
+  const T = daysToExpiration / 365;
+  
+  // Handle edge cases
+  if (T <= 0 || marketPrice <= 0) return 0.3; // Default 30%
+  
+  // Initial guess based on at-the-moneyness
+  let sigma = 0.3;
+  
+  // Newton-Raphson iteration
+  const maxIterations = 100;
+  const tolerance = 0.0001;
+  
+  for (let i = 0; i < maxIterations; i++) {
+    // Calculate option price with current sigma
+    const theoreticalPrice = type === "call" 
+      ? blackScholesCall(underlyingPrice, strike, T, riskFreeRate, sigma)
+      : blackScholesPut(underlyingPrice, strike, T, riskFreeRate, sigma);
+    
+    // Calculate vega (derivative of price w.r.t. volatility)
+    const d1 = (Math.log(underlyingPrice / strike) + (riskFreeRate + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+    const nprime_d1 = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-d1 * d1 / 2);
+    const vega = underlyingPrice * nprime_d1 * Math.sqrt(T);
+    
+    // Price difference
+    const priceDiff = theoreticalPrice - marketPrice;
+    
+    // Check convergence
+    if (Math.abs(priceDiff) < tolerance) {
+      return sigma;
+    }
+    
+    // Avoid division by zero
+    if (Math.abs(vega) < 1e-10) break;
+    
+    // Newton-Raphson update: sigma_new = sigma_old - f(sigma)/f'(sigma)
+    sigma = sigma - priceDiff / vega;
+    
+    // Constrain sigma to reasonable range (1% to 300%)
+    sigma = Math.max(0.01, Math.min(3.0, sigma));
+  }
+  
+  return sigma;
+}
+
 export function calculateGreeks(
   leg: OptionLeg,
   underlyingPrice: number,
