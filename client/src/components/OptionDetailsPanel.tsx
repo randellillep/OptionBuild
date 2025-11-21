@@ -153,7 +153,8 @@ export function OptionDetailsPanel({
   
   const handleCostBasisChange = (value: number) => {
     // Allow zero for worthless options, but prevent negative values
-    const newCost = Math.max(0, value || 0);
+    // Round to 2 decimal places
+    const newCost = Math.max(0, Math.round((value || 0) * 100) / 100);
     setCostBasis(newCost);
     // Mark as manually edited by setting premiumSource
     if (onUpdateLeg) onUpdateLeg({ premium: newCost, premiumSource: "manual" });
@@ -254,7 +255,7 @@ export function OptionDetailsPanel({
             <div className="text-sm font-semibold">$</div>
             <Input
               type="number"
-              value={costBasis}
+              value={Math.round(costBasis * 100) / 100}
               onChange={(e) => handleCostBasisChange(Number(e.target.value))}
               className="h-8 font-mono text-center"
               step="0.01"

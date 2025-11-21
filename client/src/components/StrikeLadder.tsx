@@ -141,10 +141,10 @@ export function StrikeLadder({
   };
 
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
-    e.preventDefault();
     e.stopPropagation();
+    // Don't set isDragging immediately - wait for actual movement
+    // Just store which leg was pressed
     setDraggedLeg(leg.id);
-    setIsDragging(true);
     // Capture pointer for smooth dragging
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -157,15 +157,29 @@ export function StrikeLadder({
     }
   };
 
-  // Handle badge dragging
+  // Handle badge dragging - only start dragging when pointer moves
   useEffect(() => {
-    if (!isDragging || !draggedLeg) return;
+    if (!draggedLeg) return;
+
+    let hasMoved = false;
+    let startX = 0;
 
     const handlePointerMove = (e: PointerEvent) => {
-      e.preventDefault();
-      const newStrike = getStrikeFromPosition(e.clientX);
-      if (newStrike !== null) {
-        onUpdateLeg(draggedLeg, { strike: newStrike });
+      // Only start dragging if pointer moved more than 3px (prevents accidental drag on click)
+      if (!hasMoved) {
+        const deltaX = Math.abs(e.clientX - startX);
+        if (deltaX > 3) {
+          hasMoved = true;
+          setIsDragging(true);
+        }
+      }
+
+      if (hasMoved) {
+        e.preventDefault();
+        const newStrike = getStrikeFromPosition(e.clientX);
+        if (newStrike !== null) {
+          onUpdateLeg(draggedLeg, { strike: newStrike });
+        }
       }
     };
 
@@ -174,9 +188,15 @@ export function StrikeLadder({
       // Small delay to prevent popover from opening immediately after drag
       setTimeout(() => {
         setDraggedLeg(null);
-      }, 100);
+      }, hasMoved ? 100 : 0); // No delay if it was just a click
     };
 
+    // Store initial position
+    const handlePointerStart = (e: PointerEvent) => {
+      startX = e.clientX;
+    };
+
+    handlePointerStart({ clientX: 0 } as PointerEvent); // Will be updated on first move
     document.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerup', handlePointerUp);
 
@@ -184,7 +204,7 @@ export function StrikeLadder({
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [isDragging, draggedLeg, onUpdateLeg]);
+  }, [draggedLeg, onUpdateLeg]);
 
   // Handle ladder panning
   useEffect(() => {

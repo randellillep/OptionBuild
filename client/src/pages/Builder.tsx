@@ -170,22 +170,22 @@ export default function Builder() {
 
   // Auto-update leg premiums with market data when:
   // 1. New market data arrives (optionsChainData changes)
-  // 2. New theoretical legs are added (legs with premiumSource='theoretical')
-  // BUT does NOT run when user manually edits existing legs
+  // 2. Legs with premiumSource='theoretical' exist (need syncing)
+  // Uses functional setState to always get latest leg state
   useEffect(() => {
     if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) {
       return;
     }
 
-    // Count legs that need syncing (premiumSource='theoretical')
-    const theoreticalLegsCount = legs.filter(leg => leg.premiumSource === 'theoretical').length;
-    if (theoreticalLegsCount === 0) {
-      return; // No theoretical legs to sync
-    }
-
     // Update ONLY legs that need market data (premiumSource='theoretical')
     // Skip legs with 'market' or 'manual' sources to avoid overwriting user edits
     setLegs(currentLegs => {
+      // Check current legs for theoretical sources
+      const hasTheoreticalLegs = currentLegs.some(leg => leg.premiumSource === 'theoretical');
+      if (!hasTheoreticalLegs) {
+        return currentLegs; // No theoretical legs, don't update
+      }
+
       let updated = false;
       const newLegs = currentLegs.map(leg => {
         // Skip legs that already have market data or were manually edited
@@ -200,9 +200,11 @@ export default function Builder() {
 
         if (matchingQuote) {
           updated = true;
+          // Round to 2 decimal places using Math.round for accuracy
+          const roundedPremium = Math.round(matchingQuote.mid * 100) / 100;
           return {
             ...leg,
-            premium: Number(matchingQuote.mid.toFixed(2)),
+            premium: roundedPremium,
             marketQuoteId: matchingQuote.optionSymbol,
             premiumSource: 'market' as const,
             impliedVolatility: matchingQuote.iv,
@@ -216,7 +218,7 @@ export default function Builder() {
       // Only update state if something actually changed
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, legs.filter(leg => leg.premiumSource === 'theoretical').map(leg => leg.id).join(',')]);
+  }, [optionsChainData, JSON.stringify(legs.map(l => ({ id: l.id, strike: l.strike, source: l.premiumSource })))]);
 
   // Calculate available strikes from market data
   // Use minStrike/maxStrike from API (which includes extrapolated range)
@@ -311,7 +313,20 @@ export default function Builder() {
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
-    setLegs(legs.map((leg) => (leg.id === id ? { ...leg, ...updates } : leg)));
+    setLegs(legs.map((leg) => {
+      if (leg.id !== id) return leg;
+      
+      // If strike is being changed, reset premium to get new market price
+      if (updates.strike !== undefined && updates.strike !== leg.strike) {
+        return { 
+          ...leg, 
+          ...updates, 
+          premiumSource: 'theoretical' as const 
+        };
+      }
+      
+      return { ...leg, ...updates };
+    }));
   };
 
   const removeLeg = (id: string) => {
