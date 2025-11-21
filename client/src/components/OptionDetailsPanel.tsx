@@ -254,7 +254,7 @@ export function OptionDetailsPanel({
             <div className="text-sm font-semibold">$</div>
             <Input
               type="number"
-              value={costBasis.toFixed(2)}
+              value={costBasis}
               onChange={(e) => handleCostBasisChange(Number(e.target.value))}
               className="h-8 font-mono text-center"
               step="0.01"

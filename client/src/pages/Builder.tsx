@@ -214,7 +214,7 @@ export default function Builder() {
       // Only update state if something actually changed
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, legs]);
+  }, [optionsChainData, legs.length]);
 
   // Calculate available strikes from market data
   // Use minStrike/maxStrike from API (which includes extrapolated range)
