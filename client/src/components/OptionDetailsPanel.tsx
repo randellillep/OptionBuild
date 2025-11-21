@@ -89,6 +89,8 @@ export function OptionDetailsPanel({
   };
 
   const marketData = getMarketData();
+  console.log("[OPT-DETAILS] Market data:", marketData);
+  console.log("[OPT-DETAILS] Leg:", leg);
   const symbol = legacySymbol || optionsChainData?.symbol || "N/A";
   const expirationDate = legacyExpirationDate || (optionsChainData?.expirations?.[0] || null);
   const formatDate = (dateStr: string | null) => {
@@ -147,12 +149,19 @@ export function OptionDetailsPanel({
   }, [marketData?.bid, marketData?.ask, isManuallyEdited]);
   
   const handleCostBasisChange = (value: number) => {
+    console.log("[COST-BASIS] Change triggered, value:", value);
     // Allow zero for worthless options, but prevent negative values
     // Round to 2 decimal places
     const newCost = Math.max(0, Math.round((value || 0) * 100) / 100);
+    console.log("[COST-BASIS] Setting to:", newCost);
     setCostBasis(newCost);
     // Mark as manually edited by setting premiumSource
-    if (onUpdateLeg) onUpdateLeg({ premium: newCost, premiumSource: "manual" });
+    if (onUpdateLeg) {
+      console.log("[COST-BASIS] Calling onUpdateLeg with:", { premium: newCost, premiumSource: "manual" });
+      onUpdateLeg({ premium: newCost, premiumSource: "manual" });
+    } else {
+      console.log("[COST-BASIS] WARNING: onUpdateLeg is undefined!");
+    }
   };
   
   const handleResetCostBasis = () => {
