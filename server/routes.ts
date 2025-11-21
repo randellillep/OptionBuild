@@ -20,6 +20,70 @@ const optionsChainQuerySchema = z.object({
   side: z.enum(["call", "put"]).optional(),
 });
 
+// Shared helper to fetch option snapshots from Alpaca
+// Returns snapshots object and list of available expirations
+async function fetchAlpacaSnapshots(symbol: string) {
+  if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+    throw new Error("Alpaca API credentials not configured");
+  }
+  
+  const url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}?feed=indicative`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'APCA-API-KEY-ID': ALPACA_API_KEY,
+      'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+    }
+  });
+  
+  if (response.status === 429) {
+    const error: any = new Error("Rate limit exceeded");
+    error.status = 429;
+    error.retryAfter = response.headers.get("Retry-After") || "60";
+    throw error;
+  }
+  
+  if (!response.ok) {
+    if (response.status === 404) {
+      const error: any = new Error(`No options data available for ${symbol.toUpperCase()}`);
+      error.status = 404;
+      throw error;
+    }
+    throw new Error(`Alpaca API error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  const snapshots = data.snapshots || {};
+  
+  // Parse option symbols to extract unique expiration dates
+  const expirationSet = new Set<string>();
+  const parseOptionSymbol = (optionSymbol: string) => {
+    const match = optionSymbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
+    if (!match) return null;
+    
+    const [, , dateStr] = match;
+    const year = 2000 + parseInt(dateStr.substring(0, 2));
+    const month = parseInt(dateStr.substring(2, 4));
+    const day = parseInt(dateStr.substring(4, 6));
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+  
+  for (const optionSymbol of Object.keys(snapshots)) {
+    const isoDate = parseOptionSymbol(optionSymbol);
+    if (isoDate) {
+      expirationSet.add(isoDate);
+    }
+  }
+  
+  const availableExpirations = Array.from(expirationSet).sort();
+  
+  return {
+    snapshots,
+    availableExpirations,
+    count: Object.keys(snapshots).length,
+  };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stock quote endpoint - fetches real-time price for a symbol
   app.get("/api/stock/quote/:symbol", async (req, res) => {
@@ -107,57 +171,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { symbol } = req.params;
       
-      if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
-        return res.status(500).json({ error: "Alpaca API credentials not configured" });
+      // Use shared helper to fetch snapshots and extract expirations
+      const { availableExpirations, count } = await fetchAlpacaSnapshots(symbol);
+      
+      if (availableExpirations.length === 0) {
+        return res.status(404).json({ 
+          error: `No options found for ${symbol.toUpperCase()}`,
+          expirations: []
+        });
       }
-      
-      // Fetch snapshots from Alpaca to get actual available expirations
-      const auth = Buffer.from(`${ALPACA_API_KEY}:${ALPACA_API_SECRET}`).toString('base64');
-      const snapshotsUrl = `https://data.alpaca.markets/v1beta1/options/snapshots/${symbol.toUpperCase()}?limit=100`;
-      
-      const response = await fetch(snapshotsUrl, {
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'accept': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Alpaca API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const snapshots = data.snapshots || {};
-      
-      // Parse option symbols to extract unique expiration dates
-      const expirationSet = new Set<string>();
-      const parseOptionSymbol = (optionSymbol: string) => {
-        const match = optionSymbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
-        if (!match) return null;
-        
-        const [, , dateStr] = match;
-        const year = 2000 + parseInt(dateStr.substring(0, 2));
-        const month = parseInt(dateStr.substring(2, 4));
-        const day = parseInt(dateStr.substring(4, 6));
-        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      };
-      
-      for (const optionSymbol of Object.keys(snapshots)) {
-        const isoDate = parseOptionSymbol(optionSymbol);
-        if (isoDate) {
-          expirationSet.add(isoDate);
-        }
-      }
-      
-      const expirations = Array.from(expirationSet).sort();
 
       res.json({
         symbol: symbol.toUpperCase(),
-        expirations,
+        expirations: availableExpirations,
+        count,
         updated: Date.now(),
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching options expirations:", error);
+      
+      // Handle specific error types
+      if (error.status === 429) {
+        return res.status(429).json({ 
+          error: error.message,
+          retryAfter: error.retryAfter 
+        });
+      }
+      if (error.status === 404) {
+        return res.status(404).json({ error: error.message });
+      }
+      
       res.status(500).json({ error: "Failed to fetch options expirations" });
     }
   });
@@ -182,41 +225,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { expiration, strike, side } = queryParseResult.data;
       
       // Create cache key from params
-      const cacheKey = `alpaca-${symbol.toUpperCase()}-${expiration || 'all'}-${strike || 'all'}-${side || 'all'}`;
+      const CACHE_VERSION = '2'; // Increment when response schema changes
+      const cacheKey = `alpaca-v${CACHE_VERSION}-${symbol.toUpperCase()}-${expiration || 'all'}-${strike || 'all'}-${side || 'all'}`;
       
-      // Check cache first
+      // Check cache first - cache key includes version so old entries are automatically invalidated
       const cachedData = await storage.getOptionsChainCache(cacheKey);
-      if (cachedData) {
+      if (cachedData && cachedData.availableExpirations) {
+        // Validate cached data - check if requested expiration is still available
+        if (expiration && cachedData.availableExpirations && !cachedData.availableExpirations.includes(expiration)) {
+          // Expiration no longer available - return 404 even from cache
+          return res.status(404).json({
+            error: `Expiration date ${expiration} not available`,
+            message: `The requested expiration date (${expiration}) is not available from Alpaca. This may be due to API snapshot limits.`,
+            availableExpirations: cachedData.availableExpirations.slice(0, 10),
+            symbol: symbol.toUpperCase(),
+          });
+        }
         return res.json(cachedData);
       }
 
-      // Fetch pricing/greeks data using snapshots endpoint
-      // Build Alpaca API URL with feed parameter for free tier (indicative pricing)
-      const url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}?feed=indicative`;
-
-      const response = await fetch(url, {
-        headers: {
-          'APCA-API-KEY-ID': ALPACA_API_KEY,
-          'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
-        }
-      });
-
-      if (response.status === 429) {
-        return res.status(429).json({ 
-          error: "Rate limit exceeded",
-          retryAfter: response.headers.get("Retry-After") || "60"
+      // Use shared helper to fetch snapshots
+      const { snapshots, availableExpirations, count } = await fetchAlpacaSnapshots(symbol);
+      
+      console.log(`[Options Chain] Fetched ${count} snapshots for ${symbol.toUpperCase()}`);
+      console.log(`[Options Chain] Available expirations:`, availableExpirations.slice(0, 5));
+      
+      // Check if requested expiration exists in Alpaca data
+      if (expiration && !availableExpirations.includes(expiration)) {
+        console.log(`[Options Chain] ⚠️  WARNING: Requested expiration ${expiration} not found in Alpaca data`);
+        console.log(`[Options Chain] ⚠️  Available expirations:`, availableExpirations);
+        console.log(`[Options Chain] ⚠️  This may be due to Alpaca API limits (max ~100 snapshots)`);
+        
+        // Return 404 with actionable message for the frontend
+        return res.status(404).json({
+          error: `Expiration date ${expiration} not available`,
+          message: `The requested expiration date (${expiration}) is not available from Alpaca. This may be due to API snapshot limits.`,
+          availableExpirations: availableExpirations.slice(0, 10), // Show first 10 available dates
+          symbol: symbol.toUpperCase(),
         });
       }
-
-      if (!response.ok) {
-        throw new Error(`Alpaca API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // Alpaca returns { snapshots: { "SYMBOL": { latestQuote, latestTrade, greeks, impliedVolatility } } }
-      const snapshots = data.snapshots || {};
-      console.log(`[Options Chain] Fetched ${Object.keys(snapshots).length} snapshots for ${symbol.toUpperCase()}`);
       
       // Log sample option symbols to debug PUT availability
       const sampleSymbols = Object.keys(snapshots).slice(0, 10);
@@ -229,7 +276,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Options Chain] Filtering for expiration: ${expiration}`);
       }
       const quotes: MarketOptionQuote[] = [];
-      const allExpirations = new Set<string>();
       
       // Parse option symbol to extract strike, expiration, type
       // Format: AAPL251219C00225000 (ticker + YYMMDD + C/P + strike*1000)
@@ -254,9 +300,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const [optionSymbol, snapshot] of Object.entries(snapshots) as [string, any][]) {
         const parsed = parseOptionSymbol(optionSymbol);
         if (!parsed) continue;
-        
-        // Track all expirations found
-        allExpirations.add(parsed.isoDate);
 
         // Apply filters
         if (side && parsed.side !== side) continue;
@@ -422,10 +465,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Options Chain] Synthesized ${callsByStrikeExp.size} PUT options from calls`);
       }
       
-      const expirations = Array.from(new Set(quotes.map(q => new Date(q.expiration * 1000).toISOString().split('T')[0])));
-      console.log(`[Options Chain] After filtering: ${quotes.length} quotes, expirations in filtered results:`, expirations.slice(0, 5));
+      // Use available expirations from helper (more comprehensive than filtered results)
+      console.log(`[Options Chain] After filtering: ${quotes.length} quotes from ${availableExpirations.length} available expirations`);
       if (expiration && quotes.length === 0) {
-        console.log(`[Options Chain] WARNING: Requested expiration ${expiration} not found.`);
+        console.log(`[Options Chain] WARNING: Requested expiration ${expiration} returned no quotes (available: ${availableExpirations.join(', ')})`);
       }
       
       // Calculate strike range and extrapolate if limited by API
@@ -455,7 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const summary: MarketOptionChainSummary = {
         symbol: symbol.toUpperCase(),
-        expirations: expirations.sort(),
+        expirations: availableExpirations, // Use expirations from Alpaca snapshots
         minStrike,
         maxStrike,
         quotes,
@@ -466,8 +509,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.setOptionsChainCache(cacheKey, summary, 60);
 
       res.json(summary);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching options chain:", error);
+      
+      // Propagate specific error types from helper
+      if (error.status === 429) {
+        return res.status(429).json({ 
+          error: error.message,
+          retryAfter: error.retryAfter 
+        });
+      }
+      if (error.status === 404) {
+        return res.status(404).json({ 
+          error: error.message,
+          message: "No options data available from Alpaca for this symbol. This may be due to API limits or the symbol may not have options."
+        });
+      }
+      
       res.status(500).json({ error: "Failed to fetch options chain" });
     }
   });
