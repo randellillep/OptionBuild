@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
 import type { OptionLeg } from "@shared/schema";
@@ -242,7 +243,7 @@ export function StrikeLadder({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
-  // Render a draggable badge with quantity indicator
+  // Render a draggable badge with quantity indicator and inline price editor
   const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
     const isCall = leg.type === "call";
     const bgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
@@ -252,9 +253,9 @@ export function StrikeLadder({
     const quantity = leg.quantity || 1;
     const quantityDisplay = leg.position === 'short' ? `-${quantity}` : `+${quantity}`;
 
-    // Calculate vertical position accounting for stacking
+    // Calculate vertical position accounting for stacking and price input
     const baseOffset = position === 'long' ? -8 : -8;
-    const stackOffset = verticalOffset * 28; // 28px per badge (height + gap)
+    const stackOffset = verticalOffset * 50; // Increased spacing for badge + price input
     const topPosition = position === 'long' 
       ? `${baseOffset - stackOffset}px`
       : `auto`;
@@ -275,7 +276,7 @@ export function StrikeLadder({
       >
         <PopoverTrigger asChild>
           <div
-            className="absolute"
+            className="absolute flex flex-col items-center gap-0.5"
             style={{
               left: `${positionPercent}%`,
               transform: 'translateX(-50%)',
@@ -283,6 +284,7 @@ export function StrikeLadder({
               bottom: bottomPosition,
             }}
           >
+            {/* Strike badge */}
             <button
               onPointerDown={(e) => handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e)}
@@ -295,7 +297,7 @@ export function StrikeLadder({
             >
               {leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}{isCall ? 'C' : 'P'}
               
-              {/* Quantity badge overlay - always visible */}
+              {/* Quantity badge overlay */}
               <span 
                 className="absolute -top-1 -right-1 bg-white text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-gray-300"
                 data-testid={`quantity-${leg.id}`}
@@ -303,6 +305,30 @@ export function StrikeLadder({
                 {quantityDisplay}
               </span>
             </button>
+            
+            {/* Inline price editor */}
+            <div 
+              className="flex items-center gap-0.5 bg-background border border-border rounded px-1 py-0.5 shadow-sm"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <span className="text-[9px] text-muted-foreground">$</span>
+              <Input
+                type="number"
+                value={leg.premium.toFixed(2)}
+                onChange={(e) => {
+                  const newPrice = parseFloat(e.target.value) || 0;
+                  onUpdateLeg(leg.id, { 
+                    premium: Math.max(0, newPrice),
+                    premiumSource: "manual"
+                  });
+                }}
+                className="h-4 w-12 text-[9px] font-mono text-center p-0 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                step="0.01"
+                min="0"
+                data-testid={`input-inline-price-${leg.id}`}
+              />
+            </div>
           </div>
         </PopoverTrigger>
         <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
