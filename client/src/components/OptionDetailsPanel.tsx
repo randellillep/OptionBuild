@@ -134,11 +134,6 @@ export function OptionDetailsPanel({
   // Check if this leg has a manually edited premium (persisted in leg data)
   const isManuallyEdited = leg.premiumSource === "manual";
   
-  // Sync local state with leg premium when leg changes
-  useEffect(() => {
-    setCostBasis(leg.premium);
-  }, [leg.premium]);
-  
   // Update cost basis when market data changes (only if not manually edited)
   useEffect(() => {
     if (!isManuallyEdited && marketData?.bid !== undefined && marketData?.ask !== undefined) {
