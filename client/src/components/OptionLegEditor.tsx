@@ -123,11 +123,9 @@ export function OptionLegEditor({ leg, onUpdate, onRemove, underlyingPrice }: Op
             id={`premium-${leg.id}`}
             type="number"
             value={leg.premium}
-            onChange={(e) => {
-              // Round to 2 decimal places
-              const value = Math.max(0, Math.round(Number(e.target.value) * 100) / 100);
-              onUpdate({ ...leg, premium: value, premiumSource: 'manual' as const });
-            }}
+            onChange={(e) =>
+              onUpdate({ ...leg, premium: Number(e.target.value), premiumSource: 'manual' as const })
+            }
             className="h-9 font-mono"
             step="0.01"
             data-testid={`input-premium-${leg.id}`}
