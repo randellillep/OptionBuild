@@ -216,6 +216,12 @@ export default function Builder() {
 
         if (matchingQuote) {
           updated = true;
+          // Debug logging for MSFT 480 Call
+          if (matchingQuote.underlying === 'MSFT' && Math.abs(matchingQuote.strike - 480) < 0.01 && matchingQuote.side === 'call') {
+            console.log('[FRONTEND-PRICE-DEBUG-MSFT480C] Found matching quote:', matchingQuote);
+            console.log('[FRONTEND-PRICE-DEBUG-MSFT480C] mid value:', matchingQuote.mid);
+            console.log('[FRONTEND-PRICE-DEBUG-MSFT480C] Setting premium to:', Number(matchingQuote.mid.toFixed(2)));
+          }
           return {
             ...leg,
             premium: Number(matchingQuote.mid.toFixed(2)),
