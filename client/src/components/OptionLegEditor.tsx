@@ -122,9 +122,9 @@ export function OptionLegEditor({ leg, onUpdate, onRemove, underlyingPrice }: Op
           <Input
             id={`premium-${leg.id}`}
             type="number"
-            value={leg.premium.toFixed(2)}
+            value={leg.premium}
             onChange={(e) =>
-              onUpdate({ ...leg, premium: Number(e.target.value) })
+              onUpdate({ ...leg, premium: Number(e.target.value), premiumSource: 'manual' as const })
             }
             className="h-9 font-mono"
             step="0.01"

@@ -108,6 +108,7 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: Add
       quantity: 1,
       premium: 3.5,
       expirationDays: 30,
+      premiumSource: 'theoretical' as const,
     });
   };
 
