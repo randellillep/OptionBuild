@@ -76,7 +76,7 @@ export interface MarketOptionQuote {
   intrinsicValue: number;
   extrinsicValue: number;
   underlyingPrice: number;
-  iv: number;
+  iv?: number; // Optional - calculated client-side if not provided by API
   delta: number;
   gamma: number;
   theta: number;
@@ -93,4 +93,5 @@ export interface MarketOptionChainSummary {
   maxStrike: number;
   quotes: MarketOptionQuote[];
   cachedAt: number;
+  availableExpirations?: string[]; // Available expirations from data source (for validation)
 }
