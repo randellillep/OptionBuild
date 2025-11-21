@@ -1,13 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { MarketOptionQuote } from "@shared/schema";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 interface OptionsChainTableProps {
   quotes: MarketOptionQuote[];
-  onSelectOption?: (quote: MarketOptionQuote) => void;
+  onSelectOption?: (quote: MarketOptionQuote, customPrice?: number) => void;
   showCalls?: boolean;
   showPuts?: boolean;
 }
@@ -18,6 +19,8 @@ export function OptionsChainTable({
   showCalls = true,
   showPuts = true,
 }: OptionsChainTableProps) {
+  // Track custom prices for each option
+  const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
 
   const { calls, puts, atmStrike } = useMemo(() => {
     if (quotes.length === 0) {
