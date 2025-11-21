@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
 import type { OptionLeg } from "@shared/schema";
+import { calculateOptionPrice } from "@/lib/options-pricing";
 
 interface StrikeLadderProps {
   legs: OptionLeg[];
@@ -173,7 +173,53 @@ export function StrikeLadder({
       e.preventDefault();
       const newStrike = getStrikeFromPosition(e.clientX);
       if (newStrike !== null) {
-        onUpdateLeg(draggedLeg, { strike: newStrike });
+        // Find the dragged leg to get its type
+        const leg = legs.find(l => l.id === draggedLeg);
+        if (!leg) return;
+
+        // Only update if strike actually changed
+        if (leg.strike === newStrike) return;
+
+        // Look up market price for the new strike
+        let marketPrice: number | undefined;
+        if (optionsChainData?.quotes) {
+          const matchingQuote = optionsChainData.quotes.find(
+            (q: any) => q.strike === newStrike && q.side.toLowerCase() === leg.type
+          );
+          if (matchingQuote) {
+            // Use mid if available, otherwise calculate from bid/ask
+            if (matchingQuote.mid !== undefined && matchingQuote.mid > 0) {
+              marketPrice = matchingQuote.mid;
+            } else if (matchingQuote.bid !== undefined && matchingQuote.ask !== undefined) {
+              marketPrice = (matchingQuote.bid + matchingQuote.ask) / 2;
+            }
+          }
+        }
+
+        // Always update strike and reset premium (market or theoretical)
+        if (marketPrice !== undefined && marketPrice > 0) {
+          // Market data available - reset to market price
+          onUpdateLeg(draggedLeg, { 
+            strike: newStrike, 
+            premium: marketPrice,
+            premiumSource: "market"
+          });
+        } else {
+          // No market data - calculate theoretical premium using Black-Scholes
+          const theoreticalPremium = calculateOptionPrice(
+            leg.type,
+            currentPrice,
+            newStrike,
+            leg.expirationDays,
+            volatility
+          );
+          
+          onUpdateLeg(draggedLeg, { 
+            strike: newStrike,
+            premium: theoreticalPremium,
+            premiumSource: "theoretical"
+          });
+        }
       }
     };
 
@@ -192,7 +238,7 @@ export function StrikeLadder({
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [isDragging, draggedLeg, onUpdateLeg]);
+  }, [isDragging, draggedLeg, legs, optionsChainData, onUpdateLeg]);
 
   // Handle ladder panning
   useEffect(() => {
@@ -243,7 +289,7 @@ export function StrikeLadder({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
-  // Render a draggable badge with quantity indicator and inline price editor
+  // Render a draggable badge with quantity indicator
   const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
     const isCall = leg.type === "call";
     const bgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
@@ -253,9 +299,9 @@ export function StrikeLadder({
     const quantity = leg.quantity || 1;
     const quantityDisplay = leg.position === 'short' ? `-${quantity}` : `+${quantity}`;
 
-    // Calculate vertical position accounting for stacking and price input
+    // Calculate vertical position accounting for stacking
     const baseOffset = position === 'long' ? -8 : -8;
-    const stackOffset = verticalOffset * 50; // Increased spacing for badge + price input
+    const stackOffset = verticalOffset * 28; // 28px per badge (height + gap)
     const topPosition = position === 'long' 
       ? `${baseOffset - stackOffset}px`
       : `auto`;
@@ -276,7 +322,7 @@ export function StrikeLadder({
       >
         <PopoverTrigger asChild>
           <div
-            className="absolute flex flex-col items-center gap-0.5"
+            className="absolute"
             style={{
               left: `${positionPercent}%`,
               transform: 'translateX(-50%)',
@@ -284,7 +330,6 @@ export function StrikeLadder({
               bottom: bottomPosition,
             }}
           >
-            {/* Strike badge */}
             <button
               onPointerDown={(e) => handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e)}
@@ -297,7 +342,7 @@ export function StrikeLadder({
             >
               {leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}{isCall ? 'C' : 'P'}
               
-              {/* Quantity badge overlay */}
+              {/* Quantity badge overlay - always visible */}
               <span 
                 className="absolute -top-1 -right-1 bg-white text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-gray-300"
                 data-testid={`quantity-${leg.id}`}
@@ -305,30 +350,6 @@ export function StrikeLadder({
                 {quantityDisplay}
               </span>
             </button>
-            
-            {/* Inline price editor */}
-            <div 
-              className="flex items-center gap-0.5 bg-background border border-border rounded px-1 py-0.5 shadow-sm"
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <span className="text-[9px] text-muted-foreground">$</span>
-              <Input
-                type="number"
-                value={leg.premium.toFixed(2)}
-                onChange={(e) => {
-                  const newPrice = parseFloat(e.target.value) || 0;
-                  onUpdateLeg(leg.id, { 
-                    premium: Math.max(0, newPrice),
-                    premiumSource: "manual"
-                  });
-                }}
-                className="h-4 w-12 text-[9px] font-mono text-center p-0 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                step="0.01"
-                min="0"
-                data-testid={`input-inline-price-${leg.id}`}
-              />
-            </div>
           </div>
         </PopoverTrigger>
         <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
