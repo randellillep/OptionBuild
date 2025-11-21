@@ -168,17 +168,19 @@ export default function Builder() {
     enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
 
-  // Auto-update leg premiums with market data when legs are added or chain loads
+  // Auto-update leg premiums with market data when:
+  // 1. New market data arrives (optionsChainData changes)
+  // 2. New theoretical legs are added (legs with premiumSource='theoretical')
+  // BUT does NOT run when user manually edits existing legs
   useEffect(() => {
     if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) {
       return;
     }
 
-    // Check if any legs need market data (have premiumSource='theoretical')
-    const legsNeedingMarketData = legs.filter(leg => leg.premiumSource === 'theoretical');
-    
-    if (legsNeedingMarketData.length === 0) {
-      return;
+    // Count legs that need syncing (premiumSource='theoretical')
+    const theoreticalLegsCount = legs.filter(leg => leg.premiumSource === 'theoretical').length;
+    if (theoreticalLegsCount === 0) {
+      return; // No theoretical legs to sync
     }
 
     // Update ONLY legs that need market data (premiumSource='theoretical')
@@ -214,7 +216,7 @@ export default function Builder() {
       // Only update state if something actually changed
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, legs.length]);
+  }, [optionsChainData, legs.filter(leg => leg.premiumSource === 'theoretical').map(leg => leg.id).join(',')]);
 
   // Calculate available strikes from market data
   // Use minStrike/maxStrike from API (which includes extrapolated range)
