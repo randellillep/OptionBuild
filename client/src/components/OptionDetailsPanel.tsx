@@ -192,7 +192,7 @@ export function OptionDetailsPanel({
   // Sync local state with leg premium when leg changes
   useEffect(() => {
     setCostBasis(leg.premium);
-  }, [leg.premium]);
+  }, [leg.premium, leg.premiumSource]);
   
   // Update cost basis when market data changes (only if not manually edited)
   useEffect(() => {
@@ -211,7 +211,9 @@ export function OptionDetailsPanel({
     const newCost = Math.max(0, value || 0);
     setCostBasis(newCost);
     // Mark as manually edited by setting premiumSource
-    if (onUpdateLeg) onUpdateLeg({ premium: newCost, premiumSource: "manual" });
+    if (onUpdateLeg) {
+      onUpdateLeg({ premium: newCost, premiumSource: "manual" });
+    }
   };
   
   const handleResetCostBasis = () => {

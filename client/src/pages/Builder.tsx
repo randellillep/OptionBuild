@@ -621,20 +621,16 @@ export default function Builder() {
                   ) : optionsChainData && optionsChainData.quotes.length > 0 ? (
                     <OptionsChainTable
                       quotes={optionsChainData.quotes}
-                      onSelectOption={(quote, customPrice) => {
-                        // Use custom price if provided, otherwise use market mid price
-                        const price = customPrice !== undefined ? customPrice : quote.mid;
-                        const isCustomPrice = customPrice !== undefined;
-                        
-                        // Calculate IV from the price (either custom or market)
+                      onSelectOption={(quote) => {
+                        // Calculate IV from market price if not provided by API
                         let iv = quote.iv;
-                        if (!iv && price > 0 && symbolInfo?.price && quote.dte > 0) {
+                        if (!iv && quote.mid > 0 && symbolInfo?.price && quote.dte > 0) {
                           iv = calculateImpliedVolatility(
                             quote.side,
                             symbolInfo.price,
                             quote.strike,
                             quote.dte,
-                            price
+                            quote.mid
                           );
                           console.log(`[IV-CALC] Calculated IV for ${quote.underlying} ${quote.strike}${quote.side[0].toUpperCase()}: ${(iv * 100).toFixed(1)}%`);
                         }
@@ -645,10 +641,10 @@ export default function Builder() {
                           position: "long",
                           strike: quote.strike,
                           quantity: 1,
-                          premium: price,
+                          premium: quote.mid,
                           expirationDays: quote.dte,
                           marketQuoteId: quote.optionSymbol,
-                          premiumSource: isCustomPrice ? "manual" : "market",
+                          premiumSource: "market",
                           impliedVolatility: iv,
                         };
                         setLegs([...legs, newLeg]);

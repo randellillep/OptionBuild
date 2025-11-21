@@ -1,14 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { MarketOptionQuote } from "@shared/schema";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 
 interface OptionsChainTableProps {
   quotes: MarketOptionQuote[];
-  onSelectOption?: (quote: MarketOptionQuote, customPrice?: number) => void;
+  onSelectOption?: (quote: MarketOptionQuote) => void;
   showCalls?: boolean;
   showPuts?: boolean;
 }
@@ -19,8 +18,6 @@ export function OptionsChainTable({
   showCalls = true,
   showPuts = true,
 }: OptionsChainTableProps) {
-  const [editingCell, setEditingCell] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<string>("");
 
   const { calls, puts, atmStrike } = useMemo(() => {
     if (quotes.length === 0) {
@@ -51,34 +48,10 @@ export function OptionsChainTable({
     );
   }
 
-  const handleStartEdit = (quote: MarketOptionQuote) => {
-    setEditingCell(quote.optionSymbol);
-    setEditValue(quote.mid.toFixed(2));
-  };
-
-  const handleFinishEdit = (quote: MarketOptionQuote) => {
-    const customPrice = parseFloat(editValue);
-    if (!isNaN(customPrice) && customPrice > 0 && onSelectOption) {
-      onSelectOption(quote, customPrice);
-    }
-    setEditingCell(null);
-    setEditValue("");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, quote: MarketOptionQuote) => {
-    if (e.key === 'Enter') {
-      handleFinishEdit(quote);
-    } else if (e.key === 'Escape') {
-      setEditingCell(null);
-      setEditValue("");
-    }
-  };
-
   const renderOptionRow = (quote: MarketOptionQuote) => {
     const isAtm = Math.abs(quote.strike - atmStrike) < 0.01;
     const spread = quote.ask - quote.bid;
     const spreadPercent = quote.mid > 0 ? (spread / quote.mid) * 100 : 0;
-    const isEditing = editingCell === quote.optionSymbol;
 
     return (
       <TableRow 
@@ -96,33 +69,8 @@ export function OptionsChainTable({
         <TableCell className="text-right font-mono" data-testid={`ask-${quote.strike}`}>
           ${quote.ask.toFixed(2)}
         </TableCell>
-        <TableCell 
-          className="text-right font-mono"
-          data-testid={`mid-${quote.strike}`}
-        >
-          {isEditing ? (
-            <div className="flex items-center justify-end gap-2">
-              <Input
-                type="number"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={() => handleFinishEdit(quote)}
-                onKeyDown={(e) => handleKeyDown(e, quote)}
-                className="h-8 w-24 text-right font-mono"
-                step="0.01"
-                autoFocus
-                data-testid={`input-edit-mid-${quote.strike}`}
-              />
-            </div>
-          ) : (
-            <button
-              onClick={() => handleStartEdit(quote)}
-              className="w-full text-right hover:bg-accent hover:text-accent-foreground px-2 py-1 rounded transition-colors"
-              data-testid={`button-edit-mid-${quote.strike}`}
-            >
-              ${quote.mid.toFixed(2)}
-            </button>
-          )}
+        <TableCell className="text-right font-mono">
+          ${quote.mid.toFixed(2)}
         </TableCell>
         <TableCell className="text-right text-muted-foreground text-sm">
           ${spread.toFixed(2)} ({spreadPercent.toFixed(1)}%)
