@@ -36,9 +36,19 @@ export function StrikeLadder({
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [draggedLeg, setDraggedLeg] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panOffset, setPanOffset] = useState(0); // Percentage offset for horizontal panning
+  const [panStartX, setPanStartX] = useState(0);
+  const [panStartOffset, setPanStartOffset] = useState(0);
   const ladderRef = useRef<HTMLDivElement>(null);
 
-  const range = strikeRange.max - strikeRange.min;
+  const baseRange = strikeRange.max - strikeRange.min;
+  
+  // Apply pan offset to adjust visible range (pan offset is in percentage)
+  const panAdjustment = (panOffset / 100) * baseRange;
+  const adjustedMin = strikeRange.min + panAdjustment;
+  const adjustedMax = strikeRange.max + panAdjustment;
+  const range = adjustedMax - adjustedMin;
   
   // Determine strike interval based on range
   const getStrikeInterval = () => {
@@ -55,9 +65,9 @@ export function StrikeLadder({
   const generateLabeledStrikes = () => {
     // If we have market data, use actual available strikes (including decimals)
     if (availableStrikes && availableStrikes.strikes.length > 0) {
-      // Filter strikes within display range and pick ~10-15 evenly spaced for labels
+      // Filter strikes within adjusted display range and pick ~10-15 evenly spaced for labels
       const strikesInRange = availableStrikes.strikes.filter(
-        s => s >= strikeRange.min && s <= strikeRange.max
+        s => s >= adjustedMin && s <= adjustedMax
       );
       
       // If we have many strikes, thin them out for readability
@@ -71,8 +81,8 @@ export function StrikeLadder({
     
     // Otherwise, use interval-based strikes
     const strikes: number[] = [];
-    const start = Math.ceil(strikeRange.min / strikeInterval) * strikeInterval;
-    for (let strike = start; strike <= strikeRange.max; strike += strikeInterval) {
+    const start = Math.ceil(adjustedMin / strikeInterval) * strikeInterval;
+    for (let strike = start; strike <= adjustedMax; strike += strikeInterval) {
       strikes.push(strike);
     }
     return strikes;
@@ -102,9 +112,9 @@ export function StrikeLadder({
     };
   };
 
-  // Calculate position percentage for a given strike
+  // Calculate position percentage for a given strike (relative to adjusted range)
   const getStrikePosition = (strike: number) => {
-    return ((strike - strikeRange.min) / range) * 100;
+    return ((strike - adjustedMin) / range) * 100;
   };
 
   // Calculate strike from x position
@@ -114,7 +124,7 @@ export function StrikeLadder({
     const rect = ladderRef.current.getBoundingClientRect();
     const x = clientX - rect.left;
     const percent = (x / rect.width) * 100;
-    const strike = strikeRange.min + (percent / 100) * range;
+    const strike = adjustedMin + (percent / 100) * range;
     
     // If we have market data, snap to nearest available strike
     if (availableStrikes && availableStrikes.strikes.length > 0) {
@@ -127,7 +137,7 @@ export function StrikeLadder({
     
     // Otherwise, snap to nearest valid strike interval and constrain
     const snapped = Math.round(strike / strikeInterval) * strikeInterval;
-    return Math.max(strikeRange.min, Math.min(strikeRange.max, snapped));
+    return Math.max(adjustedMin, Math.min(adjustedMax, snapped));
   };
 
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
@@ -147,6 +157,7 @@ export function StrikeLadder({
     }
   };
 
+  // Handle badge dragging
   useEffect(() => {
     if (!isDragging || !draggedLeg) return;
 
@@ -175,7 +186,54 @@ export function StrikeLadder({
     };
   }, [isDragging, draggedLeg, onUpdateLeg]);
 
+  // Handle ladder panning
+  useEffect(() => {
+    if (!isPanning) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      e.preventDefault();
+      if (!ladderRef.current) return;
+      
+      const rect = ladderRef.current.getBoundingClientRect();
+      const deltaX = e.clientX - panStartX;
+      const deltaPercent = (deltaX / rect.width) * 100;
+      
+      // Pan moves opposite to drag direction (like dragging a map)
+      const newOffset = panStartOffset - deltaPercent;
+      
+      // Clamp pan offset to reasonable limits (allow panning ±50% of range)
+      const maxPanPercent = 50;
+      setPanOffset(Math.max(-maxPanPercent, Math.min(maxPanPercent, newOffset)));
+    };
+
+    const handlePointerUp = () => {
+      setIsPanning(false);
+    };
+
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isPanning, panStartX, panStartOffset]);
+
   const currentPricePercent = getStrikePosition(currentPrice);
+
+  // Handle panning on ladder background
+  const handleLadderPointerDown = (e: React.PointerEvent) => {
+    // Only start panning if not clicking on a badge
+    if ((e.target as HTMLElement).closest('button')) {
+      return; // Let badge handle its own dragging
+    }
+    
+    e.preventDefault();
+    setIsPanning(true);
+    setPanStartX(e.clientX);
+    setPanStartOffset(panOffset);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
 
   // Render a draggable badge with quantity indicator
   const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
@@ -280,14 +338,16 @@ export function StrikeLadder({
       <div className="mb-3">
         <h3 className="text-sm font-semibold mb-1">STRIKE:</h3>
         <p className="text-xs text-muted-foreground">
-          Drag badges to adjust strike prices
+          Drag badges to adjust strike prices, or drag background to pan view
         </p>
       </div>
 
       <div 
         ref={ladderRef} 
-        className="relative h-32 bg-muted/20 rounded-md overflow-visible px-4"
-        style={{ userSelect: 'none' }}
+        className={`relative h-32 bg-muted/20 rounded-md overflow-visible px-4 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        style={{ userSelect: 'none', touchAction: 'none' }}
+        onPointerDown={handleLadderPointerDown}
+        data-testid="strike-ladder-container"
       >
         {/* Strike price labels and tick marks */}
         <div className="absolute inset-0 pointer-events-none">
@@ -359,8 +419,8 @@ export function StrikeLadder({
       </div>
 
       <div className="flex justify-between mt-2 text-xs text-muted-foreground font-mono">
-        <span>${strikeRange.min.toFixed(2)}</span>
-        <span>${strikeRange.max.toFixed(2)}</span>
+        <span>${adjustedMin.toFixed(2)}</span>
+        <span>${adjustedMax.toFixed(2)}</span>
       </div>
 
       <div className="mt-3 flex items-center gap-4 text-xs">
