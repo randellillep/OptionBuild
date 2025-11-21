@@ -171,6 +171,7 @@ export default function Builder() {
   // Auto-update leg premiums with market data after symbol change
   useEffect(() => {
     if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) {
+      console.log('[MARKET-SYNC] No options chain data available');
       return;
     }
 
@@ -178,10 +179,19 @@ export default function Builder() {
     const legsNeedingMarketData = legs.filter(leg => leg.premiumSource === 'theoretical');
     
     if (legsNeedingMarketData.length === 0) {
+      console.log('[MARKET-SYNC] No legs need market data (all already synced)');
       return;
     }
 
     console.log('[MARKET-SYNC] Updating', legsNeedingMarketData.length, 'legs with market data');
+    console.log('[MARKET-SYNC] Legs needing sync:', legsNeedingMarketData.map(l => `${l.type} ${l.strike}`));
+    console.log('[MARKET-SYNC] Available quotes:', optionsChainData.quotes.length);
+    
+    // Log sample quotes for debugging
+    const callSample = optionsChainData.quotes.find(q => q.side === 'call' || q.side === 'Call');
+    const putSample = optionsChainData.quotes.find(q => q.side === 'put' || q.side === 'Put');
+    console.log('[MARKET-SYNC] Sample call quote side:', callSample?.side, 'strike:', callSample?.strike);
+    console.log('[MARKET-SYNC] Sample put quote side:', putSample?.side, 'strike:', putSample?.strike);
 
     // Update legs with market data
     setLegs(currentLegs => {
@@ -192,27 +202,28 @@ export default function Builder() {
         }
 
         // Find matching market quote (same strike and type)
+        console.log(`[MARKET-SYNC] Looking for ${leg.type} at strike ${leg.strike}...`);
         const matchingQuote = optionsChainData.quotes.find(
-          q => Math.abs(q.strike - leg.strike) < 0.01 && q.side === leg.type
+          q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
         );
 
         if (matchingQuote) {
-          console.log(`[MARKET-SYNC] Found market data for ${leg.type} ${leg.strike}: $${matchingQuote.mid}`);
+          console.log(`[MARKET-SYNC] ✅ Found market data for ${leg.type} ${leg.strike}: $${matchingQuote.mid.toFixed(2)}`);
           return {
             ...leg,
-            premium: matchingQuote.mid,
+            premium: Number(matchingQuote.mid.toFixed(2)),
             marketQuoteId: matchingQuote.optionSymbol,
             premiumSource: 'market' as const,
             impliedVolatility: matchingQuote.iv,
             expirationDays: matchingQuote.dte,
           };
         } else {
-          console.log(`[MARKET-SYNC] No market data for ${leg.type} ${leg.strike}, keeping theoretical`);
+          console.log(`[MARKET-SYNC] ❌ No market data for ${leg.type} ${leg.strike}, keeping theoretical`);
           return leg;
         }
       });
     });
-  }, [optionsChainData, legs]);
+  }, [optionsChainData, setLegs]);
 
   // Calculate available strikes from market data
   // Use minStrike/maxStrike from API (which includes extrapolated range)
