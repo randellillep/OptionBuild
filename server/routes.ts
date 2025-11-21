@@ -102,63 +102,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Options expirations endpoint - generates standard monthly/weekly expirations
+  // Options expirations endpoint - fetches ACTUAL available expirations from Alpaca
   app.get("/api/options/expirations/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
       
-      // Generate comprehensive expiration dates (weekly + monthly for next 2 years)
-      const now = new Date();
-      const expirations: string[] = [];
-      
-      // Add weekly expirations for next 52 weeks (1 year of Fridays)
-      for (let i = 0; i < 52; i++) {
-        const date = new Date(now);
-        // Find next Friday
-        const daysUntilFriday = (5 - date.getDay() + 7) % 7 || 7;
-        date.setDate(date.getDate() + daysUntilFriday + (i * 7));
-        expirations.push(date.toISOString().split('T')[0]);
+      if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+        return res.status(500).json({ error: "Alpaca API credentials not configured" });
       }
       
-      // Add monthly expirations for next 24 months (3rd Friday of each month for 2 years)
-      for (let i = 0; i < 24; i++) {
-        const date = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
-        // Find 3rd Friday of the month
-        const firstDay = date.getDay();
-        const thirdFriday = 1 + (5 - firstDay + 7) % 7 + 14;
-        date.setDate(thirdFriday);
-        const expDate = date.toISOString().split('T')[0];
-        if (!expirations.includes(expDate)) {
-          expirations.push(expDate);
+      // Fetch snapshots from Alpaca to get actual available expirations
+      const auth = Buffer.from(`${ALPACA_API_KEY}:${ALPACA_API_SECRET}`).toString('base64');
+      const snapshotsUrl = `https://data.alpaca.markets/v1beta1/options/snapshots/${symbol.toUpperCase()}?limit=100`;
+      
+      const response = await fetch(snapshotsUrl, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'accept': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Alpaca API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const snapshots = data.snapshots || {};
+      
+      // Parse option symbols to extract unique expiration dates
+      const expirationSet = new Set<string>();
+      const parseOptionSymbol = (optionSymbol: string) => {
+        const match = optionSymbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
+        if (!match) return null;
+        
+        const [, , dateStr] = match;
+        const year = 2000 + parseInt(dateStr.substring(0, 2));
+        const month = parseInt(dateStr.substring(2, 4));
+        const day = parseInt(dateStr.substring(4, 6));
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      };
+      
+      for (const optionSymbol of Object.keys(snapshots)) {
+        const isoDate = parseOptionSymbol(optionSymbol);
+        if (isoDate) {
+          expirationSet.add(isoDate);
         }
       }
       
-      // Add quarterly expirations (3rd Friday of Mar, Jun, Sep, Dec) for next 3 years
-      const quarterlyMonths = [2, 5, 8, 11]; // March, June, September, December (0-indexed)
-      for (let year = 0; year < 3; year++) {
-        for (const month of quarterlyMonths) {
-          const date = new Date(now.getFullYear() + year, month, 1);
-          const firstDay = date.getDay();
-          const thirdFriday = 1 + (5 - firstDay + 7) % 7 + 14;
-          date.setDate(thirdFriday);
-          const expDate = date.toISOString().split('T')[0];
-          if (!expirations.includes(expDate)) {
-            expirations.push(expDate);
-          }
-        }
-      }
-      
-      // Sort and deduplicate
-      const uniqueExpirations = Array.from(new Set(expirations)).sort();
+      const expirations = Array.from(expirationSet).sort();
 
       res.json({
         symbol: symbol.toUpperCase(),
-        expirations: uniqueExpirations,
+        expirations,
         updated: Date.now(),
       });
     } catch (error) {
-      console.error("Error generating options expirations:", error);
-      res.status(500).json({ error: "Failed to generate options expirations" });
+      console.error("Error fetching options expirations:", error);
+      res.status(500).json({ error: "Failed to fetch options expirations" });
     }
   });
 
@@ -261,9 +261,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Apply filters
         if (side && parsed.side !== side) continue;
         if (strike && Math.abs(parsed.strike - strike) > 0.01) continue;
-        // Don't filter by expiration - return all available options and let frontend handle it
-        // The frontend may request a specific date but Alpaca only has limited expirations
-        // if (expiration && parsed.isoDate !== expiration) continue;
+        // Filter by expiration to ensure we only return options for the requested date
+        if (expiration && parsed.isoDate !== expiration) continue;
 
         const quote = snapshot.latestQuote || {};
         const trade = snapshot.latestTrade || {};
