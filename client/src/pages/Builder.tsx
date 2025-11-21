@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -215,13 +215,44 @@ export default function Builder() {
   }, [optionsChainData, legs]);
 
   // Calculate available strikes from market data
-  const availableStrikes = (optionsChainData?.quotes && optionsChainData.quotes.length > 0)
-    ? {
-        min: Math.min(...optionsChainData.quotes.map((q: any) => q.strike)),
-        max: Math.max(...optionsChainData.quotes.map((q: any) => q.strike)),
-        strikes: Array.from(new Set(optionsChainData.quotes.map((q: any) => q.strike))).sort((a, b) => a - b),
+  // Use minStrike/maxStrike from API (which includes extrapolated range)
+  // and generate full strike array to fill the extrapolated range
+  const availableStrikes = useMemo(() => {
+    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) return null;
+    
+    const actualStrikes = Array.from(new Set(optionsChainData.quotes.map((q: any) => q.strike))).sort((a, b) => a - b);
+    const min = optionsChainData.minStrike;
+    const max = optionsChainData.maxStrike;
+    
+    // If range is extrapolated beyond actual quotes, generate placeholder strikes
+    if (actualStrikes.length > 10 && (min < actualStrikes[0] || max > actualStrikes[actualStrikes.length - 1])) {
+      // Detect common interval from actual strikes
+      const intervals = new Set<number>();
+      for (let i = 1; i < Math.min(actualStrikes.length, 20); i++) {
+        intervals.add(Number((actualStrikes[i] - actualStrikes[i-1]).toFixed(2)));
       }
-    : null;
+      const commonInterval = Array.from(intervals).sort((a, b) => a - b)[0] || 2.5;
+      
+      // Generate full strike array from min to max
+      const fullStrikes = new Set(actualStrikes); // Start with actual strikes
+      for (let strike = Math.ceil(min / commonInterval) * commonInterval; strike <= max; strike += commonInterval) {
+        fullStrikes.add(Number(strike.toFixed(2)));
+      }
+      
+      return {
+        min,
+        max,
+        strikes: Array.from(fullStrikes).sort((a, b) => a - b),
+      };
+    }
+    
+    // No extrapolation needed, use actual strikes
+    return {
+      min,
+      max,
+      strikes: actualStrikes,
+    };
+  }, [optionsChainData]);
   
   // Helper to constrain strike to market limits
   const constrainToMarketLimits = (strike: number): number => {
@@ -232,7 +263,7 @@ export default function Builder() {
     if (strike > availableStrikes.max) return availableStrikes.max;
     
     // Find nearest available strike
-    const nearest = availableStrikes.strikes.reduce((closest, current) => {
+    const nearest = availableStrikes.strikes.reduce((closest: number, current: number) => {
       return Math.abs(current - strike) < Math.abs(closest - strike) ? current : closest;
     });
     

@@ -190,6 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(cachedData);
       }
 
+      // Fetch pricing/greeks data using snapshots endpoint
       // Build Alpaca API URL with feed parameter for free tier (indicative pricing)
       const url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}?feed=indicative`;
 
@@ -416,15 +417,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const expirations = Array.from(new Set(quotes.map(q => new Date(q.expiration * 1000).toISOString().split('T')[0])));
-      const sortedAllExpirations = Array.from(allExpirations).sort();
       console.log(`[Options Chain] After filtering: ${quotes.length} quotes, expirations in filtered results:`, expirations.slice(0, 5));
-      console.log(`[Options Chain] All available expirations in Alpaca data:`, sortedAllExpirations.slice(0, 10));
       if (expiration && quotes.length === 0) {
-        console.log(`[Options Chain] WARNING: Requested expiration ${expiration} not found. Available dates start with: ${sortedAllExpirations[0]}`);
+        console.log(`[Options Chain] WARNING: Requested expiration ${expiration} not found.`);
       }
-      const strikes = quotes.map(q => q.strike);
-      const minStrike = strikes.length > 0 ? Math.min(...strikes) : 0;
-      const maxStrike = strikes.length > 0 ? Math.max(...strikes) : 0;
+      
+      // Calculate strike range and extrapolate if limited by API
+      const strikes = quotes.map(q => q.strike).sort((a, b) => a - b);
+      let minStrike = strikes.length > 0 ? Math.min(...strikes) : 0;
+      let maxStrike = strikes.length > 0 ? Math.max(...strikes) : 0;
+      
+      // If we got exactly 100 or 200 snapshots (API limit), extrapolate beyond the range
+      // This ensures users can see strikes beyond what Alpaca's free tier provides
+      if (quotes.length >= 100 && strikes.length > 10) {
+        // Detect strike interval from existing data
+        const intervals = new Set<number>();
+        for (let i = 1; i < Math.min(strikes.length, 20); i++) {
+          intervals.add(Number((strikes[i] - strikes[i-1]).toFixed(2)));
+        }
+        const commonInterval = Array.from(intervals).sort((a, b) => a - b)[0] || 2.5;
+        
+        // Extrapolate ~50% more strikes above and below
+        const extrapolateCount = Math.floor(strikes.length * 0.5);
+        minStrike = Math.max(5, minStrike - (extrapolateCount * commonInterval));
+        maxStrike = maxStrike + (extrapolateCount * commonInterval);
+        
+        console.log(`[Options Chain] Extrapolated strike range: $${minStrike.toFixed(2)} - $${maxStrike.toFixed(2)} (interval: $${commonInterval}, added ${extrapolateCount} strikes each side)`);
+      } else {
+        console.log(`[Options Chain] Using strike range from ${quotes.length} quotes: $${minStrike} - $${maxStrike}`);
+      }
 
       const summary: MarketOptionChainSummary = {
         symbol: symbol.toUpperCase(),
