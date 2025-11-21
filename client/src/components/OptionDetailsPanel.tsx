@@ -255,8 +255,15 @@ export function OptionDetailsPanel({
             <div className="text-sm font-semibold">$</div>
             <Input
               type="number"
-              value={Math.round(costBasis * 100) / 100}
+              value={costBasis}
               onChange={(e) => handleCostBasisChange(Number(e.target.value))}
+              onBlur={(e) => {
+                // Round to 2 decimals when user finishes editing
+                const rounded = Math.round(Number(e.target.value) * 100) / 100;
+                if (rounded !== costBasis) {
+                  handleCostBasisChange(rounded);
+                }
+              }}
               className="h-8 font-mono text-center"
               step="0.01"
               min="0"
