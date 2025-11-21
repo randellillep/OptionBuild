@@ -11,6 +11,7 @@ interface StrikeLadderProps {
   strikeRange: { min: number; max: number };
   symbol: string;
   expirationDate: string | null;
+  volatility?: number;
   onUpdateLeg: (legId: string, updates: Partial<OptionLeg>) => void;
   onRemoveLeg: (legId: string) => void;
   optionsChainData?: any;
@@ -27,6 +28,7 @@ export function StrikeLadder({
   strikeRange,
   symbol,
   expirationDate,
+  volatility = 0.3,
   onUpdateLeg,
   onRemoveLeg,
   optionsChainData,
@@ -146,7 +148,12 @@ export function StrikeLadder({
     setDraggedLeg(leg.id);
     setIsDragging(true);
     // Capture pointer for smooth dragging
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch (err) {
+      // Pointer capture may fail in some cases, continue without it
+      console.warn('Failed to capture pointer:', err);
+    }
   };
 
   const handleBadgeClick = (leg: OptionLeg, e: React.MouseEvent) => {
@@ -301,9 +308,11 @@ export function StrikeLadder({
         <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
           <OptionDetailsPanel
             leg={leg}
+            underlyingPrice={currentPrice}
+            volatility={volatility}
+            optionsChainData={optionsChainData}
             symbol={symbol}
             expirationDate={expirationDate}
-            marketData={getMarketDataForLeg(leg)}
             onUpdateLeg={(updates) => {
               onUpdateLeg(leg.id, updates);
             }}

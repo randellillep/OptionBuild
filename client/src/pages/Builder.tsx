@@ -181,6 +181,24 @@ export default function Builder() {
       return;
     }
 
+    // Calculate days to expiration from selected date
+    // Use UTC calendar dates to avoid timezone issues
+    const calculateDTE = (): number => {
+      if (!selectedExpirationDate) return 30; // Default fallback
+      const expDate = new Date(selectedExpirationDate);
+      const today = new Date();
+      
+      // Compare calendar dates in UTC to avoid timezone issues
+      const expDateUTC = Date.UTC(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
+      const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+      const diffTime = expDateUTC - todayUTC;
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      return Math.max(1, diffDays); // Minimum 1 day to avoid T=0
+    };
+
+    const daysToExpiration = calculateDTE();
+
     // Update ONLY legs that need market data (premiumSource='theoretical')
     // Skip legs with 'market' or 'manual' sources to avoid overwriting user edits
     setLegs(currentLegs => {
@@ -204,7 +222,7 @@ export default function Builder() {
             marketQuoteId: matchingQuote.optionSymbol,
             premiumSource: 'market' as const,
             impliedVolatility: matchingQuote.iv,
-            expirationDays: matchingQuote.dte,
+            expirationDays: daysToExpiration, // Use calculated DTE instead of API's dte
           };
         }
         
@@ -214,7 +232,7 @@ export default function Builder() {
       // Only update state if something actually changed
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, legs]);
+  }, [optionsChainData, legs, selectedExpirationDate]);
 
   // Calculate available strikes from market data
   // Use minStrike/maxStrike from API (which includes extrapolated range)
@@ -495,6 +513,7 @@ export default function Builder() {
                 strikeRange={displayStrikeRange}
                 symbol={symbolInfo.symbol}
                 expirationDate={selectedExpirationDate}
+                volatility={volatility}
                 onUpdateLeg={updateLeg}
                 onRemoveLeg={removeLeg}
                 optionsChainData={optionsChainData}

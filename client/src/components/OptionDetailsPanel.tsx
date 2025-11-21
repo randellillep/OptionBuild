@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Minus, Plus, X, RotateCcw } from "lucide-react";
 import type { OptionLeg, MarketOptionChainSummary } from "@shared/schema";
+import { calculateGreeks } from "@/lib/options-pricing";
 
 interface OptionMarketData {
   bid?: number;
@@ -21,6 +22,8 @@ interface OptionMarketData {
 interface OptionDetailsPanelProps {
   leg: OptionLeg;
   optionsChainData?: MarketOptionChainSummary;
+  underlyingPrice: number;
+  volatility?: number;
   onUpdateLeg?: (updates: Partial<OptionLeg>) => void;
   onAddToStrategy?: () => void;
   onClose: () => void;
@@ -37,6 +40,8 @@ interface OptionDetailsPanelProps {
 export function OptionDetailsPanel({
   leg,
   optionsChainData,
+  underlyingPrice,
+  volatility = 0.3,
   onUpdateLeg,
   onAddToStrategy,
   onClose,
@@ -63,13 +68,63 @@ export function OptionDetailsPanel({
         rho: legacyMarketData.rho !== undefined ? legacyMarketData.rho * multiplier : undefined,
       };
     }
-    if (!optionsChainData || !optionsChainData.quotes) return undefined;
+    if (!optionsChainData || !optionsChainData.quotes) {
+      // No market data - calculate Greeks using Black-Scholes
+      const greeks = calculateGreeks(leg, underlyingPrice, volatility);
+      const multiplier = leg.position === "long" ? 1 : -1;
+      return {
+        bid: undefined,
+        ask: undefined,
+        iv: leg.impliedVolatility,
+        delta: (greeks.delta / leg.quantity) * multiplier, // Normalize to per-contract and apply position
+        gamma: (greeks.gamma / leg.quantity) * multiplier,
+        theta: (greeks.theta / leg.quantity) * multiplier,
+        vega: (greeks.vega / leg.quantity) * multiplier,
+        rho: (greeks.rho / leg.quantity) * multiplier,
+        volume: undefined,
+      };
+    }
     
     const option = optionsChainData.quotes.find((opt: any) => 
       Math.abs(opt.strike - leg.strike) < 0.01 && opt.side.toLowerCase() === leg.type
     );
     
-    if (!option) return undefined;
+    if (!option) {
+      // No matching option found - calculate Greeks using Black-Scholes
+      const greeks = calculateGreeks(leg, underlyingPrice, volatility);
+      const multiplier = leg.position === "long" ? 1 : -1;
+      return {
+        bid: undefined,
+        ask: undefined,
+        iv: leg.impliedVolatility,
+        delta: (greeks.delta / leg.quantity) * multiplier, // Normalize to per-contract and apply position
+        gamma: (greeks.gamma / leg.quantity) * multiplier,
+        theta: (greeks.theta / leg.quantity) * multiplier,
+        vega: (greeks.vega / leg.quantity) * multiplier,
+        rho: (greeks.rho / leg.quantity) * multiplier,
+        volume: undefined,
+      };
+    }
+    
+    // Check if API provided Greeks
+    const hasApiGreeks = option.delta !== undefined && option.delta !== 0;
+    
+    if (!hasApiGreeks) {
+      // API didn't provide Greeks - calculate using Black-Scholes
+      const greeks = calculateGreeks(leg, underlyingPrice, option.iv || volatility);
+      const multiplier = leg.position === "long" ? 1 : -1;
+      return {
+        bid: option.bid || 0,
+        ask: option.ask || 0,
+        iv: option.iv,
+        delta: (greeks.delta / leg.quantity) * multiplier, // Normalize to per-contract and apply position
+        gamma: (greeks.gamma / leg.quantity) * multiplier,
+        theta: (greeks.theta / leg.quantity) * multiplier,
+        vega: (greeks.vega / leg.quantity) * multiplier,
+        rho: (greeks.rho / leg.quantity) * multiplier,
+        volume: option.volume || 0,
+      };
+    }
     
     // Market data Greeks are always for long positions
     // Invert them for short positions
@@ -78,7 +133,7 @@ export function OptionDetailsPanel({
     return {
       bid: option.bid || 0,
       ask: option.ask || 0,
-      iv: option.iv || 0,
+      iv: option.iv, // Keep undefined if not available
       delta: (option.delta || 0) * multiplier,
       gamma: (option.gamma || 0) * multiplier,
       theta: (option.theta || 0) * multiplier,
@@ -303,7 +358,9 @@ export function OptionDetailsPanel({
         <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
           <div className="flex justify-between">
             <span className="text-muted-foreground">IV</span>
-            <span className="font-mono font-semibold">{formatPercent(marketData?.iv)}</span>
+            <span className="font-mono font-semibold" data-testid="greek-iv">
+              {formatPercent(marketData?.iv ?? leg.impliedVolatility)}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Delta</span>
