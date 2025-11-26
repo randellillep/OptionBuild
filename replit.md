@@ -99,5 +99,17 @@ The Implied Volatility bar now updates in real-time:
 ### Streamlined UI
 - **Removed Option Legs sidebar**: All option information is accessible by clicking the strike badge on the Strike Ladder, which opens the OptionDetailsPanel with Greeks, premium, and cost basis editing.
 - **Removed Options Chain table**: Options are added exclusively via the blue Add button in the Strike Ladder header. The main tabs now show only Heatmap and P/L Chart.
-- **Default symbol changed to AAPL**: The app now launches with AAPL as the default underlying symbol instead of SPY.
+- **Default symbol changed to AAPL**: The app now launches with AAPL as the default underlying symbol instead of SPY, with the correct live price fetched on initial load.
 - **Compact UI layout**: Reduced padding and spacing throughout the Builder page to make the heatmap visible without scrolling. The main content area now uses a 3:1 grid ratio (heatmap takes 3/4 width). ExpirationTimeline, StrikeLadder, and SymbolSearchBar have been compacted with smaller text and reduced padding while maintaining usability.
+
+### Live Price Updates
+- **Auto-refresh**: Stock quotes refresh every 60 seconds, options chain data refreshes every 30 seconds
+- **Automatic premium updates**: Option leg premiums auto-update when market data refreshes (except for manually edited prices)
+- **Initial price fetch**: AAPL price is fetched on app launch, with a sensible fallback if the API is unavailable
+
+### Slimmer Strike Ladder
+- **Reduced height**: Strike ladder is now h-16 (was h-28) for a more compact appearance
+- **Removed bottom labels**: The min/max strike labels at the bottom have been removed
+- **Darker background**: Uses bg-muted/40 for better visual contrast
+- **Simplified tick marks**: Only vertical tick marks shown, no inline strike labels
+- **Badge positioning**: Long legs stack above center line, short legs stack below center line
