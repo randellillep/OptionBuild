@@ -141,13 +141,27 @@ export function ExpirationTimeline({
 
   const selectedExpirationDays = selectedDays ?? (allDays.length > 0 ? allDays[0] : 0);
 
-  // Auto-select first expiration when symbol changes or data loads
+  // Auto-select expiration when:
+  // 1. Nothing is currently selected
+  // 2. There's only one expiration date available
+  // 3. The currently selected expiration is not in the available list
   useEffect(() => {
-    // Only auto-select if nothing is currently selected and we have expirations
-    if (selectedDays === null && allDays.length > 0) {
-      const firstDays = allDays[0];
-      const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
-      console.log('[ExpirationTimeline] Auto-selecting first expiration:', firstDays, 'days (', firstDateStr, ')');
+    if (allDays.length === 0) return;
+    
+    const firstDays = allDays[0];
+    const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
+    
+    // Auto-select if no selection, only one option, or current selection is invalid
+    const shouldAutoSelect = 
+      selectedDays === null || 
+      allDays.length === 1 || 
+      (selectedDays !== null && !allDays.includes(selectedDays));
+    
+    if (shouldAutoSelect) {
+      console.log('[ExpirationTimeline] Auto-selecting expiration:', firstDays, 'days (', firstDateStr, ')', 
+        selectedDays === null ? '- no selection' : 
+        allDays.length === 1 ? '- only one option' : 
+        '- current selection invalid');
       onSelectDays(firstDays, firstDateStr);
     }
   }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays]);

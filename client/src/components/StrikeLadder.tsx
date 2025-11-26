@@ -180,8 +180,9 @@ export function StrikeLadder({
         // Only update if strike actually changed
         if (leg.strike === newStrike) return;
 
-        // Look up market price for the new strike
+        // Look up market price and IV for the new strike
         let marketPrice: number | undefined;
+        let marketIV: number | undefined;
         if (optionsChainData?.quotes) {
           const matchingQuote = optionsChainData.quotes.find(
             (q: any) => q.strike === newStrike && q.side.toLowerCase() === leg.type
@@ -193,16 +194,21 @@ export function StrikeLadder({
             } else if (matchingQuote.bid !== undefined && matchingQuote.ask !== undefined) {
               marketPrice = (matchingQuote.bid + matchingQuote.ask) / 2;
             }
+            // Get IV from the quote if available
+            if (matchingQuote.iv !== undefined && matchingQuote.iv > 0) {
+              marketIV = matchingQuote.iv;
+            }
           }
         }
 
         // Always update strike and reset premium (market or theoretical)
         if (marketPrice !== undefined && marketPrice > 0) {
-          // Market data available - reset to market price
+          // Market data available - reset to market price and IV
           onUpdateLeg(draggedLeg, { 
             strike: newStrike, 
             premium: marketPrice,
-            premiumSource: "market"
+            premiumSource: "market",
+            impliedVolatility: marketIV
           });
         } else {
           // No market data - calculate theoretical premium using Black-Scholes
@@ -217,7 +223,8 @@ export function StrikeLadder({
           onUpdateLeg(draggedLeg, { 
             strike: newStrike,
             premium: theoreticalPremium,
-            premiumSource: "theoretical"
+            premiumSource: "theoretical",
+            impliedVolatility: undefined
           });
         }
       }
