@@ -109,7 +109,14 @@ The Implied Volatility bar now updates in real-time:
 
 ### Slimmer Strike Ladder
 - **Reduced height**: Strike ladder is now h-16 (was h-28) for a more compact appearance
-- **Removed bottom labels**: The min/max strike labels at the bottom have been removed
+- **Strike numbers at bottom**: Actual market strikes displayed in a separate row at bottom
+- **Market-aware increments**: Auto-detects strike increment from market data (e.g., 2.5, 5, 10)
+- **Snaps to available strikes only**: Dragging badges snaps exclusively to valid market strikes
 - **Darker background**: Uses bg-muted/40 for better visual contrast
-- **Simplified tick marks**: Only vertical tick marks shown, no inline strike labels
 - **Badge positioning**: Long legs stack above center line, short legs stack below center line
+
+### Compact Heatmap Layout
+- **Tab buttons below chart**: Heatmap/P/L Chart tabs moved below the chart to raise heatmap position
+- **Removed heatmap titles**: "Profit/Loss Heatmap" and description text removed, only legend badges remain
+- **Compact sliders**: Range and IV sliders now in a single horizontal row with inline labels
+- **Reduced padding**: More compact spacing throughout (p-3 instead of p-6)
