@@ -445,20 +445,20 @@ export function StrikeLadder({
   };
 
   return (
-    <Card className="p-3">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold">STRIKES:</h3>
-        <div className="flex items-center gap-3 text-[10px]">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-primary rounded-sm"></div>
+    <Card className="p-2">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-[10px] font-semibold text-muted-foreground">STRIKES:</h3>
+        <div className="flex items-center gap-2 text-[9px]">
+          <div className="flex items-center gap-0.5">
+            <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
             <span className="text-muted-foreground">Price</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Badge className="text-[8px] h-3.5 px-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 no-default-hover-elevate no-default-active-elevate">C</Badge>
+          <div className="flex items-center gap-0.5">
+            <div className="w-2 h-2 rounded-sm bg-green-500"></div>
             <span className="text-muted-foreground">Calls</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Badge className="text-[8px] h-3.5 px-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 no-default-hover-elevate no-default-active-elevate">P</Badge>
+          <div className="flex items-center gap-0.5">
+            <div className="w-2 h-2 rounded-sm bg-red-500"></div>
             <span className="text-muted-foreground">Puts</span>
           </div>
         </div>
@@ -468,7 +468,7 @@ export function StrikeLadder({
       <div className="relative">
         <div 
           ref={ladderRef} 
-          className={`relative h-14 bg-muted/40 dark:bg-muted/50 rounded-t-md overflow-visible ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`relative h-12 bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 rounded-t-md overflow-visible border border-slate-300 dark:border-slate-600 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
           style={{ userSelect: 'none', touchAction: 'none' }}
           onPointerDown={handleLadderPointerDown}
           data-testid="strike-ladder-container"
@@ -537,14 +537,14 @@ export function StrikeLadder({
         </div>
 
         {/* Strike numbers row below the ladder */}
-        <div className="relative h-4 bg-muted/20 dark:bg-muted/30 rounded-b-md overflow-hidden">
+        <div className="relative h-4 bg-slate-200 dark:bg-slate-700 rounded-b-md overflow-hidden border-x border-b border-slate-300 dark:border-slate-600">
           {labeledStrikes.map((strike) => {
             const position = getStrikePosition(strike);
             if (position < 0 || position > 100) return null;
             return (
               <span
                 key={strike}
-                className="absolute top-0.5 text-[9px] text-muted-foreground font-mono"
+                className="absolute top-0.5 text-[9px] text-slate-600 dark:text-slate-300 font-mono font-medium"
                 style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
               >
                 {formatStrike(strike)}

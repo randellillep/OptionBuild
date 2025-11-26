@@ -494,15 +494,15 @@ export default function Builder() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 md:px-6 py-4">
-        <div className="space-y-3">
+      <div className="container mx-auto px-3 md:px-4 py-2">
+        <div className="space-y-2">
           <SymbolSearchBar 
             symbolInfo={symbolInfo} 
             onSymbolChange={setSymbolInfo} 
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div className="lg:col-span-3 space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+            <div className="lg:col-span-3 space-y-2">
               <ExpirationTimeline
                 expirationDays={uniqueExpirationDays}
                 selectedDays={selectedExpirationDays}
@@ -559,7 +559,7 @@ export default function Builder() {
               <AnalysisTabs greeks={totalGreeks} />
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               <StrategyMetricsCard metrics={metrics} />
             </div>
           </div>

@@ -167,12 +167,12 @@ export function ExpirationTimeline({
   }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays]);
 
   return (
-    <div className="bg-muted/30 rounded-lg px-3 py-2 border border-border">
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-xs font-semibold text-foreground">EXPIRATION:</span>
-        <span className="text-xs font-bold text-foreground">{selectedExpirationDays}d</span>
+    <div className="bg-muted/30 rounded-md px-2 py-1.5 border border-border">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] font-semibold text-muted-foreground">EXPIRATION:</span>
+        <span className="text-[10px] font-bold text-foreground">{selectedExpirationDays}d</span>
         {isLoading && (
-          <span className="text-xs text-muted-foreground">(Loading...)</span>
+          <span className="text-[10px] text-muted-foreground">(Loading...)</span>
         )}
       </div>
 
@@ -180,8 +180,8 @@ export function ExpirationTimeline({
         {groupedDates.map((group, groupIdx) => (
           <div key={`${group.month}-${group.year}-${groupIdx}`} className="flex flex-col">
             {/* Month label row */}
-            <div className="flex items-center justify-center bg-muted/50 px-1.5 py-0.5 border-r border-border min-w-fit">
-              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+            <div className="flex items-center justify-center bg-muted/50 px-1 py-0 border-r border-border min-w-fit">
+              <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap">
                 {group.month}{group.year}
               </span>
             </div>
@@ -198,7 +198,7 @@ export function ExpirationTimeline({
                       const dateStr = activeDaysToDateMap.get(days) || '';
                       onSelectDays(days, dateStr);
                     }}
-                    className={`flex items-center justify-center min-w-[32px] px-2 py-1 text-xs font-semibold transition-colors border-r border-border last:border-r-0 ${
+                    className={`flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
                       isSelected
                         ? 'bg-primary text-primary-foreground'
                         : 'hover:bg-muted/60 active:bg-muted'

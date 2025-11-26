@@ -126,11 +126,11 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange }: SymbolSearchBarP
   };
 
   return (
-    <Card className="px-3 py-2">
-      <div className="flex items-center gap-3">
+    <Card className="px-2 py-1.5">
+      <div className="flex items-center gap-2">
         <div className="flex-1 relative">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
               placeholder="Search symbol..."
               value={searchTerm}
@@ -139,41 +139,41 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange }: SymbolSearchBarP
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
-              className="pl-8 h-8 text-sm"
+              className="pl-7 h-7 text-xs"
               data-testid="input-symbol-search"
             />
             {isSearching && (
-              <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />
             )}
           </div>
 
           {showSuggestions && searchTerm && (
-            <Card className="absolute top-full mt-2 w-full z-50 max-h-96 overflow-y-auto">
+            <Card className="absolute top-full mt-1 w-full z-50 max-h-80 overflow-y-auto">
               {isSearching ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                <div className="p-3 text-center text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin mx-auto mb-1" />
                   Searching...
                 </div>
               ) : searchResults?.results && searchResults.results.length > 0 ? (
-                <div className="p-2">
+                <div className="p-1.5">
                   {searchResults.results.map((result) => (
                     <button
                       key={result.symbol}
                       onClick={() => handleSymbolSelect(result.symbol)}
-                      className="w-full text-left p-3 hover-elevate active-elevate-2 rounded-md transition-colors"
+                      className="w-full text-left p-2 hover-elevate active-elevate-2 rounded-md transition-colors"
                       data-testid={`button-symbol-${result.symbol.toLowerCase()}`}
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-semibold font-mono">{result.displaySymbol || result.symbol}</div>
-                          <div className="text-sm text-muted-foreground">{result.name}</div>
+                          <div className="font-semibold font-mono text-sm">{result.displaySymbol || result.symbol}</div>
+                          <div className="text-xs text-muted-foreground">{result.name}</div>
                         </div>
                       </div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="p-4 text-center text-sm text-muted-foreground">
+                <div className="p-3 text-center text-xs text-muted-foreground">
                   No symbols found
                 </div>
               )}
@@ -181,42 +181,40 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange }: SymbolSearchBarP
           )}
         </div>
 
-        <div className="flex items-center gap-3 border-l border-border pl-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold font-mono">{symbolInfo.symbol}</span>
-            <span className="text-base font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
-            {currentQuote && (
-              <span className={`text-xs flex items-center gap-0.5 ${currentQuote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-                {currentQuote.changePercent >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {currentQuote.changePercent >= 0 ? '+' : ''}{currentQuote.changePercent.toFixed(2)}%
-              </span>
-            )}
-          </div>
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">Quick:</div>
+        <div className="flex items-center gap-1 flex-wrap">
+          {popularSymbols.map((symbol) => {
+            const quote = popularQuotes.data?.find(q => q.symbol === symbol);
+            return (
+              <Button
+                key={symbol}
+                variant="outline"
+                size="sm"
+                onClick={() => handleSymbolSelect(symbol)}
+                data-testid={`button-quick-${symbol.toLowerCase()}`}
+                className="gap-0.5 h-6 px-1.5 text-[10px]"
+              >
+                {symbol}
+                {quote && (
+                  <span className={`text-[9px] ${quote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                    {quote.changePercent >= 0 ? '+' : ''}{quote.changePercent.toFixed(1)}%
+                  </span>
+                )}
+              </Button>
+            );
+          })}
         </div>
-      </div>
 
-      <div className="flex gap-1.5 mt-2 flex-wrap">
-        <span className="text-xs text-muted-foreground self-center">Quick:</span>
-        {popularSymbols.map((symbol) => {
-          const quote = popularQuotes.data?.find(q => q.symbol === symbol);
-          return (
-            <Button
-              key={symbol}
-              variant="outline"
-              size="sm"
-              onClick={() => handleSymbolSelect(symbol)}
-              data-testid={`button-quick-${symbol.toLowerCase()}`}
-              className="gap-1 h-7 px-2 text-xs"
-            >
-              {symbol}
-              {quote && (
-                <span className={`text-[10px] ${quote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-                  {quote.changePercent >= 0 ? '+' : ''}{quote.changePercent.toFixed(1)}%
-                </span>
-              )}
-            </Button>
-          );
-        })}
+        <div className="flex items-center gap-1.5 border-l border-border pl-2 ml-auto">
+          <span className="text-sm font-bold font-mono">{symbolInfo.symbol}</span>
+          <span className="text-sm font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
+          {currentQuote && (
+            <span className={`text-[10px] flex items-center gap-0.5 ${currentQuote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+              {currentQuote.changePercent >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+              {currentQuote.changePercent >= 0 ? '+' : ''}{currentQuote.changePercent.toFixed(2)}%
+            </span>
+          )}
+        </div>
       </div>
     </Card>
   );
