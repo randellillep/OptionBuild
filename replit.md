@@ -75,3 +75,23 @@ Preferred communication style: Simple, everyday language.
 **Utilities**: `date-fns`, `nanoid`, `embla-carousel`.
 
 **Current Integration Status**: Finnhub API for live stock prices and search; React Query for data fetching with caching. Database configured, but strategy persistence and user authentication are not yet fully implemented. Options pricing and Greeks calculations are fully client-side.
+
+## Recent Updates
+
+### Auto-select Expiration Date
+ExpirationTimeline now automatically selects the expiration date when:
+- No expiration is currently selected
+- Only one expiration date is available
+- Current selection is invalid for the new symbol
+
+### Clickable Option Legs with Cost Basis Editor
+Option legs in the "Option Legs" section are now clickable. Clicking opens a Cost Basis Editor popover that allows:
+- Manual premium editing with Save button
+- Reset to market price functionality
+- Displays premium source indicator (Market/Manual/Theo)
+
+### Dynamic IV Updates
+The Implied Volatility bar now updates in real-time:
+- Recalculates when options are added/removed
+- Updates when dragging strikes on the Strike Ladder
+- IV data is passed with leg updates for accurate recalculation
