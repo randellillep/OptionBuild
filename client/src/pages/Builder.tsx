@@ -167,44 +167,32 @@ export default function Builder() {
     enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
 
-  // Auto-update leg premiums with market data when legs are added or chain loads
+  // Auto-update leg premiums with market data when chain loads or refreshes
   useEffect(() => {
     if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) {
       return;
     }
 
-    // Check if any legs need market data (have premiumSource='theoretical')
-    const legsNeedingMarketData = legs.filter(leg => leg.premiumSource === 'theoretical');
-    
-    if (legsNeedingMarketData.length === 0) {
-      return;
-    }
-
     // Calculate days to expiration from selected date
-    // Use UTC calendar dates to avoid timezone issues
     const calculateDTE = (): number => {
-      if (!selectedExpirationDate) return 30; // Default fallback
+      if (!selectedExpirationDate) return 30;
       const expDate = new Date(selectedExpirationDate);
       const today = new Date();
-      
-      // Compare calendar dates in UTC to avoid timezone issues
       const expDateUTC = Date.UTC(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
       const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
       const diffTime = expDateUTC - todayUTC;
       const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-      
-      return Math.max(1, diffDays); // Minimum 1 day to avoid T=0
+      return Math.max(1, diffDays);
     };
 
     const daysToExpiration = calculateDTE();
 
-    // Update ONLY legs that need market data (premiumSource='theoretical')
-    // Skip legs with 'market' or 'manual' sources to avoid overwriting user edits
+    // Update legs with market prices - skip manually edited legs
     setLegs(currentLegs => {
       let updated = false;
       const newLegs = currentLegs.map(leg => {
-        // Skip legs that already have market data or were manually edited
-        if (leg.premiumSource !== 'theoretical') {
+        // Skip manually edited legs - respect user's custom price
+        if (leg.premiumSource === 'manual') {
           return leg;
         }
 
@@ -214,44 +202,41 @@ export default function Builder() {
         );
 
         if (matchingQuote) {
-          updated = true;
-          // Debug logging for MSFT 480 Call
-          if (matchingQuote.underlying === 'MSFT' && Math.abs(matchingQuote.strike - 480) < 0.01 && matchingQuote.side === 'call') {
-            console.log('[FRONTEND-PRICE-DEBUG-MSFT480C] Found matching quote:', matchingQuote);
-            console.log('[FRONTEND-PRICE-DEBUG-MSFT480C] mid value:', matchingQuote.mid);
-            console.log('[FRONTEND-PRICE-DEBUG-MSFT480C] Setting premium to:', Number(matchingQuote.mid.toFixed(2)));
-          }
+          const newPremium = Number(matchingQuote.mid.toFixed(2));
           
-          // Calculate IV from market price if not provided by API
-          let calculatedIV = matchingQuote.iv;
-          if (!calculatedIV && matchingQuote.mid > 0 && symbolInfo?.price) {
-            calculatedIV = calculateImpliedVolatility(
-              matchingQuote.side as 'call' | 'put',
-              symbolInfo.price,
-              matchingQuote.strike,
-              daysToExpiration,
-              matchingQuote.mid
-            );
-            console.log(`[IV-CALC] Calculated IV for ${matchingQuote.underlying} ${matchingQuote.strike}${matchingQuote.side[0].toUpperCase()}: ${(calculatedIV * 100).toFixed(1)}%`);
+          // Only update if price actually changed (avoid unnecessary re-renders)
+          if (leg.premium !== newPremium || leg.premiumSource !== 'market') {
+            updated = true;
+            
+            // Calculate IV from market price if not provided by API
+            let calculatedIV = matchingQuote.iv;
+            if (!calculatedIV && matchingQuote.mid > 0 && symbolInfo?.price) {
+              calculatedIV = calculateImpliedVolatility(
+                matchingQuote.side as 'call' | 'put',
+                symbolInfo.price,
+                matchingQuote.strike,
+                daysToExpiration,
+                matchingQuote.mid
+              );
+            }
+            
+            return {
+              ...leg,
+              premium: newPremium,
+              marketQuoteId: matchingQuote.optionSymbol,
+              premiumSource: 'market' as const,
+              impliedVolatility: calculatedIV,
+              expirationDays: daysToExpiration,
+            };
           }
-          
-          return {
-            ...leg,
-            premium: Number(matchingQuote.mid.toFixed(2)),
-            marketQuoteId: matchingQuote.optionSymbol,
-            premiumSource: 'market' as const,
-            impliedVolatility: calculatedIV,
-            expirationDays: daysToExpiration, // Use calculated DTE instead of API's dte
-          };
         }
         
         return leg;
       });
 
-      // Only update state if something actually changed
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, legs, selectedExpirationDate]);
+  }, [optionsChainData, selectedExpirationDate]);
 
   // Calculate available strikes from market data
   // Use minStrike/maxStrike from API (which includes extrapolated range)

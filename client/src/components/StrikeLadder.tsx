@@ -307,14 +307,16 @@ export function StrikeLadder({
     const quantityDisplay = leg.position === 'short' ? `-${quantity}` : `+${quantity}`;
 
     // Calculate vertical position accounting for stacking
-    const baseOffset = position === 'long' ? -8 : -8;
-    const stackOffset = verticalOffset * 28; // 28px per badge (height + gap)
+    // Long legs: bottom of badge at center line, stacking upward
+    // Short legs: top of badge at center line, stacking downward
+    const badgeHeight = 24; // h-6 = 24px
+    const stackOffset = verticalOffset * (badgeHeight + 2); // badge height + 2px gap
+    
+    // Both use top positioning for simpler math
     const topPosition = position === 'long' 
-      ? `${baseOffset - stackOffset}px`
-      : `auto`;
-    const bottomPosition = position === 'short'
-      ? `${baseOffset - stackOffset}px` 
-      : `auto`;
+      ? `calc(50% - ${badgeHeight}px - ${stackOffset}px)`  // Above center, stacking up
+      : `calc(50% + ${stackOffset}px)`;  // Below center, stacking down
+    const bottomPosition = 'auto';
 
     return (
       <Popover 
@@ -418,7 +420,7 @@ export function StrikeLadder({
 
       <div 
         ref={ladderRef} 
-        className={`relative h-28 bg-muted/20 rounded-md overflow-visible px-4 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`relative h-16 bg-muted/40 dark:bg-muted/50 rounded-md overflow-visible px-4 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={{ userSelect: 'none', touchAction: 'none' }}
         onPointerDown={handleLadderPointerDown}
         data-testid="strike-ladder-container"
@@ -430,15 +432,11 @@ export function StrikeLadder({
             return (
               <div
                 key={strike}
-                className="absolute top-0 bottom-0"
-                style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+                className="absolute top-1/2 -translate-y-1/2"
+                style={{ left: `${position}%`, transform: 'translateX(-50%) translateY(-50%)' }}
               >
                 {/* Tick mark */}
-                <div className="w-0.5 h-3 bg-border/60" />
-                {/* Strike label */}
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground font-mono whitespace-nowrap">
-                  {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2).replace(/\.?0+$/, '')}
-                </div>
+                <div className="w-px h-4 bg-border/40" />
               </div>
             );
           })}
@@ -449,10 +447,10 @@ export function StrikeLadder({
 
         {/* Current price indicator */}
         <div
-          className="absolute top-0 bottom-0 w-1 bg-primary z-10 pointer-events-none"
+          className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none"
           style={{ left: `${currentPricePercent}%`, transform: 'translateX(-50%)' }}
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded whitespace-nowrap font-mono">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap font-mono">
             ${currentPrice.toFixed(2)}
           </div>
         </div>
@@ -490,11 +488,6 @@ export function StrikeLadder({
             </>
           );
         })()}
-      </div>
-
-      <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground font-mono">
-        <span>${adjustedMin.toFixed(2)}</span>
-        <span>${adjustedMax.toFixed(2)}</span>
       </div>
     </Card>
   );

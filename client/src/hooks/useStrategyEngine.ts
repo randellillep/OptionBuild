@@ -16,10 +16,30 @@ export interface ScenarioPoint {
 export function useStrategyEngine(rangePercent: number = 14) {
   const [symbolInfo, setSymbolInfo] = useState<SymbolInfo>({
     symbol: "AAPL",
-    price: 175,
+    price: 230,
   });
   
   const [legs, setLegs] = useState<OptionLeg[]>([]);
+  const [hasFetchedInitialPrice, setHasFetchedInitialPrice] = useState(false);
+
+  useEffect(() => {
+    if (!hasFetchedInitialPrice) {
+      setHasFetchedInitialPrice(true);
+      fetch(`/api/stock/quote/AAPL`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to fetch');
+          return res.json();
+        })
+        .then(data => {
+          if (data && data.price && data.price > 0) {
+            setSymbolInfo({ symbol: "AAPL", price: data.price });
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch initial AAPL price:", err);
+        });
+    }
+  }, [hasFetchedInitialPrice]);
 
   const [volatility, setVolatility] = useState(0.3);
   const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(null);

@@ -44,5 +44,6 @@ export function useOptionsChain({
     staleTime: 30000,
     gcTime: 5 * 60 * 1000,
     retry: 2,
+    refetchInterval: 30000,
   });
 }
