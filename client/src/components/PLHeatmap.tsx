@@ -1,5 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Table, BarChart3, RotateCcw } from "lucide-react";
 import type { ScenarioPoint } from "@/hooks/useStrategyEngine";
 
 interface DateGroup {
@@ -13,10 +16,17 @@ interface PLHeatmapProps {
   strikes: number[];
   days: number[];
   currentPrice: number;
-  rangePercent?: number;
   useHours?: boolean;
   targetDays?: number;
   dateGroups?: DateGroup[];
+  activeTab: "heatmap" | "chart";
+  onTabChange: (tab: "heatmap" | "chart") => void;
+  range: number;
+  onRangeChange: (value: number) => void;
+  impliedVolatility: number;
+  onVolatilityChange: (value: number) => void;
+  calculatedIV: number;
+  onResetIV: () => void;
 }
 
 export function PLHeatmap({ 
@@ -24,10 +34,17 @@ export function PLHeatmap({
   strikes, 
   days, 
   currentPrice, 
-  rangePercent = 14,
   useHours = false,
   targetDays = 30,
   dateGroups = [],
+  activeTab,
+  onTabChange,
+  range,
+  onRangeChange,
+  impliedVolatility,
+  onVolatilityChange,
+  calculatedIV,
+  onResetIV,
 }: PLHeatmapProps) {
   const allPnlValues = grid.flatMap(row => row.map(cell => cell.pnl));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
@@ -97,38 +114,53 @@ export function PLHeatmap({
   };
 
   return (
-    <Card className="p-4">
-      <div className="mb-3 flex items-center justify-end gap-3">
-        <Badge variant="outline" className="text-xs font-semibold">
-          RANGE: ±{rangePercent}%
+    <Card className="p-3">
+      {/* Header with tab buttons */}
+      <div className="mb-2 flex items-center justify-between">
+        <Badge variant="outline" className="text-[10px] font-semibold px-2 py-0.5">
+          ±{range}%
         </Badge>
-        <Badge variant="secondary" className="text-xs">
-          <span className="text-green-600 dark:text-green-500 mr-1">■</span>
-          Profit
-        </Badge>
-        <Badge variant="secondary" className="text-xs">
-          <span className="text-red-600 dark:text-red-500 mr-1">■</span>
-          Loss
-        </Badge>
+        <div className="flex items-center gap-1">
+          <Button
+            variant={activeTab === "heatmap" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-6 px-2 text-[10px]"
+            onClick={() => onTabChange("heatmap")}
+            data-testid="tab-heatmap-view"
+          >
+            <Table className="h-3 w-3 mr-1" />
+            Heatmap
+          </Button>
+          <Button
+            variant={activeTab === "chart" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-6 px-2 text-[10px]"
+            onClick={() => onTabChange("chart")}
+            data-testid="tab-chart-view"
+          >
+            <BarChart3 className="h-3 w-3 mr-1" />
+            P/L Chart
+          </Button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[320px]">
         <table className="w-full border-collapse">
-          <thead>
+          <thead className="sticky top-0 z-20">
             {/* Date group row (only shown when useHours is true) */}
             {dateGroups.length > 0 && (
               <tr>
                 <th 
                   colSpan={2} 
                   rowSpan={1}
-                  className="text-xs font-semibold text-center p-2 border-b border-border bg-background"
+                  className="text-[10px] font-semibold text-center p-1 border-b border-border bg-background"
                 />
                 {dateGroups.map((group, idx) => (
                   <th
                     key={idx}
                     colSpan={group.count}
                     scope="colgroup"
-                    className="text-sm font-bold text-center p-2 border-b border-border bg-muted/50"
+                    className="text-[10px] font-bold text-center p-1 border-b border-border bg-muted/50"
                     data-testid={`header-dategroup-${idx}`}
                   >
                     {group.dateLabel}
@@ -139,13 +171,13 @@ export function PLHeatmap({
             {/* Time/day column row */}
             <tr>
               <th 
-                className="text-xs font-semibold text-left p-2 border-b border-border sticky left-0 bg-background z-10 w-[100px]"
+                className="text-[10px] font-semibold text-left p-1 border-b border-border sticky left-0 bg-background z-10 min-w-[60px]"
                 scope="col"
               >
                 Strike
               </th>
               <th 
-                className="text-xs font-semibold text-right p-2 border-b border-border bg-background w-[60px]"
+                className="text-[10px] font-semibold text-right p-1 border-b border-border bg-background min-w-[36px]"
                 scope="col"
               >
                 %
@@ -154,13 +186,13 @@ export function PLHeatmap({
                 <th
                   key={idx}
                   scope="col"
-                  className={`text-xs font-semibold text-center p-2 border-b border-border min-w-[80px] ${
+                  className={`text-[10px] font-semibold text-center p-1 border-b border-border min-w-[48px] bg-background ${
                     isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
                   }`}
                   data-testid={`header-time-${idx}`}
                 >
-                  <div>{getTimeLabel(day)}</div>
-                  <div className="text-[10px] text-muted-foreground font-normal">
+                  <div className="text-[9px]">{getTimeLabel(day)}</div>
+                  <div className="text-[8px] text-muted-foreground font-normal">
                     {getTimeSubLabel(day)}
                   </div>
                 </th>
@@ -176,30 +208,30 @@ export function PLHeatmap({
               return (
                 <tr key={rowIdx}>
                   <td
-                    className={`text-xs font-mono font-semibold p-2 border-b border-border sticky left-0 bg-background z-10 ${
+                    className={`text-[10px] font-mono font-semibold p-1 border-b border-border sticky left-0 bg-background z-10 whitespace-nowrap ${
                       isNearCurrent ? 'text-primary' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
                   >
-                    ${strike.toFixed(2)}
+                    ${strike.toFixed(0)}
                     {isNearCurrent && (
-                      <Badge className="ml-2 text-[8px] h-4 px-1">ATM</Badge>
+                      <span className="ml-1 text-[7px] text-primary font-bold">ATM</span>
                     )}
                   </td>
                   <td
-                    className={`text-xs font-mono text-right p-2 border-b border-border bg-background ${
+                    className={`text-[10px] font-mono text-right p-1 border-b border-border bg-background ${
                       percentChange > 0 ? 'text-green-600 dark:text-green-400' : 
                       percentChange < 0 ? 'text-red-600 dark:text-red-400' : 
                       'text-muted-foreground'
                     }`}
                     data-testid={`percent-${strike.toFixed(2)}`}
                   >
-                    {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(1)}%
+                    {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(0)}%
                   </td>
                   {row.map((cell, colIdx) => (
                     <td
                       key={colIdx}
-                      className={`text-xs font-mono text-center p-2 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
+                      className={`text-[10px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
                         isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
                       }`}
                       data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
@@ -214,11 +246,46 @@ export function PLHeatmap({
         </table>
       </div>
 
-      <div className="mt-4 text-xs text-muted-foreground">
-        <p>
-          Values represent profit (+) or loss (-) at expiration. 
-          Color intensity indicates magnitude of P/L.
-        </p>
+      {/* Range and IV sliders */}
+      <div className="mt-2 flex items-center gap-4 text-[10px]">
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-muted-foreground whitespace-nowrap">Range</span>
+          <Slider
+            value={[range]}
+            onValueChange={(v) => onRangeChange(v[0])}
+            min={5}
+            max={50}
+            step={1}
+            className="flex-1"
+            data-testid="slider-range"
+          />
+          <span className="font-mono w-8 text-right">±{range}%</span>
+        </div>
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-muted-foreground whitespace-nowrap">IV</span>
+          <Slider
+            value={[impliedVolatility]}
+            onValueChange={(v) => onVolatilityChange(v[0])}
+            min={5}
+            max={150}
+            step={1}
+            className="flex-1"
+            data-testid="slider-volatility"
+          />
+          <span className="font-mono w-8 text-right">{impliedVolatility}%</span>
+          {impliedVolatility !== calculatedIV && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 w-5 p-0"
+              onClick={onResetIV}
+              title="Reset to calculated IV"
+              data-testid="button-reset-iv"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );

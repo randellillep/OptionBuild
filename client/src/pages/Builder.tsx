@@ -14,10 +14,8 @@ import { ExpirationTimeline } from "@/components/ExpirationTimeline";
 import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
-import { RangeVolatilitySliders } from "@/components/RangeVolatilitySliders";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, ChevronDown, BarChart3, Table, BookOpen, FileText, User } from "lucide-react";
+import { TrendingUp, ChevronDown, BookOpen, FileText, User } from "lucide-react";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation } from "wouter";
@@ -28,6 +26,7 @@ import { calculateImpliedVolatility } from "@/lib/options-pricing";
 export default function Builder() {
   const [, setLocation] = useLocation();
   const [range, setRange] = useState(14);
+  const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   
   const {
@@ -412,22 +411,22 @@ export default function Builder() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between">
-          <div className="flex items-center gap-6">
+        <div className="container mx-auto px-4 md:px-6 flex h-10 items-center justify-between">
+          <div className="flex items-center gap-4">
             <div 
-              className="flex items-center gap-2 cursor-pointer" 
+              className="flex items-center gap-1.5 cursor-pointer" 
               onClick={() => setLocation("/")}
             >
-              <TrendingUp className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">OptionFlow</span>
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <span className="text-lg font-bold">OptionFlow</span>
             </div>
 
-            <nav className="hidden md:flex items-center gap-2">
+            <nav className="hidden md:flex items-center gap-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" data-testid="button-build-menu">
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="button-build-menu">
                     Build
-                    <ChevronDown className="ml-1 h-4 w-4" />
+                    <ChevronDown className="ml-1 h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-64">
@@ -446,15 +445,15 @@ export default function Builder() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Button variant="ghost" data-testid="button-optimize">
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="button-optimize">
                 Optimize
               </Button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" data-testid="button-market-trends">
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="button-market-trends">
                     Market Trends
-                    <ChevronDown className="ml-1 h-4 w-4" />
+                    <ChevronDown className="ml-1 h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
@@ -472,17 +471,17 @@ export default function Builder() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" data-testid="button-tutorials">
-              <BookOpen className="h-4 w-4 mr-2" />
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" data-testid="button-tutorials">
+              <BookOpen className="h-3 w-3 mr-1" />
               Tutorials
             </Button>
-            <Button variant="ghost" size="sm" data-testid="button-blog">
-              <FileText className="h-4 w-4 mr-2" />
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" data-testid="button-blog">
+              <FileText className="h-3 w-3 mr-1" />
               Blog
             </Button>
-            <Button variant="ghost" size="sm" data-testid="button-my-account">
-              <User className="h-4 w-4 mr-2" />
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" data-testid="button-my-account">
+              <User className="h-3 w-3 mr-1" />
               My Account
             </Button>
             <AddLegDropdown 
@@ -524,36 +523,17 @@ export default function Builder() {
                 availableStrikes={availableStrikes}
               />
 
-              <Tabs defaultValue="heatmap" className="w-full">
-                <TabsContent value="heatmap" className="mt-0 space-y-3">
-                  <PLHeatmap
-                    grid={scenarioGrid.grid}
-                    strikes={scenarioGrid.strikes}
-                    days={scenarioGrid.days}
-                    currentPrice={symbolInfo.price}
-                    rangePercent={range}
-                    useHours={scenarioGrid.useHours}
-                    targetDays={scenarioGrid.targetDays}
-                    dateGroups={scenarioGrid.dateGroups}
-                  />
-                </TabsContent>
-                <TabsContent value="chart" className="mt-0 space-y-3">
-                  <ProfitLossChart legs={legs} underlyingPrice={symbolInfo.price} />
-                </TabsContent>
-                
-                {/* Tab buttons below the chart */}
-                <TabsList className="grid w-full grid-cols-2 mt-2">
-                  <TabsTrigger value="heatmap" data-testid="tab-heatmap-view">
-                    <Table className="h-4 w-4 mr-2" />
-                    Heatmap
-                  </TabsTrigger>
-                  <TabsTrigger value="chart" data-testid="tab-chart-view">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    P/L Chart
-                  </TabsTrigger>
-                </TabsList>
-
-                <RangeVolatilitySliders
+              {activeTab === "heatmap" ? (
+                <PLHeatmap
+                  grid={scenarioGrid.grid}
+                  strikes={scenarioGrid.strikes}
+                  days={scenarioGrid.days}
+                  currentPrice={symbolInfo.price}
+                  useHours={scenarioGrid.useHours}
+                  targetDays={scenarioGrid.targetDays}
+                  dateGroups={scenarioGrid.dateGroups}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
                   range={range}
                   onRangeChange={setRange}
                   impliedVolatility={volatilityPercent}
@@ -561,9 +541,22 @@ export default function Builder() {
                   calculatedIV={calculatedIVPercent}
                   onResetIV={handleResetIV}
                 />
+              ) : (
+                <ProfitLossChart 
+                  legs={legs} 
+                  underlyingPrice={symbolInfo.price}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  range={range}
+                  onRangeChange={setRange}
+                  impliedVolatility={volatilityPercent}
+                  onVolatilityChange={handleVolatilityChange}
+                  calculatedIV={calculatedIVPercent}
+                  onResetIV={handleResetIV}
+                />
+              )}
 
-                <AnalysisTabs greeks={totalGreeks} />
-              </Tabs>
+              <AnalysisTabs greeks={totalGreeks} />
             </div>
 
             <div className="space-y-4">

@@ -2,13 +2,36 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { OptionLeg } from "@shared/schema";
 import { calculateProfitLoss } from "@/lib/options-pricing";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Table, BarChart3, RotateCcw } from "lucide-react";
 
 interface ProfitLossChartProps {
   legs: OptionLeg[];
   underlyingPrice: number;
+  activeTab: "heatmap" | "chart";
+  onTabChange: (tab: "heatmap" | "chart") => void;
+  range: number;
+  onRangeChange: (value: number) => void;
+  impliedVolatility: number;
+  onVolatilityChange: (value: number) => void;
+  calculatedIV: number;
+  onResetIV: () => void;
 }
 
-export function ProfitLossChart({ legs, underlyingPrice }: ProfitLossChartProps) {
+export function ProfitLossChart({ 
+  legs, 
+  underlyingPrice,
+  activeTab,
+  onTabChange,
+  range,
+  onRangeChange,
+  impliedVolatility,
+  onVolatilityChange,
+  calculatedIV,
+  onResetIV,
+}: ProfitLossChartProps) {
   const minPrice = underlyingPrice * 0.7;
   const maxPrice = underlyingPrice * 1.3;
   const points = 100;
@@ -40,42 +63,105 @@ export function ProfitLossChart({ legs, underlyingPrice }: ProfitLossChartProps)
   };
 
   return (
-    <Card className="p-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold">Profit/Loss at Expiration</h3>
-        <p className="text-sm text-muted-foreground">
-          Chart shows P/L across different stock prices
-        </p>
+    <Card className="p-3">
+      {/* Header with tab buttons */}
+      <div className="mb-2 flex items-center justify-between">
+        <Badge variant="outline" className="text-[10px] font-semibold px-2 py-0.5">
+          ±{range}%
+        </Badge>
+        <div className="flex items-center gap-1">
+          <Button
+            variant={activeTab === "heatmap" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-6 px-2 text-[10px]"
+            onClick={() => onTabChange("heatmap")}
+            data-testid="tab-heatmap-view"
+          >
+            <Table className="h-3 w-3 mr-1" />
+            Heatmap
+          </Button>
+          <Button
+            variant={activeTab === "chart" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-6 px-2 text-[10px]"
+            onClick={() => onTabChange("chart")}
+            data-testid="tab-chart-view"
+          >
+            <BarChart3 className="h-3 w-3 mr-1" />
+            P/L Chart
+          </Button>
+        </div>
       </div>
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis
             dataKey="price"
             stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
+            tick={{ fill: "hsl(var(--foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
             tickFormatter={(value) => `$${value}`}
-            label={{ value: "Stock Price", position: "insideBottom", offset: -5, style: { fill: "hsl(var(--foreground))" } }}
           />
           <YAxis
             stroke="hsl(var(--muted-foreground))"
-            tick={{ fill: "hsl(var(--foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
+            tick={{ fill: "hsl(var(--foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }}
             tickFormatter={(value) => `$${value}`}
-            label={{ value: "Profit/Loss", angle: -90, position: "insideLeft", style: { fill: "hsl(var(--foreground))" } }}
           />
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" />
-          <ReferenceLine x={underlyingPrice} stroke="hsl(var(--primary))" strokeDasharray="5 5" label={{ value: "Current", position: "top", fill: "hsl(var(--primary))" }} />
+          <ReferenceLine x={underlyingPrice} stroke="hsl(var(--primary))" strokeDasharray="5 5" label={{ value: "Current", position: "top", fill: "hsl(var(--primary))", fontSize: 10 }} />
           <Line
             type="monotone"
             dataKey="pnl"
             stroke="hsl(var(--chart-1))"
-            strokeWidth={3}
+            strokeWidth={2}
             dot={false}
             isAnimationActive={false}
           />
         </LineChart>
       </ResponsiveContainer>
+
+      {/* Range and IV sliders */}
+      <div className="mt-2 flex items-center gap-4 text-[10px]">
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-muted-foreground whitespace-nowrap">Range</span>
+          <Slider
+            value={[range]}
+            onValueChange={(v) => onRangeChange(v[0])}
+            min={5}
+            max={50}
+            step={1}
+            className="flex-1"
+            data-testid="slider-range"
+          />
+          <span className="font-mono w-8 text-right">±{range}%</span>
+        </div>
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-muted-foreground whitespace-nowrap">IV</span>
+          <Slider
+            value={[impliedVolatility]}
+            onValueChange={(v) => onVolatilityChange(v[0])}
+            min={5}
+            max={150}
+            step={1}
+            className="flex-1"
+            data-testid="slider-volatility"
+          />
+          <span className="font-mono w-8 text-right">{impliedVolatility}%</span>
+          {impliedVolatility !== calculatedIV && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 w-5 p-0"
+              onClick={onResetIV}
+              title="Reset to calculated IV"
+              data-testid="button-reset-iv"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </div>
     </Card>
   );
 }
