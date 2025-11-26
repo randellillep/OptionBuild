@@ -119,9 +119,8 @@ The Implied Volatility bar now updates in real-time:
 - **Tab buttons at top**: Small Heatmap/P/L Chart toggle buttons (h-6) at top right of card, replacing Profit/Loss legend
 - **Removed all titles/descriptions**: Only Range badge and tab buttons remain in header
 - **Compact sliders at bottom**: Range and IV sliders in single horizontal row below the heatmap table
-- **Internal scroll**: Heatmap table has max-h-[320px] with overflow-auto and sticky headers
-- **Narrower columns**: Strike 60px, % 36px, time columns 48px min-width
-- **Compact text**: 10px font throughout, 9px for time labels, 8px for sub-labels
+- **Fixed height (no vertical scroll)**: Heatmap displays at full natural height with horizontal scroll only
+- **Readable text**: 12px (text-xs) for table content, 11px for time labels, 10px for sublabels
 
 ### Compact Header
 - **Reduced height**: Header now h-10 (was h-16)
