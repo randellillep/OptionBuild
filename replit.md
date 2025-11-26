@@ -95,3 +95,7 @@ The Implied Volatility bar now updates in real-time:
 - Recalculates when options are added/removed
 - Updates when dragging strikes on the Strike Ladder
 - IV data is passed with leg updates for accurate recalculation
+
+### Streamlined UI
+- **Removed Option Legs sidebar**: All option information is accessible by clicking the strike badge on the Strike Ladder, which opens the OptionDetailsPanel with Greeks, premium, and cost basis editing.
+- **Removed Options Chain table**: Options are added exclusively via the blue Add button in the Strike Ladder header. The main tabs now show only Heatmap and P/L Chart.
