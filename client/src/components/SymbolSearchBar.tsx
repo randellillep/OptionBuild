@@ -126,24 +126,24 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange }: SymbolSearchBarP
   };
 
   return (
-    <Card className="p-4">
-      <div className="flex items-center gap-4">
+    <Card className="px-3 py-2">
+      <div className="flex items-center gap-3">
         <div className="flex-1 relative">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search for a stock symbol..."
+              placeholder="Search symbol..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
-              className="pl-9"
+              className="pl-8 h-8 text-sm"
               data-testid="input-symbol-search"
             />
             {isSearching && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
             )}
           </div>
 
@@ -181,25 +181,22 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange }: SymbolSearchBarP
           )}
         </div>
 
-        <div className="flex items-center gap-4 border-l border-border pl-4">
-          <div>
-            <div className="text-sm text-muted-foreground">Current Symbol</div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold font-mono">{symbolInfo.symbol}</span>
-              <span className="text-xl font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
-              {currentQuote && (
-                <span className={`text-sm flex items-center gap-1 ${currentQuote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-                  {currentQuote.changePercent >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {currentQuote.changePercent >= 0 ? '+' : ''}{currentQuote.changePercent.toFixed(2)}%
-                </span>
-              )}
-            </div>
+        <div className="flex items-center gap-3 border-l border-border pl-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold font-mono">{symbolInfo.symbol}</span>
+            <span className="text-base font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
+            {currentQuote && (
+              <span className={`text-xs flex items-center gap-0.5 ${currentQuote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                {currentQuote.changePercent >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {currentQuote.changePercent >= 0 ? '+' : ''}{currentQuote.changePercent.toFixed(2)}%
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="flex gap-2 mt-4 flex-wrap">
-        <span className="text-sm text-muted-foreground self-center">Popular:</span>
+      <div className="flex gap-1.5 mt-2 flex-wrap">
+        <span className="text-xs text-muted-foreground self-center">Quick:</span>
         {popularSymbols.map((symbol) => {
           const quote = popularQuotes.data?.find(q => q.symbol === symbol);
           return (
@@ -209,11 +206,11 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange }: SymbolSearchBarP
               size="sm"
               onClick={() => handleSymbolSelect(symbol)}
               data-testid={`button-quick-${symbol.toLowerCase()}`}
-              className="gap-1"
+              className="gap-1 h-7 px-2 text-xs"
             >
               {symbol}
               {quote && (
-                <span className={`text-xs ${quote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                <span className={`text-[10px] ${quote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
                   {quote.changePercent >= 0 ? '+' : ''}{quote.changePercent.toFixed(1)}%
                 </span>
               )}

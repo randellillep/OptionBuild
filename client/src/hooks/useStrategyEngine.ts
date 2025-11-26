@@ -15,8 +15,8 @@ export interface ScenarioPoint {
 
 export function useStrategyEngine(rangePercent: number = 14) {
   const [symbolInfo, setSymbolInfo] = useState<SymbolInfo>({
-    symbol: "SPY",
-    price: 100,
+    symbol: "AAPL",
+    price: 175,
   });
   
   const [legs, setLegs] = useState<OptionLeg[]>([]);

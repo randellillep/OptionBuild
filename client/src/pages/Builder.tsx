@@ -510,15 +510,15 @@ export default function Builder() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 md:px-6 py-8">
-        <div className="space-y-6">
+      <div className="container mx-auto px-4 md:px-6 py-4">
+        <div className="space-y-3">
           <SymbolSearchBar 
             symbolInfo={symbolInfo} 
             onSymbolChange={setSymbolInfo} 
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="lg:col-span-3 space-y-3">
               <ExpirationTimeline
                 expirationDays={uniqueExpirationDays}
                 selectedDays={selectedExpirationDays}
@@ -550,7 +550,7 @@ export default function Builder() {
                     P/L Chart
                   </TabsTrigger>
                 </TabsList>
-                <TabsContent value="heatmap" className="mt-4 space-y-6">
+                <TabsContent value="heatmap" className="mt-3 space-y-4">
                   <PLHeatmap
                     grid={scenarioGrid.grid}
                     strikes={scenarioGrid.strikes}
@@ -573,7 +573,7 @@ export default function Builder() {
 
                   <AnalysisTabs greeks={totalGreeks} />
                 </TabsContent>
-                <TabsContent value="chart" className="mt-4 space-y-6">
+                <TabsContent value="chart" className="mt-3 space-y-4">
                   <ProfitLossChart legs={legs} underlyingPrice={symbolInfo.price} />
                   
                   <RangeVolatilitySliders
@@ -590,7 +590,7 @@ export default function Builder() {
               </Tabs>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               <StrategyMetricsCard metrics={metrics} />
             </div>
           </div>

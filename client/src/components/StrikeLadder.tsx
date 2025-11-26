@@ -397,17 +397,28 @@ export function StrikeLadder({
   };
 
   return (
-    <Card className="p-4 pb-6">
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold mb-1">STRIKE:</h3>
-        <p className="text-xs text-muted-foreground">
-          Drag badges to adjust strike prices, or drag background to pan view
-        </p>
+    <Card className="p-3">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-semibold">STRIKE:</h3>
+        <div className="flex items-center gap-3 text-[10px]">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-primary rounded-sm"></div>
+            <span className="text-muted-foreground">Price</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Badge className="text-[8px] h-3.5 px-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 no-default-hover-elevate no-default-active-elevate">C</Badge>
+            <span className="text-muted-foreground">Calls</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Badge className="text-[8px] h-3.5 px-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 no-default-hover-elevate no-default-active-elevate">P</Badge>
+            <span className="text-muted-foreground">Puts</span>
+          </div>
+        </div>
       </div>
 
       <div 
         ref={ladderRef} 
-        className={`relative h-32 bg-muted/20 rounded-md overflow-visible px-4 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`relative h-28 bg-muted/20 rounded-md overflow-visible px-4 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={{ userSelect: 'none', touchAction: 'none' }}
         onPointerDown={handleLadderPointerDown}
         data-testid="strike-ladder-container"
@@ -481,24 +492,9 @@ export function StrikeLadder({
         })()}
       </div>
 
-      <div className="flex justify-between mt-2 text-xs text-muted-foreground font-mono">
+      <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground font-mono">
         <span>${adjustedMin.toFixed(2)}</span>
         <span>${adjustedMax.toFixed(2)}</span>
-      </div>
-
-      <div className="mt-3 flex items-center gap-4 text-xs">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-primary rounded-sm"></div>
-          <span className="text-muted-foreground">Current Price</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Badge className="text-[8px] h-4 px-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">C</Badge>
-          <span className="text-muted-foreground">Calls</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Badge className="text-[8px] h-4 px-1 bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">P</Badge>
-          <span className="text-muted-foreground">Puts</span>
-        </div>
       </div>
     </Card>
   );

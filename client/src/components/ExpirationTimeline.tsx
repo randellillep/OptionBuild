@@ -167,26 +167,21 @@ export function ExpirationTimeline({
   }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays]);
 
   return (
-    <div className="bg-muted/30 rounded-lg p-4 border border-border">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-sm font-semibold text-foreground">EXPIRATION:</span>
-        <span className="text-sm font-bold text-foreground">{selectedExpirationDays}d</span>
+    <div className="bg-muted/30 rounded-lg px-3 py-2 border border-border">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-xs font-semibold text-foreground">EXPIRATION:</span>
+        <span className="text-xs font-bold text-foreground">{selectedExpirationDays}d</span>
         {isLoading && (
           <span className="text-xs text-muted-foreground">(Loading...)</span>
         )}
-        {apiExpirations && (
-          <span className="text-xs text-muted-foreground">
-            ({apiExpirations.expirations.length} dates)
-          </span>
-        )}
       </div>
 
-      <div className="flex items-stretch gap-0 overflow-x-auto pb-2">
+      <div className="flex items-stretch gap-0 overflow-x-auto">
         {groupedDates.map((group, groupIdx) => (
           <div key={`${group.month}-${group.year}-${groupIdx}`} className="flex flex-col">
             {/* Month label row */}
-            <div className="flex items-center justify-center bg-muted/50 px-2 py-1 border-r border-border min-w-fit">
-              <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+            <div className="flex items-center justify-center bg-muted/50 px-1.5 py-0.5 border-r border-border min-w-fit">
+              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">
                 {group.month}{group.year}
               </span>
             </div>
@@ -203,7 +198,7 @@ export function ExpirationTimeline({
                       const dateStr = activeDaysToDateMap.get(days) || '';
                       onSelectDays(days, dateStr);
                     }}
-                    className={`flex items-center justify-center min-w-[40px] px-3 py-2 text-sm font-semibold transition-colors border-r border-border last:border-r-0 ${
+                    className={`flex items-center justify-center min-w-[32px] px-2 py-1 text-xs font-semibold transition-colors border-r border-border last:border-r-0 ${
                       isSelected
                         ? 'bg-primary text-primary-foreground'
                         : 'hover:bg-muted/60 active:bg-muted'
