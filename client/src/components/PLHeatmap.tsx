@@ -97,27 +97,19 @@ export function PLHeatmap({
   };
 
   return (
-    <Card className="p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold mb-1">Profit/Loss Heatmap</h3>
-          <p className="text-sm text-muted-foreground">
-            P/L across different strike prices and expiration dates
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-xs font-semibold">
-            RANGE: ±{rangePercent}%
-          </Badge>
-          <Badge variant="secondary" className="text-xs">
-            <span className="text-green-600 dark:text-green-500 mr-1">■</span>
-            Profit
-          </Badge>
-          <Badge variant="secondary" className="text-xs">
-            <span className="text-red-600 dark:text-red-500 mr-1">■</span>
-            Loss
-          </Badge>
-        </div>
+    <Card className="p-4">
+      <div className="mb-3 flex items-center justify-end gap-3">
+        <Badge variant="outline" className="text-xs font-semibold">
+          RANGE: ±{rangePercent}%
+        </Badge>
+        <Badge variant="secondary" className="text-xs">
+          <span className="text-green-600 dark:text-green-500 mr-1">■</span>
+          Profit
+        </Badge>
+        <Badge variant="secondary" className="text-xs">
+          <span className="text-red-600 dark:text-red-500 mr-1">■</span>
+          Loss
+        </Badge>
       </div>
 
       <div className="overflow-x-auto">

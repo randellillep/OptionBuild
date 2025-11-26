@@ -525,17 +525,7 @@ export default function Builder() {
               />
 
               <Tabs defaultValue="heatmap" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="heatmap" data-testid="tab-heatmap-view">
-                    <Table className="h-4 w-4 mr-2" />
-                    Heatmap
-                  </TabsTrigger>
-                  <TabsTrigger value="chart" data-testid="tab-chart-view">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    P/L Chart
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="heatmap" className="mt-3 space-y-4">
+                <TabsContent value="heatmap" className="mt-0 space-y-3">
                   <PLHeatmap
                     grid={scenarioGrid.grid}
                     strikes={scenarioGrid.strikes}
@@ -546,32 +536,33 @@ export default function Builder() {
                     targetDays={scenarioGrid.targetDays}
                     dateGroups={scenarioGrid.dateGroups}
                   />
-                  
-                  <RangeVolatilitySliders
-                    range={range}
-                    onRangeChange={setRange}
-                    impliedVolatility={volatilityPercent}
-                    onVolatilityChange={handleVolatilityChange}
-                    calculatedIV={calculatedIVPercent}
-                    onResetIV={handleResetIV}
-                  />
-
-                  <AnalysisTabs greeks={totalGreeks} />
                 </TabsContent>
-                <TabsContent value="chart" className="mt-3 space-y-4">
+                <TabsContent value="chart" className="mt-0 space-y-3">
                   <ProfitLossChart legs={legs} underlyingPrice={symbolInfo.price} />
-                  
-                  <RangeVolatilitySliders
-                    range={range}
-                    onRangeChange={setRange}
-                    impliedVolatility={volatilityPercent}
-                    onVolatilityChange={handleVolatilityChange}
-                    calculatedIV={calculatedIVPercent}
-                    onResetIV={handleResetIV}
-                  />
-
-                  <AnalysisTabs greeks={totalGreeks} />
                 </TabsContent>
+                
+                {/* Tab buttons below the chart */}
+                <TabsList className="grid w-full grid-cols-2 mt-2">
+                  <TabsTrigger value="heatmap" data-testid="tab-heatmap-view">
+                    <Table className="h-4 w-4 mr-2" />
+                    Heatmap
+                  </TabsTrigger>
+                  <TabsTrigger value="chart" data-testid="tab-chart-view">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    P/L Chart
+                  </TabsTrigger>
+                </TabsList>
+
+                <RangeVolatilitySliders
+                  range={range}
+                  onRangeChange={setRange}
+                  impliedVolatility={volatilityPercent}
+                  onVolatilityChange={handleVolatilityChange}
+                  calculatedIV={calculatedIVPercent}
+                  onResetIV={handleResetIV}
+                />
+
+                <AnalysisTabs greeks={totalGreeks} />
               </Tabs>
             </div>
 

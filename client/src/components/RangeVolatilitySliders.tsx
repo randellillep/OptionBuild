@@ -22,53 +22,35 @@ export function RangeVolatilitySliders({
   onResetIV,
 }: RangeVolatilitySlidersProps) {
   return (
-    <Card className="p-6">
-      <div className="grid grid-cols-2 gap-8">
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <Label className="text-sm font-semibold">RANGE:</Label>
-            <span className="text-sm font-mono font-semibold">±{range}%</span>
-          </div>
+    <Card className="p-3">
+      <div className="flex items-center gap-6">
+        {/* Range slider */}
+        <div className="flex items-center gap-3 flex-1">
+          <Label className="text-xs font-semibold whitespace-nowrap">RANGE:</Label>
           <Slider
             value={[range]}
             onValueChange={([value]) => onRangeChange(value)}
             min={5}
             max={50}
             step={1}
-            className="w-full"
+            className="flex-1"
             data-testid="slider-range"
           />
-          <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>5%</span>
-            <span>50%</span>
-          </div>
+          <span className="text-xs font-mono font-semibold w-10 text-right">±{range}%</span>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Label className="text-sm font-semibold">IMPLIED VOLATILITY:</Label>
-              {calculatedIV && (
-                <span className="text-xs text-muted-foreground" data-testid="text-base-iv">
-                  (Base: {calculatedIV}%)
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-mono font-semibold" data-testid="text-current-iv">{impliedVolatility}%</span>
-              {onResetIV && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={onResetIV}
-                  className="h-6 px-2"
-                  data-testid="button-reset-iv"
-                >
-                  <RotateCcw className="h-3 w-3 mr-1" />
-                  <span className="text-xs">Reset</span>
-                </Button>
-              )}
-            </div>
+        {/* Divider */}
+        <div className="w-px h-6 bg-border" />
+
+        {/* IV slider */}
+        <div className="flex items-center gap-3 flex-1">
+          <div className="flex items-center gap-1">
+            <Label className="text-xs font-semibold whitespace-nowrap">IV:</Label>
+            {calculatedIV && (
+              <span className="text-[10px] text-muted-foreground" data-testid="text-base-iv">
+                ({calculatedIV}%)
+              </span>
+            )}
           </div>
           <Slider
             value={[impliedVolatility]}
@@ -76,13 +58,21 @@ export function RangeVolatilitySliders({
             min={10}
             max={100}
             step={1}
-            className="w-full"
+            className="flex-1"
             data-testid="slider-volatility"
           />
-          <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>10%</span>
-            <span>100%</span>
-          </div>
+          <span className="text-xs font-mono font-semibold w-8 text-right" data-testid="text-current-iv">{impliedVolatility}%</span>
+          {onResetIV && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onResetIV}
+              className="h-6 w-6"
+              data-testid="button-reset-iv"
+            >
+              <RotateCcw className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </div>
     </Card>

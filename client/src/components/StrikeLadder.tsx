@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,6 +45,40 @@ export function StrikeLadder({
   const [panStartOffset, setPanStartOffset] = useState(0);
   const ladderRef = useRef<HTMLDivElement>(null);
 
+  // Detect the actual strike increment from market data
+  const strikeIncrement = useMemo(() => {
+    if (availableStrikes && availableStrikes.strikes.length > 1) {
+      // Find the most common interval between consecutive strikes
+      const intervals: number[] = [];
+      for (let i = 1; i < availableStrikes.strikes.length; i++) {
+        const diff = Number((availableStrikes.strikes[i] - availableStrikes.strikes[i - 1]).toFixed(2));
+        if (diff > 0) intervals.push(diff);
+      }
+      if (intervals.length > 0) {
+        // Find most frequent interval
+        const counts = new Map<number, number>();
+        intervals.forEach(interval => {
+          counts.set(interval, (counts.get(interval) || 0) + 1);
+        });
+        let maxCount = 0;
+        let commonInterval = 5;
+        counts.forEach((count, interval) => {
+          if (count > maxCount) {
+            maxCount = count;
+            commonInterval = interval;
+          }
+        });
+        return commonInterval;
+      }
+    }
+    // Default increments based on price level
+    if (currentPrice < 25) return 0.5;
+    if (currentPrice < 100) return 1;
+    if (currentPrice < 200) return 2.5;
+    if (currentPrice < 500) return 5;
+    return 10;
+  }, [availableStrikes, currentPrice]);
+
   const baseRange = strikeRange.max - strikeRange.min;
   
   // Apply pan offset to adjust visible range (pan offset is in percentage)
@@ -53,40 +87,38 @@ export function StrikeLadder({
   const adjustedMax = strikeRange.max + panAdjustment;
   const range = adjustedMax - adjustedMin;
   
-  // Determine strike interval based on range
-  const getStrikeInterval = () => {
-    if (range <= 50) return 5;
-    if (range <= 100) return 10;
-    if (range <= 200) return 20;
-    if (range <= 500) return 50;
-    return 100;
+  // Determine how many strikes to show as labels (thin out for readability)
+  const getLabelInterval = () => {
+    const strikesInView = range / strikeIncrement;
+    // Show roughly 10-15 labels max
+    if (strikesInView <= 15) return 1;
+    if (strikesInView <= 30) return 2;
+    if (strikesInView <= 60) return 4;
+    return Math.ceil(strikesInView / 15);
   };
 
-  const strikeInterval = getStrikeInterval();
+  const labelInterval = getLabelInterval();
   
-  // Generate labeled strikes - use actual strikes when available, otherwise use intervals
+  // Generate strike labels based on actual increments
   const generateLabeledStrikes = () => {
-    // If we have market data, use actual available strikes (including decimals)
     if (availableStrikes && availableStrikes.strikes.length > 0) {
-      // Filter strikes within adjusted display range and pick ~10-15 evenly spaced for labels
+      // Filter strikes in visible range
       const strikesInRange = availableStrikes.strikes.filter(
         s => s >= adjustedMin && s <= adjustedMax
       );
-      
-      // If we have many strikes, thin them out for readability
-      if (strikesInRange.length > 15) {
-        const step = Math.ceil(strikesInRange.length / 12);
-        return strikesInRange.filter((_, i) => i % step === 0);
+      // Thin out for readability
+      if (labelInterval > 1) {
+        return strikesInRange.filter((_, i) => i % labelInterval === 0);
       }
-      
       return strikesInRange;
     }
     
-    // Otherwise, use interval-based strikes
+    // Fallback: generate based on increment
     const strikes: number[] = [];
-    const start = Math.ceil(adjustedMin / strikeInterval) * strikeInterval;
-    for (let strike = start; strike <= adjustedMax; strike += strikeInterval) {
-      strikes.push(strike);
+    const displayIncrement = strikeIncrement * labelInterval;
+    const start = Math.ceil(adjustedMin / displayIncrement) * displayIncrement;
+    for (let strike = start; strike <= adjustedMax; strike += displayIncrement) {
+      strikes.push(Number(strike.toFixed(2)));
     }
     return strikes;
   };
@@ -120,27 +152,34 @@ export function StrikeLadder({
     return ((strike - adjustedMin) / range) * 100;
   };
 
-  // Calculate strike from x position
+  // Calculate strike from x position - ALWAYS snap to available strikes only
   const getStrikeFromPosition = (clientX: number) => {
     if (!ladderRef.current) return null;
     
     const rect = ladderRef.current.getBoundingClientRect();
     const x = clientX - rect.left;
     const percent = (x / rect.width) * 100;
-    const strike = adjustedMin + (percent / 100) * range;
+    const rawStrike = adjustedMin + (percent / 100) * range;
     
-    // If we have market data, snap to nearest available strike
+    // If we have market data, MUST snap to nearest available strike
     if (availableStrikes && availableStrikes.strikes.length > 0) {
-      // Find nearest available strike
+      // First clamp to market bounds
+      const clampedStrike = Math.max(
+        availableStrikes.min, 
+        Math.min(availableStrikes.max, rawStrike)
+      );
+      
+      // Find nearest available strike from the full list
       const nearest = availableStrikes.strikes.reduce((prev, curr) => 
-        Math.abs(curr - strike) < Math.abs(prev - strike) ? curr : prev
+        Math.abs(curr - clampedStrike) < Math.abs(prev - clampedStrike) ? curr : prev
       );
       return nearest;
     }
     
-    // Otherwise, snap to nearest valid strike interval and constrain
-    const snapped = Math.round(strike / strikeInterval) * strikeInterval;
-    return Math.max(adjustedMin, Math.min(adjustedMax, snapped));
+    // Fallback: snap to increment-based strikes within strikeRange bounds
+    const clampedRaw = Math.max(strikeRange.min, Math.min(strikeRange.max, rawStrike));
+    const snapped = Math.round(clampedRaw / strikeIncrement) * strikeIncrement;
+    return Math.max(strikeRange.min, Math.min(strikeRange.max, Number(snapped.toFixed(2))));
   };
 
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
@@ -398,10 +437,17 @@ export function StrikeLadder({
     );
   };
 
+  // Format strike number for display
+  const formatStrike = (strike: number) => {
+    if (strike % 1 === 0) return strike.toFixed(0);
+    if (strike % 0.5 === 0) return strike.toFixed(1);
+    return strike.toFixed(2).replace(/\.?0+$/, '');
+  };
+
   return (
     <Card className="p-3">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold">STRIKE:</h3>
+        <h3 className="text-xs font-semibold">STRIKES:</h3>
         <div className="flex items-center gap-3 text-[10px]">
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 bg-primary rounded-sm"></div>
@@ -418,76 +464,94 @@ export function StrikeLadder({
         </div>
       </div>
 
-      <div 
-        ref={ladderRef} 
-        className={`relative h-16 bg-muted/40 dark:bg-muted/50 rounded-md overflow-visible px-4 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
-        style={{ userSelect: 'none', touchAction: 'none' }}
-        onPointerDown={handleLadderPointerDown}
-        data-testid="strike-ladder-container"
-      >
-        {/* Strike price labels and tick marks */}
-        <div className="absolute inset-0 pointer-events-none">
+      {/* Main ladder container with strike numbers below */}
+      <div className="relative">
+        <div 
+          ref={ladderRef} 
+          className={`relative h-14 bg-muted/40 dark:bg-muted/50 rounded-t-md overflow-visible ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+          style={{ userSelect: 'none', touchAction: 'none' }}
+          onPointerDown={handleLadderPointerDown}
+          data-testid="strike-ladder-container"
+        >
+          {/* Tick marks on ladder */}
+          <div className="absolute inset-0 pointer-events-none">
+            {labeledStrikes.map((strike) => {
+              const position = getStrikePosition(strike);
+              if (position < 0 || position > 100) return null;
+              return (
+                <div
+                  key={strike}
+                  className="absolute bottom-0 w-px h-2 bg-border/60"
+                  style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Main horizontal line */}
+          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border/40 pointer-events-none" />
+
+          {/* Current price indicator */}
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none"
+            style={{ left: `${currentPricePercent}%`, transform: 'translateX(-50%)' }}
+          >
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap font-mono">
+              ${currentPrice.toFixed(2)}
+            </div>
+          </div>
+
+          {/* Render all option leg badges - group by strike and stack vertically */}
+          {(() => {
+            // Group long legs by strike for vertical stacking
+            const longLegs = legs.filter(l => l.position === "long");
+            const longByStrike = new Map<number, OptionLeg[]>();
+            longLegs.forEach(leg => {
+              const key = Math.round(leg.strike * 100) / 100;
+              if (!longByStrike.has(key)) longByStrike.set(key, []);
+              longByStrike.get(key)!.push(leg);
+            });
+
+            // Group short legs by strike for vertical stacking
+            const shortLegs = legs.filter(l => l.position === "short");
+            const shortByStrike = new Map<number, OptionLeg[]>();
+            shortLegs.forEach(leg => {
+              const key = Math.round(leg.strike * 100) / 100;
+              if (!shortByStrike.has(key)) shortByStrike.set(key, []);
+              shortByStrike.get(key)!.push(leg);
+            });
+
+            return (
+              <>
+                {/* Render long badges with vertical offsets */}
+                {Array.from(longByStrike.values()).flatMap(legsAtStrike =>
+                  legsAtStrike.map((leg, index) => renderBadge(leg, 'long', index))
+                )}
+                {/* Render short badges with vertical offsets */}
+                {Array.from(shortByStrike.values()).flatMap(legsAtStrike =>
+                  legsAtStrike.map((leg, index) => renderBadge(leg, 'short', index))
+                )}
+              </>
+            );
+          })()}
+        </div>
+
+        {/* Strike numbers row below the ladder */}
+        <div className="relative h-4 bg-muted/20 dark:bg-muted/30 rounded-b-md overflow-hidden">
           {labeledStrikes.map((strike) => {
             const position = getStrikePosition(strike);
+            if (position < 0 || position > 100) return null;
             return (
-              <div
+              <span
                 key={strike}
-                className="absolute top-1/2 -translate-y-1/2"
-                style={{ left: `${position}%`, transform: 'translateX(-50%) translateY(-50%)' }}
+                className="absolute top-0.5 text-[9px] text-muted-foreground font-mono"
+                style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
               >
-                {/* Tick mark */}
-                <div className="w-px h-4 bg-border/40" />
-              </div>
+                {formatStrike(strike)}
+              </span>
             );
           })}
         </div>
-
-        {/* Main horizontal line */}
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border/40 pointer-events-none" />
-
-        {/* Current price indicator */}
-        <div
-          className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none"
-          style={{ left: `${currentPricePercent}%`, transform: 'translateX(-50%)' }}
-        >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap font-mono">
-            ${currentPrice.toFixed(2)}
-          </div>
-        </div>
-
-        {/* Render all option leg badges - group by strike and stack vertically */}
-        {(() => {
-          // Group long legs by strike for vertical stacking
-          const longLegs = legs.filter(l => l.position === "long");
-          const longByStrike = new Map<number, OptionLeg[]>();
-          longLegs.forEach(leg => {
-            const key = Math.round(leg.strike * 100) / 100; // Round to avoid float issues
-            if (!longByStrike.has(key)) longByStrike.set(key, []);
-            longByStrike.get(key)!.push(leg);
-          });
-
-          // Group short legs by strike for vertical stacking
-          const shortLegs = legs.filter(l => l.position === "short");
-          const shortByStrike = new Map<number, OptionLeg[]>();
-          shortLegs.forEach(leg => {
-            const key = Math.round(leg.strike * 100) / 100;
-            if (!shortByStrike.has(key)) shortByStrike.set(key, []);
-            shortByStrike.get(key)!.push(leg);
-          });
-
-          return (
-            <>
-              {/* Render long badges with vertical offsets */}
-              {Array.from(longByStrike.values()).flatMap(legsAtStrike =>
-                legsAtStrike.map((leg, index) => renderBadge(leg, 'long', index))
-              )}
-              {/* Render short badges with vertical offsets */}
-              {Array.from(shortByStrike.values()).flatMap(legsAtStrike =>
-                legsAtStrike.map((leg, index) => renderBadge(leg, 'short', index))
-              )}
-            </>
-          );
-        })()}
       </div>
     </Card>
   );
