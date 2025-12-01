@@ -87,14 +87,14 @@ export function StrikeLadder({
   const adjustedMax = strikeRange.max + panAdjustment;
   const range = adjustedMax - adjustedMin;
   
-  // Determine how many strikes to show as labels (thin out for readability)
+  // Determine how many strikes to show as labels (show more for better visual)
   const getLabelInterval = () => {
     const strikesInView = range / strikeIncrement;
-    // Show roughly 10-15 labels max
-    if (strikesInView <= 15) return 1;
-    if (strikesInView <= 30) return 2;
-    if (strikesInView <= 60) return 4;
-    return Math.ceil(strikesInView / 15);
+    // Show more labels for better visual - aim for 20-30 labels
+    if (strikesInView <= 30) return 1;
+    if (strikesInView <= 60) return 2;
+    if (strikesInView <= 120) return 4;
+    return Math.ceil(strikesInView / 30);
   };
 
   const labelInterval = getLabelInterval();
@@ -473,7 +473,7 @@ export function StrikeLadder({
           onPointerDown={handleLadderPointerDown}
           data-testid="strike-ladder-container"
         >
-          {/* Tick marks on ladder */}
+          {/* Tick marks on ladder - extend from bottom like reference image */}
           <div className="absolute inset-0 pointer-events-none">
             {labeledStrikes.map((strike) => {
               const position = getStrikePosition(strike);
@@ -481,7 +481,7 @@ export function StrikeLadder({
               return (
                 <div
                   key={strike}
-                  className="absolute bottom-0 w-px h-2 bg-border/60"
+                  className="absolute bottom-0 w-px h-3 bg-slate-400 dark:bg-slate-500"
                   style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
                 />
               );
@@ -536,16 +536,20 @@ export function StrikeLadder({
           })()}
         </div>
 
-        {/* Strike numbers row below the ladder */}
-        <div className="relative h-4 bg-slate-200 dark:bg-slate-700 rounded-b-md overflow-hidden border-x border-b border-slate-300 dark:border-slate-600">
+        {/* Strike numbers row below the ladder - centered like in reference */}
+        <div className="relative h-5 bg-slate-100 dark:bg-slate-800 rounded-b-md overflow-hidden border-x border-b border-slate-300 dark:border-slate-600">
           {labeledStrikes.map((strike) => {
             const position = getStrikePosition(strike);
-            if (position < 0 || position > 100) return null;
+            if (position < 2 || position > 98) return null; // More margin at edges
             return (
               <span
                 key={strike}
-                className="absolute top-0.5 text-[9px] text-slate-600 dark:text-slate-300 font-mono font-medium"
-                style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+                className="absolute top-1 text-[10px] text-slate-700 dark:text-slate-200 font-mono font-medium"
+                style={{ 
+                  left: `${position}%`, 
+                  transform: 'translateX(-50%)',
+                  textAlign: 'center',
+                }}
               >
                 {formatStrike(strike)}
               </span>

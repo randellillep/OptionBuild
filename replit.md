@@ -120,7 +120,19 @@ The Implied Volatility bar now updates in real-time:
 - **Removed all titles/descriptions**: Only Range badge and tab buttons remain in header
 - **Compact sliders at bottom**: Range and IV sliders in single horizontal row below the heatmap table
 - **Fixed height (no vertical scroll)**: Heatmap displays at full natural height with horizontal scroll only
-- **Readable text**: 12px (text-xs) for table content, 11px for time labels, 10px for sublabels
+- **Readable text**: 11px for all heatmap content (headers, rows, cells), 10px for sublabels. Row height 24px.
+
+### Centered Strike Numbers
+- **Centered labels**: Strike numbers appear centered directly below tick marks on the strike bar
+- **More intervals**: Shows more strike labels (20-30 visible) for better visual density
+- **Visible tick marks**: Tick marks extend 3px from bottom of ladder bar in visible slate color
+- **Strike number row**: Separate 5px tall row below ladder bar for centered numbers
+
+### Cost Basis Editing
+- **Click badge to edit**: Clicking any option badge on the strike ladder opens OptionDetailsPanel
+- **Manual price entry**: Cost Basis input allows manual premium editing with $ prefix
+- **Reset button**: Refresh icon resets cost basis to market average (bid+ask)/2
+- **Persisted edits**: Manual edits are marked with premiumSource="manual" and preserved during refresh
 
 ### Compact Header
 - **Reduced height**: Header now h-10 (was h-16)

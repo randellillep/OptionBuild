@@ -172,14 +172,14 @@ export function PLHeatmap({
             {/* Time/day column row */}
             <tr>
               <th 
-                className="text-[10px] font-semibold text-left p-1 border-b border-border sticky left-0 bg-background z-10"
+                className="text-[11px] font-semibold text-left p-1 border-b border-border sticky left-0 bg-background z-10"
                 scope="col"
                 style={{ width: '50px' }}
               >
                 Strike
               </th>
               <th 
-                className="text-[10px] font-semibold text-right p-1 border-b border-border bg-background"
+                className="text-[11px] font-semibold text-right p-1 border-b border-border bg-background"
                 scope="col"
                 style={{ width: '30px' }}
               >
@@ -189,13 +189,13 @@ export function PLHeatmap({
                 <th
                   key={idx}
                   scope="col"
-                  className={`text-[10px] font-semibold text-center p-1 border-b border-border bg-background ${
+                  className={`text-[11px] font-semibold text-center p-1 border-b border-border bg-background ${
                     isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
                   }`}
                   data-testid={`header-time-${idx}`}
                 >
-                  <div className="text-[10px] leading-tight">{getTimeLabel(day)}</div>
-                  <div className="text-[9px] text-muted-foreground font-normal leading-tight">
+                  <div className="text-[11px] leading-tight">{getTimeLabel(day)}</div>
+                  <div className="text-[10px] text-muted-foreground font-normal leading-tight">
                     {getTimeSubLabel(day)}
                   </div>
                 </th>
@@ -209,20 +209,20 @@ export function PLHeatmap({
               const isNearCurrent = Math.abs(strike - currentPrice) < (currentPrice * 0.02);
               
               return (
-                <tr key={rowIdx} className="h-[22px]">
+                <tr key={rowIdx} className="h-[24px]">
                   <td
-                    className={`text-[10px] font-mono font-semibold p-1 border-b border-border sticky left-0 bg-background z-10 whitespace-nowrap ${
+                    className={`text-[11px] font-mono font-semibold p-1 border-b border-border sticky left-0 bg-background z-10 whitespace-nowrap ${
                       isNearCurrent ? 'text-primary' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
                   >
                     ${strike.toFixed(0)}
                     {isNearCurrent && (
-                      <span className="ml-0.5 text-[8px] text-primary font-bold">ATM</span>
+                      <span className="ml-0.5 text-[9px] text-primary font-bold">ATM</span>
                     )}
                   </td>
                   <td
-                    className={`text-[10px] font-mono text-right p-1 border-b border-border bg-background ${
+                    className={`text-[11px] font-mono text-right p-1 border-b border-border bg-background ${
                       percentChange > 0 ? 'text-green-600 dark:text-green-400' : 
                       percentChange < 0 ? 'text-red-600 dark:text-red-400' : 
                       'text-muted-foreground'
@@ -234,7 +234,7 @@ export function PLHeatmap({
                   {row.map((cell, colIdx) => (
                     <td
                       key={colIdx}
-                      className={`text-[10px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
+                      className={`text-[11px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
                         isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
                       }`}
                       data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
