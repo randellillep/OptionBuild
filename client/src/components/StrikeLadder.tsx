@@ -367,6 +367,7 @@ export function StrikeLadder({
             setSelectedLeg(null);
           }
         }}
+        modal={false}
       >
         <PopoverTrigger asChild>
           <div
@@ -400,7 +401,14 @@ export function StrikeLadder({
             </button>
           </div>
         </PopoverTrigger>
-        <PopoverContent className="p-0 w-auto" align="center" side="bottom" sideOffset={10}>
+        <PopoverContent 
+          className="p-0 w-auto" 
+          align="center" 
+          side="bottom" 
+          sideOffset={10}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           <OptionDetailsPanel
             leg={leg}
             underlyingPrice={currentPrice}

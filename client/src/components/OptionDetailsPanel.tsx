@@ -356,16 +356,17 @@ export function OptionDetailsPanel({
         {/* Cost Basis */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground">Cost Basis</label>
-          <div className="flex items-center gap-1">
-            <div className="text-sm font-semibold">$</div>
-            <Input
+          <div className="flex items-center gap-1 relative">
+            <span className="text-sm font-semibold select-none">$</span>
+            <input
               type="text"
               inputMode="decimal"
               value={costBasisText}
               onChange={(e) => handleCostBasisTextChange(e.target.value)}
               onFocus={handleCostBasisFocus}
               onBlur={handleCostBasisBlur}
-              className="h-8 font-mono text-center"
+              onClick={(e) => e.currentTarget.select()}
+              className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-center ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               data-testid="input-cost-basis"
             />
             <Button
@@ -373,7 +374,7 @@ export function OptionDetailsPanel({
               variant="ghost"
               onClick={handleResetCostBasis}
               disabled={!marketData?.bid || !marketData?.ask}
-              className="h-8 w-8"
+              className="h-8 w-8 flex-shrink-0"
               title={marketData?.bid && marketData?.ask ? "Reset to market average" : "No market data available"}
               aria-label="Reset cost basis"
               data-testid="button-reset-cost-basis"
