@@ -186,39 +186,88 @@ export function OptionDetailsPanel({
   };
   
   const [costBasis, setCostBasis] = useState<number>(leg.premium);
+  const [costBasisText, setCostBasisText] = useState<string>(leg.premium.toFixed(2));
+  const [isEditingCostBasis, setIsEditingCostBasis] = useState(false);
   // Check if this leg has a manually edited premium (persisted in leg data)
   const isManuallyEdited = leg.premiumSource === "manual";
+  
+  // Parse and validate cost basis text - returns valid number or null
+  const parseValidCostBasis = (text: string): number | null => {
+    // Only allow valid decimal numbers (digits, optional one decimal point, digits)
+    const isValidFormat = /^\d*\.?\d*$/.test(text) && text !== '' && text !== '.';
+    if (!isValidFormat) return null;
+    
+    const value = parseFloat(text);
+    // Check for valid finite number in reasonable range (0 to 100000)
+    if (isNaN(value) || !isFinite(value) || value < 0 || value > 100000) return null;
+    return value;
+  };
+  
+  // Commit the current edit value
+  const commitCostBasisEdit = (text: string) => {
+    const validValue = parseValidCostBasis(text);
+    if (validValue !== null) {
+      setCostBasis(validValue);
+      setCostBasisText(validValue.toFixed(2));
+      if (onUpdateLeg) {
+        onUpdateLeg({ premium: validValue, premiumSource: "manual" });
+      }
+    } else {
+      // Reset to previous valid value
+      setCostBasisText(costBasis.toFixed(2));
+    }
+  };
+  
+  // Commit pending edits on unmount
+  useEffect(() => {
+    return () => {
+      if (isEditingCostBasis) {
+        commitCostBasisEdit(costBasisText);
+      }
+    };
+  }, [isEditingCostBasis, costBasisText]);
   
   // Sync local state with leg premium when leg changes
   useEffect(() => {
     setCostBasis(leg.premium);
+    if (!isEditingCostBasis) {
+      setCostBasisText(leg.premium.toFixed(2));
+    }
   }, [leg.premium, leg.premiumSource]);
   
   // Update cost basis when market data changes (only if not manually edited)
   useEffect(() => {
-    if (!isManuallyEdited && marketData?.bid !== undefined && marketData?.ask !== undefined) {
+    if (!isManuallyEdited && !isEditingCostBasis && marketData?.bid !== undefined && marketData?.ask !== undefined) {
       const avgCost = calculateAverageCost();
       setCostBasis(avgCost);
+      setCostBasisText(avgCost.toFixed(2));
       // Update leg premium to match the calculated average
       if (onUpdateLeg) {
         onUpdateLeg({ premium: avgCost, premiumSource: "market" });
       }
     }
-  }, [marketData?.bid, marketData?.ask, isManuallyEdited]);
+  }, [marketData?.bid, marketData?.ask, isManuallyEdited, isEditingCostBasis]);
   
-  const handleCostBasisChange = (value: number) => {
-    // Allow zero for worthless options, but prevent negative values
-    const newCost = Math.max(0, value || 0);
-    setCostBasis(newCost);
-    // Mark as manually edited by setting premiumSource
-    if (onUpdateLeg) {
-      onUpdateLeg({ premium: newCost, premiumSource: "manual" });
+  const handleCostBasisTextChange = (text: string) => {
+    // Only allow valid input characters (digits and one decimal point)
+    if (/^\d*\.?\d*$/.test(text)) {
+      setCostBasisText(text);
     }
+  };
+  
+  const handleCostBasisFocus = () => {
+    setIsEditingCostBasis(true);
+  };
+  
+  const handleCostBasisBlur = () => {
+    setIsEditingCostBasis(false);
+    commitCostBasisEdit(costBasisText);
   };
   
   const handleResetCostBasis = () => {
     const avgCost = calculateAverageCost();
     setCostBasis(avgCost);
+    setCostBasisText(avgCost.toFixed(2));
     // Reset to market-based pricing
     if (onUpdateLeg) onUpdateLeg({ premium: avgCost, premiumSource: "market" });
   };
@@ -310,12 +359,13 @@ export function OptionDetailsPanel({
           <div className="flex items-center gap-1">
             <div className="text-sm font-semibold">$</div>
             <Input
-              type="number"
-              value={costBasis.toFixed(2)}
-              onChange={(e) => handleCostBasisChange(Number(e.target.value))}
+              type="text"
+              inputMode="decimal"
+              value={costBasisText}
+              onChange={(e) => handleCostBasisTextChange(e.target.value)}
+              onFocus={handleCostBasisFocus}
+              onBlur={handleCostBasisBlur}
               className="h-8 font-mono text-center"
-              step="0.01"
-              min="0"
               data-testid="input-cost-basis"
             />
             <Button
