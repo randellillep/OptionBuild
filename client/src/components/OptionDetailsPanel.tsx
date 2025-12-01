@@ -301,7 +301,13 @@ export function OptionDetailsPanel({
   };
 
   return (
-    <div className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg" data-testid="option-details-panel">
+    <div 
+      className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg" 
+      data-testid="option-details-panel"
+      style={{ pointerEvents: 'auto' }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

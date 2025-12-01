@@ -402,12 +402,20 @@ export function StrikeLadder({
           </div>
         </PopoverTrigger>
         <PopoverContent 
-          className="p-0 w-auto" 
+          className="p-0 w-auto z-[9999]" 
           align="center" 
           side="bottom" 
           sideOffset={10}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            // Don't close if clicking inside the popover content
+            const target = e.target as HTMLElement;
+            if (target.closest('[data-testid="option-details-panel"]')) {
+              e.preventDefault();
+            }
+          }}
+          style={{ pointerEvents: 'auto' }}
         >
           <OptionDetailsPanel
             leg={leg}
