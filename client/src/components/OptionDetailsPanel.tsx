@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
 import { Minus, Plus, X, RotateCcw } from "lucide-react";
 import type { OptionLeg, MarketOptionChainSummary } from "@shared/schema";
 import { calculateGreeks } from "@/lib/options-pricing";
@@ -185,9 +184,13 @@ export function OptionDetailsPanel({
     return leg.premium;
   };
   
+  // Use ref to track editing state - more reliable than state for blocking effects
+  const isEditingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
   const [costBasis, setCostBasis] = useState<number>(leg.premium);
   const [costBasisText, setCostBasisText] = useState<string>(leg.premium.toFixed(2));
-  const [isEditingCostBasis, setIsEditingCostBasis] = useState(false);
+  
   // Check if this leg has a manually edited premium (persisted in leg data)
   const isManuallyEdited = leg.premiumSource === "manual";
   
@@ -218,26 +221,22 @@ export function OptionDetailsPanel({
     }
   };
   
-  // Commit pending edits on unmount
+  // Sync local state with leg premium when leg changes - but NOT during editing
   useEffect(() => {
-    return () => {
-      if (isEditingCostBasis) {
-        commitCostBasisEdit(costBasisText);
-      }
-    };
-  }, [isEditingCostBasis, costBasisText]);
-  
-  // Sync local state with leg premium when leg changes
-  useEffect(() => {
+    // Skip all updates while user is editing
+    if (isEditingRef.current) return;
+    
     setCostBasis(leg.premium);
-    if (!isEditingCostBasis) {
-      setCostBasisText(leg.premium.toFixed(2));
-    }
+    setCostBasisText(leg.premium.toFixed(2));
   }, [leg.premium, leg.premiumSource]);
   
-  // Update cost basis when market data changes (only if not manually edited)
+  // Update cost basis when market data changes (only if not manually edited and not editing)
   useEffect(() => {
-    if (!isManuallyEdited && !isEditingCostBasis && marketData?.bid !== undefined && marketData?.ask !== undefined) {
+    // Skip all updates while user is editing
+    if (isEditingRef.current) return;
+    if (isManuallyEdited) return;
+    
+    if (marketData?.bid !== undefined && marketData?.ask !== undefined) {
       const avgCost = calculateAverageCost();
       setCostBasis(avgCost);
       setCostBasisText(avgCost.toFixed(2));
@@ -246,7 +245,7 @@ export function OptionDetailsPanel({
         onUpdateLeg({ premium: avgCost, premiumSource: "market" });
       }
     }
-  }, [marketData?.bid, marketData?.ask, isManuallyEdited, isEditingCostBasis]);
+  }, [marketData?.bid, marketData?.ask, isManuallyEdited]);
   
   const handleCostBasisTextChange = (text: string) => {
     // Only allow valid input characters (digits and one decimal point)
@@ -256,12 +255,17 @@ export function OptionDetailsPanel({
   };
   
   const handleCostBasisFocus = () => {
-    setIsEditingCostBasis(true);
+    // Set ref immediately - this blocks effects synchronously
+    isEditingRef.current = true;
   };
   
   const handleCostBasisBlur = () => {
-    setIsEditingCostBasis(false);
+    // Commit the edit first, then allow updates again
     commitCostBasisEdit(costBasisText);
+    // Small delay before allowing updates to prevent race conditions
+    setTimeout(() => {
+      isEditingRef.current = false;
+    }, 100);
   };
   
   const handleResetCostBasis = () => {
@@ -365,6 +369,7 @@ export function OptionDetailsPanel({
           <div className="flex items-center gap-1 relative">
             <span className="text-sm font-semibold select-none">$</span>
             <input
+              ref={inputRef}
               type="text"
               inputMode="decimal"
               value={costBasisText}
@@ -372,6 +377,10 @@ export function OptionDetailsPanel({
               onFocus={handleCostBasisFocus}
               onBlur={handleCostBasisBlur}
               onClick={(e) => e.currentTarget.select()}
+              onMouseDown={(e) => {
+                // Set editing ref immediately on mousedown to block any pending updates
+                isEditingRef.current = true;
+              }}
               className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono text-center ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               data-testid="input-cost-basis"
             />
