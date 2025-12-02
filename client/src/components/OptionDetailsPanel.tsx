@@ -311,7 +311,8 @@ export function OptionDetailsPanel({
 
   // === Closing Transaction State ===
   const [showClosingSection, setShowClosingSection] = useState(!!leg.closingTransaction?.isEnabled);
-  const [closingQty, setClosingQty] = useState(leg.closingTransaction?.quantity || leg.quantity);
+  // Default closing quantity to 1 when first enabling (not full position)
+  const [closingQty, setClosingQty] = useState(leg.closingTransaction?.quantity || 1);
   const [closingPriceText, setClosingPriceText] = useState(
     (leg.closingTransaction?.closingPrice || marketData?.ask || leg.premium).toFixed(2)
   );

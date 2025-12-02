@@ -113,6 +113,11 @@ export function calculateGreeks(
   volatility: number = 0.3,
   riskFreeRate: number = 0.05
 ): Greeks {
+  // Return zero Greeks for excluded legs
+  if (leg.isExcluded) {
+    return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
+  }
+  
   const T = leg.expirationDays / 365;
   const S = underlyingPrice;
   const K = leg.strike;
@@ -149,12 +154,18 @@ export function calculateGreeks(
   
   const multiplier = leg.position === "long" ? 1 : -1;
   
+  // Use effective quantity (accounting for closing transaction)
+  const closing = leg.closingTransaction;
+  const effectiveQuantity = closing?.isEnabled 
+    ? Math.max(0, leg.quantity - (closing.quantity || 0))
+    : leg.quantity;
+  
   return {
-    delta: delta * multiplier * leg.quantity,
-    gamma: gamma * multiplier * leg.quantity,
-    theta: theta * multiplier * leg.quantity,
-    vega: vega * multiplier * leg.quantity,
-    rho: rho * multiplier * leg.quantity,
+    delta: delta * multiplier * effectiveQuantity,
+    gamma: gamma * multiplier * effectiveQuantity,
+    theta: theta * multiplier * effectiveQuantity,
+    vega: vega * multiplier * effectiveQuantity,
+    rho: rho * multiplier * effectiveQuantity,
   };
 }
 
