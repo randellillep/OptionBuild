@@ -409,9 +409,9 @@ export function StrikeLadder({
             >
               {strikeText}
               
-              {/* Quantity badge - shows remaining for open position */}
+              {/* Quantity badge - shows remaining for open position (black with white text) */}
               <span 
-                className="absolute -top-1 -right-1 bg-green-400 text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-green-600"
+                className="absolute -top-1 -right-1 bg-black text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-slate-700"
                 data-testid={`quantity-${leg.id}`}
               >
                 {hasClosing ? remainingQty : (leg.position === 'short' ? `-${quantity}` : `+${quantity}`)}
