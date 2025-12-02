@@ -5,7 +5,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
 import type { OptionLeg } from "@shared/schema";
 import { calculateOptionPrice } from "@/lib/options-pricing";
-import { Check } from "lucide-react";
+import { Check, DollarSign } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface StrikeLadderProps {
   legs: OptionLeg[];
@@ -22,6 +24,14 @@ interface StrikeLadderProps {
     max: number;
     strikes: number[];
   } | null;
+}
+
+// Interface for tracking sold portions
+interface SoldPortion {
+  legId: string;
+  quantity: number;
+  price: number;
+  soldAt: Date;
 }
 
 export function StrikeLadder({ 
@@ -45,6 +55,14 @@ export function StrikeLadder({
   const [panStartX, setPanStartX] = useState(0);
   const [panStartOffset, setPanStartOffset] = useState(0);
   const ladderRef = useRef<HTMLDivElement>(null);
+  
+  // Two-click sell functionality state
+  const [sellMode, setSellMode] = useState<string | null>(null); // legId in sell mode
+  const [sellQuantity, setSellQuantity] = useState(1);
+  const [sellPrice, setSellPrice] = useState("");
+  
+  // Store original strikes when legs are added (for panning stability)
+  const [originalStrikes] = useState<Map<string, number>>(new Map());
 
   // Detect the actual strike increment from market data
   const strikeIncrement = useMemo(() => {
@@ -337,6 +355,51 @@ export function StrikeLadder({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
+  // Handle two-click sell: first click enters sell mode, second click confirms
+  const handleSellModeClick = (e: React.MouseEvent, leg: OptionLeg) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (sellMode === leg.id) {
+      // Second click - confirm the sell
+      const price = parseFloat(sellPrice);
+      if (!isNaN(price) && price > 0 && sellQuantity > 0) {
+        // Create/update closing transaction
+        const currentClosing = leg.closingTransaction;
+        const newClosingQty = (currentClosing?.isEnabled ? currentClosing.quantity : 0) + sellQuantity;
+        
+        onUpdateLeg(leg.id, {
+          closingTransaction: {
+            quantity: Math.min(newClosingQty, leg.quantity),
+            closingPrice: price,
+            isEnabled: true,
+          }
+        });
+      }
+      // Exit sell mode
+      setSellMode(null);
+      setSellQuantity(1);
+      setSellPrice("");
+    } else {
+      // First click - enter sell mode
+      setSellMode(leg.id);
+      setSellQuantity(1);
+      // Default to market price
+      const marketData = getMarketDataForLeg(leg);
+      const defaultPrice = marketData?.ask || leg.premium;
+      setSellPrice(defaultPrice.toFixed(2));
+    }
+  };
+  
+  // Cancel sell mode when clicking elsewhere
+  const handleCancelSellMode = () => {
+    if (sellMode) {
+      setSellMode(null);
+      setSellQuantity(1);
+      setSellPrice("");
+    }
+  };
+
   // Render a draggable badge with quantity indicator
   // When there's a closing transaction, render stacked badges (closed below, open above)
   const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
@@ -348,13 +411,24 @@ export function StrikeLadder({
     const remainingQty = quantity - closingQty;
     
     const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
-    const positionPercent = getStrikePosition(leg.strike);
+    const rawPositionPercent = getStrikePosition(leg.strike);
+    
+    // BUGFIX: Clamp badge position to stay within the visible ladder (3-97%)
+    // This prevents badges from being "thrown out" when panning
+    const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
+    const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
+    
     const isBeingDragged = draggedLeg === leg.id;
+    const isInSellMode = sellMode === leg.id;
+    
+    // Determine if this leg can be dragged (not sold portions)
+    const canDrag = !hasClosing || remainingQty > 0;
     
     // Badge styling
     const openBgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
     const closedBgClass = "bg-cyan-600 hover:bg-cyan-700"; // Blue/teal for closed positions
     const excludedBgClass = "bg-gray-400 hover:bg-gray-500";
+    const sellModeBgClass = "bg-orange-500 ring-2 ring-orange-300"; // Highlight in sell mode
     
     // Calculate vertical position accounting for stacking
     const badgeHeight = 24; // h-6 = 24px
@@ -377,7 +451,7 @@ export function StrikeLadder({
     return (
       <Popover 
         key={leg.id} 
-        open={popoverOpen && selectedLeg?.id === leg.id && !isBeingDragged} 
+        open={popoverOpen && selectedLeg?.id === leg.id && !isBeingDragged && !isInSellMode} 
         onOpenChange={(open) => {
           if (!open && selectedLeg?.id === leg.id) {
             setPopoverOpen(false);
@@ -393,15 +467,66 @@ export function StrikeLadder({
               left: `${positionPercent}%`,
               transform: 'translateX(-50%)',
               top: topPosition,
-              opacity: isExcluded ? 0.5 : 1,
+              opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
             }}
           >
+            {/* Two-click sell popup UI */}
+            {isInSellMode && (
+              <div 
+                className="absolute -top-20 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-orange-400 p-2 z-[100] min-w-[140px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-[9px] font-semibold text-orange-600 dark:text-orange-400 mb-1">
+                  Quick Sell {leg.position === 'long' ? '(Sell to Close)' : '(Buy to Close)'}
+                </div>
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-[9px] text-muted-foreground">Qty:</span>
+                  <button
+                    className="h-5 w-5 text-xs bg-slate-200 dark:bg-slate-600 rounded hover:bg-slate-300"
+                    onClick={(e) => { e.stopPropagation(); setSellQuantity(Math.max(1, sellQuantity - 1)); }}
+                  >-</button>
+                  <span className="text-xs font-mono min-w-[16px] text-center">{sellQuantity}</span>
+                  <button
+                    className="h-5 w-5 text-xs bg-slate-200 dark:bg-slate-600 rounded hover:bg-slate-300"
+                    onClick={(e) => { e.stopPropagation(); setSellQuantity(Math.min(remainingQty, sellQuantity + 1)); }}
+                  >+</button>
+                </div>
+                <div className="flex items-center gap-1 mb-2">
+                  <span className="text-[9px] text-muted-foreground">$</span>
+                  <input
+                    type="text"
+                    value={sellPrice}
+                    onChange={(e) => /^\d*\.?\d*$/.test(e.target.value) && setSellPrice(e.target.value)}
+                    className="h-5 w-16 text-xs font-mono px-1 border rounded bg-background"
+                    onClick={(e) => e.stopPropagation()}
+                    data-testid="input-sell-price"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    className="flex-1 h-5 text-[9px] bg-orange-500 hover:bg-orange-600 text-white rounded font-semibold"
+                    onClick={(e) => handleSellModeClick(e, leg)}
+                    data-testid="button-confirm-sell"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    className="h-5 px-2 text-[9px] bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 rounded"
+                    onClick={(e) => { e.stopPropagation(); handleCancelSellMode(); }}
+                    data-testid="button-cancel-sell"
+                  >
+                    X
+                  </button>
+                </div>
+              </div>
+            )}
+            
             {/* Main open position badge */}
             <button
-              onPointerDown={(e) => handleBadgePointerDown(leg, e)}
+              onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e)}
               data-testid={testId}
-              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : openBgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
+              className={`relative text-[10px] h-6 px-2 ${isInSellMode ? sellModeBgClass : (isExcluded ? excludedBgClass : openBgClass)} text-white font-bold whitespace-nowrap ${canDrag && isBeingDragged ? 'cursor-grabbing scale-110 z-50' : (canDrag ? 'cursor-grab' : 'cursor-pointer')} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
               style={{ 
                 boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
                 touchAction: 'none'
@@ -409,16 +534,22 @@ export function StrikeLadder({
             >
               {strikeText}
               
-              {/* Quantity badge - shows remaining for open position (black with white text) */}
+              {/* Quantity badge - clickable for two-click sell (black with white text) */}
               <span 
-                className="absolute -top-1 -right-1 bg-black text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-slate-700"
+                className={`absolute -top-1 -right-1 text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border cursor-pointer transition-all ${isInSellMode ? 'bg-orange-600 border-orange-400 ring-1 ring-orange-300' : 'bg-black border-slate-700 hover:bg-slate-700'}`}
                 data-testid={`quantity-${leg.id}`}
+                onClick={(e) => {
+                  if (remainingQty > 0) {
+                    handleSellModeClick(e, leg);
+                  }
+                }}
+                title="Click to sell"
               >
                 {hasClosing ? remainingQty : (leg.position === 'short' ? `-${quantity}` : `+${quantity}`)}
               </span>
             </button>
             
-            {/* Closed position badge - stacked below */}
+            {/* Closed position badge - stacked below (NOT draggable) */}
             {hasClosing && closingQty > 0 && (
               <div 
                 className="absolute left-0"
@@ -432,9 +563,9 @@ export function StrikeLadder({
                   {strikeText}
                   <Check className="inline-block h-3 w-3 ml-0.5" />
                   
-                  {/* Closed quantity badge */}
+                  {/* Closed quantity badge - black with white text */}
                   <span 
-                    className="absolute -top-1 -right-1 bg-cyan-400 text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-cyan-600"
+                    className="absolute -top-1 -right-1 bg-black text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-slate-700"
                   >
                     {closingQty}
                   </span>
