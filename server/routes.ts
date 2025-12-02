@@ -182,6 +182,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Company profile and fundamentals endpoint
+  app.get("/api/stock/fundamentals/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      
+      if (!FINNHUB_API_KEY) {
+        return res.status(500).json({ error: "API key not configured" });
+      }
+
+      // Fetch company profile and basic financials in parallel
+      const [profileRes, metricsRes] = await Promise.all([
+        fetch(`${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol.toUpperCase()}&token=${FINNHUB_API_KEY}`),
+        fetch(`${FINNHUB_BASE_URL}/stock/metric?symbol=${symbol.toUpperCase()}&metric=all&token=${FINNHUB_API_KEY}`)
+      ]);
+
+      if (!profileRes.ok || !metricsRes.ok) {
+        throw new Error("Failed to fetch company data from Finnhub");
+      }
+
+      const [profile, metrics] = await Promise.all([
+        profileRes.json(),
+        metricsRes.json()
+      ]);
+
+      // Extract relevant financial metrics
+      const metric = metrics.metric || {};
+      
+      res.json({
+        symbol: symbol.toUpperCase(),
+        name: profile.name || symbol.toUpperCase(),
+        logo: profile.logo,
+        exchange: profile.exchange,
+        industry: profile.finnhubIndustry,
+        marketCap: profile.marketCapitalization ? profile.marketCapitalization * 1000000 : null, // Finnhub returns in millions
+        currency: profile.currency,
+        country: profile.country,
+        weburl: profile.weburl,
+        ipo: profile.ipo,
+        shareOutstanding: profile.shareOutstanding,
+        // Key financial metrics
+        peRatio: metric['peNormalizedAnnual'] || metric['peBasicExclExtraTTM'] || null,
+        eps: metric['epsNormalizedAnnual'] || metric['epsBasicExclExtraItemsTTM'] || null,
+        epsGrowth: metric['epsGrowthTTMYoy'] || null,
+        revenueGrowth: metric['revenueGrowthTTMYoy'] || null,
+        profitMargin: metric['netProfitMarginTTM'] || null,
+        roe: metric['roeTTM'] || null,
+        roa: metric['roaTTM'] || null,
+        debtToEquity: metric['totalDebt/totalEquityQuarterly'] || null,
+        currentRatio: metric['currentRatioQuarterly'] || null,
+        quickRatio: metric['quickRatioQuarterly'] || null,
+        dividendYield: metric['dividendYieldIndicatedAnnual'] || null,
+        beta: metric['beta'] || null,
+        high52Week: metric['52WeekHigh'] || null,
+        low52Week: metric['52WeekLow'] || null,
+        priceToBook: metric['pbQuarterly'] || null,
+        priceToSales: metric['psTTM'] || null,
+        updated: Date.now(),
+      });
+    } catch (error) {
+      console.error("Error fetching company fundamentals:", error);
+      res.status(500).json({ error: "Failed to fetch company fundamentals" });
+    }
+  });
+
   // Options expirations endpoint - fetches ACTUAL available expirations from Alpaca
   app.get("/api/options/expirations/:symbol", async (req, res) => {
     try {

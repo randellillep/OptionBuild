@@ -165,3 +165,37 @@ The Implied Volatility bar now updates in real-time:
   - Uses real options chain data when available, falls back to simulated skew
   - Reference line shows current stock price
   - Displays ATM IV percentage
+- **Financials tab**: Company fundamentals from Finnhub API
+  - Company profile with logo, name, exchange, industry
+  - Key metrics: Market Cap, P/E Ratio, EPS, 52-week range
+  - Additional metrics: ROE, ROA, Beta, P/B, P/S, Profit Margin
+
+### Professional Dark Fintech Theme
+- **Dark navy background**: Deep navy (#0a0e1a-ish via HSL 222 47% 5%)
+- **Teal/mint accents**: Primary color HSL 168 76% 42% for buttons and highlights
+- **Trading colors**: Profit green (HSL 142 71% 45%), loss red (HSL 0 72% 51%)
+- **Custom color utilities**: text-profit, text-loss, text-bid, text-ask, text-teal, bg-profit, bg-loss, etc.
+- **Sentiment colors**: bg-bullish, bg-bearish, bg-neutral for Option Finder
+
+### Visual Strategy Selector
+- **Dialog-based selection**: Replace dropdown with full dialog showing all strategies
+- **Category organization**: Basic, Credit Spreads, Debit Spreads, Volatility, Neutral
+- **Strategy metadata**: Sentiment tags (Bullish/Bearish), risk/profit levels, max profit/loss/breakeven
+- **Mini P/L charts**: Preview P/L profile for each strategy before selection
+- **Extended strategy templates**: 16 strategies with full metadata
+
+### Option Finder Page
+- **Sentiment icons**: Very Bearish to Very Bullish sentiment selector with visual icons
+- **Target price input**: Set expected price movement with percentage calculation
+- **Budget input**: Optional budget constraint for filtering strategies
+- **Strategy cards**: Display matching strategies with:
+  - Mini P/L charts
+  - Return on risk, Chance, Profit metrics
+  - Collateral requirements
+  - "Open in Builder" action
+- **Scoring algorithm**: Ranks strategies based on sentiment match and target price alignment
+
+### API Endpoints
+- **GET /api/stock/fundamentals/:symbol**: Company profile and key financial metrics from Finnhub
+  - Profile: name, logo, exchange, industry, market cap
+  - Metrics: P/E, EPS, ROE, ROA, Beta, 52-week range, dividend yield

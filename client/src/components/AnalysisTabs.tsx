@@ -1,9 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, BarChart3, FileText, PieChart, Users } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Activity, TrendingUp, BarChart3, FileText, PieChart, Users, Building2, ExternalLink } from "lucide-react";
 import type { Greeks, MarketOptionChainSummary } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
+import { useQuery } from "@tanstack/react-query";
 import { 
   LineChart, 
   Line, 
@@ -19,6 +21,36 @@ import {
   Bar
 } from "recharts";
 import { useMemo } from "react";
+
+interface CompanyFundamentals {
+  symbol: string;
+  name: string;
+  logo?: string;
+  exchange?: string;
+  industry?: string;
+  marketCap?: number;
+  currency?: string;
+  country?: string;
+  weburl?: string;
+  ipo?: string;
+  shareOutstanding?: number;
+  peRatio?: number;
+  eps?: number;
+  epsGrowth?: number;
+  revenueGrowth?: number;
+  profitMargin?: number;
+  roe?: number;
+  roa?: number;
+  debtToEquity?: number;
+  currentRatio?: number;
+  quickRatio?: number;
+  dividendYield?: number;
+  beta?: number;
+  high52Week?: number;
+  low52Week?: number;
+  priceToBook?: number;
+  priceToSales?: number;
+}
 
 interface AnalysisTabsProps {
   greeks: Greeks;
@@ -140,15 +172,40 @@ export function AnalysisTabs({
       .slice(0, 20); // Limit to 20 strikes for readability
   }, [optionsChainData, currentPrice, volatility]);
 
-  const formatDate = (date: string | null) => {
+  const formatDate = (date: string | null | undefined) => {
     if (!date) return 'N/A';
     const d = new Date(date);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  // Fetch company fundamentals for Financials tab
+  const effectiveSymbol = symbol || 'AAPL';
+  const { data: fundamentals, isLoading: fundamentalsLoading } = useQuery<CompanyFundamentals>({
+    queryKey: [`/api/stock/fundamentals/${effectiveSymbol}`],
+    enabled: !!effectiveSymbol && effectiveSymbol.length > 0,
+  });
+
+  const formatMarketCap = (value?: number) => {
+    if (!value) return 'N/A';
+    if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+    return `$${value.toLocaleString()}`;
+  };
+
+  const formatPercent = (value?: number) => {
+    if (value === undefined || value === null) return 'N/A';
+    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+  };
+
+  const formatNumber = (value?: number, decimals = 2) => {
+    if (value === undefined || value === null) return 'N/A';
+    return value.toFixed(decimals);
+  };
+
   return (
     <Tabs defaultValue="greeks" className="w-full">
-      <TabsList className="grid w-full grid-cols-6 h-7">
+      <TabsList className="grid w-full grid-cols-7 h-7">
         <TabsTrigger value="greeks" className="text-[10px] h-6" data-testid="tab-greeks">
           <Activity className="h-2.5 w-2.5 mr-0.5" />
           Greeks
@@ -160,6 +217,10 @@ export function AnalysisTabs({
         <TabsTrigger value="volatility-skew" className="text-[10px] h-6" data-testid="tab-volatility-skew">
           <BarChart3 className="h-2.5 w-2.5 mr-0.5" />
           Vol Skew
+        </TabsTrigger>
+        <TabsTrigger value="financials" className="text-[10px] h-6" data-testid="tab-financials">
+          <Building2 className="h-2.5 w-2.5 mr-0.5" />
+          Financials
         </TabsTrigger>
         <TabsTrigger value="option-overview" className="text-[10px] h-6" data-testid="tab-option-overview">
           <FileText className="h-2.5 w-2.5 mr-0.5" />
@@ -369,6 +430,119 @@ export function AnalysisTabs({
           ) : (
             <div className="h-32 flex items-center justify-center bg-muted/30 rounded-md">
               <p className="text-xs text-muted-foreground">Loading volatility skew data...</p>
+            </div>
+          )}
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="financials" className="mt-2">
+        <Card className="p-3">
+          {fundamentalsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-48" />
+              <div className="grid grid-cols-2 gap-2">
+                {[...Array(6)].map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-full" />
+                ))}
+              </div>
+            </div>
+          ) : fundamentals ? (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                {fundamentals.logo && (
+                  <img 
+                    src={fundamentals.logo} 
+                    alt={fundamentals.name} 
+                    className="h-8 w-8 rounded object-contain"
+                  />
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold">{fundamentals.name}</h3>
+                    <Badge variant="outline" className="text-[10px]">{fundamentals.symbol}</Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    {fundamentals.exchange && <span>{fundamentals.exchange}</span>}
+                    {fundamentals.industry && <span>• {fundamentals.industry}</span>}
+                    {fundamentals.weburl && (
+                      <a 
+                        href={fundamentals.weburl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-0.5 text-primary hover:underline"
+                      >
+                        Website <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Market Cap</p>
+                  <p className="text-sm font-bold font-mono">{formatMarketCap(fundamentals.marketCap)}</p>
+                </div>
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">P/E Ratio</p>
+                  <p className="text-sm font-bold font-mono">{formatNumber(fundamentals.peRatio)}</p>
+                </div>
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">EPS</p>
+                  <p className="text-sm font-bold font-mono">${formatNumber(fundamentals.eps)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">52-Week Range</p>
+                  <div className="flex items-center gap-1 text-xs font-mono">
+                    <span className="text-loss">${formatNumber(fundamentals.low52Week, 2)}</span>
+                    <span className="text-muted-foreground">—</span>
+                    <span className="text-profit">${formatNumber(fundamentals.high52Week, 2)}</span>
+                  </div>
+                </div>
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Dividend Yield</p>
+                  <p className="text-sm font-bold font-mono">
+                    {fundamentals.dividendYield ? `${formatNumber(fundamentals.dividendYield, 2)}%` : 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t pt-2 mt-2">
+                <p className="text-[10px] text-muted-foreground mb-2">Key Metrics</p>
+                <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[10px]">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ROE</span>
+                    <span className="font-mono">{formatNumber(fundamentals.roe)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ROA</span>
+                    <span className="font-mono">{formatNumber(fundamentals.roa)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Beta</span>
+                    <span className="font-mono">{formatNumber(fundamentals.beta)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">P/B</span>
+                    <span className="font-mono">{formatNumber(fundamentals.priceToBook)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">P/S</span>
+                    <span className="font-mono">{formatNumber(fundamentals.priceToSales)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Margin</span>
+                    <span className="font-mono">{formatNumber(fundamentals.profitMargin)}%</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="h-32 flex items-center justify-center bg-muted/30 rounded-md">
+              <p className="text-xs text-muted-foreground">No fundamentals data available for {symbol}</p>
             </div>
           )}
         </Card>

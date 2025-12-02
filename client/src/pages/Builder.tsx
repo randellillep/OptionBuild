@@ -15,7 +15,8 @@ import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
-import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3 } from "lucide-react";
+import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Search } from "lucide-react";
+import { StrategySelector } from "@/components/StrategySelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
@@ -425,31 +426,17 @@ export default function Builder() {
             </div>
 
             <nav className="hidden md:flex items-center gap-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="button-build-menu">
-                    Build
-                    <ChevronDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64">
-                  {strategyTemplates.slice(0, 10).map((template, idx) => (
-                    <DropdownMenuItem
-                      key={idx}
-                      onClick={() => loadTemplate(idx)}
-                      data-testid={`menu-strategy-${template.name.toLowerCase().replace(/\s+/g, "-")}`}
-                    >
-                      <div>
-                        <div className="font-medium">{template.name}</div>
-                        <div className="text-xs text-muted-foreground">{template.description.substring(0, 50)}...</div>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <StrategySelector onSelectStrategy={loadTemplate} />
 
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="button-optimize">
-                Optimize
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 px-2 text-sm" 
+                onClick={() => setLocation("/option-finder")}
+                data-testid="button-option-finder"
+              >
+                <Search className="h-3 w-3 mr-1" />
+                Option Finder
               </Button>
 
               <Button 
