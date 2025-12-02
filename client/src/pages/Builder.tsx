@@ -15,19 +15,22 @@ import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
-import { TrendingUp, ChevronDown, BookOpen, FileText, User } from "lucide-react";
+import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation } from "wouter";
 import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 import { useOptionsChain } from "@/hooks/useOptionsChain";
 import { calculateImpliedVolatility } from "@/lib/options-pricing";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Builder() {
   const [, setLocation] = useLocation();
   const [range, setRange] = useState(14);
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   
   const {
     symbolInfo,
@@ -480,10 +483,44 @@ export default function Builder() {
               <FileText className="h-3 w-3 mr-1" />
               Blog
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" data-testid="button-my-account">
-              <User className="h-3 w-3 mr-1" />
-              My Account
-            </Button>
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" data-testid="button-user-menu">
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={user?.profileImageUrl ?? undefined} className="object-cover" />
+                      <AvatarFallback className="text-[10px]">
+                        {user?.firstName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline">{user?.firstName ?? "Account"}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                    {user?.email}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="/api/logout" className="flex items-center" data-testid="button-logout">
+                      <LogOut className="h-3 w-3 mr-2" />
+                      Sign Out
+                    </a>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 px-2 text-xs" 
+                data-testid="button-sign-in"
+                onClick={() => window.location.href = "/api/login"}
+              >
+                <User className="h-3 w-3 mr-1" />
+                Sign In
+              </Button>
+            )}
             <AddLegDropdown 
               currentPrice={symbolInfo.price} 
               onAddLeg={addLeg}

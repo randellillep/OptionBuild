@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
 import type { OptionLeg } from "@shared/schema";
 import { calculateOptionPrice } from "@/lib/options-pricing";
+import { Check } from "lucide-react";
 
 interface StrikeLadderProps {
   legs: OptionLeg[];
@@ -87,14 +88,15 @@ export function StrikeLadder({
   const adjustedMax = strikeRange.max + panAdjustment;
   const range = adjustedMax - adjustedMin;
   
-  // Determine how many strikes to show as labels (show more for better visual)
+  // Determine how many strikes to show as labels - fewer labels to prevent overlap
   const getLabelInterval = () => {
     const strikesInView = range / strikeIncrement;
-    // Show more labels for better visual - aim for 20-30 labels
-    if (strikesInView <= 30) return 1;
-    if (strikesInView <= 60) return 2;
-    if (strikesInView <= 120) return 4;
-    return Math.ceil(strikesInView / 30);
+    // Show fewer labels to prevent overlapping - aim for 8-12 visible labels
+    if (strikesInView <= 10) return 1;
+    if (strikesInView <= 20) return 2;
+    if (strikesInView <= 40) return 4;
+    if (strikesInView <= 80) return 8;
+    return Math.ceil(strikesInView / 10);
   };
 
   const labelInterval = getLabelInterval();
@@ -336,39 +338,41 @@ export function StrikeLadder({
   };
 
   // Render a draggable badge with quantity indicator
+  // When there's a closing transaction, render stacked badges (closed below, open above)
   const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
     const isCall = leg.type === "call";
     const isExcluded = leg.isExcluded;
     const hasClosing = leg.closingTransaction?.isEnabled;
-    
-    // Different styles for excluded legs
-    const baseBgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
-    const excludedBgClass = "bg-gray-400 hover:bg-gray-500";
-    const bgClass = isExcluded ? excludedBgClass : baseBgClass;
+    const closingQty = hasClosing ? (leg.closingTransaction?.quantity || 0) : 0;
+    const quantity = leg.quantity || 1;
+    const remainingQty = quantity - closingQty;
     
     const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
     const positionPercent = getStrikePosition(leg.strike);
     const isBeingDragged = draggedLeg === leg.id;
-    const quantity = leg.quantity || 1;
     
-    // Show effective quantity (accounting for closing)
-    const closingQty = hasClosing ? (leg.closingTransaction?.quantity || 0) : 0;
-    const effectiveQty = quantity - closingQty;
-    const quantityDisplay = leg.position === 'short' 
-      ? (hasClosing ? `-${effectiveQty}/${quantity}` : `-${quantity}`)
-      : (hasClosing ? `+${effectiveQty}/${quantity}` : `+${quantity}`);
-
+    // Badge styling
+    const openBgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
+    const closedBgClass = "bg-cyan-600 hover:bg-cyan-700"; // Blue/teal for closed positions
+    const excludedBgClass = "bg-gray-400 hover:bg-gray-500";
+    
     // Calculate vertical position accounting for stacking
-    // Long legs: bottom of badge at center line, stacking upward
-    // Short legs: top of badge at center line, stacking downward
     const badgeHeight = 24; // h-6 = 24px
-    const stackOffset = verticalOffset * (badgeHeight + 2); // badge height + 2px gap
+    const stackOffset = verticalOffset * (badgeHeight + 2);
     
-    // Both use top positioning for simpler math
+    // Calculate extra offset for stacked closed badge
+    const closedBadgeOffset = hasClosing && closingQty > 0 ? (badgeHeight + 2) : 0;
+    
     const topPosition = position === 'long' 
-      ? `calc(50% - ${badgeHeight}px - ${stackOffset}px)`  // Above center, stacking up
-      : `calc(50% + ${stackOffset}px)`;  // Below center, stacking down
-    const bottomPosition = 'auto';
+      ? `calc(50% - ${badgeHeight}px - ${stackOffset}px)`
+      : `calc(50% + ${stackOffset}px)`;
+    
+    const closedBadgeTopPosition = position === 'long'
+      ? `calc(50% - ${stackOffset}px)` // Below open badge (closer to center)
+      : `calc(50% + ${stackOffset + badgeHeight + 2}px)`; // Below open badge
+
+    // Strike display text
+    const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
     return (
       <Popover 
@@ -389,37 +393,54 @@ export function StrikeLadder({
               left: `${positionPercent}%`,
               transform: 'translateX(-50%)',
               top: topPosition,
-              bottom: bottomPosition,
               opacity: isExcluded ? 0.5 : 1,
             }}
           >
+            {/* Main open position badge */}
             <button
               onPointerDown={(e) => handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e)}
               data-testid={testId}
-              className={`relative text-[10px] h-6 px-2 ${bgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
+              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : openBgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
               style={{ 
                 boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
                 touchAction: 'none'
               }}
             >
-              {leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}{isCall ? 'C' : 'P'}
+              {strikeText}
               
-              {/* Quantity badge overlay - always visible */}
+              {/* Quantity badge - shows remaining for open position */}
               <span 
-                className={`absolute -top-1 -right-1 ${hasClosing ? 'bg-amber-400' : 'bg-white'} text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-gray-300`}
+                className="absolute -top-1 -right-1 bg-green-400 text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-green-600"
                 data-testid={`quantity-${leg.id}`}
               >
-                {quantityDisplay}
+                {hasClosing ? remainingQty : (leg.position === 'short' ? `-${quantity}` : `+${quantity}`)}
               </span>
-              
-              {/* Closing indicator */}
-              {hasClosing && (
-                <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-[7px] bg-amber-500 text-white px-1 rounded-sm">
-                  CLOSE
-                </span>
-              )}
             </button>
+            
+            {/* Closed position badge - stacked below */}
+            {hasClosing && closingQty > 0 && (
+              <div 
+                className="absolute left-0"
+                style={{ top: `${badgeHeight + 2}px` }}
+              >
+                <button
+                  onClick={(e) => handleBadgeClick(leg, e)}
+                  className={`relative text-[10px] h-6 px-2 ${closedBgClass} text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0`}
+                  data-testid={`badge-closed-${leg.id}`}
+                >
+                  {strikeText}
+                  <Check className="inline-block h-3 w-3 ml-0.5" />
+                  
+                  {/* Closed quantity badge */}
+                  <span 
+                    className="absolute -top-1 -right-1 bg-cyan-400 text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-cyan-600"
+                  >
+                    {closingQty}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         </PopoverTrigger>
         <PopoverContent 

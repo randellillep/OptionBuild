@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import type { OptionLeg, Greeks, StrategyMetrics } from "@shared/schema";
 import { calculateGreeks, calculateStrategyMetrics, calculateProfitLoss, calculateProfitLossAtDate } from "@/lib/options-pricing";
 
@@ -21,6 +21,22 @@ export function useStrategyEngine(rangePercent: number = 14) {
   
   const [legs, setLegs] = useState<OptionLeg[]>([]);
   const [hasFetchedInitialPrice, setHasFetchedInitialPrice] = useState(false);
+  const prevSymbolRef = useRef<string>(symbolInfo.symbol);
+  
+  // Clear closing transactions and exclusions when symbol changes
+  useEffect(() => {
+    if (prevSymbolRef.current !== symbolInfo.symbol) {
+      // Symbol changed - clear all closing transactions and exclusions from legs
+      setLegs(currentLegs => 
+        currentLegs.map(leg => ({
+          ...leg,
+          closingTransaction: undefined,
+          isExcluded: false,
+        }))
+      );
+      prevSymbolRef.current = symbolInfo.symbol;
+    }
+  }, [symbolInfo.symbol]);
 
   useEffect(() => {
     if (!hasFetchedInitialPrice) {

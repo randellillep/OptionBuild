@@ -36,7 +36,9 @@ Preferred communication style: Simple, everyday language.
 
 **Market Data Integration**: Finnhub API for real-time US stock quotes.
 
-**Storage Layer**: Abstracted `IStorage` interface with an in-memory implementation (`MemStorage`), designed for future database integration.
+**Storage Layer**: Abstracted `IStorage` interface with `DatabaseStorage` implementation using Drizzle ORM and PostgreSQL.
+
+**Authentication**: Replit Auth integration with OpenID Connect, supporting Google sign-in and other providers. Sessions stored in PostgreSQL via `connect-pg-simple`.
 
 **Build Process**: Vite builds client to `dist/public`, esbuild bundles server to `dist/index.js`.
 
@@ -74,9 +76,19 @@ Preferred communication style: Simple, everyday language.
 
 **Utilities**: `date-fns`, `nanoid`, `embla-carousel`.
 
-**Current Integration Status**: Finnhub API for live stock prices and search; React Query for data fetching with caching. Database configured, but strategy persistence and user authentication are not yet fully implemented. Options pricing and Greeks calculations are fully client-side.
+**Current Integration Status**: Finnhub API for live stock prices and search; React Query for data fetching with caching. Database configured with PostgreSQL for user authentication and session storage. Replit Auth provides Google sign-in and other OAuth providers. Options pricing and Greeks calculations are fully client-side.
 
 ## Recent Updates
+
+### Authentication System
+- **Replit Auth integration**: Added OpenID Connect authentication with Google sign-in support
+- **User menu in header**: Shows Sign In button for unauthenticated users, avatar dropdown with logout for authenticated users
+- **PostgreSQL session storage**: Sessions and user data stored in PostgreSQL using connect-pg-simple
+- **Auth hooks**: useAuth hook for frontend auth state management
+
+### Strike Ladder Label Improvements
+- **Reduced label density**: Now shows 8-12 strike labels instead of 20-30 to prevent overlapping
+- **Better spacing**: Improved label interval calculation for clearer strike number visibility
 
 ### Auto-select Expiration Date
 ExpirationTimeline now automatically selects the expiration date when:
