@@ -195,7 +195,26 @@ The Implied Volatility bar now updates in real-time:
   - "Open in Builder" action
 - **Scoring algorithm**: Ranks strategies based on sentiment match and target price alignment
 
+### Enhanced Financials Tab
+- **6-Month Price Chart**: AreaChart with teal gradient showing historical stock performance
+- **Company Profile Card**: Logo, name, exchange, industry with website link
+- **Key Metrics Grid**: 4-column grid showing Market Cap, P/E, EPS, Dividend
+- **Key Ratios Section**: 8 ratios in 4-column grid (P/E, P/B, P/S, Beta, ROE, ROA, Margin, D/E)
+- **52-Week Range**: Visual progress bar showing current price position with gradient fill
+- **Liquidity Ratios**: Current Ratio and Quick Ratio cards
+- **Scrollable Container**: max-h-[400px] with overflow-y-auto for compact display
+
+### Footer Component
+- **OptionFlow Branding**: TrendingUp icon with logo text linking to home
+- **Social Media Links**: Discord, X, YouTube, GitHub icons opening in new tabs
+- **Navigation Grid**: 3-column grid with Tools (Builder, Option Finder, Backtest) and placeholder sections
+- **Disclaimer**: Options risk warning and copyright notice
+- **Responsive Layout**: flex-col on mobile, flex-row on desktop
+
 ### API Endpoints
+- **GET /api/stock/candles/:symbol**: 6-month historical stock price data from Finnhub
+  - Returns array of OHLCV candles with timestamps
+  - Resolution: Daily (D), period: 6 months
 - **GET /api/stock/fundamentals/:symbol**: Company profile and key financial metrics from Finnhub
   - Profile: name, logo, exchange, industry, market cap
   - Metrics: P/E, EPS, ROE, ROA, Beta, 52-week range, dividend yield
