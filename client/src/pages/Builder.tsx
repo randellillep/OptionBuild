@@ -15,7 +15,7 @@ import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
-import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut } from "lucide-react";
+import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
@@ -452,6 +452,17 @@ export default function Builder() {
                 Optimize
               </Button>
 
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 px-2 text-sm" 
+                onClick={() => setLocation("/backtest")}
+                data-testid="button-backtest"
+              >
+                <BarChart3 className="h-3 w-3 mr-1" />
+                Backtest
+              </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="button-market-trends">
@@ -593,7 +604,14 @@ export default function Builder() {
                 />
               )}
 
-              <AnalysisTabs greeks={totalGreeks} />
+              <AnalysisTabs 
+                greeks={totalGreeks}
+                symbol={symbolInfo.symbol}
+                currentPrice={symbolInfo.price}
+                volatility={volatility}
+                expirationDate={selectedExpirationDate}
+                optionsChainData={optionsChainData}
+              />
             </div>
 
             <div className="space-y-2">

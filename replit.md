@@ -150,3 +150,18 @@ The Implied Volatility bar now updates in real-time:
 - **Reduced height**: Header now h-10 (was h-16)
 - **Smaller elements**: h-7 buttons, h-3/h-4 icons, smaller text sizes
 - **Tighter spacing**: gap-1 between right buttons, gap-4 for logo section
+
+### Backtest Navigation
+- **Backtest button in header**: Added navigation button with BarChart3 icon to access the backtesting page
+- **Route integration**: Clicking navigates to /backtest page using Wouter
+
+### Enhanced Analysis Tabs
+- **Expected Move calculations**: Real-time calculations based on volatility and time to expiration
+  - Shows 1SD (68% probability) and 2SD (95% probability) ranges
+  - Displays price range bounds with expiration date context
+  - Interactive area chart showing projected price bounds over time
+- **Volatility Skew visualization**: 
+  - Line chart showing Put IV and Call IV across strike prices
+  - Uses real options chain data when available, falls back to simulated skew
+  - Reference line shows current stock price
+  - Displays ATM IV percentage
