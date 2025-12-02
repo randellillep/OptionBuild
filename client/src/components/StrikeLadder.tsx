@@ -338,12 +338,25 @@ export function StrikeLadder({
   // Render a draggable badge with quantity indicator
   const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
     const isCall = leg.type === "call";
-    const bgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
+    const isExcluded = leg.isExcluded;
+    const hasClosing = leg.closingTransaction?.isEnabled;
+    
+    // Different styles for excluded legs
+    const baseBgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
+    const excludedBgClass = "bg-gray-400 hover:bg-gray-500";
+    const bgClass = isExcluded ? excludedBgClass : baseBgClass;
+    
     const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
     const positionPercent = getStrikePosition(leg.strike);
     const isBeingDragged = draggedLeg === leg.id;
     const quantity = leg.quantity || 1;
-    const quantityDisplay = leg.position === 'short' ? `-${quantity}` : `+${quantity}`;
+    
+    // Show effective quantity (accounting for closing)
+    const closingQty = hasClosing ? (leg.closingTransaction?.quantity || 0) : 0;
+    const effectiveQty = quantity - closingQty;
+    const quantityDisplay = leg.position === 'short' 
+      ? (hasClosing ? `-${effectiveQty}/${quantity}` : `-${quantity}`)
+      : (hasClosing ? `+${effectiveQty}/${quantity}` : `+${quantity}`);
 
     // Calculate vertical position accounting for stacking
     // Long legs: bottom of badge at center line, stacking upward
@@ -377,13 +390,14 @@ export function StrikeLadder({
               transform: 'translateX(-50%)',
               top: topPosition,
               bottom: bottomPosition,
+              opacity: isExcluded ? 0.5 : 1,
             }}
           >
             <button
               onPointerDown={(e) => handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e)}
               data-testid={testId}
-              className={`relative text-[10px] h-6 px-2 ${bgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0`}
+              className={`relative text-[10px] h-6 px-2 ${bgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
               style={{ 
                 boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
                 touchAction: 'none'
@@ -393,11 +407,18 @@ export function StrikeLadder({
               
               {/* Quantity badge overlay - always visible */}
               <span 
-                className="absolute -top-1 -right-1 bg-white text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-gray-300"
+                className={`absolute -top-1 -right-1 ${hasClosing ? 'bg-amber-400' : 'bg-white'} text-black text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-gray-300`}
                 data-testid={`quantity-${leg.id}`}
               >
                 {quantityDisplay}
               </span>
+              
+              {/* Closing indicator */}
+              {hasClosing && (
+                <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-[7px] bg-amber-500 text-white px-1 rounded-sm">
+                  CLOSE
+                </span>
+              )}
             </button>
           </div>
         </PopoverTrigger>
@@ -424,6 +445,7 @@ export function StrikeLadder({
             optionsChainData={optionsChainData}
             symbol={symbol}
             expirationDate={expirationDate}
+            availableExpirations={optionsChainData?.expirations || []}
             onUpdateLeg={(updates) => {
               onUpdateLeg(leg.id, updates);
             }}

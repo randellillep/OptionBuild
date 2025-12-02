@@ -166,6 +166,9 @@ export function calculateProfitLoss(
   let pnl = 0;
   
   for (const leg of legs) {
+    // Skip excluded legs
+    if (leg.isExcluded) continue;
+    
     const intrinsicValue = leg.type === "call" 
       ? Math.max(atPrice - leg.strike, 0)
       : Math.max(leg.strike - atPrice, 0);
@@ -173,11 +176,35 @@ export function calculateProfitLoss(
     // Normalize premium to always be positive (absolute value)
     const premium = Math.abs(leg.premium);
     
-    const legPnl = leg.position === "long"
-      ? (intrinsicValue - premium) * Math.abs(leg.quantity) * 100
-      : (premium - intrinsicValue) * Math.abs(leg.quantity) * 100;
-    
-    pnl += legPnl;
+    // Handle closing transaction if present and enabled
+    const closing = leg.closingTransaction;
+    if (closing?.isEnabled && closing.quantity > 0) {
+      // Calculate P/L for closed portion (realized at closing price)
+      const closedQty = Math.min(closing.quantity, leg.quantity);
+      const remainingQty = leg.quantity - closedQty;
+      
+      // Realized P/L from closing: difference between closing price and entry premium
+      const closingPrice = closing.closingPrice;
+      const closedPnl = leg.position === "long"
+        ? (closingPrice - premium) * closedQty * 100  // Sold at closing price, bought at premium
+        : (premium - closingPrice) * closedQty * 100; // Bought back at closing price, sold at premium
+      
+      // Unrealized P/L for remaining quantity
+      const remainingPnl = remainingQty > 0
+        ? (leg.position === "long"
+            ? (intrinsicValue - premium) * remainingQty * 100
+            : (premium - intrinsicValue) * remainingQty * 100)
+        : 0;
+      
+      pnl += closedPnl + remainingPnl;
+    } else {
+      // Standard calculation for full quantity
+      const legPnl = leg.position === "long"
+        ? (intrinsicValue - premium) * Math.abs(leg.quantity) * 100
+        : (premium - intrinsicValue) * Math.abs(leg.quantity) * 100;
+      
+      pnl += legPnl;
+    }
   }
   
   return pnl;
@@ -194,6 +221,9 @@ export function calculateProfitLossAtDate(
   let pnl = 0;
   
   for (const leg of legs) {
+    // Skip excluded legs
+    if (leg.isExcluded) continue;
+    
     const daysRemaining = Math.max(0, daysToExpiration);
     
     let optionValue: number;
@@ -215,11 +245,35 @@ export function calculateProfitLossAtDate(
     // Normalize premium to always be positive (absolute value)
     const premium = Math.abs(leg.premium);
     
-    const legPnl = leg.position === "long"
-      ? (optionValue - premium) * Math.abs(leg.quantity) * 100
-      : (premium - optionValue) * Math.abs(leg.quantity) * 100;
-    
-    pnl += legPnl;
+    // Handle closing transaction if present and enabled
+    const closing = leg.closingTransaction;
+    if (closing?.isEnabled && closing.quantity > 0) {
+      // Calculate P/L for closed portion (realized at closing price)
+      const closedQty = Math.min(closing.quantity, leg.quantity);
+      const remainingQty = leg.quantity - closedQty;
+      
+      // Realized P/L from closing: difference between closing price and entry premium
+      const closingPrice = closing.closingPrice;
+      const closedPnl = leg.position === "long"
+        ? (closingPrice - premium) * closedQty * 100  // Sold at closing price, bought at premium
+        : (premium - closingPrice) * closedQty * 100; // Bought back at closing price, sold at premium
+      
+      // Unrealized P/L for remaining quantity
+      const remainingPnl = remainingQty > 0
+        ? (leg.position === "long"
+            ? (optionValue - premium) * remainingQty * 100
+            : (premium - optionValue) * remainingQty * 100)
+        : 0;
+      
+      pnl += closedPnl + remainingPnl;
+    } else {
+      // Standard calculation for full quantity
+      const legPnl = leg.position === "long"
+        ? (optionValue - premium) * Math.abs(leg.quantity) * 100
+        : (premium - optionValue) * Math.abs(leg.quantity) * 100;
+      
+      pnl += legPnl;
+    }
   }
   
   return pnl;
@@ -229,15 +283,49 @@ export function calculateStrategyMetrics(
   legs: OptionLeg[],
   underlyingPrice: number
 ): StrategyMetrics {
+  // Filter out excluded legs for all calculations
+  const activeLegs = legs.filter(leg => !leg.isExcluded);
+  
+  if (activeLegs.length === 0) {
+    return {
+      maxProfit: null,
+      maxLoss: null,
+      breakeven: [],
+      netPremium: 0,
+      riskRewardRatio: null,
+    };
+  }
+  
   // Net premium: normalize premium to positive, then apply position multiplier
-  const netPremium = legs.reduce((sum, leg) => {
+  // Also account for closing transactions
+  const netPremium = activeLegs.reduce((sum, leg) => {
     const premium = Math.abs(leg.premium);
-    const quantity = Math.abs(leg.quantity);
-    return sum + (leg.position === "long" ? -premium : premium) * quantity * 100;
+    const closing = leg.closingTransaction;
+    
+    if (closing?.isEnabled && closing.quantity > 0) {
+      // Account for closed portion at closing price
+      const closedQty = Math.min(closing.quantity, leg.quantity);
+      const remainingQty = leg.quantity - closedQty;
+      
+      // Realized premium from closing
+      const closedPremiumEffect = leg.position === "long"
+        ? (-premium * closedQty + closing.closingPrice * closedQty) * 100  // Paid premium, received closing
+        : (premium * closedQty - closing.closingPrice * closedQty) * 100;  // Received premium, paid closing
+      
+      // Remaining position premium effect
+      const remainingPremiumEffect = remainingQty > 0
+        ? (leg.position === "long" ? -premium : premium) * remainingQty * 100
+        : 0;
+      
+      return sum + closedPremiumEffect + remainingPremiumEffect;
+    } else {
+      const quantity = Math.abs(leg.quantity);
+      return sum + (leg.position === "long" ? -premium : premium) * quantity * 100;
+    }
   }, 0);
   
-  // Include all leg strikes in the price range
-  const allStrikes = legs.map(leg => leg.strike);
+  // Include all active leg strikes in the price range
+  const allStrikes = activeLegs.map(leg => leg.strike);
   const minStrike = Math.min(...allStrikes);
   const maxStrike = Math.max(...allStrikes);
   
@@ -249,6 +337,7 @@ export function calculateStrategyMetrics(
     return minPrice + (maxPrice - minPrice) * (i / 199);
   });
   
+  // Note: calculateProfitLoss already handles excluded legs and closing transactions
   const pnlValues = priceRange.map(price => calculateProfitLoss(legs, underlyingPrice, price));
   
   const maxProfit = Math.max(...pnlValues);

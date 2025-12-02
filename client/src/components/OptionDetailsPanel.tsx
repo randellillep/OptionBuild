@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, X, RotateCcw } from "lucide-react";
-import type { OptionLeg, MarketOptionChainSummary } from "@shared/schema";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Minus, Plus, X, RotateCcw, Check, Calendar, EyeOff } from "lucide-react";
+import type { OptionLeg, MarketOptionChainSummary, ClosingTransaction } from "@shared/schema";
 import { calculateGreeks } from "@/lib/options-pricing";
 
 interface OptionMarketData {
@@ -26,6 +28,8 @@ interface OptionDetailsPanelProps {
   onUpdateLeg?: (updates: Partial<OptionLeg>) => void;
   onAddToStrategy?: () => void;
   onClose: () => void;
+  // Available expirations for Change Expiration feature
+  availableExpirations?: string[];
   // Legacy props for backward compatibility
   symbol?: string;
   expirationDate?: string | null;
@@ -44,6 +48,7 @@ export function OptionDetailsPanel({
   onUpdateLeg,
   onAddToStrategy,
   onClose,
+  availableExpirations = [],
   // Legacy props
   symbol: legacySymbol,
   expirationDate: legacyExpirationDate,
@@ -304,6 +309,104 @@ export function OptionDetailsPanel({
     }
   };
 
+  // === Closing Transaction State ===
+  const [showClosingSection, setShowClosingSection] = useState(!!leg.closingTransaction?.isEnabled);
+  const [closingQty, setClosingQty] = useState(leg.closingTransaction?.quantity || leg.quantity);
+  const [closingPriceText, setClosingPriceText] = useState(
+    (leg.closingTransaction?.closingPrice || marketData?.ask || leg.premium).toFixed(2)
+  );
+  const closingPriceEditingRef = useRef(false);
+
+  // Sync closing transaction state with leg
+  useEffect(() => {
+    if (leg.closingTransaction?.isEnabled) {
+      setShowClosingSection(true);
+      setClosingQty(leg.closingTransaction.quantity);
+      if (!closingPriceEditingRef.current) {
+        setClosingPriceText(leg.closingTransaction.closingPrice.toFixed(2));
+      }
+    }
+  }, [leg.closingTransaction]);
+
+  const handleToggleClosing = (enabled: boolean) => {
+    setShowClosingSection(enabled);
+    if (enabled) {
+      // Enable closing transaction with current values
+      const closingPrice = parseFloat(closingPriceText) || marketData?.ask || leg.premium;
+      const closing: ClosingTransaction = {
+        quantity: closingQty,
+        closingPrice: closingPrice,
+        isEnabled: true,
+      };
+      if (onUpdateLeg) onUpdateLeg({ closingTransaction: closing });
+    } else {
+      // Disable closing transaction
+      if (onUpdateLeg) onUpdateLeg({ closingTransaction: { ...leg.closingTransaction!, isEnabled: false } });
+    }
+  };
+
+  const handleClosingQtyChange = (delta: number) => {
+    const newQty = Math.max(1, Math.min(leg.quantity, closingQty + delta));
+    setClosingQty(newQty);
+    if (leg.closingTransaction?.isEnabled && onUpdateLeg) {
+      onUpdateLeg({ 
+        closingTransaction: { 
+          ...leg.closingTransaction, 
+          quantity: newQty 
+        } 
+      });
+    }
+  };
+
+  const handleClosingPriceChange = (text: string) => {
+    if (/^\d*\.?\d*$/.test(text)) {
+      setClosingPriceText(text);
+    }
+  };
+
+  const handleClosingPriceFocus = () => {
+    closingPriceEditingRef.current = true;
+  };
+
+  const handleClosingPriceBlur = () => {
+    closingPriceEditingRef.current = false;
+    const price = parseFloat(closingPriceText);
+    if (!isNaN(price) && price >= 0 && leg.closingTransaction?.isEnabled && onUpdateLeg) {
+      setClosingPriceText(price.toFixed(2));
+      onUpdateLeg({ 
+        closingTransaction: { 
+          ...leg.closingTransaction, 
+          closingPrice: price 
+        } 
+      });
+    }
+  };
+
+  // === Exclude Toggle ===
+  const handleToggleExclude = () => {
+    if (onUpdateLeg) {
+      onUpdateLeg({ isExcluded: !leg.isExcluded });
+    }
+  };
+
+  // === Change Expiration ===
+  const handleExpirationChange = (newExpiration: string) => {
+    if (onUpdateLeg) {
+      // Calculate new expiration days from the selected date
+      const today = new Date();
+      const expDate = new Date(newExpiration);
+      const diffTime = expDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      onUpdateLeg({ 
+        expirationDate: newExpiration,
+        expirationDays: Math.max(1, diffDays)
+      });
+    }
+  };
+
+  // Get the opposite action text for closing
+  const closingActionText = leg.position === "long" ? "Sell to Close" : "Buy to Close";
+
   return (
     <div 
       className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg" 
@@ -470,41 +573,142 @@ export function OptionDetailsPanel({
           </Button>
         ) : (
           // Edit mode - show edit/remove actions
-          <>
+          <div className="space-y-1.5">
+            {/* Switch to Call/Put */}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="w-full justify-start text-xs"
+              className="w-full justify-start text-xs h-8 gap-2"
               onClick={() => {
                 if (onSwitchType) onSwitchType();
                 if (onUpdateLeg) onUpdateLeg({ type: leg.type === "call" ? "put" : "call" });
               }}
               data-testid="button-switch-type"
             >
+              <RotateCcw className="h-3 w-3" />
               Switch to {leg.type === "call" ? "Put" : "Call"}
             </Button>
+
+            {/* Buy/Sell to Close with toggle and expandable section */}
+            <div className="space-y-2">
+              <Button
+                variant={showClosingSection ? "secondary" : "ghost"}
+                size="sm"
+                className="w-full justify-start text-xs h-8 gap-2"
+                onClick={() => handleToggleClosing(!showClosingSection)}
+                data-testid="button-toggle-closing"
+              >
+                <Check className={`h-3 w-3 ${showClosingSection ? 'text-green-500' : ''}`} />
+                {closingActionText}
+              </Button>
+
+              {/* Expanded Closing Section */}
+              {showClosingSection && (
+                <div className="ml-5 p-2 rounded-md bg-muted/50 space-y-2">
+                  {/* Closing Quantity */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">Close Qty:</span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-6 w-6"
+                        onClick={() => handleClosingQtyChange(-1)}
+                        disabled={closingQty <= 1}
+                        data-testid="button-close-qty-decrease"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center font-mono text-sm">{closingQty}</span>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-6 w-6"
+                        onClick={() => handleClosingQtyChange(1)}
+                        disabled={closingQty >= leg.quantity}
+                        data-testid="button-close-qty-increase"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground">/ {leg.quantity}</span>
+                    </div>
+                  </div>
+
+                  {/* Closing Price */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">Close Price:</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs">$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={closingPriceText}
+                        onChange={(e) => handleClosingPriceChange(e.target.value)}
+                        onFocus={handleClosingPriceFocus}
+                        onBlur={handleClosingPriceBlur}
+                        onClick={(e) => e.currentTarget.select()}
+                        onMouseDown={() => { closingPriceEditingRef.current = true; }}
+                        className="w-20 h-6 px-2 text-xs font-mono text-center rounded border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                        data-testid="input-closing-price"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Change Expiration */}
+            {availableExpirations.length > 1 && (
+              <div className="flex items-center gap-2">
+                <Calendar className="h-3 w-3 text-muted-foreground ml-2" />
+                <Select
+                  value={leg.expirationDate || expirationDate || ''}
+                  onValueChange={handleExpirationChange}
+                >
+                  <SelectTrigger className="h-8 text-xs flex-1" data-testid="select-expiration">
+                    <SelectValue placeholder="Change Expiration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableExpirations.map((exp) => (
+                      <SelectItem key={exp} value={exp} className="text-xs">
+                        {new Date(exp).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          year: '2-digit' 
+                        })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Exclude Toggle */}
             <Button
-              variant="outline"
+              variant={leg.isExcluded ? "secondary" : "ghost"}
               size="sm"
-              className="w-full justify-start text-xs"
-              onClick={() => {
-                if (onChangePosition) onChangePosition();
-                if (onUpdateLeg) onUpdateLeg({ position: leg.position === "long" ? "short" : "long" });
-              }}
-              data-testid="button-change-position"
+              className={`w-full justify-start text-xs h-8 gap-2 ${leg.isExcluded ? 'text-amber-600 dark:text-amber-400' : ''}`}
+              onClick={handleToggleExclude}
+              data-testid="button-toggle-exclude"
             >
-              {oppositePosition} to Close
+              <EyeOff className="h-3 w-3" />
+              {leg.isExcluded ? "Excluded from P/L" : "Exclude"}
             </Button>
+
+            <Separator className="my-1" />
+
+            {/* Remove */}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="w-full justify-start text-xs text-destructive hover:text-destructive"
+              className="w-full justify-start text-xs h-8 gap-2 text-destructive hover:text-destructive"
               onClick={onRemove}
               data-testid="button-remove-leg"
             >
+              <X className="h-3 w-3" />
               Remove
             </Button>
-          </>
+          </div>
         )}
       </div>
     </div>

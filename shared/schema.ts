@@ -21,6 +21,13 @@ export type OptionType = "call" | "put";
 export type PositionType = "long" | "short";
 export type PremiumSource = "market" | "theoretical" | "manual";
 
+// Represents a closing transaction for an option leg
+export interface ClosingTransaction {
+  quantity: number;        // Number of contracts to close
+  closingPrice: number;    // Price at which to close
+  isEnabled: boolean;      // Whether this closing transaction is active
+}
+
 export interface OptionLeg {
   id: string;
   type: OptionType;
@@ -32,6 +39,10 @@ export interface OptionLeg {
   marketQuoteId?: string;
   premiumSource?: PremiumSource;
   impliedVolatility?: number;
+  // New fields for advanced features
+  expirationDate?: string;         // ISO date string for expiration
+  isExcluded?: boolean;            // Whether to exclude from P/L calculations
+  closingTransaction?: ClosingTransaction; // Closing transaction details
 }
 
 export interface Strategy {
