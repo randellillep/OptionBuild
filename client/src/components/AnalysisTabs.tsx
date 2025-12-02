@@ -52,6 +52,21 @@ interface CompanyFundamentals {
   priceToSales?: number;
 }
 
+interface StockCandle {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+interface CandleResponse {
+  symbol: string;
+  resolution: string;
+  candles: StockCandle[];
+}
+
 interface AnalysisTabsProps {
   greeks: Greeks;
   symbol?: string;
@@ -184,6 +199,23 @@ export function AnalysisTabs({
     queryKey: [`/api/stock/fundamentals/${effectiveSymbol}`],
     enabled: !!effectiveSymbol && effectiveSymbol.length > 0,
   });
+
+  // Fetch historical candle data for stock chart
+  const { data: candleData, isLoading: candlesLoading } = useQuery<CandleResponse>({
+    queryKey: [`/api/stock/candles/${effectiveSymbol}`],
+    enabled: !!effectiveSymbol && effectiveSymbol.length > 0,
+  });
+
+  // Prepare chart data from candles
+  const chartData = useMemo(() => {
+    if (!candleData?.candles || candleData.candles.length === 0) return [];
+    return candleData.candles.map(candle => ({
+      date: new Date(candle.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      timestamp: candle.timestamp,
+      price: candle.close,
+      volume: candle.volume,
+    }));
+  }, [candleData]);
 
   const formatMarketCap = (value?: number) => {
     if (!value) return 'N/A';
@@ -436,116 +468,228 @@ export function AnalysisTabs({
       </TabsContent>
 
       <TabsContent value="financials" className="mt-2">
-        <Card className="p-3">
-          {fundamentalsLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-8 w-48" />
-              <div className="grid grid-cols-2 gap-2">
-                {[...Array(6)].map((_, i) => (
-                  <Skeleton key={i} className="h-14 w-full" />
-                ))}
+        <div className="max-h-[400px] overflow-y-auto space-y-3 pr-1">
+          <Card className="p-3">
+            {fundamentalsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-8 w-48" />
+                <div className="grid grid-cols-2 gap-2">
+                  {[...Array(6)].map((_, i) => (
+                    <Skeleton key={i} className="h-14 w-full" />
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : fundamentals ? (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                {fundamentals.logo && (
-                  <img 
-                    src={fundamentals.logo} 
-                    alt={fundamentals.name} 
-                    className="h-8 w-8 rounded object-contain"
+            ) : fundamentals ? (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  {fundamentals.logo && (
+                    <img 
+                      src={fundamentals.logo} 
+                      alt={fundamentals.name} 
+                      className="h-8 w-8 rounded object-contain"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold">{fundamentals.name}</h3>
+                      <Badge variant="outline" className="text-[10px]">{fundamentals.symbol}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      {fundamentals.exchange && <span>{fundamentals.exchange}</span>}
+                      {fundamentals.industry && <span>• {fundamentals.industry}</span>}
+                      {fundamentals.weburl && (
+                        <a 
+                          href={fundamentals.weburl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-0.5 text-primary hover:underline"
+                        >
+                          Website <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  <div className="p-2 bg-muted/30 rounded-md">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Market Cap</p>
+                    <p className="text-sm font-bold font-mono">{formatMarketCap(fundamentals.marketCap)}</p>
+                  </div>
+                  <div className="p-2 bg-muted/30 rounded-md">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">P/E Ratio</p>
+                    <p className="text-sm font-bold font-mono">{formatNumber(fundamentals.peRatio)}</p>
+                  </div>
+                  <div className="p-2 bg-muted/30 rounded-md">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">EPS</p>
+                    <p className="text-sm font-bold font-mono">${formatNumber(fundamentals.eps)}</p>
+                  </div>
+                  <div className="p-2 bg-muted/30 rounded-md">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">Dividend</p>
+                    <p className="text-sm font-bold font-mono">
+                      {fundamentals.dividendYield ? `${formatNumber(fundamentals.dividendYield, 2)}%` : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="h-16 flex items-center justify-center bg-muted/30 rounded-md">
+                <p className="text-xs text-muted-foreground">No fundamentals data available for {symbol}</p>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-3">
+            <p className="text-xs font-semibold mb-2">6-Month Price Chart</p>
+            {candlesLoading ? (
+              <Skeleton className="h-28 w-full" />
+            ) : chartData.length > 0 ? (
+              <div className="h-28">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                    <defs>
+                      <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(168 76% 42%)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(168 76% 42%)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 9 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 9 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      domain={['auto', 'auto']}
+                      tickFormatter={(value) => `$${value}`}
+                      width={40}
+                    />
+                    <Tooltip
+                      contentStyle={{ 
+                        background: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '4px',
+                        fontSize: '10px'
+                      }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="price"
+                      stroke="hsl(168 76% 42%)"
+                      strokeWidth={2}
+                      fill="url(#priceGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-28 flex items-center justify-center bg-muted/30 rounded-md">
+                <p className="text-xs text-muted-foreground">No chart data available</p>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-3">
+            <p className="text-xs font-semibold mb-2">Key Ratios</p>
+            {fundamentals ? (
+              <div className="grid grid-cols-4 gap-x-3 gap-y-1.5 text-[10px]">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">P/E</span>
+                  <span className="font-mono">{formatNumber(fundamentals.peRatio)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">P/B</span>
+                  <span className="font-mono">{formatNumber(fundamentals.priceToBook)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">P/S</span>
+                  <span className="font-mono">{formatNumber(fundamentals.priceToSales)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Beta</span>
+                  <span className="font-mono">{formatNumber(fundamentals.beta)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">ROE</span>
+                  <span className="font-mono">{formatNumber(fundamentals.roe)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">ROA</span>
+                  <span className="font-mono">{formatNumber(fundamentals.roa)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Margin</span>
+                  <span className="font-mono">{formatNumber(fundamentals.profitMargin)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">D/E</span>
+                  <span className="font-mono">{formatNumber(fundamentals.debtToEquity)}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data available</p>
+            )}
+          </Card>
+
+          <Card className="p-3">
+            <p className="text-xs font-semibold mb-2">52-Week Range</p>
+            {fundamentals ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-loss font-mono">${formatNumber(fundamentals.low52Week, 2)}</span>
+                  <span className="text-muted-foreground">52W Range</span>
+                  <span className="text-profit font-mono">${formatNumber(fundamentals.high52Week, 2)}</span>
+                </div>
+                <div className="relative h-2 bg-muted/50 rounded-full">
+                  <div 
+                    className="absolute h-full bg-gradient-to-r from-loss/50 via-primary/50 to-profit/50 rounded-full"
+                    style={{ 
+                      width: `${fundamentals.low52Week && fundamentals.high52Week && currentPrice 
+                        ? Math.min(100, Math.max(0, ((currentPrice - fundamentals.low52Week) / (fundamentals.high52Week - fundamentals.low52Week)) * 100))
+                        : 50}%` 
+                    }}
                   />
-                )}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold">{fundamentals.name}</h3>
-                    <Badge variant="outline" className="text-[10px]">{fundamentals.symbol}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    {fundamentals.exchange && <span>{fundamentals.exchange}</span>}
-                    {fundamentals.industry && <span>• {fundamentals.industry}</span>}
-                    {fundamentals.weburl && (
-                      <a 
-                        href={fundamentals.weburl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-0.5 text-primary hover:underline"
-                      >
-                        Website <ExternalLink className="h-2.5 w-2.5" />
-                      </a>
-                    )}
-                  </div>
+                  <div 
+                    className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full border-2 border-background"
+                    style={{ 
+                      left: `${fundamentals.low52Week && fundamentals.high52Week && currentPrice 
+                        ? Math.min(100, Math.max(0, ((currentPrice - fundamentals.low52Week) / (fundamentals.high52Week - fundamentals.low52Week)) * 100))
+                        : 50}%` 
+                    }}
+                  />
                 </div>
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Current: <span className="font-mono font-medium">${currentPrice?.toFixed(2) || 'N/A'}</span>
+                </p>
               </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data available</p>
+            )}
+          </Card>
 
-              <div className="grid grid-cols-3 gap-2 mb-3">
+          <Card className="p-3">
+            <p className="text-xs font-semibold mb-2">Liquidity Ratios</p>
+            {fundamentals ? (
+              <div className="grid grid-cols-2 gap-2">
                 <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Market Cap</p>
-                  <p className="text-sm font-bold font-mono">{formatMarketCap(fundamentals.marketCap)}</p>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Current Ratio</p>
+                  <p className="text-sm font-bold font-mono">{formatNumber(fundamentals.currentRatio)}</p>
                 </div>
                 <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">P/E Ratio</p>
-                  <p className="text-sm font-bold font-mono">{formatNumber(fundamentals.peRatio)}</p>
-                </div>
-                <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">EPS</p>
-                  <p className="text-sm font-bold font-mono">${formatNumber(fundamentals.eps)}</p>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Quick Ratio</p>
+                  <p className="text-sm font-bold font-mono">{formatNumber(fundamentals.quickRatio)}</p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">52-Week Range</p>
-                  <div className="flex items-center gap-1 text-xs font-mono">
-                    <span className="text-loss">${formatNumber(fundamentals.low52Week, 2)}</span>
-                    <span className="text-muted-foreground">—</span>
-                    <span className="text-profit">${formatNumber(fundamentals.high52Week, 2)}</span>
-                  </div>
-                </div>
-                <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Dividend Yield</p>
-                  <p className="text-sm font-bold font-mono">
-                    {fundamentals.dividendYield ? `${formatNumber(fundamentals.dividendYield, 2)}%` : 'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="border-t pt-2 mt-2">
-                <p className="text-[10px] text-muted-foreground mb-2">Key Metrics</p>
-                <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[10px]">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">ROE</span>
-                    <span className="font-mono">{formatNumber(fundamentals.roe)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">ROA</span>
-                    <span className="font-mono">{formatNumber(fundamentals.roa)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Beta</span>
-                    <span className="font-mono">{formatNumber(fundamentals.beta)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">P/B</span>
-                    <span className="font-mono">{formatNumber(fundamentals.priceToBook)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">P/S</span>
-                    <span className="font-mono">{formatNumber(fundamentals.priceToSales)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Margin</span>
-                    <span className="font-mono">{formatNumber(fundamentals.profitMargin)}%</span>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="h-32 flex items-center justify-center bg-muted/30 rounded-md">
-              <p className="text-xs text-muted-foreground">No fundamentals data available for {symbol}</p>
-            </div>
-          )}
-        </Card>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data available</p>
+            )}
+          </Card>
+        </div>
       </TabsContent>
 
       <TabsContent value="option-overview" className="mt-2">

@@ -159,13 +159,13 @@ export function StrategySelector({ onSelectStrategy }: StrategySelectorProps) {
           <ChevronDown className="ml-1 h-3 w-3" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden">
         <DialogHeader className="p-4 pb-2 border-b">
           <DialogTitle className="text-base">Select strategy to calculate and visualize the expected profit and loss.</DialogTitle>
         </DialogHeader>
         
-        <div className="flex h-[500px]">
-          <ScrollArea className="w-64 border-r">
+        <div className="flex h-[600px]">
+          <ScrollArea className="w-72 border-r">
             <div className="p-2">
               {(Object.keys(categorizedStrategies) as StrategyCategory[]).map((category) => {
                 const strategies = categorizedStrategies[category];
@@ -202,65 +202,67 @@ export function StrategySelector({ onSelectStrategy }: StrategySelectorProps) {
             </div>
           </ScrollArea>
           
-          <div className="flex-1 p-6 flex flex-col">
-            <div className="mb-4">
-              <h3 className="text-xl font-semibold mb-2">{displayedStrategy.name}</h3>
-              <div className="flex gap-2 flex-wrap mb-4">
-                {displayedStrategy.metadata.tags.map((tag) => (
-                  <Badge 
-                    key={tag} 
-                    variant="outline" 
-                    className={`text-xs ${
-                      tag.includes("Bullish") ? "border-profit text-profit" :
-                      tag.includes("Bearish") ? "border-loss text-loss" :
-                      tag.includes("Profit") ? "border-primary text-primary" :
-                      tag.includes("Loss") ? "border-muted-foreground" :
-                      ""
-                    }`}
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    {tag}
-                  </Badge>
-                ))}
+          <ScrollArea className="flex-1">
+            <div className="p-6 flex flex-col">
+              <div className="mb-4">
+                <h3 className="text-xl font-semibold mb-2">{displayedStrategy.name}</h3>
+                <div className="flex gap-2 flex-wrap">
+                  {displayedStrategy.metadata.tags.map((tag) => (
+                    <Badge 
+                      key={tag} 
+                      variant="outline" 
+                      className={`text-xs ${
+                        tag.includes("Bullish") ? "border-profit text-profit" :
+                        tag.includes("Bearish") ? "border-loss text-loss" :
+                        tag.includes("Profit") ? "border-primary text-primary" :
+                        tag.includes("Loss") ? "border-muted-foreground" :
+                        ""
+                      }`}
+                    >
+                      <Check className="h-3 w-3 mr-1" />
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               </div>
+
+              <div className="flex-1 bg-card rounded-lg border p-4 mb-4">
+                <MiniPLChart strategy={displayedStrategy} />
+                <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                  <span>Profit</span>
+                  <span>Loss</span>
+                </div>
+              </div>
+
+              <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                {displayedStrategy.description}
+              </p>
+
+              <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <div className="text-muted-foreground mb-1">Max Profit</div>
+                  <div className="font-medium text-profit">{displayedStrategy.metadata.maxProfit}</div>
+                </div>
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <div className="text-muted-foreground mb-1">Max Loss</div>
+                  <div className="font-medium text-loss">{displayedStrategy.metadata.maxLoss}</div>
+                </div>
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <div className="text-muted-foreground mb-1">Breakeven</div>
+                  <div className="font-medium">{displayedStrategy.metadata.breakeven}</div>
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleSelect}
+                disabled={selectedIndex === null}
+                className="w-full"
+                data-testid="button-select-strategy"
+              >
+                Select a strategy
+              </Button>
             </div>
-
-            <div className="flex-1 bg-card rounded-lg border p-4 mb-4">
-              <MiniPLChart strategy={displayedStrategy} />
-              <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                <span>Profit</span>
-                <span>Loss</span>
-              </div>
-            </div>
-
-            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-              {displayedStrategy.description}
-            </p>
-
-            <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
-              <div className="p-2 bg-muted/30 rounded-md">
-                <div className="text-muted-foreground mb-1">Max Profit</div>
-                <div className="font-medium text-profit">{displayedStrategy.metadata.maxProfit}</div>
-              </div>
-              <div className="p-2 bg-muted/30 rounded-md">
-                <div className="text-muted-foreground mb-1">Max Loss</div>
-                <div className="font-medium text-loss">{displayedStrategy.metadata.maxLoss}</div>
-              </div>
-              <div className="p-2 bg-muted/30 rounded-md">
-                <div className="text-muted-foreground mb-1">Breakeven</div>
-                <div className="font-medium">{displayedStrategy.metadata.breakeven}</div>
-              </div>
-            </div>
-
-            <Button 
-              onClick={handleSelect}
-              disabled={selectedIndex === null}
-              className="w-full"
-              data-testid="button-select-strategy"
-            >
-              Select a strategy
-            </Button>
-          </div>
+          </ScrollArea>
         </div>
       </DialogContent>
     </Dialog>

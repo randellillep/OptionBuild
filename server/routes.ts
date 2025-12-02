@@ -246,6 +246,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Historical stock candles endpoint for charts
+  app.get("/api/stock/candles/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { resolution = 'D', from, to } = req.query;
+      
+      if (!FINNHUB_API_KEY) {
+        return res.status(500).json({ error: "API key not configured" });
+      }
+
+      // Default to last 6 months of daily data
+      const toTimestamp = to ? parseInt(to as string) : Math.floor(Date.now() / 1000);
+      const fromTimestamp = from ? parseInt(from as string) : toTimestamp - (180 * 24 * 60 * 60);
+
+      const response = await fetch(
+        `${FINNHUB_BASE_URL}/stock/candle?symbol=${symbol.toUpperCase()}&resolution=${resolution}&from=${fromTimestamp}&to=${toTimestamp}&token=${FINNHUB_API_KEY}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Finnhub API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.s === 'no_data') {
+        return res.json({ candles: [] });
+      }
+
+      // Transform Finnhub response to array of candles
+      const candles = [];
+      if (data.t && data.c && data.o && data.h && data.l && data.v) {
+        for (let i = 0; i < data.t.length; i++) {
+          candles.push({
+            timestamp: data.t[i] * 1000, // Convert to milliseconds
+            open: data.o[i],
+            high: data.h[i],
+            low: data.l[i],
+            close: data.c[i],
+            volume: data.v[i],
+          });
+        }
+      }
+
+      res.json({
+        symbol: symbol.toUpperCase(),
+        resolution,
+        candles,
+      });
+    } catch (error) {
+      console.error("Error fetching stock candles:", error);
+      res.status(500).json({ error: "Failed to fetch stock candles" });
+    }
+  });
+
   // Options expirations endpoint - fetches ACTUAL available expirations from Alpaca
   app.get("/api/options/expirations/:symbol", async (req, res) => {
     try {

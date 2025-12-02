@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,11 @@ import {
   ChevronsUp,
   ChevronDown,
   ChevronUp,
+  DollarSign,
 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { strategyTemplates, type ExtendedStrategy } from "@/lib/strategy-templates";
+import { useQuery } from "@tanstack/react-query";
 import { 
   AreaChart, 
   Area, 
@@ -246,10 +248,40 @@ function StrategyCard({ strategy, currentPrice, targetPrice, onOpenInBuilder }: 
 
 export default function OptionFinder() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const [symbolInfo, setSymbolInfo] = useState({ symbol: "AAPL", price: 185.00 });
   const [targetPrice, setTargetPrice] = useState<string>("195.00");
   const [budget, setBudget] = useState<string>("");
   const [selectedSentiment, setSelectedSentiment] = useState<Sentiment | null>("bullish");
+
+  // Fetch stock price for symbol from URL
+  const { data: quoteData } = useQuery<{ price: number; symbol: string }>({
+    queryKey: ['/api/stock/quote', symbolInfo.symbol],
+    enabled: !!symbolInfo.symbol,
+  });
+
+  // Load symbol from URL params
+  useEffect(() => {
+    if (!searchString) return;
+    
+    const params = new URLSearchParams(searchString);
+    const urlSymbol = params.get('symbol');
+    
+    if (urlSymbol && urlSymbol !== symbolInfo.symbol) {
+      setSymbolInfo(prev => ({ ...prev, symbol: urlSymbol }));
+    }
+  }, [searchString]);
+
+  // Update price when quote data arrives
+  useEffect(() => {
+    if (quoteData?.price && quoteData.price > 0) {
+      setSymbolInfo(prev => ({ ...prev, price: quoteData.price }));
+      // Update target price to be slightly above current price if it's the default
+      if (targetPrice === "195.00" || parseFloat(targetPrice) <= 0) {
+        setTargetPrice((quoteData.price * 1.05).toFixed(2));
+      }
+    }
+  }, [quoteData]);
 
   const targetPriceNum = parseFloat(targetPrice) > 0 ? parseFloat(targetPrice) : symbolInfo.price;
   const budgetNum = parseFloat(budget) > 0 ? parseFloat(budget) : null;
@@ -319,20 +351,68 @@ export default function OptionFinder() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 md:px-6 py-6">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <span className="text-sm text-muted-foreground">Symbol:</span>
-            <div className="w-48">
-              <SymbolSearchBar 
-                symbolInfo={symbolInfo} 
-                onSymbolChange={setSymbolInfo} 
-              />
+      <div className="container mx-auto px-4 md:px-6 py-8">
+        <Card className="p-6 mb-8">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-6 mb-6">
+            <div className="flex items-center gap-4 flex-wrap justify-center lg:justify-start">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Symbol</span>
+                <div className="w-32">
+                  <SymbolSearchBar 
+                    symbolInfo={symbolInfo} 
+                    onSymbolChange={setSymbolInfo} 
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 rounded-lg">
+                <DollarSign className="h-5 w-5 text-muted-foreground" />
+                <div className="flex flex-col">
+                  <span className="text-xs text-muted-foreground">Current Price</span>
+                  <span className="font-mono text-xl font-bold">${symbolInfo.price.toFixed(2)}</span>
+                </div>
+              </div>
             </div>
-            <span className="font-mono text-lg font-bold">${symbolInfo.price.toFixed(2)}</span>
+
+            <div className="flex items-center gap-4 flex-wrap justify-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Target</span>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    type="number"
+                    value={targetPrice}
+                    onChange={(e) => setTargetPrice(e.target.value)}
+                    className="w-28 pl-6"
+                    data-testid="input-target-price"
+                  />
+                </div>
+                <Badge 
+                  variant={parseFloat(changePercent) >= 0 ? "default" : "destructive"} 
+                  className={`text-xs ${parseFloat(changePercent) >= 0 ? "bg-profit/20 text-profit border-profit/30" : "bg-loss/20 text-loss border-loss/30"}`}
+                >
+                  {parseFloat(changePercent) >= 0 ? "+" : ""}{changePercent}%
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Budget</span>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                  <Input
+                    type="number"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    placeholder="None"
+                    className="w-28 pl-6"
+                    data-testid="input-budget"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center justify-center gap-3 mb-6 flex-wrap">
+          <div className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
             {(Object.keys(sentimentConfig) as Sentiment[]).map((sentiment) => {
               const config = sentimentConfig[sentiment];
               const isSelected = selectedSentiment === sentiment;
@@ -341,14 +421,14 @@ export default function OptionFinder() {
                 <button
                   key={sentiment}
                   onClick={() => setSelectedSentiment(isSelected ? null : sentiment)}
-                  className={`flex flex-col items-center gap-1 p-3 rounded-lg border transition-all ${
+                  className={`flex flex-col items-center gap-1 p-2 md:p-3 rounded-lg border transition-all ${
                     isSelected 
                       ? `${config.bgColor} ${config.color}` 
                       : "border-transparent hover:bg-muted"
                   }`}
                   data-testid={`sentiment-${sentiment}`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ${
                     isSelected ? config.bgColor : "bg-muted"
                   }`}>
                     <span className={config.color}>{config.icon}</span>
@@ -358,48 +438,14 @@ export default function OptionFinder() {
               );
             })}
           </div>
+        </Card>
 
-          <div className="flex items-center justify-center gap-6 mb-6">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Target Price:</span>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input
-                  type="number"
-                  value={targetPrice}
-                  onChange={(e) => setTargetPrice(e.target.value)}
-                  className="w-28 pl-6"
-                  data-testid="input-target-price"
-                />
-              </div>
-              <Badge variant={parseFloat(changePercent) >= 0 ? "default" : "destructive"} className="text-xs">
-                {parseFloat(changePercent) >= 0 ? "+" : ""}{changePercent}%
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Budget:</span>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input
-                  type="number"
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                  placeholder="None"
-                  className="w-28 pl-6"
-                  data-testid="input-budget"
-                />
-              </div>
-            </div>
+        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground mb-6">
+          <span>← Max Return</span>
+          <div className="w-64 h-1 bg-muted rounded-full">
+            <div className="w-1/2 h-full bg-primary rounded-full" />
           </div>
-
-          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground mb-4">
-            <span>← Max Return</span>
-            <div className="w-64 h-1 bg-muted rounded-full">
-              <div className="w-1/2 h-full bg-primary rounded-full" />
-            </div>
-            <span>Max Chance →</span>
-          </div>
+          <span>Max Chance →</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

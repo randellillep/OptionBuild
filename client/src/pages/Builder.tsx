@@ -15,12 +15,13 @@ import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
+import { Footer } from "@/components/Footer";
 import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Search } from "lucide-react";
 import { StrategySelector } from "@/components/StrategySelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 import { useOptionsChain } from "@/hooks/useOptionsChain";
 import { calculateImpliedVolatility } from "@/lib/options-pricing";
@@ -28,9 +29,11 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function Builder() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const [range, setRange] = useState(14);
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
+  const urlParamsProcessed = useRef(false);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   
   const {
@@ -61,6 +64,50 @@ export default function Builder() {
   const handleResetIV = () => {
     setVolatility(calculatedIV);
   };
+
+  // Handle URL params from Option Finder (strategy and symbol)
+  useEffect(() => {
+    if (urlParamsProcessed.current || !searchString) return;
+    
+    const params = new URLSearchParams(searchString);
+    const strategyIndex = params.get('strategy');
+    const urlSymbol = params.get('symbol');
+    
+    if (strategyIndex !== null || urlSymbol) {
+      urlParamsProcessed.current = true;
+      
+      // Load symbol from URL if different
+      if (urlSymbol && urlSymbol !== symbolInfo.symbol) {
+        setSymbolInfo(prev => ({ ...prev, symbol: urlSymbol }));
+      }
+      
+      // Load strategy template if specified
+      if (strategyIndex !== null) {
+        const templateIndex = parseInt(strategyIndex, 10);
+        if (!isNaN(templateIndex) && templateIndex >= 0 && templateIndex < strategyTemplates.length) {
+          const template = strategyTemplates[templateIndex];
+          const basePrice = symbolInfo.price > 0 ? symbolInfo.price : 100;
+          const atmStrike = Math.round(basePrice / 5) * 5;
+          
+          const adjustedLegs: OptionLeg[] = template.legs.map((leg, index) => {
+            const strikeOffset = leg.strike - 100;
+            const newStrike = atmStrike + strikeOffset;
+            
+            return {
+              ...leg,
+              strike: newStrike,
+              id: Date.now().toString() + leg.id + index,
+            };
+          });
+          
+          setLegs(adjustedLegs);
+        }
+      }
+      
+      // Clear URL params after processing
+      window.history.replaceState({}, '', '/');
+    }
+  }, [searchString, symbolInfo.symbol, symbolInfo.price, setSymbolInfo, setLegs]);
 
   // Helper to round strike to valid increments
   const roundStrike = (strike: number, direction: 'up' | 'down' | 'nearest' = 'nearest'): number => {
@@ -432,7 +479,7 @@ export default function Builder() {
                 variant="ghost" 
                 size="sm" 
                 className="h-7 px-2 text-sm" 
-                onClick={() => setLocation("/option-finder")}
+                onClick={() => setLocation(`/option-finder?symbol=${symbolInfo.symbol}`)}
                 data-testid="button-option-finder"
               >
                 <Search className="h-3 w-3 mr-1" />
@@ -607,6 +654,8 @@ export default function Builder() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 }
