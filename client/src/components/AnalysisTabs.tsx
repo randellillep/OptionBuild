@@ -231,7 +231,7 @@ export function AnalysisTabs({
   };
 
   const formatNumber = (value?: number, decimals = 2) => {
-    if (value === undefined || value === null) return 'N/A';
+    if (value === undefined || value === null || isNaN(value)) return 'N/A';
     return value.toFixed(decimals);
   };
 
@@ -638,7 +638,7 @@ export function AnalysisTabs({
 
           <Card className="p-3">
             <p className="text-xs font-semibold mb-2">52-Week Range</p>
-            {fundamentals ? (
+            {fundamentals && fundamentals.low52Week && fundamentals.high52Week ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[10px]">
                   <span className="text-loss font-mono">${formatNumber(fundamentals.low52Week, 2)}</span>
@@ -646,29 +646,31 @@ export function AnalysisTabs({
                   <span className="text-profit font-mono">${formatNumber(fundamentals.high52Week, 2)}</span>
                 </div>
                 <div className="relative h-2 bg-muted/50 rounded-full">
-                  <div 
-                    className="absolute h-full bg-gradient-to-r from-loss/50 via-primary/50 to-profit/50 rounded-full"
-                    style={{ 
-                      width: `${fundamentals.low52Week && fundamentals.high52Week && currentPrice 
-                        ? Math.min(100, Math.max(0, ((currentPrice - fundamentals.low52Week) / (fundamentals.high52Week - fundamentals.low52Week)) * 100))
-                        : 50}%` 
-                    }}
-                  />
-                  <div 
-                    className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full border-2 border-background"
-                    style={{ 
-                      left: `${fundamentals.low52Week && fundamentals.high52Week && currentPrice 
-                        ? Math.min(100, Math.max(0, ((currentPrice - fundamentals.low52Week) / (fundamentals.high52Week - fundamentals.low52Week)) * 100))
-                        : 50}%` 
-                    }}
-                  />
+                  {(() => {
+                    const rangeWidth = fundamentals.high52Week - fundamentals.low52Week;
+                    const position = currentPrice && rangeWidth > 0
+                      ? Math.min(100, Math.max(0, ((currentPrice - fundamentals.low52Week) / rangeWidth) * 100))
+                      : 50;
+                    return (
+                      <>
+                        <div 
+                          className="absolute h-full bg-gradient-to-r from-loss/50 via-primary/50 to-profit/50 rounded-full"
+                          style={{ width: `${position}%` }}
+                        />
+                        <div 
+                          className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full border-2 border-background"
+                          style={{ left: `${position}%` }}
+                        />
+                      </>
+                    );
+                  })()}
                 </div>
                 <p className="text-[10px] text-muted-foreground text-center">
                   Current: <span className="font-mono font-medium">${currentPrice?.toFixed(2) || 'N/A'}</span>
                 </p>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">No data available</p>
+              <p className="text-xs text-muted-foreground">52-week range data not available</p>
             )}
           </Card>
 
