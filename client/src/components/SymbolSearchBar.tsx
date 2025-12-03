@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 interface SymbolSearchBarProps {
   symbolInfo: SymbolInfo;
   onSymbolChange: (info: SymbolInfo) => void;
+  compact?: boolean; // Minimal search-only mode for Option Finder
 }
 
 interface SearchResult {
@@ -31,7 +32,7 @@ interface StockQuote {
 
 const popularSymbols = ["SPY", "AAPL", "TSLA", "NVDA", "QQQ", "MSFT"];
 
-export function SymbolSearchBar({ symbolInfo, onSymbolChange }: SymbolSearchBarProps) {
+export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false }: SymbolSearchBarProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -125,6 +126,61 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange }: SymbolSearchBarP
     }
   };
 
+  // Compact mode: just search input with dropdown
+  if (compact) {
+    return (
+      <div className="relative">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={symbolInfo.symbol || "Search..."}
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            className="pl-8 h-9 text-sm bg-white dark:bg-background border-slate-300 dark:border-border"
+            data-testid="input-symbol-search"
+          />
+          {isSearching && (
+            <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
+
+        {showSuggestions && searchTerm && (
+          <Card className="absolute top-full mt-1 left-0 w-64 z-[100] max-h-80 overflow-y-auto shadow-lg">
+            {isSearching ? (
+              <div className="p-3 text-center text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1" />
+                Searching...
+              </div>
+            ) : searchResults?.results && searchResults.results.length > 0 ? (
+              <div className="p-1.5">
+                {searchResults.results.map((result) => (
+                  <button
+                    key={result.symbol}
+                    onClick={() => handleSymbolSelect(result.symbol)}
+                    className="w-full text-left p-2.5 hover:bg-slate-100 dark:hover:bg-muted rounded-md transition-colors"
+                    data-testid={`button-symbol-${result.symbol.toLowerCase()}`}
+                  >
+                    <div className="font-semibold font-mono text-sm">{result.displaySymbol || result.symbol}</div>
+                    <div className="text-xs text-muted-foreground">{result.name}</div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="p-3 text-center text-sm text-muted-foreground">
+                No symbols found
+              </div>
+            )}
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // Full mode with Quick symbols and current price
   return (
     <Card className="px-2 py-1.5">
       <div className="flex items-center gap-2">

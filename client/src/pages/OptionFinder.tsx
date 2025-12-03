@@ -327,7 +327,7 @@ export default function OptionFinder() {
 
   const handleOpenInBuilder = (strategyIndex: number) => {
     // Navigate to builder with strategy index and symbol
-    setLocation(`/?strategy=${strategyIndex}&symbol=${symbolInfo.symbol}`);
+    setLocation(`/builder?strategy=${strategyIndex}&symbol=${symbolInfo.symbol}`);
   };
 
   // Calculate price change display
@@ -352,7 +352,7 @@ export default function OptionFinder() {
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => setLocation("/")}
+              onClick={() => setLocation("/builder")}
               data-testid="button-back-builder"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
@@ -364,46 +364,51 @@ export default function OptionFinder() {
       </header>
 
       <div className="container mx-auto px-4 md:px-6 py-6">
-        {/* Top Control Panel - Matching OptionStrat Design */}
+        {/* Top Control Panel - Clean Layout */}
         <div className="bg-slate-50 dark:bg-card rounded-xl border border-slate-200 dark:border-border p-6 mb-8">
-          {/* Symbol & Price Row */}
-          <div className="flex items-center justify-center gap-4 mb-6 flex-wrap">
-            <div className="flex items-center gap-2">
+          
+          {/* Row 1: Symbol Search (isolated with high z-index for dropdown) */}
+          <div className="relative z-30 mb-6">
+            <div className="flex items-center justify-center gap-3">
               <span className="text-sm font-medium text-slate-600 dark:text-muted-foreground">Symbol:</span>
-              <div className="w-28">
+              <div className="w-40">
                 <SymbolSearchBar 
                   symbolInfo={symbolInfo} 
-                  onSymbolChange={setSymbolInfo} 
+                  onSymbolChange={setSymbolInfo}
+                  compact={true}
                 />
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-2xl font-bold text-slate-900 dark:text-foreground">
-                {symbolInfo.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-              <span className={`text-sm font-medium ${priceChangePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          </div>
+
+          {/* Row 2: Price Display */}
+          <div className="relative z-10 flex items-center justify-center gap-3 mb-6">
+            <span className="font-mono text-3xl font-bold text-slate-900 dark:text-foreground">
+              ${symbolInfo.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <div className="flex flex-col items-start">
+              <span className={`text-sm font-semibold ${priceChangePercent >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
-                <br />
-                <span className="text-xs">{priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}</span>
+              </span>
+              <span className={`text-xs ${priceChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}
               </span>
             </div>
-
-            <div className="flex items-center gap-1.5 text-slate-500 dark:text-muted-foreground">
+            <div className="flex items-center gap-1.5 ml-2 text-slate-500 dark:text-muted-foreground">
               <button 
                 onClick={() => refetchQuote()} 
-                className="p-1 hover:bg-slate-200 dark:hover:bg-muted rounded transition-colors"
+                className="p-1.5 hover:bg-slate-200 dark:hover:bg-muted rounded-full transition-colors"
                 data-testid="button-refresh-quote"
               >
                 <RefreshCw className="h-4 w-4" />
               </button>
               <Clock className="h-4 w-4" />
-              <span className="text-xs">Delayed</span>
+              <span className="text-xs font-medium">Delayed</span>
             </div>
           </div>
 
-          {/* Sentiment Icons Row */}
-          <div className="flex items-center justify-center gap-4 md:gap-6 mb-6">
+          {/* Row 3: Sentiment Icons */}
+          <div className="relative z-10 flex items-center justify-center gap-3 md:gap-5 mb-6">
             {(Object.keys(sentimentConfig) as Sentiment[]).map((sentiment) => {
               const config = sentimentConfig[sentiment];
               const isSelected = selectedSentiment === sentiment;

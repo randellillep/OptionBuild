@@ -104,8 +104,8 @@ export default function Builder() {
         }
       }
       
-      // Clear URL params after processing
-      window.history.replaceState({}, '', '/');
+      // Clear URL params after processing - stay on /builder route
+      window.history.replaceState({}, '', '/builder');
     }
   }, [searchString, symbolInfo.symbol, symbolInfo.price, setSymbolInfo, setLegs]);
 
