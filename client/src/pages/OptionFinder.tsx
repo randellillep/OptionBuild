@@ -15,7 +15,8 @@ import {
   ChevronsUp,
   ChevronDown,
   ChevronUp,
-  DollarSign,
+  RefreshCw,
+  Clock,
 } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
 import { strategyTemplates, type ExtendedStrategy } from "@/lib/strategy-templates";
@@ -31,42 +32,48 @@ import {
 
 type Sentiment = "very_bearish" | "bearish" | "neutral" | "directional" | "bullish" | "very_bullish";
 
-const sentimentConfig: Record<Sentiment, { icon: React.ReactNode; label: string; color: string; bgColor: string }> = {
+const sentimentConfig: Record<Sentiment, { icon: React.ReactNode; label: string; selectedBg: string; selectedBorder: string; iconColor: string }> = {
   very_bearish: { 
-    icon: <ChevronsDown className="h-5 w-5" />, 
+    icon: <ChevronsDown className="h-6 w-6" />, 
     label: "Very Bearish", 
-    color: "text-loss",
-    bgColor: "bg-loss/20 border-loss/30",
+    selectedBg: "bg-[#8B1538]",
+    selectedBorder: "border-[#8B1538]",
+    iconColor: "text-white",
   },
   bearish: { 
-    icon: <ChevronDown className="h-5 w-5" />, 
+    icon: <TrendingDown className="h-6 w-6" />, 
     label: "Bearish", 
-    color: "text-loss",
-    bgColor: "bg-loss/10 border-loss/20",
+    selectedBg: "bg-[#C2185B]",
+    selectedBorder: "border-[#C2185B]",
+    iconColor: "text-white",
   },
   neutral: { 
-    icon: <Minus className="h-5 w-5" />, 
+    icon: <ArrowRight className="h-6 w-6" />, 
     label: "Neutral", 
-    color: "text-muted-foreground",
-    bgColor: "bg-muted border-muted-foreground/20",
+    selectedBg: "bg-slate-500 dark:bg-slate-600",
+    selectedBorder: "border-slate-500 dark:border-slate-600",
+    iconColor: "text-white",
   },
   directional: { 
-    icon: <ArrowRight className="h-5 w-5" />, 
+    icon: <TrendingUp className="h-6 w-6 rotate-45" />, 
     label: "Directional", 
-    color: "text-primary",
-    bgColor: "bg-primary/10 border-primary/20",
+    selectedBg: "bg-[#9C27B0]",
+    selectedBorder: "border-[#9C27B0]",
+    iconColor: "text-white",
   },
   bullish: { 
-    icon: <ChevronUp className="h-5 w-5" />, 
+    icon: <TrendingUp className="h-6 w-6" />, 
     label: "Bullish", 
-    color: "text-profit",
-    bgColor: "bg-profit/10 border-profit/20",
+    selectedBg: "bg-[#2E7D32]",
+    selectedBorder: "border-[#2E7D32]",
+    iconColor: "text-white",
   },
   very_bullish: { 
-    icon: <ChevronsUp className="h-5 w-5" />, 
+    icon: <ChevronsUp className="h-6 w-6" />, 
     label: "Very Bullish", 
-    color: "text-profit",
-    bgColor: "bg-profit/20 border-profit/30",
+    selectedBg: "bg-[#1B5E20]",
+    selectedBorder: "border-[#1B5E20]",
+    iconColor: "text-white",
   },
 };
 
@@ -255,7 +262,7 @@ export default function OptionFinder() {
   const [selectedSentiment, setSelectedSentiment] = useState<Sentiment | null>("bullish");
 
   // Fetch stock price for symbol from URL
-  const { data: quoteData } = useQuery<{ price: number; symbol: string }>({
+  const { data: quoteData, refetch: refetchQuote } = useQuery<{ price: number; symbol: string; change?: number; changePercent?: number }>({
     queryKey: ['/api/stock/quote', symbolInfo.symbol],
     enabled: !!symbolInfo.symbol,
   });
@@ -319,13 +326,18 @@ export default function OptionFinder() {
   }, [selectedSentiment, budgetNum]);
 
   const handleOpenInBuilder = (strategyIndex: number) => {
+    // Navigate to builder with strategy index and symbol
     setLocation(`/?strategy=${strategyIndex}&symbol=${symbolInfo.symbol}`);
   };
+
+  // Calculate price change display
+  const priceChange = quoteData?.change ?? 0;
+  const priceChangePercent = quoteData?.changePercent ?? 0;
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 md:px-6 flex h-10 items-center justify-between">
+        <div className="container mx-auto px-4 md:px-6 flex h-12 items-center justify-between">
           <div className="flex items-center gap-4">
             <div 
               className="flex items-center gap-1.5 cursor-pointer" 
@@ -351,68 +363,47 @@ export default function OptionFinder() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 md:px-6 py-8">
-        <Card className="p-6 mb-8">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-6 mb-6">
-            <div className="flex items-center gap-4 flex-wrap justify-center lg:justify-start">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Symbol</span>
-                <div className="w-32">
-                  <SymbolSearchBar 
-                    symbolInfo={symbolInfo} 
-                    onSymbolChange={setSymbolInfo} 
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 rounded-lg">
-                <DollarSign className="h-5 w-5 text-muted-foreground" />
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">Current Price</span>
-                  <span className="font-mono text-xl font-bold">${symbolInfo.price.toFixed(2)}</span>
-                </div>
+      <div className="container mx-auto px-4 md:px-6 py-6">
+        {/* Top Control Panel - Matching OptionStrat Design */}
+        <div className="bg-slate-50 dark:bg-card rounded-xl border border-slate-200 dark:border-border p-6 mb-8">
+          {/* Symbol & Price Row */}
+          <div className="flex items-center justify-center gap-4 mb-6 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600 dark:text-muted-foreground">Symbol:</span>
+              <div className="w-28">
+                <SymbolSearchBar 
+                  symbolInfo={symbolInfo} 
+                  onSymbolChange={setSymbolInfo} 
+                />
               </div>
             </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-2xl font-bold text-slate-900 dark:text-foreground">
+                {symbolInfo.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className={`text-sm font-medium ${priceChangePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {priceChangePercent >= 0 ? '+' : ''}{priceChangePercent.toFixed(2)}%
+                <br />
+                <span className="text-xs">{priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}</span>
+              </span>
+            </div>
 
-            <div className="flex items-center gap-4 flex-wrap justify-center">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Target</span>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                  <Input
-                    type="number"
-                    value={targetPrice}
-                    onChange={(e) => setTargetPrice(e.target.value)}
-                    className="w-28 pl-6"
-                    data-testid="input-target-price"
-                  />
-                </div>
-                <Badge 
-                  variant={parseFloat(changePercent) >= 0 ? "default" : "destructive"} 
-                  className={`text-xs ${parseFloat(changePercent) >= 0 ? "bg-profit/20 text-profit border-profit/30" : "bg-loss/20 text-loss border-loss/30"}`}
-                >
-                  {parseFloat(changePercent) >= 0 ? "+" : ""}{changePercent}%
-                </Badge>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Budget</span>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                  <Input
-                    type="number"
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
-                    placeholder="None"
-                    className="w-28 pl-6"
-                    data-testid="input-budget"
-                  />
-                </div>
-              </div>
+            <div className="flex items-center gap-1.5 text-slate-500 dark:text-muted-foreground">
+              <button 
+                onClick={() => refetchQuote()} 
+                className="p-1 hover:bg-slate-200 dark:hover:bg-muted rounded transition-colors"
+                data-testid="button-refresh-quote"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+              <Clock className="h-4 w-4" />
+              <span className="text-xs">Delayed</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
+          {/* Sentiment Icons Row */}
+          <div className="flex items-center justify-center gap-4 md:gap-6 mb-6">
             {(Object.keys(sentimentConfig) as Sentiment[]).map((sentiment) => {
               const config = sentimentConfig[sentiment];
               const isSelected = selectedSentiment === sentiment;
@@ -421,33 +412,100 @@ export default function OptionFinder() {
                 <button
                   key={sentiment}
                   onClick={() => setSelectedSentiment(isSelected ? null : sentiment)}
-                  className={`flex flex-col items-center gap-1 p-2 md:p-3 rounded-lg border transition-all ${
-                    isSelected 
-                      ? `${config.bgColor} ${config.color}` 
-                      : "border-transparent hover:bg-muted"
-                  }`}
+                  className="flex flex-col items-center gap-2 group"
                   data-testid={`sentiment-${sentiment}`}
                 >
-                  <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center ${
-                    isSelected ? config.bgColor : "bg-muted"
+                  <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-all duration-200 border-2 ${
+                    isSelected 
+                      ? `${config.selectedBg} ${config.selectedBorder} shadow-lg scale-110` 
+                      : "bg-slate-100 dark:bg-muted border-slate-300 dark:border-border hover:border-slate-400 dark:hover:border-muted-foreground/50"
                   }`}>
-                    <span className={config.color}>{config.icon}</span>
+                    <span className={isSelected ? config.iconColor : "text-slate-600 dark:text-muted-foreground"}>
+                      {config.icon}
+                    </span>
                   </div>
-                  <span className="text-xs">{config.label}</span>
+                  <span className={`text-xs font-medium transition-colors ${
+                    isSelected 
+                      ? "text-slate-900 dark:text-foreground" 
+                      : "text-slate-500 dark:text-muted-foreground group-hover:text-slate-700 dark:group-hover:text-foreground"
+                  }`}>
+                    {config.label}
+                  </span>
                 </button>
               );
             })}
           </div>
-        </Card>
 
+          {/* Target Price & Budget Row */}
+          <div className="flex items-center justify-center gap-6 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600 dark:text-muted-foreground">Target Price:</span>
+              <div className="relative">
+                <Input
+                  type="number"
+                  value={targetPrice}
+                  onChange={(e) => setTargetPrice(e.target.value)}
+                  className="w-28 h-9 text-center bg-white dark:bg-background border-slate-300 dark:border-border"
+                  data-testid="input-target-price"
+                />
+              </div>
+              <Badge 
+                variant="secondary"
+                className={`text-xs px-2 py-0.5 ${
+                  parseFloat(changePercent) >= 0 
+                    ? "bg-green-100 text-green-700 dark:bg-profit/20 dark:text-profit border-green-200 dark:border-profit/30" 
+                    : "bg-red-100 text-red-700 dark:bg-loss/20 dark:text-loss border-red-200 dark:border-loss/30"
+                }`}
+              >
+                ({parseFloat(changePercent) >= 0 ? "+" : ""}{changePercent}%)
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600 dark:text-muted-foreground">Budget: $</span>
+              <Input
+                type="number"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                placeholder="None"
+                className="w-24 h-9 text-center bg-white dark:bg-background border-slate-300 dark:border-border"
+                data-testid="input-budget"
+              />
+            </div>
+          </div>
+
+          {/* Date Timeline - Simplified */}
+          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-border">
+            <div className="flex items-center justify-center">
+              <div className="flex items-center gap-1 overflow-x-auto py-2 px-4">
+                {generateExpirationDates().map((date, index) => (
+                  <button
+                    key={index}
+                    className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                      index === 0 
+                        ? "bg-primary text-primary-foreground" 
+                        : "bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200 dark:hover:bg-muted/80"
+                    }`}
+                    data-testid={`date-${date.day}`}
+                  >
+                    {date.day}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Strategy Sorting Indicator */}
         <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground mb-6">
           <span>← Max Return</span>
-          <div className="w-64 h-1 bg-muted rounded-full">
-            <div className="w-1/2 h-full bg-primary rounded-full" />
+          <div className="w-64 h-1.5 bg-slate-200 dark:bg-muted rounded-full overflow-hidden">
+            <div className="w-1/2 h-full bg-gradient-to-r from-primary to-primary/60 rounded-full" />
           </div>
           <span>Max Chance →</span>
         </div>
 
+        {/* Strategy Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredStrategies.map((strategy, index) => (
             <StrategyCard
@@ -468,4 +526,23 @@ export default function OptionFinder() {
       </div>
     </div>
   );
+}
+
+// Helper function to generate expiration dates
+function generateExpirationDates() {
+  const dates = [];
+  const today = new Date();
+  
+  // Generate dates for the next 4 weeks
+  for (let i = 0; i < 20; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    dates.push({
+      day: date.getDate(),
+      month: date.toLocaleDateString('en-US', { month: 'short' }),
+      year: date.getFullYear().toString().slice(-2),
+    });
+  }
+  
+  return dates;
 }

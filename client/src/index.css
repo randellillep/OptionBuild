@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE */
+/* LIGHT MODE - Professional Fintech Theme */
 :root {
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
@@ -16,67 +16,87 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 0 0% 100%;
+  /* Clean white background with subtle warmth */
+  --background: 210 20% 99%;
 
-  --foreground: 222 15% 12%;
+  /* Dark navy foreground for strong contrast */
+  --foreground: 222 47% 11%;
 
-  --border: 220 13% 91%;
+  /* Subtle gray borders */
+  --border: 220 13% 88%;
 
-  --card: 0 0% 98%;
+  /* Slightly warm white cards for depth */
+  --card: 0 0% 100%;
 
-  --card-foreground: 222 15% 12%;
+  --card-foreground: 222 47% 11%;
 
-  --card-border: 220 13% 94%;
+  --card-border: 220 13% 90%;
 
-  --sidebar: 220 9% 96%;
+  /* Light gray sidebar with subtle blue tint */
+  --sidebar: 220 14% 96%;
 
-  --sidebar-foreground: 222 15% 12%;
+  --sidebar-foreground: 222 47% 11%;
 
-  --sidebar-border: 220 13% 91%;
+  --sidebar-border: 220 13% 88%;
 
-  --sidebar-primary: 217 91% 35%;
+  /* Professional blue for primary actions */
+  --sidebar-primary: 217 91% 40%;
 
-  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 220 14% 91%;
+  --sidebar-accent: 220 14% 93%;
 
-  --sidebar-accent-foreground: 222 15% 20%;
+  --sidebar-accent-foreground: 222 47% 15%;
 
-  --sidebar-ring: 217 91% 60%;
+  --sidebar-ring: 217 91% 55%;
 
-  --popover: 0 0% 96%;
+  /* Clean white popovers */
+  --popover: 0 0% 100%;
 
-  --popover-foreground: 222 15% 12%;
+  --popover-foreground: 222 47% 11%;
 
-  --popover-border: 220 13% 89%;
+  --popover-border: 220 13% 88%;
 
-  --primary: 217 91% 35%;
+  /* Vibrant blue primary */
+  --primary: 217 91% 40%;
 
-  --primary-foreground: 210 40% 98%;
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 220 14% 93%;
+  /* Subtle gray secondary */
+  --secondary: 220 14% 94%;
 
-  --secondary-foreground: 222 15% 20%;
+  --secondary-foreground: 222 47% 15%;
 
-  --muted: 220 13% 95%;
+  /* Light muted areas */
+  --muted: 220 13% 96%;
 
-  --muted-foreground: 220 9% 46%;
+  --muted-foreground: 220 9% 40%;
 
-  --accent: 217 20% 92%;
+  /* Accent with slight blue tint */
+  --accent: 217 20% 95%;
 
-  --accent-foreground: 217 25% 28%;
+  --accent-foreground: 217 47% 20%;
 
-  --destructive: 0 84% 40%;
+  /* Vibrant red for destructive */
+  --destructive: 0 84% 45%;
 
-  --destructive-foreground: 0 0% 98%;
+  --destructive-foreground: 0 0% 100%;
 
-  --input: 220 13% 80%;
-  --ring: 217 91% 60%;
-  --chart-1: 217 91% 35%;
-  --chart-2: 142 76% 36%;
-  --chart-3: 262 83% 58%;
-  --chart-4: 32 95% 44%;
-  --chart-5: 340 82% 52%;
+  --input: 220 13% 85%;
+  --ring: 217 91% 55%;
+  
+  /* Chart colors for light mode - vibrant and distinct */
+  --chart-1: 217 91% 45%;
+  --chart-2: 142 71% 40%;
+  --chart-3: 262 83% 55%;
+  --chart-4: 32 95% 48%;
+  --chart-5: 0 72% 50%;
+  
+  /* Trading colors for light mode */
+  --profit-light: 142 71% 35%;
+  --loss-light: 0 72% 45%;
+  --bid-light: 142 71% 35%;
+  --ask-light: 0 72% 45%;
 
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;

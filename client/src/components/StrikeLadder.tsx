@@ -424,11 +424,13 @@ export function StrikeLadder({
     // Determine if this leg can be dragged (not sold portions)
     const canDrag = !hasClosing || remainingQty > 0;
     
-    // Badge styling
-    const openBgClass = isCall ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600";
-    const closedBgClass = "bg-cyan-600 hover:bg-cyan-700"; // Blue/teal for closed positions
-    const excludedBgClass = "bg-gray-400 hover:bg-gray-500";
-    const sellModeBgClass = "bg-orange-500 ring-2 ring-orange-300"; // Highlight in sell mode
+    // Badge styling - Using modern emerald/rose colors
+    const openBgClass = isCall 
+      ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/30" 
+      : "bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-500/30";
+    const closedBgClass = "bg-sky-600 hover:bg-sky-700 shadow-sm"; // Blue/teal for closed positions
+    const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
+    const sellModeBgClass = "bg-amber-500 ring-2 ring-amber-300 shadow-md"; // Highlight in sell mode
     
     // Calculate vertical position accounting for stacking
     const badgeHeight = 24; // h-6 = 24px
@@ -635,35 +637,54 @@ export function StrikeLadder({
   };
 
   return (
-    <Card className="p-2">
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-[10px] font-semibold text-muted-foreground">STRIKES:</h3>
-        <div className="flex items-center gap-2 text-[9px]">
-          <div className="flex items-center gap-0.5">
-            <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-            <span className="text-muted-foreground">Price</span>
+    <Card className="p-3 bg-white dark:bg-card border border-slate-200 dark:border-border shadow-sm">
+      {/* Header with legend */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-xs font-semibold text-slate-700 dark:text-foreground">Strike Ladder</h3>
+          <span className="text-[10px] text-slate-500 dark:text-muted-foreground">
+            {symbol} • ${currentPrice.toFixed(2)}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-[10px]">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-emerald-500 shadow-sm"></div>
+            <span className="text-slate-600 dark:text-muted-foreground font-medium">Calls</span>
           </div>
-          <div className="flex items-center gap-0.5">
-            <div className="w-2 h-2 rounded-sm bg-green-500"></div>
-            <span className="text-muted-foreground">Calls</span>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-rose-500 shadow-sm"></div>
+            <span className="text-slate-600 dark:text-muted-foreground font-medium">Puts</span>
           </div>
-          <div className="flex items-center gap-0.5">
-            <div className="w-2 h-2 rounded-sm bg-red-500"></div>
-            <span className="text-muted-foreground">Puts</span>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+            <span className="text-slate-600 dark:text-muted-foreground font-medium">Price</span>
           </div>
         </div>
       </div>
 
-      {/* Main ladder container with strike numbers below */}
+      {/* Main ladder container - OptionStrat-inspired design */}
       <div className="relative">
+        {/* Ladder track */}
         <div 
           ref={ladderRef} 
-          className={`relative h-12 bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 rounded-t-md overflow-visible border border-slate-300 dark:border-slate-600 ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
-          style={{ userSelect: 'none', touchAction: 'none' }}
+          className={`relative h-16 rounded-lg overflow-visible ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+          style={{ 
+            userSelect: 'none', 
+            touchAction: 'none',
+            background: 'linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
+          }}
           onPointerDown={handleLadderPointerDown}
           data-testid="strike-ladder-container"
         >
-          {/* Tick marks on ladder - extend from bottom like reference image */}
+          {/* Dark mode override */}
+          <div className="absolute inset-0 rounded-lg hidden dark:block" style={{
+            background: 'linear-gradient(to bottom, hsl(222 42% 12%) 0%, hsl(222 42% 9%) 50%, hsl(222 42% 7%) 100%)',
+          }} />
+          
+          {/* Border */}
+          <div className="absolute inset-0 rounded-lg border border-slate-300 dark:border-slate-600 pointer-events-none" />
+          
+          {/* Grid lines / Tick marks */}
           <div className="absolute inset-0 pointer-events-none">
             {labeledStrikes.map((strike) => {
               const position = getStrikePosition(strike);
@@ -671,22 +692,46 @@ export function StrikeLadder({
               return (
                 <div
                   key={strike}
-                  className="absolute bottom-0 w-px h-3 bg-slate-400 dark:bg-slate-500"
+                  className="absolute top-0 bottom-0 w-px bg-slate-300/50 dark:bg-slate-600/50"
                   style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
                 />
               );
             })}
           </div>
 
-          {/* Main horizontal line */}
-          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border/40 pointer-events-none" />
+          {/* Center horizontal divider line */}
+          <div className="absolute top-1/2 left-2 right-2 h-px bg-slate-400/30 dark:bg-slate-500/30 pointer-events-none" />
 
-          {/* Current price indicator */}
+          {/* Current price indicator - prominent blue line */}
           <div
-            className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none"
+            className="absolute top-0 bottom-0 z-20 pointer-events-none"
             style={{ left: `${currentPricePercent}%`, transform: 'translateX(-50%)' }}
           >
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap font-mono">
+            {/* Vertical line */}
+            <div className="absolute inset-0 w-0.5 bg-blue-500" />
+            
+            {/* Top triangle indicator */}
+            <div 
+              className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-0 h-0"
+              style={{
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderTop: '6px solid #3b82f6',
+              }}
+            />
+            
+            {/* Bottom triangle indicator */}
+            <div 
+              className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-0 h-0"
+              style={{
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderBottom: '6px solid #3b82f6',
+              }}
+            />
+            
+            {/* Price label */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap font-mono">
               ${currentPrice.toFixed(2)}
             </div>
           </div>
@@ -726,15 +771,23 @@ export function StrikeLadder({
           })()}
         </div>
 
-        {/* Strike numbers row below the ladder - centered like in reference */}
-        <div className="relative h-5 bg-slate-100 dark:bg-slate-800 rounded-b-md overflow-hidden border-x border-b border-slate-300 dark:border-slate-600">
+        {/* Strike numbers row below the ladder */}
+        <div className="relative h-6 mt-1 overflow-hidden">
           {labeledStrikes.map((strike) => {
             const position = getStrikePosition(strike);
-            if (position < 2 || position > 98) return null; // More margin at edges
+            if (position < 2 || position > 98) return null;
+            
+            // Highlight if strike matches current price
+            const isNearCurrentPrice = Math.abs(strike - currentPrice) < strikeIncrement * 0.6;
+            
             return (
               <span
                 key={strike}
-                className="absolute top-1 text-[10px] text-slate-700 dark:text-slate-200 font-mono font-medium"
+                className={`absolute top-0 text-[10px] font-mono font-medium ${
+                  isNearCurrentPrice 
+                    ? 'text-blue-600 dark:text-blue-400 font-bold' 
+                    : 'text-slate-600 dark:text-slate-300'
+                }`}
                 style={{ 
                   left: `${position}%`, 
                   transform: 'translateX(-50%)',
