@@ -4,113 +4,114 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE - Professional Fintech Theme */
+/* LIGHT MODE - Modern Clean Design (Inspired by Rankly) */
 :root {
-  --button-outline: rgba(0,0,0, .10);
-  --badge-outline: rgba(0,0,0, .05);
+  --button-outline: rgba(0,0,0, .08);
+  --badge-outline: rgba(0,0,0, .04);
 
   /* Automatic computation of border around primary / danger buttons */
-  --opaque-button-border-intensity: -8; /* In terms of percentages */
+  --opaque-button-border-intensity: -10; /* In terms of percentages */
 
   /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .08);
+  --elevate-1: rgba(0,0,0, .025);
+  --elevate-2: rgba(0,0,0, .06);
 
-  /* Clean white background with subtle warmth */
-  --background: 210 20% 99%;
+  /* Pure white background for clean, airy feel */
+  --background: 0 0% 100%;
 
-  /* Dark navy foreground for strong contrast */
-  --foreground: 222 47% 11%;
+  /* Near-black foreground for high contrast readability */
+  --foreground: 240 10% 10%;
 
-  /* Subtle gray borders */
-  --border: 220 13% 88%;
+  /* Very subtle gray borders */
+  --border: 220 10% 90%;
 
-  /* Slightly warm white cards for depth */
+  /* Pure white cards with slight elevation */
   --card: 0 0% 100%;
 
-  --card-foreground: 222 47% 11%;
+  --card-foreground: 240 10% 10%;
 
-  --card-border: 220 13% 90%;
+  --card-border: 220 10% 88%;
 
-  /* Light gray sidebar with subtle blue tint */
-  --sidebar: 220 14% 96%;
+  /* Light cool gray sidebar */
+  --sidebar: 220 15% 97%;
 
-  --sidebar-foreground: 222 47% 11%;
+  --sidebar-foreground: 240 10% 10%;
 
-  --sidebar-border: 220 13% 88%;
+  --sidebar-border: 220 10% 90%;
 
-  /* Professional blue for primary actions */
-  --sidebar-primary: 217 91% 40%;
+  /* Deep purple primary for modern feel */
+  --sidebar-primary: 252 85% 55%;
 
   --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 220 14% 93%;
+  --sidebar-accent: 220 15% 94%;
 
-  --sidebar-accent-foreground: 222 47% 15%;
+  --sidebar-accent-foreground: 240 10% 15%;
 
-  --sidebar-ring: 217 91% 55%;
+  --sidebar-ring: 252 85% 60%;
 
   /* Clean white popovers */
   --popover: 0 0% 100%;
 
-  --popover-foreground: 222 47% 11%;
+  --popover-foreground: 240 10% 10%;
 
-  --popover-border: 220 13% 88%;
+  --popover-border: 220 10% 88%;
 
-  /* Vibrant blue primary */
-  --primary: 217 91% 40%;
+  /* Deep purple primary - modern and vibrant */
+  --primary: 252 85% 55%;
 
   --primary-foreground: 0 0% 100%;
 
-  /* Subtle gray secondary */
-  --secondary: 220 14% 94%;
+  /* Very light gray secondary */
+  --secondary: 220 15% 96%;
 
-  --secondary-foreground: 222 47% 15%;
+  --secondary-foreground: 240 10% 15%;
 
   /* Light muted areas */
-  --muted: 220 13% 96%;
+  --muted: 220 12% 97%;
 
-  --muted-foreground: 220 9% 40%;
+  --muted-foreground: 220 9% 46%;
 
-  /* Accent with slight blue tint */
-  --accent: 217 20% 95%;
+  /* Subtle cool gray accent */
+  --accent: 220 15% 95%;
 
-  --accent-foreground: 217 47% 20%;
+  --accent-foreground: 240 10% 18%;
 
   /* Vibrant red for destructive */
-  --destructive: 0 84% 45%;
+  --destructive: 0 84% 50%;
 
   --destructive-foreground: 0 0% 100%;
 
-  --input: 220 13% 85%;
-  --ring: 217 91% 55%;
+  --input: 220 10% 88%;
+  --ring: 252 85% 60%;
   
   /* Chart colors for light mode - vibrant and distinct */
-  --chart-1: 217 91% 45%;
-  --chart-2: 142 71% 40%;
-  --chart-3: 262 83% 55%;
+  --chart-1: 252 85% 55%;
+  --chart-2: 160 84% 39%;
+  --chart-3: 280 70% 55%;
   --chart-4: 32 95% 48%;
   --chart-5: 0 72% 50%;
   
   /* Trading colors for light mode */
-  --profit-light: 142 71% 35%;
-  --loss-light: 0 72% 45%;
-  --bid-light: 142 71% 35%;
-  --ask-light: 0 72% 45%;
+  --profit-light: 160 84% 36%;
+  --loss-light: 0 72% 50%;
+  --bid-light: 160 84% 36%;
+  --ask-light: 0 72% 50%;
 
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --radius: .5rem;
-  --shadow-2xs: 0px 1px 2px 0px hsl(220 13% 10% / 0.05);
-  --shadow-xs: 0px 1px 3px 0px hsl(220 13% 10% / 0.08);
-  --shadow-sm: 0px 2px 4px -1px hsl(220 13% 10% / 0.06), 0px 1px 2px -1px hsl(220 13% 10% / 0.10);
-  --shadow: 0px 4px 6px -1px hsl(220 13% 10% / 0.10), 0px 2px 4px -2px hsl(220 13% 10% / 0.10);
-  --shadow-md: 0px 6px 12px -2px hsl(220 13% 10% / 0.12), 0px 3px 7px -3px hsl(220 13% 10% / 0.10);
-  --shadow-lg: 0px 10px 20px -4px hsl(220 13% 10% / 0.15), 0px 4px 10px -4px hsl(220 13% 10% / 0.10);
-  --shadow-xl: 0px 20px 30px -6px hsl(220 13% 10% / 0.18), 0px 8px 16px -6px hsl(220 13% 10% / 0.12);
-  --shadow-2xl: 0px 25px 50px -12px hsl(220 13% 10% / 0.25);
+  /* Softer, more subtle shadows for modern look */
+  --shadow-2xs: 0px 1px 2px 0px hsl(240 10% 10% / 0.03);
+  --shadow-xs: 0px 1px 3px 0px hsl(240 10% 10% / 0.05);
+  --shadow-sm: 0px 2px 4px -1px hsl(240 10% 10% / 0.04), 0px 1px 2px -1px hsl(240 10% 10% / 0.06);
+  --shadow: 0px 4px 6px -1px hsl(240 10% 10% / 0.06), 0px 2px 4px -2px hsl(240 10% 10% / 0.06);
+  --shadow-md: 0px 6px 12px -2px hsl(240 10% 10% / 0.08), 0px 3px 7px -3px hsl(240 10% 10% / 0.06);
+  --shadow-lg: 0px 10px 20px -4px hsl(240 10% 10% / 0.10), 0px 4px 10px -4px hsl(240 10% 10% / 0.06);
+  --shadow-xl: 0px 20px 30px -6px hsl(240 10% 10% / 0.12), 0px 8px 16px -6px hsl(240 10% 10% / 0.08);
+  --shadow-2xl: 0px 25px 50px -12px hsl(240 10% 10% / 0.18);
   --tracking-normal: -0.011em;
   --spacing: 0.25rem;
 
@@ -362,21 +363,37 @@
     inset: -1px;
   }
 
-  /* Trading-specific color utilities */
+  /* Trading-specific color utilities - Modern teal/emerald palette */
   .text-profit {
-    color: hsl(142 71% 45%);
+    color: hsl(160 84% 36%);
+  }
+  
+  .dark .text-profit {
+    color: hsl(160 84% 45%);
   }
   
   .text-loss {
-    color: hsl(0 72% 51%);
+    color: hsl(0 72% 50%);
+  }
+  
+  .dark .text-loss {
+    color: hsl(0 72% 55%);
   }
   
   .text-bid {
-    color: hsl(142 71% 45%);
+    color: hsl(160 84% 36%);
+  }
+  
+  .dark .text-bid {
+    color: hsl(160 84% 45%);
   }
   
   .text-ask {
-    color: hsl(0 72% 51%);
+    color: hsl(0 72% 50%);
+  }
+  
+  .dark .text-ask {
+    color: hsl(0 72% 55%);
   }
   
   .text-teal {
@@ -384,19 +401,35 @@
   }
   
   .bg-profit {
-    background-color: hsl(142 71% 45%);
+    background-color: hsl(160 84% 36%);
+  }
+  
+  .dark .bg-profit {
+    background-color: hsl(160 84% 45%);
   }
   
   .bg-loss {
-    background-color: hsl(0 72% 51%);
+    background-color: hsl(0 72% 50%);
+  }
+  
+  .dark .bg-loss {
+    background-color: hsl(0 72% 55%);
   }
   
   .bg-profit\/10 {
-    background-color: hsl(142 71% 45% / 0.1);
+    background-color: hsl(160 84% 36% / 0.1);
+  }
+  
+  .dark .bg-profit\/10 {
+    background-color: hsl(160 84% 45% / 0.15);
   }
   
   .bg-loss\/10 {
-    background-color: hsl(0 72% 51% / 0.1);
+    background-color: hsl(0 72% 50% / 0.1);
+  }
+  
+  .dark .bg-loss\/10 {
+    background-color: hsl(0 72% 55% / 0.15);
   }
   
   .bg-teal {
@@ -407,12 +440,24 @@
     background-color: hsl(168 76% 42% / 0.1);
   }
   
+  .dark .bg-teal\/10 {
+    background-color: hsl(168 76% 42% / 0.15);
+  }
+  
   .border-profit {
-    border-color: hsl(142 71% 45%);
+    border-color: hsl(160 84% 36%);
+  }
+  
+  .dark .border-profit {
+    border-color: hsl(160 84% 45%);
   }
   
   .border-loss {
-    border-color: hsl(0 72% 51%);
+    border-color: hsl(0 72% 50%);
+  }
+  
+  .dark .border-loss {
+    border-color: hsl(0 72% 55%);
   }
   
   .border-teal {
@@ -421,26 +466,50 @@
   
   /* Sentiment icon colors */
   .text-bearish {
-    color: hsl(0 72% 51%);
+    color: hsl(0 72% 50%);
+  }
+  
+  .dark .text-bearish {
+    color: hsl(0 72% 55%);
   }
   
   .text-bullish {
-    color: hsl(142 71% 45%);
+    color: hsl(160 84% 36%);
+  }
+  
+  .dark .text-bullish {
+    color: hsl(160 84% 45%);
   }
   
   .text-neutral {
+    color: hsl(220 9% 46%);
+  }
+  
+  .dark .text-neutral {
     color: hsl(220 15% 55%);
   }
   
   .bg-bearish {
-    background-color: hsl(0 72% 51% / 0.15);
+    background-color: hsl(0 72% 50% / 0.12);
+  }
+  
+  .dark .bg-bearish {
+    background-color: hsl(0 72% 55% / 0.15);
   }
   
   .bg-bullish {
-    background-color: hsl(142 71% 45% / 0.15);
+    background-color: hsl(160 84% 36% / 0.12);
+  }
+  
+  .dark .bg-bullish {
+    background-color: hsl(160 84% 45% / 0.15);
   }
   
   .bg-neutral {
+    background-color: hsl(220 9% 46% / 0.12);
+  }
+  
+  .dark .bg-neutral {
     background-color: hsl(220 15% 55% / 0.15);
   }
 }
