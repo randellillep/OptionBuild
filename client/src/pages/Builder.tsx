@@ -24,7 +24,7 @@ import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation, useSearch } from "wouter";
 import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 import { useOptionsChain } from "@/hooks/useOptionsChain";
-import { calculateImpliedVolatility } from "@/lib/options-pricing";
+import { calculateImpliedVolatility, calculateOptionPrice } from "@/lib/options-pricing";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Builder() {
@@ -251,11 +251,16 @@ export default function Builder() {
           q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
         );
 
-        if (matchingQuote) {
+        if (matchingQuote && matchingQuote.mid > 0) {
           const newPremium = Number(matchingQuote.mid.toFixed(2));
           
-          // Only update if price actually changed (avoid unnecessary re-renders)
-          if (leg.premium !== newPremium || leg.premiumSource !== 'market') {
+          // Update if: price changed, source isn't market, or current premium is missing/invalid
+          const needsUpdate = leg.premium !== newPremium || 
+                              leg.premiumSource !== 'market' || 
+                              !isFinite(leg.premium) || 
+                              leg.premium <= 0;
+          
+          if (needsUpdate) {
             updated = true;
             
             // Calculate IV from market price if not provided by API
@@ -279,6 +284,37 @@ export default function Builder() {
               expirationDays: daysToExpiration,
             };
           }
+        } else if (!isFinite(leg.premium) || leg.premium <= 0) {
+          // Fallback to theoretical pricing if leg has no valid premium
+          if (symbolInfo?.price && symbolInfo.price > 0 && leg.strike > 0) {
+            const currentVol = volatility || 0.3;
+            const theoreticalPremium = calculateOptionPrice(
+              leg.type,
+              symbolInfo.price,
+              leg.strike,
+              daysToExpiration,
+              currentVol
+            );
+            
+            if (isFinite(theoreticalPremium) && theoreticalPremium >= 0) {
+              updated = true;
+              return {
+                ...leg,
+                premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
+                premiumSource: 'theoretical' as const,
+                expirationDays: daysToExpiration,
+              };
+            }
+          }
+          
+          // Ultimate fallback: minimal placeholder premium
+          updated = true;
+          return {
+            ...leg,
+            premium: 0.01,
+            premiumSource: 'placeholder' as const,
+            expirationDays: daysToExpiration,
+          };
         }
         
         return leg;
@@ -286,7 +322,69 @@ export default function Builder() {
 
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, selectedExpirationDate]);
+  }, [optionsChainData, selectedExpirationDate, symbolInfo?.price, volatility]);
+
+  // Ensure all legs have valid premiums (fallback to theoretical even when chain data partial)
+  useEffect(() => {
+    // Skip if no legs
+    if (legs.length === 0) return;
+    // Skip if symbolInfo.price is not valid yet
+    if (!symbolInfo?.price || symbolInfo.price <= 0) return;
+
+    // Check if any legs have invalid premiums (regardless of chain data availability)
+    const hasInvalidPremiums = legs.some(
+      leg => leg.premiumSource !== 'manual' && (!isFinite(leg.premium) || leg.premium <= 0)
+    );
+
+    if (hasInvalidPremiums) {
+      const rawDTE = selectedExpirationDate 
+        ? Math.max(1, Math.round((new Date(selectedExpirationDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+        : 30;
+      // Use minimum 14 days for theoretical pricing to show realistic premiums
+      const daysToExpiration = Math.max(14, rawDTE);
+      const currentVol = volatility || 0.3;
+
+      setLegs(currentLegs => {
+        let updated = false;
+        const newLegs = currentLegs.map(leg => {
+          if (leg.premiumSource === 'manual') return leg;
+          if (isFinite(leg.premium) && leg.premium > 0) return leg;
+
+          // Calculate theoretical price
+          if (leg.strike > 0) {
+            const theoreticalPremium = calculateOptionPrice(
+              leg.type,
+              symbolInfo.price,
+              leg.strike,
+              daysToExpiration,
+              currentVol
+            );
+
+            if (isFinite(theoreticalPremium) && theoreticalPremium >= 0) {
+              updated = true;
+              return {
+                ...leg,
+                premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
+                premiumSource: 'theoretical' as const,
+                expirationDays: daysToExpiration,
+              };
+            }
+          }
+
+          // Ultimate fallback
+          updated = true;
+          return {
+            ...leg,
+            premium: 0.01,
+            premiumSource: 'placeholder' as const,
+            expirationDays: daysToExpiration,
+          };
+        });
+
+        return updated ? newLegs : currentLegs;
+      });
+    }
+  }, [legs.length, symbolInfo?.price, volatility, optionsChainData?.quotes?.length, selectedExpirationDate]);
 
   // Calculate available strikes from market data
   // Use minStrike/maxStrike from API (which includes extrapolated range)
@@ -390,6 +488,88 @@ export default function Builder() {
     }
   };
 
+  // Helper function to apply market prices to legs (with theoretical fallback)
+  const applyMarketPrices = (legsToUpdate: OptionLeg[]): OptionLeg[] => {
+    // Calculate days to expiration from selected date
+    const calculateDTE = (): number => {
+      if (!selectedExpirationDate) return 30;
+      const expDate = new Date(selectedExpirationDate);
+      const today = new Date();
+      const expDateUTC = Date.UTC(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
+      const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+      const diffTime = expDateUTC - todayUTC;
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      return Math.max(1, diffDays);
+    };
+
+    const rawDTE = calculateDTE();
+    // Use minimum 14 days for theoretical pricing to show realistic premiums
+    // (very short DTE causes near-zero prices for OTM options)
+    const daysToExpiration = Math.max(14, rawDTE);
+    const currentVol = volatility || 0.3; // Default IV if not set
+
+    return legsToUpdate.map(leg => {
+      // Try to find matching market quote (same strike and type)
+      const matchingQuote = optionsChainData?.quotes?.find(
+        (q: any) => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
+      );
+
+      if (matchingQuote && matchingQuote.mid > 0) {
+        const newPremium = Number(matchingQuote.mid.toFixed(2));
+        
+        // Calculate IV from market price if not provided by API
+        let calculatedIV = matchingQuote.iv;
+        if (!calculatedIV && matchingQuote.mid > 0 && symbolInfo?.price) {
+          calculatedIV = calculateImpliedVolatility(
+            matchingQuote.side as 'call' | 'put',
+            symbolInfo.price,
+            matchingQuote.strike,
+            daysToExpiration,
+            matchingQuote.mid
+          );
+        }
+        
+        return {
+          ...leg,
+          premium: newPremium,
+          marketQuoteId: matchingQuote.optionSymbol,
+          premiumSource: 'market' as const,
+          impliedVolatility: calculatedIV,
+          expirationDays: daysToExpiration,
+        };
+      }
+      
+      // Fallback: Calculate theoretical price using Black-Scholes
+      if (symbolInfo?.price && symbolInfo.price > 0 && leg.strike > 0) {
+        const theoreticalPremium = calculateOptionPrice(
+          leg.type,
+          symbolInfo.price,
+          leg.strike,
+          daysToExpiration,
+          currentVol
+        );
+        
+        // Ensure we have a valid, finite premium
+        if (isFinite(theoreticalPremium) && theoreticalPremium >= 0) {
+          return {
+            ...leg,
+            premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
+            premiumSource: 'theoretical' as const,
+            expirationDays: daysToExpiration,
+          };
+        }
+      }
+      
+      // Ultimate fallback: set a minimal placeholder premium so metrics can calculate
+      return {
+        ...leg,
+        premium: leg.premium ?? 0.01,
+        premiumSource: 'placeholder' as const,
+        expirationDays: daysToExpiration,
+      };
+    });
+  };
+
   const loadTemplate = (templateIndex: number) => {
     const template = strategyTemplates[templateIndex];
     const currentPrice = symbolInfo.price;
@@ -397,7 +577,12 @@ export default function Builder() {
     // Validate price before proceeding
     if (!currentPrice || !isFinite(currentPrice) || currentPrice <= 0) {
       // Fallback to template's original strikes if no valid price
-      setLegs(template.legs.map(leg => ({ ...leg, id: Date.now().toString() + leg.id })));
+      // Still apply market prices where possible (uses fallback logic)
+      const fallbackLegs = template.legs.map((leg, index) => ({ 
+        ...leg, 
+        id: Date.now().toString() + leg.id + index 
+      }));
+      setLegs(applyMarketPrices(fallbackLegs));
       return;
     }
     
@@ -456,7 +641,9 @@ export default function Builder() {
       };
     });
     
-    setLegs(adjustedLegs);
+    // Apply market prices immediately if options chain data is available
+    const legsWithMarketPrices = applyMarketPrices(adjustedLegs);
+    setLegs(legsWithMarketPrices);
   };
 
   return (

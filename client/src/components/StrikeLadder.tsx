@@ -684,7 +684,7 @@ export function StrikeLadder({
           {/* Border */}
           <div className="absolute inset-0 rounded-lg border border-slate-300 dark:border-slate-600 pointer-events-none" />
           
-          {/* Grid lines / Tick marks */}
+          {/* Strike tick marks - small lines at top and bottom like OptionStrat */}
           <div className="absolute inset-0 pointer-events-none">
             {labeledStrikes.map((strike) => {
               const position = getStrikePosition(strike);
@@ -692,15 +692,20 @@ export function StrikeLadder({
               return (
                 <div
                   key={strike}
-                  className="absolute top-0 bottom-0 w-px bg-slate-300/50 dark:bg-slate-600/50"
+                  className="absolute top-0 bottom-0"
                   style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
-                />
+                >
+                  {/* Top tick mark */}
+                  <div className="absolute top-0 w-px h-2.5 bg-slate-400 dark:bg-slate-500" />
+                  {/* Bottom tick mark */}
+                  <div className="absolute bottom-0 w-px h-2.5 bg-slate-400 dark:bg-slate-500" />
+                </div>
               );
             })}
           </div>
 
           {/* Center horizontal divider line */}
-          <div className="absolute top-1/2 left-2 right-2 h-px bg-slate-400/30 dark:bg-slate-500/30 pointer-events-none" />
+          <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-300 dark:bg-slate-600 pointer-events-none" />
 
           {/* Current price indicator - prominent blue line */}
           <div
