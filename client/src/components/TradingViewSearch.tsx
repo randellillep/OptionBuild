@@ -31,65 +31,9 @@ interface StockQuote {
   timestamp: number;
 }
 
-// Map symbols to company domains for logo fetching
-const symbolToDomain: Record<string, string> = {
-  AAPL: "apple.com",
-  MSFT: "microsoft.com",
-  GOOGL: "google.com",
-  AMZN: "amazon.com",
-  NVDA: "nvidia.com",
-  TSLA: "tesla.com",
-  META: "meta.com",
-  JPM: "jpmorganchase.com",
-  V: "visa.com",
-  WMT: "walmart.com",
-  UNH: "unitedhealthgroup.com",
-  JNJ: "jnj.com",
-  SPY: "ssga.com",
-  QQQ: "invesco.com",
-  AMD: "amd.com",
-  PLTR: "palantir.com",
-  SOFI: "sofi.com",
-  NIO: "nio.com",
-  COIN: "coinbase.com",
-  RIVN: "rivian.com",
-  IWM: "ishares.com",
-  EEM: "ishares.com",
-  XLF: "ssga.com",
-  XLE: "ssga.com",
-  XLK: "ssga.com",
-  XLV: "ssga.com",
-  GLD: "ssga.com",
-  SLV: "ishares.com",
-  DIA: "ssga.com",
-  NFLX: "netflix.com",
-  INTC: "intel.com",
-  BA: "boeing.com",
-  DIS: "disney.com",
-  UBER: "uber.com",
-  PYPL: "paypal.com",
-  BABA: "alibaba.com",
-  CRM: "salesforce.com",
-  ORCL: "oracle.com",
-  CSCO: "cisco.com",
-  IBM: "ibm.com",
-  GE: "ge.com",
-  F: "ford.com",
-  GM: "gm.com",
-  KO: "coca-colacompany.com",
-  PEP: "pepsico.com",
-  MCD: "mcdonalds.com",
-  SBUX: "starbucks.com",
-  NKE: "nike.com",
-};
-
-const getLogoUrl = (symbol: string): string | null => {
-  const domain = symbolToDomain[symbol.toUpperCase()];
-  if (domain) {
-    // Use backend proxy to avoid CORS issues
-    return `/api/logo/${symbol.toUpperCase()}`;
-  }
-  return null;
+// Get logo URL - uses backend proxy that fetches from FinancialModelingPrep
+const getLogoUrl = (symbol: string): string => {
+  return `/api/logo/${symbol.toUpperCase()}`;
 };
 
 const popularStocks = [
@@ -244,7 +188,9 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
   };
 
   const SymbolRow = ({ symbol, name, displayName }: { symbol: string; name: string; displayName?: string }) => {
+    const [logoError, setLogoError] = useState(false);
     const logoUrl = getLogoUrl(symbol);
+    
     return (
       <button
         onClick={() => handleSymbolSelect(symbol, name)}
@@ -253,19 +199,12 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center overflow-hidden">
-            {logoUrl ? (
+            {!logoError ? (
               <img 
                 src={logoUrl} 
                 alt={symbol}
                 className="w-6 h-6 object-contain"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const parent = target.parentElement;
-                  if (parent) {
-                    parent.innerHTML = `<span class="text-xs font-bold text-primary">${symbol.slice(0, 2)}</span>`;
-                  }
-                }}
+                onError={() => setLogoError(true)}
               />
             ) : (
               <span className="text-xs font-bold text-primary">{symbol.slice(0, 2)}</span>

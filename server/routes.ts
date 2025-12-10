@@ -697,26 +697,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/logo/:symbol", async (req, res) => {
     const { symbol } = req.params;
-    const domain = symbolToDomain[symbol.toUpperCase()];
-    
-    if (!domain) {
-      return res.status(404).json({ error: "Logo not found" });
-    }
+    const upperSymbol = symbol.toUpperCase();
     
     try {
-      const logoUrl = `https://logo.clearbit.com/${domain}`;
-      const response = await fetch(logoUrl);
+      // Use Financial Modeling Prep for stock logos (free, no auth required)
+      const logoUrl = `https://financialmodelingprep.com/image-stock/${upperSymbol}.png`;
       
-      if (!response.ok) {
-        return res.status(404).json({ error: "Logo not found" });
+      const response = await fetch(logoUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      
+      if (response.ok) {
+        const contentType = response.headers.get("content-type") || "image/png";
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Cache-Control", "public, max-age=86400");
+        
+        const buffer = await response.arrayBuffer();
+        return res.send(Buffer.from(buffer));
       }
       
-      const contentType = response.headers.get("content-type") || "image/png";
-      res.setHeader("Content-Type", contentType);
-      res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 24 hours
-      
-      const buffer = await response.arrayBuffer();
-      res.send(Buffer.from(buffer));
+      res.status(404).json({ error: "Logo not found" });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch logo" });
     }
