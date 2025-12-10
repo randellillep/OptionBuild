@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Loader2, Plus, ListOrdered, Bookmark, Clock } from "lucide-react";
 import type { SymbolInfo } from "@/hooks/useStrategyEngine";
 import { useQuery } from "@tanstack/react-query";
 
@@ -259,6 +259,49 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false }:
               </Button>
             );
           })}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 border-l border-border pl-2">
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="h-6 px-1.5 text-[10px]"
+            data-testid="button-add-leg"
+          >
+            Add
+            <Plus className="h-3 w-3 ml-0.5" />
+          </Button>
+          
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="h-6 px-1.5 text-[10px]"
+            data-testid="button-positions"
+          >
+            <ListOrdered className="h-3 w-3 mr-0.5" />
+            Positions (0)
+          </Button>
+          
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="h-6 px-1.5 text-[10px]"
+            data-testid="button-save-trade"
+          >
+            <Bookmark className="h-3 w-3 mr-0.5" />
+            Save Trade
+          </Button>
+          
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="h-6 px-1.5 text-[10px]"
+            data-testid="button-historical-chart"
+          >
+            <Clock className="h-3 w-3 mr-0.5" />
+            Historical Chart
+          </Button>
         </div>
 
         <div className="flex items-center gap-1.5 border-l border-border pl-2 ml-auto">
