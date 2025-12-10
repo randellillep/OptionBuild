@@ -185,7 +185,7 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, r
   return (
     <Card className="px-2 py-1.5">
       <div className="flex items-center gap-2">
-        <div className="relative w-40 shrink-0">
+        <div className="relative w-32 shrink-0">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
@@ -235,6 +235,17 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, r
                 </div>
               )}
             </Card>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-sm font-bold font-mono">{symbolInfo.symbol}</span>
+          <span className="text-sm font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
+          {currentQuote && (
+            <span className={`text-[10px] flex items-center gap-0.5 ${currentQuote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+              {currentQuote.changePercent >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+              {currentQuote.changePercent >= 0 ? '+' : ''}{currentQuote.changePercent.toFixed(2)}%
+            </span>
           )}
         </div>
 
@@ -295,19 +306,6 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, r
             <Clock className="h-2.5 w-2.5 mr-0.5" />
             Historical Chart
           </Button>
-        </div>
-
-        <div className="flex-1" />
-
-        <div className="flex items-center gap-1.5 border border-border rounded-md px-2 py-1 shrink-0">
-          <span className="text-sm font-bold font-mono">{symbolInfo.symbol}</span>
-          <span className="text-sm font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
-          {currentQuote && (
-            <span className={`text-[10px] flex items-center gap-0.5 ${currentQuote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-              {currentQuote.changePercent >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-              {currentQuote.changePercent >= 0 ? '+' : ''}{currentQuote.changePercent.toFixed(2)}%
-            </span>
-          )}
         </div>
       </div>
     </Card>
