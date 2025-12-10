@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import type { MarketOptionQuote, MarketOptionChainSummary, OptionType } from "@shared/schema";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupGoogleAuth, isAuthenticated } from "./googleAuth";
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
@@ -86,14 +86,14 @@ async function fetchAlpacaSnapshots(symbol: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup auth middleware - uses Replit Auth with Google sign-in support
-  await setupAuth(app);
+  // Setup Google OAuth authentication
+  await setupGoogleAuth(app);
 
   // Auth routes - get current user
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      // With Google OAuth, user object is directly available from passport
+      const user = req.user;
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
