@@ -753,12 +753,7 @@ export default function Builder() {
                 Sign In
               </Button>
             )}
-<AddLegDropdown 
-              currentPrice={symbolInfo.price} 
-              onAddLeg={addLeg}
-              optionsChainData={optionsChainData}
-            />
-            <ThemeToggle />
+<ThemeToggle />
           </div>
         </div>
       </header>
@@ -767,7 +762,14 @@ export default function Builder() {
         <div className="space-y-2">
           <SymbolSearchBar 
             symbolInfo={symbolInfo} 
-            onSymbolChange={setSymbolInfo} 
+            onSymbolChange={setSymbolInfo}
+            renderAddButton={() => (
+              <AddLegDropdown 
+                currentPrice={symbolInfo.price} 
+                onAddLeg={addLeg}
+                optionsChainData={optionsChainData}
+              />
+            )}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">

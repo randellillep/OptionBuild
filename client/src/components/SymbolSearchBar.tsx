@@ -10,6 +10,7 @@ interface SymbolSearchBarProps {
   symbolInfo: SymbolInfo;
   onSymbolChange: (info: SymbolInfo) => void;
   compact?: boolean; // Minimal search-only mode for Option Finder
+  renderAddButton?: () => React.ReactNode; // Optional slot for Add button
 }
 
 interface SearchResult {
@@ -32,7 +33,7 @@ interface StockQuote {
 
 const popularSymbols = ["SPY", "AAPL", "TSLA", "NVDA", "QQQ", "MSFT"];
 
-export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false }: SymbolSearchBarProps) {
+export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, renderAddButton }: SymbolSearchBarProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -263,6 +264,8 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false }:
 
         {/* Action buttons */}
         <div className="flex items-center gap-0.5 border-l border-border pl-2">
+          {renderAddButton && renderAddButton()}
+          
           <Button 
             variant="default" 
             size="sm" 
