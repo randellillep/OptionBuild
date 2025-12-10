@@ -11,6 +11,7 @@ interface TradingViewSearchProps {
   symbolInfo: SymbolInfo;
   onSymbolChange: (info: SymbolInfo) => void;
   renderAddButton?: () => React.ReactNode;
+  onSaveTrade?: () => void;
 }
 
 interface SearchResult {
@@ -93,7 +94,7 @@ const etfs = [
   { symbol: "XLV", name: "Health Care Select Sector SPDR" },
 ];
 
-export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton }: TradingViewSearchProps) {
+export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton, onSaveTrade }: TradingViewSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -159,27 +160,24 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
     enabled: !!symbolInfo.symbol,
   });
 
-  const handleSymbolSelect = async (symbol: string, name?: string) => {
+  const handleSymbolSelect = async (symbol: string) => {
     try {
       const response = await fetch(`/api/stock/quote/${symbol}`);
       if (response.ok) {
         const quote: StockQuote = await response.json();
         onSymbolChange({
           symbol: quote.symbol,
-          name: name || quote.symbol,
           price: quote.price,
         });
       } else {
         onSymbolChange({
           symbol,
-          name: name || symbol,
           price: symbolInfo.price,
         });
       }
     } catch (error) {
       onSymbolChange({
         symbol,
-        name: name || symbol,
         price: symbolInfo.price,
       });
     }
@@ -193,7 +191,7 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
     
     return (
       <button
-        onClick={() => handleSymbolSelect(symbol, name)}
+        onClick={() => handleSymbolSelect(symbol)}
         className="w-full flex items-center justify-between p-2.5 hover-elevate active-elevate-2 rounded-md transition-colors group"
         data-testid={`button-symbol-${symbol.toLowerCase()}`}
       >
@@ -244,40 +242,34 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
             )}
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {renderAddButton && renderAddButton()}
-          </div>
-
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-1 shrink-0">
+            
             <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-6 px-2.5 text-[10px] border-border/60"
+              variant="secondary" 
+              size="sm"
               data-testid="button-positions"
             >
-              <ListOrdered className="h-3 w-3 mr-1" />
+              <ListOrdered className="h-3.5 w-3.5 mr-1.5" />
               Positions (0)
             </Button>
             
             <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-6 px-2.5 text-[10px] border-border/60"
+              variant="secondary" 
+              size="sm"
+              onClick={onSaveTrade}
               data-testid="button-save-trade"
             >
-              <Bookmark className="h-3 w-3 mr-1" />
+              <Bookmark className="h-3.5 w-3.5 mr-1.5" />
               Save Trade
             </Button>
             
             <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-6 px-2.5 text-[10px] border-border/60"
+              variant="secondary" 
+              size="sm"
               data-testid="button-historical-chart"
             >
-              <Clock className="h-3 w-3 mr-1" />
+              <Clock className="h-3.5 w-3.5 mr-1.5" />
               Historical Chart
             </Button>
           </div>

@@ -16,7 +16,9 @@ import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
 import { Footer } from "@/components/Footer";
-import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Search, Plus, Bookmark, Clock, ListOrdered } from "lucide-react";
+import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Bookmark, Search } from "lucide-react";
+import { AIChatAssistant } from "@/components/AIChatAssistant";
+import { SaveTradeModal } from "@/components/SaveTradeModal";
 import { StrategySelector } from "@/components/StrategySelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
@@ -32,6 +34,7 @@ export default function Builder() {
   const searchString = useSearch();
   const [range, setRange] = useState(14);
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
+  const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   const urlParamsProcessed = useRef(false);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -775,6 +778,7 @@ export default function Builder() {
           <TradingViewSearch 
             symbolInfo={symbolInfo} 
             onSymbolChange={setSymbolInfo}
+            onSaveTrade={() => setIsSaveTradeOpen(true)}
             renderAddButton={() => (
               <AddLegDropdown 
                 currentPrice={symbolInfo.price} 
@@ -851,10 +855,21 @@ export default function Builder() {
 
             <div className="space-y-2">
               <StrategyMetricsCard metrics={metrics} />
+              <div className="h-[280px]">
+                <AIChatAssistant onNavigate={setLocation} />
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <SaveTradeModal
+        isOpen={isSaveTradeOpen}
+        onClose={() => setIsSaveTradeOpen(false)}
+        symbolInfo={symbolInfo}
+        legs={legs}
+        selectedExpirationDate={selectedExpirationDate}
+      />
 
       <Footer />
     </div>

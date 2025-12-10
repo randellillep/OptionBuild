@@ -62,14 +62,6 @@ export function StrategyMetricsCard({ metrics }: StrategyMetricsCardProps) {
           </div>
         </div>
 
-        {metrics.riskRewardRatio !== null && (
-          <div className="pt-2 border-t border-border">
-            <p className="text-xs text-muted-foreground">Risk/Reward Ratio</p>
-            <p className="text-base font-bold font-mono">
-              1:{metrics.riskRewardRatio.toFixed(2)}
-            </p>
-          </div>
-        )}
       </div>
     </Card>
   );
