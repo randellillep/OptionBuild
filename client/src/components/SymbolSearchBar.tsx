@@ -262,44 +262,34 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false }:
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-1 border-l border-border pl-2">
+        <div className="flex items-center gap-0.5 border-l border-border pl-2">
           <Button 
             variant="default" 
             size="sm" 
-            className="h-6 px-1.5 text-[10px]"
-            data-testid="button-add-leg"
-          >
-            Add
-            <Plus className="h-3 w-3 ml-0.5" />
-          </Button>
-          
-          <Button 
-            variant="default" 
-            size="sm" 
-            className="h-6 px-1.5 text-[10px]"
+            className="h-5 px-1 text-[9px]"
             data-testid="button-positions"
           >
-            <ListOrdered className="h-3 w-3 mr-0.5" />
+            <ListOrdered className="h-2.5 w-2.5 mr-0.5" />
             Positions (0)
           </Button>
           
           <Button 
             variant="default" 
             size="sm" 
-            className="h-6 px-1.5 text-[10px]"
+            className="h-5 px-1 text-[9px]"
             data-testid="button-save-trade"
           >
-            <Bookmark className="h-3 w-3 mr-0.5" />
+            <Bookmark className="h-2.5 w-2.5 mr-0.5" />
             Save Trade
           </Button>
           
           <Button 
             variant="default" 
             size="sm" 
-            className="h-6 px-1.5 text-[10px]"
+            className="h-5 px-1 text-[9px]"
             data-testid="button-historical-chart"
           >
-            <Clock className="h-3 w-3 mr-0.5" />
+            <Clock className="h-2.5 w-2.5 mr-0.5" />
             Historical Chart
           </Button>
         </div>
