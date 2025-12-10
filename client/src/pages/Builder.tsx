@@ -9,7 +9,7 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfitLossChart } from "@/components/ProfitLossChart";
 import { StrategyMetricsCard } from "@/components/StrategyMetricsCard";
-import { SymbolSearchBar } from "@/components/SymbolSearchBar";
+import { TradingViewSearch } from "@/components/TradingViewSearch";
 import { ExpirationTimeline } from "@/components/ExpirationTimeline";
 import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
@@ -760,7 +760,7 @@ export default function Builder() {
 
       <div className="container mx-auto px-3 md:px-4 py-2">
         <div className="space-y-2">
-          <SymbolSearchBar 
+          <TradingViewSearch 
             symbolInfo={symbolInfo} 
             onSymbolChange={setSymbolInfo}
             renderAddButton={() => (
