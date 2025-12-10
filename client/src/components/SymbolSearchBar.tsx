@@ -297,7 +297,9 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, r
           </Button>
         </div>
 
-        <div className="flex items-center gap-1.5 border-l border-border pl-2 ml-auto">
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-1.5 border border-border rounded-md px-2 py-1 shrink-0">
           <span className="text-sm font-bold font-mono">{symbolInfo.symbol}</span>
           <span className="text-sm font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
           {currentQuote && (
