@@ -16,7 +16,7 @@ import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
 import { Footer } from "@/components/Footer";
-import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Search } from "lucide-react";
+import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Search, Plus, Bookmark, Clock, ListOrdered } from "lucide-react";
 import { StrategySelector } from "@/components/StrategySelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
@@ -660,8 +660,6 @@ export default function Builder() {
             </div>
 
             <nav className="hidden md:flex items-center gap-1">
-              <StrategySelector onSelectStrategy={loadTemplate} />
-
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -753,22 +751,65 @@ export default function Builder() {
                 Sign In
               </Button>
             )}
-            <AddLegDropdown 
-              currentPrice={symbolInfo.price} 
-              onAddLeg={addLeg}
-              optionsChainData={optionsChainData}
-            />
-            <ThemeToggle />
+<ThemeToggle />
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-3 md:px-4 py-2">
         <div className="space-y-2">
-          <SymbolSearchBar 
-            symbolInfo={symbolInfo} 
-            onSymbolChange={setSymbolInfo} 
-          />
+          {/* Search bar and toolbar row */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-48 md:w-56">
+              <SymbolSearchBar 
+                symbolInfo={symbolInfo} 
+                onSymbolChange={setSymbolInfo}
+                compact
+              />
+            </div>
+            
+            {/* Quick strategy selector and action buttons */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <StrategySelector onSelectStrategy={loadTemplate} />
+              
+              <AddLegDropdown 
+                currentPrice={symbolInfo.price} 
+                onAddLeg={addLeg}
+                optionsChainData={optionsChainData}
+              />
+              
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="h-7 px-2.5 text-xs bg-primary hover:bg-primary/90"
+                data-testid="button-positions"
+              >
+                <ListOrdered className="h-3 w-3 mr-1" />
+                Positions (0)
+              </Button>
+              
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="h-7 px-2.5 text-xs bg-primary hover:bg-primary/90"
+                data-testid="button-save-trade"
+              >
+                <Bookmark className="h-3 w-3 mr-1" />
+                Save Trade
+              </Button>
+              
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="h-7 px-2.5 text-xs bg-primary hover:bg-primary/90"
+                onClick={() => setLocation(`/historical-prices?symbol=${symbolInfo.symbol}`)}
+                data-testid="button-historical-chart"
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                Historical Chart
+              </Button>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
             <div className="lg:col-span-3 space-y-2">
