@@ -729,9 +729,21 @@ export default function Builder() {
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem disabled className="text-xs text-muted-foreground">
                     {user?.email}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="/saved-trades" className="flex items-center" data-testid="link-saved-trades">
+                      <Bookmark className="h-3 w-3 mr-2" />
+                      Saved Trades
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="/account" className="flex items-center" data-testid="link-account-details">
+                      <User className="h-3 w-3 mr-2" />
+                      Account Details
+                    </a>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <a href="/api/logout" className="flex items-center" data-testid="button-logout">

@@ -31,6 +31,66 @@ interface StockQuote {
   timestamp: number;
 }
 
+// Map symbols to company domains for logo fetching
+const symbolToDomain: Record<string, string> = {
+  AAPL: "apple.com",
+  MSFT: "microsoft.com",
+  GOOGL: "google.com",
+  AMZN: "amazon.com",
+  NVDA: "nvidia.com",
+  TSLA: "tesla.com",
+  META: "meta.com",
+  JPM: "jpmorganchase.com",
+  V: "visa.com",
+  WMT: "walmart.com",
+  UNH: "unitedhealthgroup.com",
+  JNJ: "jnj.com",
+  SPY: "ssga.com",
+  QQQ: "invesco.com",
+  AMD: "amd.com",
+  PLTR: "palantir.com",
+  SOFI: "sofi.com",
+  NIO: "nio.com",
+  COIN: "coinbase.com",
+  RIVN: "rivian.com",
+  IWM: "ishares.com",
+  EEM: "ishares.com",
+  XLF: "ssga.com",
+  XLE: "ssga.com",
+  XLK: "ssga.com",
+  XLV: "ssga.com",
+  GLD: "ssga.com",
+  SLV: "ishares.com",
+  DIA: "ssga.com",
+  NFLX: "netflix.com",
+  INTC: "intel.com",
+  BA: "boeing.com",
+  DIS: "disney.com",
+  UBER: "uber.com",
+  PYPL: "paypal.com",
+  BABA: "alibaba.com",
+  CRM: "salesforce.com",
+  ORCL: "oracle.com",
+  CSCO: "cisco.com",
+  IBM: "ibm.com",
+  GE: "ge.com",
+  F: "ford.com",
+  GM: "gm.com",
+  KO: "coca-colacompany.com",
+  PEP: "pepsico.com",
+  MCD: "mcdonalds.com",
+  SBUX: "starbucks.com",
+  NKE: "nike.com",
+};
+
+const getLogoUrl = (symbol: string): string | null => {
+  const domain = symbolToDomain[symbol.toUpperCase()];
+  if (domain) {
+    return `https://logo.clearbit.com/${domain}`;
+  }
+  return null;
+};
+
 const popularStocks = [
   { symbol: "AAPL", name: "Apple Inc" },
   { symbol: "MSFT", name: "Microsoft Corporation" },
@@ -182,24 +242,43 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
     setSearchTerm("");
   };
 
-  const SymbolRow = ({ symbol, name, displayName }: { symbol: string; name: string; displayName?: string }) => (
-    <button
-      onClick={() => handleSymbolSelect(symbol, name)}
-      className="w-full flex items-center justify-between p-2.5 hover-elevate active-elevate-2 rounded-md transition-colors group"
-      data-testid={`button-symbol-${symbol.toLowerCase()}`}
-    >
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-          <span className="text-xs font-bold text-primary">{symbol.slice(0, 2)}</span>
+  const SymbolRow = ({ symbol, name, displayName }: { symbol: string; name: string; displayName?: string }) => {
+    const logoUrl = getLogoUrl(symbol);
+    return (
+      <button
+        onClick={() => handleSymbolSelect(symbol, name)}
+        className="w-full flex items-center justify-between p-2.5 hover-elevate active-elevate-2 rounded-md transition-colors group"
+        data-testid={`button-symbol-${symbol.toLowerCase()}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+            {logoUrl ? (
+              <img 
+                src={logoUrl} 
+                alt={symbol}
+                className="w-6 h-6 object-contain"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `<span class="text-xs font-bold text-primary">${symbol.slice(0, 2)}</span>`;
+                  }
+                }}
+              />
+            ) : (
+              <span className="text-xs font-bold text-primary">{symbol.slice(0, 2)}</span>
+            )}
+          </div>
+          <div className="text-left">
+            <div className="font-semibold text-sm">{displayName || symbol}</div>
+            <div className="text-xs text-muted-foreground">{name}</div>
+          </div>
         </div>
-        <div className="text-left">
-          <div className="font-semibold text-sm">{displayName || symbol}</div>
-          <div className="text-xs text-muted-foreground">{name}</div>
-        </div>
-      </div>
-      <Star className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-    </button>
-  );
+        <Star className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+    );
+  };
 
   return (
     <div className="relative" ref={modalRef}>
@@ -225,13 +304,17 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
             )}
           </div>
 
-          <div className="flex items-center gap-0.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {renderAddButton && renderAddButton()}
-            
+          </div>
+
+          <div className="flex-1" />
+
+          <div className="flex items-center gap-1 shrink-0">
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-6 px-2 text-[10px]"
+              className="h-6 px-2.5 text-[10px] border-border/60"
               data-testid="button-positions"
             >
               <ListOrdered className="h-3 w-3 mr-1" />
@@ -241,7 +324,7 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-6 px-2 text-[10px]"
+              className="h-6 px-2.5 text-[10px] border-border/60"
               data-testid="button-save-trade"
             >
               <Bookmark className="h-3 w-3 mr-1" />
@@ -251,7 +334,7 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-6 px-2 text-[10px]"
+              className="h-6 px-2.5 text-[10px] border-border/60"
               data-testid="button-historical-chart"
             >
               <Clock className="h-3 w-3 mr-1" />
