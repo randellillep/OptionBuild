@@ -185,7 +185,7 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, r
   return (
     <Card className="px-2 py-1.5">
       <div className="flex items-center gap-2">
-        <div className="flex-1 relative">
+        <div className="relative w-40 shrink-0">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
@@ -205,7 +205,7 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, r
           </div>
 
           {showSuggestions && searchTerm && (
-            <Card className="absolute top-full mt-1 w-full z-50 max-h-80 overflow-y-auto">
+            <Card className="absolute top-full mt-1 w-64 z-50 max-h-80 overflow-y-auto">
               {isSearching ? (
                 <div className="p-3 text-center text-xs text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin mx-auto mb-1" />
@@ -238,8 +238,8 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, r
           )}
         </div>
 
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">Quick:</div>
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">Quick:</div>
+        <div className="flex items-center gap-1 shrink-0">
           {popularSymbols.map((symbol) => {
             const quote = popularQuotes.data?.find(q => q.symbol === symbol);
             return (
