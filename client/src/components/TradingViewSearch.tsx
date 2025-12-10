@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Search, TrendingUp, TrendingDown, Loader2, X, Star, Clock, BarChart3, Landmark, Fuel } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Loader2, X, Star, Clock, BarChart3, Landmark, Fuel, ListOrdered, Bookmark } from "lucide-react";
 import type { SymbolInfo } from "@/hooks/useStrategyEngine";
 import { useQuery } from "@tanstack/react-query";
 
@@ -225,10 +225,38 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton 
             )}
           </div>
 
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 shrink-0">
             {renderAddButton && renderAddButton()}
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-6 px-2 text-[10px]"
+              data-testid="button-positions"
+            >
+              <ListOrdered className="h-3 w-3 mr-1" />
+              Positions (0)
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-6 px-2 text-[10px]"
+              data-testid="button-save-trade"
+            >
+              <Bookmark className="h-3 w-3 mr-1" />
+              Save Trade
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-6 px-2 text-[10px]"
+              data-testid="button-historical-chart"
+            >
+              <Clock className="h-3 w-3 mr-1" />
+              Historical Chart
+            </Button>
           </div>
         </div>
       </Card>
