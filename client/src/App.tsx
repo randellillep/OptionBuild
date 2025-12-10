@@ -9,6 +9,7 @@ import Builder from "@/pages/Builder";
 import Login from "@/pages/Login";
 import Backtest from "@/pages/Backtest";
 import OptionFinder from "@/pages/OptionFinder";
+import SavedTrades from "@/pages/SavedTrades";
 
 function Router() {
   return (
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/backtest" component={Backtest} />
       <Route path="/option-finder" component={OptionFinder} />
+      <Route path="/saved-trades" component={SavedTrades} />
       <Route component={NotFound} />
     </Switch>
   );

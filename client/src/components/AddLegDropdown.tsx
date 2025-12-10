@@ -115,8 +115,13 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: Add
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-6 px-2 text-[10px]" data-testid="button-add-dropdown">
-          <Plus className="h-3 w-3 mr-1" />
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground" 
+          data-testid="button-add-dropdown"
+        >
+          <Plus className="h-3 w-3 mr-1.5" />
           Add
         </Button>
       </DropdownMenuTrigger>
