@@ -86,7 +86,8 @@ const symbolToDomain: Record<string, string> = {
 const getLogoUrl = (symbol: string): string | null => {
   const domain = symbolToDomain[symbol.toUpperCase()];
   if (domain) {
-    return `https://logo.clearbit.com/${domain}`;
+    // Use backend proxy to avoid CORS issues
+    return `/api/logo/${symbol.toUpperCase()}`;
   }
   return null;
 };

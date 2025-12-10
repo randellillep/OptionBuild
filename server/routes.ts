@@ -643,6 +643,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Company logo proxy endpoint to avoid CORS issues
+  const symbolToDomain: Record<string, string> = {
+    AAPL: "apple.com",
+    MSFT: "microsoft.com",
+    GOOGL: "google.com",
+    AMZN: "amazon.com",
+    NVDA: "nvidia.com",
+    TSLA: "tesla.com",
+    META: "meta.com",
+    JPM: "jpmorganchase.com",
+    V: "visa.com",
+    WMT: "walmart.com",
+    UNH: "unitedhealthgroup.com",
+    JNJ: "jnj.com",
+    SPY: "ssga.com",
+    QQQ: "invesco.com",
+    AMD: "amd.com",
+    PLTR: "palantir.com",
+    SOFI: "sofi.com",
+    NIO: "nio.com",
+    COIN: "coinbase.com",
+    RIVN: "rivian.com",
+    IWM: "ishares.com",
+    EEM: "ishares.com",
+    XLF: "ssga.com",
+    XLE: "ssga.com",
+    XLK: "ssga.com",
+    XLV: "ssga.com",
+    GLD: "ssga.com",
+    SLV: "ishares.com",
+    DIA: "ssga.com",
+    NFLX: "netflix.com",
+    INTC: "intel.com",
+    BA: "boeing.com",
+    DIS: "disney.com",
+    UBER: "uber.com",
+    PYPL: "paypal.com",
+    BABA: "alibaba.com",
+    CRM: "salesforce.com",
+    ORCL: "oracle.com",
+    CSCO: "cisco.com",
+    IBM: "ibm.com",
+    GE: "ge.com",
+    F: "ford.com",
+    GM: "gm.com",
+    KO: "coca-colacompany.com",
+    PEP: "pepsico.com",
+    MCD: "mcdonalds.com",
+    SBUX: "starbucks.com",
+    NKE: "nike.com",
+  };
+
+  app.get("/api/logo/:symbol", async (req, res) => {
+    const { symbol } = req.params;
+    const domain = symbolToDomain[symbol.toUpperCase()];
+    
+    if (!domain) {
+      return res.status(404).json({ error: "Logo not found" });
+    }
+    
+    try {
+      const logoUrl = `https://logo.clearbit.com/${domain}`;
+      const response = await fetch(logoUrl);
+      
+      if (!response.ok) {
+        return res.status(404).json({ error: "Logo not found" });
+      }
+      
+      const contentType = response.headers.get("content-type") || "image/png";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 24 hours
+      
+      const buffer = await response.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch logo" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
