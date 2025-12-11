@@ -936,6 +936,7 @@ export default function Builder() {
         symbolInfo={symbolInfo}
         legs={legs}
         selectedExpirationDate={selectedExpirationDate}
+        isAuthenticated={isAuthenticated}
       />
 
       <Footer />
