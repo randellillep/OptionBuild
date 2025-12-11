@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfitLossChart } from "@/components/ProfitLossChart";
-import { StrategyMetricsCard } from "@/components/StrategyMetricsCard";
 import { TradingViewSearch } from "@/components/TradingViewSearch";
 import { ExpirationTimeline } from "@/components/ExpirationTimeline";
 import { StrikeLadder } from "@/components/StrikeLadder";
@@ -20,6 +19,7 @@ import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, B
 import { AIChatAssistant } from "@/components/AIChatAssistant";
 import { SaveTradeModal } from "@/components/SaveTradeModal";
 import { StrategySelector } from "@/components/StrategySelector";
+import { StrategyMetricsBar } from "@/components/StrategyMetricsBar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
@@ -75,6 +75,59 @@ export default function Builder() {
     const params = new URLSearchParams(searchString);
     const strategyIndex = params.get('strategy');
     const urlSymbol = params.get('symbol');
+    const loadSaved = params.get('loadSaved');
+    
+    // Handle loading saved trade from localStorage
+    if (loadSaved === 'true') {
+      urlParamsProcessed.current = true;
+      try {
+        const savedTradeData = localStorage.getItem('loadTrade');
+        if (savedTradeData) {
+          const trade = JSON.parse(savedTradeData);
+          if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
+            setSymbolInfo({ symbol: trade.symbol, price: trade.price || 100 });
+            
+            // Normalize legs to ensure required fields exist
+            const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
+              id: leg.id || `saved-${Date.now()}-${index}`,
+              type: leg.type || 'call',
+              position: leg.position || 'long',
+              strike: leg.strike || trade.price || 100,
+              quantity: leg.quantity || 1,
+              premium: leg.premium || 0,
+              expirationDays: leg.expirationDays || 30,
+              premiumSource: leg.premiumSource || 'theoretical',
+              impliedVolatility: leg.impliedVolatility,
+            }));
+            
+            setLegs(normalizedLegs);
+            
+            // Set expiration - use stored date or compute a near-term default
+            if (trade.expirationDate) {
+              const expDate = new Date(trade.expirationDate);
+              const today = new Date();
+              const diffTime = expDate.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              // If expired or same-day, use a 7-day forward expiration as default
+              if (diffDays <= 0) {
+                const futureDate = new Date();
+                futureDate.setDate(futureDate.getDate() + 7);
+                setSelectedExpiration(7, futureDate.toISOString().split('T')[0]);
+              } else {
+                setSelectedExpiration(diffDays, trade.expirationDate);
+              }
+            }
+            
+            localStorage.removeItem('loadTrade');
+          }
+        }
+      } catch {
+        // Silent fail if parse fails
+      }
+      window.history.replaceState({}, '', '/builder');
+      return;
+    }
     
     if (strategyIndex !== null || urlSymbol) {
       urlParamsProcessed.current = true;
@@ -779,6 +832,7 @@ export default function Builder() {
             symbolInfo={symbolInfo} 
             onSymbolChange={setSymbolInfo}
             onSaveTrade={() => setIsSaveTradeOpen(true)}
+            legsCount={legs.length}
             renderAddButton={() => (
               <AddLegDropdown 
                 currentPrice={symbolInfo.price} 
@@ -809,6 +863,8 @@ export default function Builder() {
                 optionsChainData={optionsChainData}
                 availableStrikes={availableStrikes}
               />
+
+              <StrategyMetricsBar metrics={metrics} />
 
               {activeTab === "heatmap" ? (
                 <PLHeatmap
@@ -854,10 +910,7 @@ export default function Builder() {
             </div>
 
             <div className="space-y-2">
-              <StrategyMetricsCard metrics={metrics} />
-              <div className="h-[280px]">
-                <AIChatAssistant onNavigate={setLocation} />
-              </div>
+              <AIChatAssistant onNavigate={setLocation} />
             </div>
           </div>
         </div>

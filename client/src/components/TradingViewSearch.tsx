@@ -12,6 +12,7 @@ interface TradingViewSearchProps {
   onSymbolChange: (info: SymbolInfo) => void;
   renderAddButton?: () => React.ReactNode;
   onSaveTrade?: () => void;
+  legsCount?: number;
 }
 
 interface SearchResult {
@@ -94,7 +95,7 @@ const etfs = [
   { symbol: "XLV", name: "Health Care Select Sector SPDR" },
 ];
 
-export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton, onSaveTrade }: TradingViewSearchProps) {
+export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton, onSaveTrade, legsCount = 0 }: TradingViewSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -242,7 +243,9 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton,
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex-1" />
+
+          <div className="flex items-center gap-1.5 shrink-0 mr-4">
             {renderAddButton && renderAddButton()}
             
             <Button 
@@ -252,7 +255,7 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton,
               data-testid="button-positions"
             >
               <ListOrdered className="h-3.5 w-3.5 mr-1.5" />
-              Positions (0)
+              Positions ({legsCount})
             </Button>
             
             <Button 
