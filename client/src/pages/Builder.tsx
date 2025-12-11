@@ -19,7 +19,6 @@ import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, B
 import { AIChatAssistant } from "@/components/AIChatAssistant";
 import { SaveTradeModal } from "@/components/SaveTradeModal";
 import { StrategySelector } from "@/components/StrategySelector";
-import { StrategyMetricsBar } from "@/components/StrategyMetricsBar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
 import { strategyTemplates } from "@/lib/strategy-templates";
@@ -857,7 +856,7 @@ export default function Builder() {
             )}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 items-start">
             <div className="lg:col-span-3 space-y-2">
               <ExpirationTimeline
                 expirationDays={uniqueExpirationDays}
@@ -879,8 +878,6 @@ export default function Builder() {
                 availableStrikes={availableStrikes}
               />
 
-              <StrategyMetricsBar metrics={metrics} />
-
               {activeTab === "heatmap" ? (
                 <PLHeatmap
                   grid={scenarioGrid.grid}
@@ -898,6 +895,7 @@ export default function Builder() {
                   onVolatilityChange={handleVolatilityChange}
                   calculatedIV={calculatedIVPercent}
                   onResetIV={handleResetIV}
+                  metrics={metrics}
                 />
               ) : (
                 <ProfitLossChart 
@@ -911,6 +909,7 @@ export default function Builder() {
                   onVolatilityChange={handleVolatilityChange}
                   calculatedIV={calculatedIVPercent}
                   onResetIV={handleResetIV}
+                  metrics={metrics}
                 />
               )}
 
