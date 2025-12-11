@@ -68,22 +68,22 @@ export function ProfitLossChart({
     <Card className="p-3">
       {/* Header with metrics and tab buttons */}
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3 text-[10px]" data-testid="strategy-metrics-bar">
+        <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
           {metrics && (
             <>
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">Max Profit:</span>
-                <span className="font-bold font-mono text-emerald-600 dark:text-emerald-500" data-testid="text-max-profit">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Max Profit:</span>
+                <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-500" data-testid="text-max-profit">
                   {metrics.maxProfit !== null ? `$${metrics.maxProfit.toFixed(0)}` : "∞"}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">Max Loss:</span>
-                <span className="font-bold font-mono text-rose-600 dark:text-rose-500" data-testid="text-max-loss">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Max Loss:</span>
+                <span className="text-lg font-bold font-mono text-rose-600 dark:text-rose-500" data-testid="text-max-loss">
                   {metrics.maxLoss !== null ? `$${metrics.maxLoss.toFixed(0)}` : "∞"}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-[10px]">
                 <span className="text-muted-foreground">Breakeven:</span>
                 <span className="font-semibold font-mono" data-testid="text-breakeven">
                   {metrics.breakeven.length > 0 
@@ -92,10 +92,13 @@ export function ProfitLossChart({
                   }
                 </span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-[10px]">
                 <span className="text-muted-foreground">Net:</span>
                 <span className={`font-bold font-mono ${metrics.netPremium >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-net-premium">
                   ${metrics.netPremium.toFixed(0)}
+                </span>
+                <span className="text-muted-foreground/70">
+                  {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
                 </span>
               </div>
             </>
