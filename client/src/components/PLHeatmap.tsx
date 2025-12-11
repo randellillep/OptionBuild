@@ -121,7 +121,11 @@ export function PLHeatmap({
       {/* Header with metrics and tab buttons */}
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
-          {metrics && (
+          {metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
+            <span className="text-sm text-muted-foreground italic">
+              This strategy has no enabled items (add options from the Add button)
+            </span>
+          ) : metrics ? (
             <>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Max Profit:</span>
@@ -154,7 +158,7 @@ export function PLHeatmap({
                 </span>
               </div>
             </>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-0.5">
           <Button
