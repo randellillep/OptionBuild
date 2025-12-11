@@ -102,22 +102,37 @@ export default function Builder() {
             
             setLegs(normalizedLegs);
             
-            // Set expiration - use stored date or compute a near-term default
+            // Set expiration - always set one to ensure chain/heatmap recalculates
+            let expirationDays = 30; // Default fallback
+            let expirationDateStr = '';
+            
             if (trade.expirationDate) {
               const expDate = new Date(trade.expirationDate);
               const today = new Date();
               const diffTime = expDate.getTime() - today.getTime();
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
               
-              // If expired or same-day, use a 7-day forward expiration as default
-              if (diffDays <= 0) {
+              if (diffDays > 0) {
+                // Valid future expiration
+                expirationDays = diffDays;
+                expirationDateStr = trade.expirationDate;
+              } else {
+                // Expired - use 7-day forward as default
+                expirationDays = 7;
                 const futureDate = new Date();
                 futureDate.setDate(futureDate.getDate() + 7);
-                setSelectedExpiration(7, futureDate.toISOString().split('T')[0]);
-              } else {
-                setSelectedExpiration(diffDays, trade.expirationDate);
+                expirationDateStr = futureDate.toISOString().split('T')[0];
               }
+            } else {
+              // No expiration stored - derive from legs or use default
+              const legDays = normalizedLegs.map(l => l.expirationDays).filter(d => d > 0);
+              expirationDays = legDays.length > 0 ? Math.max(...legDays) : 30;
+              const futureDate = new Date();
+              futureDate.setDate(futureDate.getDate() + expirationDays);
+              expirationDateStr = futureDate.toISOString().split('T')[0];
             }
+            
+            setSelectedExpiration(expirationDays, expirationDateStr);
             
             localStorage.removeItem('loadTrade');
           }
