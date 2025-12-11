@@ -135,21 +135,21 @@ export function PLHeatmap({
                   {metrics.maxLoss !== null ? `$${metrics.maxLoss.toFixed(0)}` : "∞"}
                 </span>
               </div>
-              <div className="flex items-center gap-1 text-[10px]">
-                <span className="text-muted-foreground">Breakeven:</span>
-                <span className="font-semibold font-mono" data-testid="text-breakeven">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Breakeven:</span>
+                <span className="text-lg font-semibold font-mono" data-testid="text-breakeven">
                   {metrics.breakeven.length > 0 
                     ? metrics.breakeven.slice(0, 2).map(p => `$${p.toFixed(0)}`).join(', ')
                     : "N/A"
                   }
                 </span>
               </div>
-              <div className="flex items-center gap-1 text-[10px]">
-                <span className="text-muted-foreground">Net:</span>
-                <span className={`font-bold font-mono ${metrics.netPremium >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-net-premium">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Net:</span>
+                <span className={`text-lg font-bold font-mono ${metrics.netPremium >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-net-premium">
                   ${metrics.netPremium.toFixed(0)}
                 </span>
-                <span className="text-muted-foreground/70">
+                <span className="text-xs text-muted-foreground/70">
                   {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
                 </span>
               </div>

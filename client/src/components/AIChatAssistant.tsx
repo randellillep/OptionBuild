@@ -129,7 +129,7 @@ export function AIChatAssistant({ onNavigate }: AIChatAssistantProps) {
   };
 
   return (
-    <Card className="flex flex-col h-[380px] overflow-hidden">
+    <Card className="flex flex-col h-[480px] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-primary/5">
         <div className="p-1.5 rounded-md bg-primary/10">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
