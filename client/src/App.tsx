@@ -10,6 +10,7 @@ import Login from "@/pages/Login";
 import Backtest from "@/pages/Backtest";
 import OptionFinder from "@/pages/OptionFinder";
 import SavedTrades from "@/pages/SavedTrades";
+import Share from "@/pages/Share";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/backtest" component={Backtest} />
       <Route path="/option-finder" component={OptionFinder} />
       <Route path="/saved-trades" component={SavedTrades} />
+      <Route path="/share/:encoded" component={Share} />
       <Route component={NotFound} />
     </Switch>
   );

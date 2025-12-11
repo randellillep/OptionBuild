@@ -143,6 +143,71 @@ export default function Builder() {
       return;
     }
     
+    // Handle loading shared strategy from sessionStorage
+    const isShared = params.get('shared');
+    if (isShared === 'true') {
+      urlParamsProcessed.current = true;
+      try {
+        const sharedData = sessionStorage.getItem('sharedStrategy');
+        if (sharedData) {
+          const strategy = JSON.parse(sharedData);
+          if (strategy.symbol && strategy.legs && Array.isArray(strategy.legs)) {
+            setSymbolInfo({ symbol: strategy.symbol, price: strategy.price || 100 });
+            
+            // Normalize legs from shared format
+            const normalizedLegs: OptionLeg[] = strategy.legs.map((leg: Partial<OptionLeg>, index: number) => ({
+              id: leg.id || `shared-${Date.now()}-${index}`,
+              type: leg.type || 'call',
+              position: leg.position || 'long',
+              strike: leg.strike || strategy.price || 100,
+              quantity: leg.quantity || 1,
+              premium: leg.premium || 0,
+              expirationDays: leg.expirationDays || 30,
+              premiumSource: 'theoretical' as const,
+              impliedVolatility: leg.impliedVolatility,
+              expirationDate: leg.expirationDate,
+            }));
+            
+            setLegs(normalizedLegs);
+            
+            // Set expiration
+            let expirationDays = 30;
+            let expirationDateStr = '';
+            
+            if (strategy.expirationDate) {
+              const expDate = new Date(strategy.expirationDate);
+              const today = new Date();
+              const diffTime = expDate.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays > 0) {
+                expirationDays = diffDays;
+                expirationDateStr = strategy.expirationDate;
+              } else {
+                expirationDays = 7;
+                const futureDate = new Date();
+                futureDate.setDate(futureDate.getDate() + 7);
+                expirationDateStr = futureDate.toISOString().split('T')[0];
+              }
+            } else {
+              const legDays = normalizedLegs.map(l => l.expirationDays).filter(d => d > 0);
+              expirationDays = legDays.length > 0 ? Math.max(...legDays) : 30;
+              const futureDate = new Date();
+              futureDate.setDate(futureDate.getDate() + expirationDays);
+              expirationDateStr = futureDate.toISOString().split('T')[0];
+            }
+            
+            setSelectedExpiration(expirationDays, expirationDateStr);
+            sessionStorage.removeItem('sharedStrategy');
+          }
+        }
+      } catch {
+        // Silent fail if parse fails
+      }
+      window.history.replaceState({}, '', '/builder');
+      return;
+    }
+    
     if (strategyIndex !== null || urlSymbol) {
       urlParamsProcessed.current = true;
       
