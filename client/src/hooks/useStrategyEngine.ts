@@ -48,7 +48,14 @@ export function useStrategyEngine(rangePercent: number = 14) {
         })
         .then(data => {
           if (data && data.price && data.price > 0) {
-            setSymbolInfo({ symbol: "AAPL", price: data.price });
+            // Only update if still using default AAPL - avoid overwriting loaded strategies
+            setSymbolInfo(prev => {
+              if (prev.symbol === "AAPL") {
+                return { symbol: "AAPL", price: data.price };
+              }
+              console.log('[STRATEGY-ENGINE] Skipping AAPL price update - different symbol loaded:', prev.symbol);
+              return prev;
+            });
           }
         })
         .catch(err => {
