@@ -87,6 +87,7 @@ export default function Builder() {
             setSymbolInfo({ symbol: trade.symbol, price: trade.price || 100 });
             
             // Normalize legs to ensure required fields exist
+            // Mark as 'saved' to preserve the original cost basis from when trade was saved
             const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `saved-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -95,7 +96,7 @@ export default function Builder() {
               quantity: leg.quantity || 1,
               premium: leg.premium || 0,
               expirationDays: leg.expirationDays || 30,
-              premiumSource: leg.premiumSource || 'theoretical',
+              premiumSource: 'saved' as const,  // Preserve original cost basis
               impliedVolatility: leg.impliedVolatility,
             }));
             
@@ -155,6 +156,7 @@ export default function Builder() {
             setSymbolInfo({ symbol: strategy.symbol, price: strategy.price || 100 });
             
             // Normalize legs from shared format
+            // Mark as 'saved' to preserve the original cost basis from when trade was shared
             const normalizedLegs: OptionLeg[] = strategy.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `shared-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -163,7 +165,7 @@ export default function Builder() {
               quantity: leg.quantity || 1,
               premium: leg.premium || 0,
               expirationDays: leg.expirationDays || 30,
-              premiumSource: 'theoretical' as const,
+              premiumSource: 'saved' as const,  // Preserve original cost basis
               impliedVolatility: leg.impliedVolatility,
               expirationDate: leg.expirationDate,
             }));
@@ -307,6 +309,13 @@ export default function Builder() {
         return currentLegs;
       }
       
+      // Skip if these are saved/loaded legs - don't adjust their strikes
+      const hasSavedLegs = currentLegs.some(leg => leg.premiumSource === 'saved');
+      if (hasSavedLegs) {
+        console.log('[AUTO-ADJUST] Skipping - saved trade legs should keep original strikes');
+        return currentLegs;
+      }
+      
       const adjustedLegs = currentLegs.map((leg, index) => {
         // Reset all strikes to be close to the new ATM price
         // Spread them slightly based on their relative position in the original strategy
@@ -376,8 +385,8 @@ export default function Builder() {
     setLegs(currentLegs => {
       let updated = false;
       const newLegs = currentLegs.map(leg => {
-        // Skip manually edited legs - respect user's custom price
-        if (leg.premiumSource === 'manual') {
+        // Skip manually edited or saved legs - respect user's custom/original price
+        if (leg.premiumSource === 'manual' || leg.premiumSource === 'saved') {
           return leg;
         }
 

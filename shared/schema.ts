@@ -32,7 +32,7 @@ export type User = typeof users.$inferSelect;
 
 export type OptionType = "call" | "put";
 export type PositionType = "long" | "short";
-export type PremiumSource = "market" | "theoretical" | "manual";
+export type PremiumSource = "market" | "theoretical" | "manual" | "saved";
 
 // Represents a closing transaction for an option leg
 export interface ClosingTransaction {
