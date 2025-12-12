@@ -196,8 +196,9 @@ export function OptionDetailsPanel({
   const [costBasis, setCostBasis] = useState<number>(leg.premium);
   const [costBasisText, setCostBasisText] = useState<string>(leg.premium.toFixed(2));
   
-  // Check if this leg has a manually edited premium (persisted in leg data)
-  const isManuallyEdited = leg.premiumSource === "manual";
+  // Check if this leg has a manually edited or saved premium (persisted in leg data)
+  // Both 'manual' and 'saved' should prevent market data from overwriting the premium
+  const isManuallyEdited = leg.premiumSource === "manual" || leg.premiumSource === "saved";
   
   // Parse and validate cost basis text - returns valid number or null
   const parseValidCostBasis = (text: string): number | null => {
