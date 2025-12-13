@@ -334,20 +334,31 @@ export function OptionDetailsPanel({
   }, [leg.closingTransaction]);
 
   const handleToggleClosing = (enabled: boolean) => {
+    // Just toggle the UI section visibility - don't execute the sell yet
     setShowClosingSection(enabled);
     if (enabled) {
-      // Enable closing transaction with current values
-      const closingPrice = parseFloat(closingPriceText) || marketData?.ask || leg.premium;
-      const closing: ClosingTransaction = {
-        quantity: closingQty,
-        closingPrice: closingPrice,
-        isEnabled: true,
-      };
-      if (onUpdateLeg) onUpdateLeg({ closingTransaction: closing });
-    } else {
-      // Disable closing transaction
-      if (onUpdateLeg) onUpdateLeg({ closingTransaction: { ...leg.closingTransaction!, isEnabled: false } });
+      // Initialize closing price to market ask or current premium
+      const defaultPrice = marketData?.ask || leg.premium;
+      setClosingPriceText(defaultPrice.toFixed(2));
+      setClosingQty(1); // Default to 1 contract
     }
+  };
+
+  // Confirm the closing transaction - this actually executes the sell
+  const handleConfirmClose = () => {
+    const closingPrice = parseFloat(closingPriceText) || marketData?.ask || leg.premium;
+    const closing: ClosingTransaction = {
+      quantity: closingQty,
+      closingPrice: closingPrice,
+      isEnabled: true,
+    };
+    if (onUpdateLeg) onUpdateLeg({ closingTransaction: closing });
+    setShowClosingSection(false); // Hide the section after confirming
+  };
+
+  // Cancel the closing interface
+  const handleCancelClose = () => {
+    setShowClosingSection(false);
   };
 
   const handleClosingQtyChange = (delta: number) => {
@@ -740,41 +751,11 @@ export function OptionDetailsPanel({
 
               {/* Expanded Closing Section */}
               {showClosingSection && (
-                <div className="ml-5 p-2 rounded-md bg-muted/50 space-y-2">
-                  {/* Closing Quantity */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground">Close Qty:</span>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-6 w-6"
-                        onClick={() => handleClosingQtyChange(-1)}
-                        disabled={closingQty <= 1}
-                        data-testid="button-close-qty-decrease"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center font-mono text-sm">{closingQty}</span>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-6 w-6"
-                        onClick={() => handleClosingQtyChange(1)}
-                        disabled={closingQty >= leg.quantity}
-                        data-testid="button-close-qty-increase"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                      <span className="text-xs text-muted-foreground">/ {leg.quantity}</span>
-                    </div>
-                  </div>
-
+                <div className="ml-5 p-3 rounded-md bg-muted/50 space-y-3">
                   {/* Closing Price */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground">Close Price:</span>
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Closing Price:</span>
                     <div className="flex items-center gap-1">
-                      <span className="text-xs">$</span>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -784,10 +765,61 @@ export function OptionDetailsPanel({
                         onBlur={handleClosingPriceBlur}
                         onClick={(e) => e.currentTarget.select()}
                         onMouseDown={() => { closingPriceEditingRef.current = true; }}
-                        className="w-20 h-6 px-2 text-xs font-mono text-center rounded border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                        className="flex-1 h-8 px-3 text-sm font-mono text-center rounded border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                         data-testid="input-closing-price"
                       />
                     </div>
+                  </div>
+
+                  {/* Closing Quantity */}
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Closing Quantity:</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-7 w-7"
+                        onClick={() => handleClosingQtyChange(-1)}
+                        disabled={closingQty <= 1}
+                        data-testid="button-close-qty-decrease"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="flex-1 text-center font-mono text-sm font-semibold">
+                        {closingQty === leg.quantity ? 'All' : closingQty}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-7 w-7"
+                        onClick={() => handleClosingQtyChange(1)}
+                        disabled={closingQty >= leg.quantity}
+                        data-testid="button-close-qty-increase"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Confirm and Cancel Buttons */}
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      className="flex-1 text-xs h-8 bg-sky-600 hover:bg-sky-700"
+                      onClick={handleConfirmClose}
+                      data-testid="button-confirm-close"
+                    >
+                      {closingActionText}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs h-8"
+                      onClick={handleCancelClose}
+                      data-testid="button-cancel-close"
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               )}
