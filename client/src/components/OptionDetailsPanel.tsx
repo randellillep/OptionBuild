@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Minus, Plus, X, RotateCcw, Check, Calendar, EyeOff } from "lucide-react";
+import { Minus, Plus, X, RotateCcw, Check, Calendar, EyeOff, Undo2, Trash2 } from "lucide-react";
 import type { OptionLeg, MarketOptionChainSummary, ClosingTransaction } from "@shared/schema";
 import { calculateGreeks } from "@/lib/options-pricing";
 
@@ -30,6 +30,8 @@ interface OptionDetailsPanelProps {
   onClose: () => void;
   // Available expirations for Change Expiration feature
   availableExpirations?: string[];
+  // View mode for closed positions
+  isClosedView?: boolean;
   // Legacy props for backward compatibility
   symbol?: string;
   expirationDate?: string | null;
@@ -49,6 +51,7 @@ export function OptionDetailsPanel({
   onAddToStrategy,
   onClose,
   availableExpirations = [],
+  isClosedView = false,
   // Legacy props
   symbol: legacySymbol,
   expirationDate: legacyExpirationDate,
@@ -391,6 +394,19 @@ export function OptionDetailsPanel({
     }
   };
 
+  // === Reopen Closed Position ===
+  const handleReopenPosition = () => {
+    if (onUpdateLeg) {
+      onUpdateLeg({ 
+        closingTransaction: {
+          quantity: 0,
+          closingPrice: 0,
+          isEnabled: false
+        }
+      });
+    }
+  };
+
   // === Change Expiration ===
   const handleExpirationChange = (newExpiration: string) => {
     if (onUpdateLeg) {
@@ -408,6 +424,124 @@ export function OptionDetailsPanel({
 
   // Get the opposite action text for closing
   const closingActionText = leg.position === "long" ? "Sell to Close" : "Buy to Close";
+  const closedActionText = leg.position === "long" ? "Sold" : "Bought";
+
+  // Closed Position View - simplified view for positions that have been closed
+  if (isClosedView && leg.closingTransaction?.isEnabled) {
+    const closedQty = leg.closingTransaction.quantity || 0;
+    const closePrice = leg.closingTransaction.closingPrice || 0;
+    
+    // P/L calculation:
+    // Long: You buy at premium, sell at closePrice. P/L = (closePrice - premium) * qty * 100
+    // Short: You sell at premium, buy back at closePrice. P/L = (premium - closePrice) * qty * 100
+    const profitLoss = leg.position === "long" 
+      ? (closePrice - leg.premium) * closedQty * 100
+      : (leg.premium - closePrice) * closedQty * 100;
+    const isProfitable = profitLoss >= 0;
+    
+    // Labels based on position type
+    const closePriceLabel = leg.position === "long" ? "Sold Price" : "Bought Price";
+    const openPriceLabel = leg.position === "long" ? "Bought Price" : "Sold Price";
+
+    return (
+      <div 
+        className="w-80 p-4 space-y-3 bg-background border border-sky-500 rounded-lg shadow-lg" 
+        data-testid="option-details-panel-closed"
+        style={{ pointerEvents: 'auto' }}
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {/* Header for Closed Position */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="font-semibold text-sm">{title}</h3>
+            <Badge className="mt-1 text-xs bg-sky-600 text-white">
+              <Check className="h-3 w-3 mr-1" />
+              {closedActionText} {closedQty} Contract{closedQty !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onClose}
+            className="h-6 w-6"
+            data-testid="button-close-details"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <Separator />
+
+        {/* Closed Position Details */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{openPriceLabel}</label>
+              <div className="font-mono font-semibold">${leg.premium.toFixed(2)}</div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{closePriceLabel}</label>
+              <div className="font-mono font-semibold">${closePrice.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Quantity Closed</label>
+              <div className="font-mono font-semibold">{closedQty}</div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">P/L</label>
+              <div className={`font-mono font-semibold ${isProfitable ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {isProfitable ? '+' : ''}${profitLoss.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Actions for Closed Position */}
+        <div className="space-y-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-xs h-8 gap-2"
+            onClick={handleReopenPosition}
+            data-testid="button-reopen-position"
+          >
+            <Undo2 className="h-3 w-3" />
+            Reopen Position
+          </Button>
+
+          <Button
+            variant={leg.isExcluded ? "secondary" : "ghost"}
+            size="sm"
+            className={`w-full justify-start text-xs h-8 gap-2 ${leg.isExcluded ? 'text-amber-600 dark:text-amber-400' : ''}`}
+            onClick={handleToggleExclude}
+            data-testid="button-toggle-exclude-closed"
+          >
+            <EyeOff className="h-3 w-3" />
+            {leg.isExcluded ? "Excluded from P/L" : "Exclude"}
+          </Button>
+
+          <Separator className="my-1" />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-xs h-8 gap-2 text-destructive hover:text-destructive"
+            onClick={onRemove}
+            data-testid="button-remove-closed"
+          >
+            <Trash2 className="h-3 w-3" />
+            Remove
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

@@ -48,6 +48,7 @@ export function StrikeLadder({
 }: StrikeLadderProps) {
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [isClosedBadgeClick, setIsClosedBadgeClick] = useState(false); // Track if clicked on closed badge
   const [draggedLeg, setDraggedLeg] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
@@ -216,10 +217,12 @@ export function StrikeLadder({
     }
   };
 
-  const handleBadgeClick = (leg: OptionLeg, e: React.MouseEvent) => {
+  const handleBadgeClick = (leg: OptionLeg, e: React.MouseEvent, isClosedBadge: boolean = false) => {
     // Only open popover if we didn't just finish dragging
     if (!isDragging) {
       setSelectedLeg(leg);
+      // Always update the closed badge state based on what was clicked
+      setIsClosedBadgeClick(isClosedBadge);
       setPopoverOpen(true);
     }
   };
@@ -458,6 +461,7 @@ export function StrikeLadder({
           if (!open && selectedLeg?.id === leg.id) {
             setPopoverOpen(false);
             setSelectedLeg(null);
+            setIsClosedBadgeClick(false);
           }
         }}
         modal={false}
@@ -558,7 +562,7 @@ export function StrikeLadder({
                 style={{ top: `${badgeHeight + 2}px` }}
               >
                 <button
-                  onClick={(e) => handleBadgeClick(leg, e)}
+                  onClick={(e) => handleBadgeClick(leg, e, true)}
                   className={`relative text-[10px] h-6 px-2 ${closedBgClass} text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0`}
                   data-testid={`badge-closed-${leg.id}`}
                 >
@@ -600,6 +604,7 @@ export function StrikeLadder({
             symbol={symbol}
             expirationDate={expirationDate}
             availableExpirations={optionsChainData?.expirations || []}
+            isClosedView={isClosedBadgeClick}
             onUpdateLeg={(updates) => {
               onUpdateLeg(leg.id, updates);
             }}
@@ -622,6 +627,7 @@ export function StrikeLadder({
             onClose={() => {
               setPopoverOpen(false);
               setSelectedLeg(null);
+              setIsClosedBadgeClick(false);
             }}
           />
         </PopoverContent>
