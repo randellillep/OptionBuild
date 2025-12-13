@@ -441,6 +441,8 @@ export function OptionDetailsPanel({
   if (isClosedView && leg.closingTransaction?.isEnabled) {
     const closedQty = leg.closingTransaction.quantity || 0;
     const closePrice = leg.closingTransaction.closingPrice || 0;
+    const closingEntries = leg.closingTransaction.entries || [];
+    const hasMultipleEntries = closingEntries.length > 1;
     
     // P/L calculation:
     // Long: You buy at premium, sell at closePrice. P/L = (closePrice - premium) * qty * 100
@@ -451,7 +453,7 @@ export function OptionDetailsPanel({
     const isProfitable = profitLoss >= 0;
     
     // Labels based on position type
-    const closePriceLabel = leg.position === "long" ? "Sold Price" : "Bought Price";
+    const closePriceLabel = leg.position === "long" ? "Avg Sold Price" : "Avg Bought Price";
     const openPriceLabel = leg.position === "long" ? "Bought Price" : "Sold Price";
 
     return (
@@ -497,13 +499,36 @@ export function OptionDetailsPanel({
             </div>
           </div>
 
+          {/* Show individual closing entries if multiple partial closes */}
+          {hasMultipleEntries && (
+            <div className="bg-muted/50 rounded p-2 space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Closing Entries</label>
+              {closingEntries.map((entry, idx) => {
+                const entryPL = leg.position === "long"
+                  ? (entry.closingPrice - leg.premium) * entry.quantity * 100
+                  : (leg.premium - entry.closingPrice) * entry.quantity * 100;
+                const entryProfitable = entryPL >= 0;
+                return (
+                  <div key={entry.id || idx} className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">
+                      {entry.quantity} @ ${entry.closingPrice.toFixed(2)}
+                    </span>
+                    <span className={entryProfitable ? 'text-emerald-600' : 'text-rose-600'}>
+                      {entryProfitable ? '+' : ''}${entryPL.toFixed(2)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <label className="text-xs font-medium text-muted-foreground">Quantity Closed</label>
               <div className="font-mono font-semibold">{closedQty}</div>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">P/L</label>
+              <label className="text-xs font-medium text-muted-foreground">Total P/L</label>
               <div className={`font-mono font-semibold ${isProfitable ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {isProfitable ? '+' : ''}${profitLoss.toFixed(2)}
               </div>

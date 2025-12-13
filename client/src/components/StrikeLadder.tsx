@@ -508,13 +508,19 @@ export function StrikeLadder({
                 <div className="flex items-center gap-1 mb-1">
                   <span className="text-[9px] text-muted-foreground">Qty:</span>
                   <button
+                    type="button"
                     className="h-5 w-5 text-xs bg-slate-200 dark:bg-slate-600 rounded hover:bg-slate-300"
-                    onClick={(e) => { e.stopPropagation(); setSellQuantity(Math.max(1, sellQuantity - 1)); }}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setSellQuantity(Math.max(1, sellQuantity - 1)); }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    data-testid="button-sell-qty-minus"
                   >-</button>
-                  <span className="text-xs font-mono min-w-[16px] text-center">{sellQuantity}</span>
+                  <span className="text-xs font-mono min-w-[16px] text-center" data-testid="text-sell-quantity">{sellQuantity}</span>
                   <button
+                    type="button"
                     className="h-5 w-5 text-xs bg-slate-200 dark:bg-slate-600 rounded hover:bg-slate-300"
-                    onClick={(e) => { e.stopPropagation(); setSellQuantity(Math.min(remainingQty, sellQuantity + 1)); }}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setSellQuantity(Math.min(remainingQty, sellQuantity + 1)); }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    data-testid="button-sell-qty-plus"
                   >+</button>
                 </div>
                 <div className="flex items-center gap-1 mb-2">
