@@ -353,7 +353,8 @@ export function OptionDetailsPanel({
       isEnabled: true,
     };
     if (onUpdateLeg) onUpdateLeg({ closingTransaction: closing });
-    setShowClosingSection(false); // Hide the section after confirming
+    setShowClosingSection(false);
+    onClose(); // Close the popup after confirming the sell
   };
 
   // Cancel the closing interface
