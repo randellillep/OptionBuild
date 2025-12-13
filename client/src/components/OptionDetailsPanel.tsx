@@ -761,16 +761,16 @@ export function OptionDetailsPanel({
               Switch to {leg.type === "call" ? "Put" : "Call"}
             </Button>
 
-            {/* Buy/Sell to Close with toggle and expandable section */}
+            {/* Buy/Sell to Close with expandable section */}
             <div className="space-y-2">
               <Button
-                variant={showClosingSection ? "secondary" : "ghost"}
+                variant="ghost"
                 size="sm"
                 className="w-full justify-start text-xs h-8 gap-2"
                 onClick={() => handleToggleClosing(!showClosingSection)}
                 data-testid="button-toggle-closing"
               >
-                <Check className={`h-3 w-3 ${showClosingSection ? 'text-green-500' : ''}`} />
+                <Check className="h-3 w-3" />
                 {closingActionText}
               </Button>
 
