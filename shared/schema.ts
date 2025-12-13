@@ -34,11 +34,21 @@ export type OptionType = "call" | "put";
 export type PositionType = "long" | "short";
 export type PremiumSource = "market" | "theoretical" | "manual" | "saved";
 
-// Represents a closing transaction for an option leg
+// Represents a single closing transaction (partial close)
+export interface ClosingEntry {
+  id: string;              // Unique ID for this closing entry
+  quantity: number;        // Number of contracts closed in this transaction
+  closingPrice: number;    // Price at which contracts were closed
+  closedAt?: string;       // ISO date when closed (optional)
+}
+
+// Represents all closing transactions for an option leg
+// Supports multiple partial closes at different prices
 export interface ClosingTransaction {
-  quantity: number;        // Number of contracts to close
-  closingPrice: number;    // Price at which to close
-  isEnabled: boolean;      // Whether this closing transaction is active
+  quantity: number;        // Total number of contracts closed (sum of all entries)
+  closingPrice: number;    // Weighted average closing price (for display)
+  isEnabled: boolean;      // Whether any closing transactions are active
+  entries?: ClosingEntry[]; // Individual closing entries (for partial closes at different prices)
 }
 
 export interface OptionLeg {

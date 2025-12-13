@@ -364,22 +364,40 @@ export function StrikeLadder({
     e.preventDefault();
     
     if (sellMode === leg.id) {
-      // Second click - confirm the sell
+      // Second click - confirm the sell and AUTO-CLOSE the popup
       const price = parseFloat(sellPrice);
       if (!isNaN(price) && price > 0 && sellQuantity > 0) {
-        // Create/update closing transaction
+        // Get existing closing transaction data
         const currentClosing = leg.closingTransaction;
-        const newClosingQty = (currentClosing?.isEnabled ? currentClosing.quantity : 0) + sellQuantity;
+        const existingEntries = currentClosing?.entries || [];
+        const existingTotalQty = currentClosing?.isEnabled ? currentClosing.quantity : 0;
+        
+        // Create new closing entry for this partial close
+        const newEntry = {
+          id: `close-${Date.now()}`,
+          quantity: sellQuantity,
+          closingPrice: price,
+          closedAt: new Date().toISOString(),
+        };
+        
+        // Add to entries array
+        const newEntries = [...existingEntries, newEntry];
+        const newTotalQty = Math.min(existingTotalQty + sellQuantity, leg.quantity);
+        
+        // Calculate weighted average closing price for display
+        const totalValue = newEntries.reduce((sum, e) => sum + (e.quantity * e.closingPrice), 0);
+        const avgPrice = newTotalQty > 0 ? totalValue / newTotalQty : price;
         
         onUpdateLeg(leg.id, {
           closingTransaction: {
-            quantity: Math.min(newClosingQty, leg.quantity),
-            closingPrice: price,
+            quantity: newTotalQty,
+            closingPrice: avgPrice,
             isEnabled: true,
+            entries: newEntries,
           }
         });
       }
-      // Exit sell mode
+      // Exit sell mode immediately (auto-close popup)
       setSellMode(null);
       setSellQuantity(1);
       setSellPrice("");
@@ -387,9 +405,11 @@ export function StrikeLadder({
       // First click - enter sell mode
       setSellMode(leg.id);
       setSellQuantity(1);
-      // Default to market price
+      // Default to market price (use bid for long positions selling, ask for short positions buying back)
       const marketData = getMarketDataForLeg(leg);
-      const defaultPrice = marketData?.ask || leg.premium;
+      const defaultPrice = leg.position === 'long' 
+        ? (marketData?.bid || leg.premium)  // Selling: use bid
+        : (marketData?.ask || leg.premium); // Buying back: use ask
       setSellPrice(defaultPrice.toFixed(2));
     }
   };
