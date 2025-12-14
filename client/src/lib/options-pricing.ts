@@ -155,10 +155,10 @@ export function calculateGreeks(
   const multiplier = leg.position === "long" ? 1 : -1;
   
   // Use effective quantity (accounting for closing transaction)
-  // Only count non-excluded entries when calculating closed quantity
+  // Include ALL closing entries (excluded entries still reduce quantity, they just hide P/L)
   const closing = leg.closingTransaction;
   const closedQty = closing?.isEnabled && closing.entries
-    ? closing.entries.filter(e => !e.isExcluded).reduce((sum, e) => sum + e.quantity, 0)
+    ? closing.entries.reduce((sum, e) => sum + e.quantity, 0)
     : (closing?.isEnabled ? (closing.quantity || 0) : 0);
   const effectiveQuantity = Math.max(0, leg.quantity - closedQty);
   
@@ -179,9 +179,6 @@ export function calculateProfitLoss(
   let pnl = 0;
   
   for (const leg of legs) {
-    // Skip excluded legs
-    if (leg.isExcluded) continue;
-    
     const intrinsicValue = leg.type === "call" 
       ? Math.max(atPrice - leg.strike, 0)
       : Math.max(leg.strike - atPrice, 0);
@@ -192,12 +189,13 @@ export function calculateProfitLoss(
     // Handle closing transaction if present and enabled
     const closing = leg.closingTransaction;
     if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
-      // Use individual entries for P/L calculation (respects per-entry exclusion)
+      // Calculate realized P/L from non-excluded entries only
       let totalClosedPnl = 0;
-      let totalClosedQty = 0;
+      // Calculate total closed quantity from ALL entries (for remaining qty calculation)
+      const allClosedQty = closing.entries.reduce((sum, e) => sum + e.quantity, 0);
       
       for (const entry of closing.entries) {
-        // Skip excluded entries
+        // Skip excluded entries for P/L calculation (but they still count toward closed quantity)
         if (entry.isExcluded) continue;
         
         const entryPnl = leg.position === "long"
@@ -205,13 +203,13 @@ export function calculateProfitLoss(
           : (premium - entry.closingPrice) * entry.quantity * 100;
         
         totalClosedPnl += entryPnl;
-        totalClosedQty += entry.quantity;
       }
       
-      const remainingQty = leg.quantity - totalClosedQty;
+      // Remaining quantity is based on ALL closed entries (excluded or not)
+      const remainingQty = leg.quantity - allClosedQty;
       
-      // Unrealized P/L for remaining quantity
-      const remainingPnl = remainingQty > 0
+      // Unrealized P/L for remaining quantity (only if leg is NOT excluded)
+      const remainingPnl = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long"
             ? (intrinsicValue - premium) * remainingQty * 100
             : (premium - intrinsicValue) * remainingQty * 100)
@@ -223,12 +221,14 @@ export function calculateProfitLoss(
       const closedQty = Math.min(closing.quantity, leg.quantity);
       const remainingQty = leg.quantity - closedQty;
       
+      // Realized P/L from closed portion (ALWAYS included - closed trades always count)
       const closingPrice = closing.closingPrice;
       const closedPnl = leg.position === "long"
         ? (closingPrice - premium) * closedQty * 100
         : (premium - closingPrice) * closedQty * 100;
       
-      const remainingPnl = remainingQty > 0
+      // Unrealized P/L for remaining quantity (only if leg is NOT excluded)
+      const remainingPnl = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long"
             ? (intrinsicValue - premium) * remainingQty * 100
             : (premium - intrinsicValue) * remainingQty * 100)
@@ -236,6 +236,9 @@ export function calculateProfitLoss(
       
       pnl += closedPnl + remainingPnl;
     } else {
+      // Skip excluded legs for standard calculation (no closing transactions)
+      if (leg.isExcluded) continue;
+      
       // Standard calculation for full quantity
       const legPnl = leg.position === "long"
         ? (intrinsicValue - premium) * Math.abs(leg.quantity) * 100
@@ -259,9 +262,6 @@ export function calculateProfitLossAtDate(
   let pnl = 0;
   
   for (const leg of legs) {
-    // Skip excluded legs
-    if (leg.isExcluded) continue;
-    
     const daysRemaining = Math.max(0, daysToExpiration);
     
     let optionValue: number;
@@ -286,12 +286,13 @@ export function calculateProfitLossAtDate(
     // Handle closing transaction if present and enabled
     const closing = leg.closingTransaction;
     if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
-      // Use individual entries for P/L calculation (respects per-entry exclusion)
+      // Calculate realized P/L from non-excluded entries only
       let totalClosedPnl = 0;
-      let totalClosedQty = 0;
+      // Calculate total closed quantity from ALL entries (for remaining qty calculation)
+      const allClosedQty = closing.entries.reduce((sum, e) => sum + e.quantity, 0);
       
       for (const entry of closing.entries) {
-        // Skip excluded entries
+        // Skip excluded entries for P/L calculation (but they still count toward closed quantity)
         if (entry.isExcluded) continue;
         
         const entryPnl = leg.position === "long"
@@ -299,13 +300,13 @@ export function calculateProfitLossAtDate(
           : (premium - entry.closingPrice) * entry.quantity * 100;
         
         totalClosedPnl += entryPnl;
-        totalClosedQty += entry.quantity;
       }
       
-      const remainingQty = leg.quantity - totalClosedQty;
+      // Remaining quantity is based on ALL closed entries (excluded or not)
+      const remainingQty = leg.quantity - allClosedQty;
       
-      // Unrealized P/L for remaining quantity
-      const remainingPnl = remainingQty > 0
+      // Unrealized P/L for remaining quantity (only if leg is NOT excluded)
+      const remainingPnl = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long"
             ? (optionValue - premium) * remainingQty * 100
             : (premium - optionValue) * remainingQty * 100)
@@ -317,12 +318,14 @@ export function calculateProfitLossAtDate(
       const closedQty = Math.min(closing.quantity, leg.quantity);
       const remainingQty = leg.quantity - closedQty;
       
+      // Realized P/L from closed portion (ALWAYS included - closed trades always count)
       const closingPrice = closing.closingPrice;
       const closedPnl = leg.position === "long"
         ? (closingPrice - premium) * closedQty * 100
         : (premium - closingPrice) * closedQty * 100;
       
-      const remainingPnl = remainingQty > 0
+      // Unrealized P/L for remaining quantity (only if leg is NOT excluded)
+      const remainingPnl = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long"
             ? (optionValue - premium) * remainingQty * 100
             : (premium - optionValue) * remainingQty * 100)
@@ -330,6 +333,9 @@ export function calculateProfitLossAtDate(
       
       pnl += closedPnl + remainingPnl;
     } else {
+      // Skip excluded legs for standard calculation (no closing transactions)
+      if (leg.isExcluded) continue;
+      
       // Standard calculation for full quantity
       const legPnl = leg.position === "long"
         ? (optionValue - premium) * Math.abs(leg.quantity) * 100
@@ -346,10 +352,11 @@ export function calculateStrategyMetrics(
   legs: OptionLeg[],
   underlyingPrice: number
 ): StrategyMetrics {
-  // Filter out excluded legs for all calculations
-  const activeLegs = legs.filter(leg => !leg.isExcluded);
+  // For strike range calculation, use legs that have active positions or closed trades
+  const legsWithActivity = legs.filter(leg => !leg.isExcluded || 
+    (leg.closingTransaction?.isEnabled && (leg.closingTransaction?.entries?.length ?? 0) > 0));
   
-  if (activeLegs.length === 0) {
+  if (legsWithActivity.length === 0) {
     return {
       maxProfit: null,
       maxLoss: null,
@@ -361,14 +368,15 @@ export function calculateStrategyMetrics(
   
   // Net premium: normalize premium to positive, then apply position multiplier
   // Also account for closing transactions
-  const netPremium = activeLegs.reduce((sum, leg) => {
+  const netPremium = legs.reduce((sum, leg) => {
     const premium = Math.abs(leg.premium);
     const closing = leg.closingTransaction;
     
     if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
-      // Use individual entries for premium calculation (respects per-entry exclusion)
+      // Calculate realized premium from non-excluded entries only
       let closedPremiumEffect = 0;
-      let totalClosedQty = 0;
+      // Calculate ALL closed quantity (for remaining qty)
+      const allClosedQty = closing.entries.reduce((s, e) => s + e.quantity, 0);
       
       for (const entry of closing.entries) {
         if (entry.isExcluded) continue;
@@ -378,19 +386,21 @@ export function calculateStrategyMetrics(
           : (premium * entry.quantity - entry.closingPrice * entry.quantity) * 100;
         
         closedPremiumEffect += entryPremiumEffect;
-        totalClosedQty += entry.quantity;
       }
       
-      const remainingQty = leg.quantity - totalClosedQty;
+      // Remaining quantity is based on ALL closed entries
+      const remainingQty = leg.quantity - allClosedQty;
       
-      // Remaining position premium effect
-      const remainingPremiumEffect = remainingQty > 0
+      // Remaining position premium effect (only if leg is NOT excluded)
+      const remainingPremiumEffect = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long" ? -premium : premium) * remainingQty * 100
         : 0;
       
       return sum + closedPremiumEffect + remainingPremiumEffect;
     } else if (closing?.isEnabled && closing.quantity > 0) {
       // Legacy: aggregated closing transaction without entries
+      if (leg.isExcluded) return sum; // Skip if leg excluded and no entries
+      
       const closedQty = Math.min(closing.quantity, leg.quantity);
       const remainingQty = leg.quantity - closedQty;
       
@@ -404,13 +414,16 @@ export function calculateStrategyMetrics(
       
       return sum + closedPremiumEffect + remainingPremiumEffect;
     } else {
+      // Skip excluded legs with no closing transactions
+      if (leg.isExcluded) return sum;
+      
       const quantity = Math.abs(leg.quantity);
       return sum + (leg.position === "long" ? -premium : premium) * quantity * 100;
     }
   }, 0);
   
   // Include all active leg strikes in the price range
-  const allStrikes = activeLegs.map(leg => leg.strike);
+  const allStrikes = legsWithActivity.map(leg => leg.strike);
   const minStrike = Math.min(...allStrikes);
   const maxStrike = Math.max(...allStrikes);
   
