@@ -40,6 +40,8 @@ export interface ClosingEntry {
   quantity: number;        // Number of contracts closed in this transaction
   closingPrice: number;    // Price at which contracts were closed
   closedAt?: string;       // ISO date when closed (optional)
+  strike: number;          // Strike price at time of close (immutable - doesn't move with leg)
+  isExcluded?: boolean;    // Whether this closed portion is excluded from P/L calculations
 }
 
 // Represents all closing transactions for an option leg

@@ -314,24 +314,25 @@ export function OptionDetailsPanel({
   };
 
   // === Closing Transaction State ===
-  const [showClosingSection, setShowClosingSection] = useState(!!leg.closingTransaction?.isEnabled);
+  // Fix: Initialize to false - only open when explicitly clicked, not based on existing transactions
+  const [showClosingSection, setShowClosingSection] = useState(false);
   // Default closing quantity to 1 when first enabling (not full position)
-  const [closingQty, setClosingQty] = useState(leg.closingTransaction?.quantity || 1);
+  // For existing transactions, calculate remaining quantity available to close
+  const existingClosedQty = leg.closingTransaction?.quantity || 0;
+  const remainingToClose = leg.quantity - existingClosedQty;
+  const [closingQty, setClosingQty] = useState(Math.min(1, remainingToClose));
   const [closingPriceText, setClosingPriceText] = useState(
     (leg.closingTransaction?.closingPrice || marketData?.ask || leg.premium).toFixed(2)
   );
   const closingPriceEditingRef = useRef(false);
 
-  // Sync closing transaction state with leg
+  // Sync closing transaction state with leg - but DON'T auto-open the section
   useEffect(() => {
-    if (leg.closingTransaction?.isEnabled) {
-      setShowClosingSection(true);
-      setClosingQty(leg.closingTransaction.quantity);
-      if (!closingPriceEditingRef.current) {
-        setClosingPriceText(leg.closingTransaction.closingPrice.toFixed(2));
-      }
+    // Only update closing price text if already showing and not editing
+    if (showClosingSection && !closingPriceEditingRef.current && leg.closingTransaction?.isEnabled) {
+      setClosingPriceText(leg.closingTransaction.closingPrice.toFixed(2));
     }
-  }, [leg.closingTransaction]);
+  }, [leg.closingTransaction, showClosingSection]);
 
   const handleToggleClosing = (enabled: boolean) => {
     // Just toggle the UI section visibility - don't execute the sell yet
@@ -340,18 +341,43 @@ export function OptionDetailsPanel({
       // Initialize closing price to market ask or current premium
       const defaultPrice = marketData?.ask || leg.premium;
       setClosingPriceText(defaultPrice.toFixed(2));
-      setClosingQty(1); // Default to 1 contract
+      // Calculate remaining quantity available to close
+      const alreadyClosed = leg.closingTransaction?.quantity || 0;
+      const remaining = leg.quantity - alreadyClosed;
+      setClosingQty(Math.min(1, remaining)); // Default to 1 contract (or less if only 1 remaining)
     }
   };
 
   // Confirm the closing transaction - this actually executes the sell
+  // Creates a new ClosingEntry with the current strike (immutable)
   const handleConfirmClose = () => {
     const closingPrice = parseFloat(closingPriceText) || marketData?.ask || leg.premium;
-    const closing: ClosingTransaction = {
+    
+    // Create a new closing entry with the current strike
+    const newEntry: import("@shared/schema").ClosingEntry = {
+      id: `close-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       quantity: closingQty,
       closingPrice: closingPrice,
-      isEnabled: true,
+      closedAt: new Date().toISOString(),
+      strike: leg.strike, // Capture strike at time of close (immutable)
+      isExcluded: false,
     };
+    
+    // Get existing entries or create empty array
+    const existingEntries = leg.closingTransaction?.entries || [];
+    const allEntries = [...existingEntries, newEntry];
+    
+    // Calculate aggregated values for compatibility
+    const totalClosedQty = allEntries.reduce((sum, e) => sum + e.quantity, 0);
+    const weightedAvgPrice = allEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalClosedQty;
+    
+    const closing: ClosingTransaction = {
+      quantity: totalClosedQty,
+      closingPrice: weightedAvgPrice,
+      isEnabled: true,
+      entries: allEntries,
+    };
+    
     if (onUpdateLeg) onUpdateLeg({ closingTransaction: closing });
     setShowClosingSection(false);
     onClose(); // Close the popup after confirming the sell
