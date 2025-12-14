@@ -550,6 +550,7 @@ export function StrikeLadder({
             expirationDate={expirationDate}
             availableExpirations={optionsChainData?.expirations || []}
             isClosedView={true}
+            selectedEntryId={entry.id}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
             onRemove={() => {

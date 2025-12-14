@@ -32,6 +32,8 @@ interface OptionDetailsPanelProps {
   availableExpirations?: string[];
   // View mode for closed positions
   isClosedView?: boolean;
+  // Selected closing entry ID (for per-entry operations)
+  selectedEntryId?: string | null;
   // Legacy props for backward compatibility
   symbol?: string;
   expirationDate?: string | null;
@@ -52,6 +54,7 @@ export function OptionDetailsPanel({
   onClose,
   availableExpirations = [],
   isClosedView = false,
+  selectedEntryId,
   // Legacy props
   symbol: legacySymbol,
   expirationDate: legacyExpirationDate,
@@ -182,7 +185,18 @@ export function OptionDetailsPanel({
   const positionText = leg.position === "long" ? "Buy" : "Sell";
   const oppositePosition = leg.position === "long" ? "Sell" : "Buy";
   
-  const displayQuantity = leg.position === "long" ? leg.quantity : -leg.quantity;
+  // Calculate remaining quantity (original - closed)
+  // Only count non-excluded entries when calculating closed quantity
+  const closedQuantity = leg.closingTransaction?.isEnabled 
+    ? (leg.closingTransaction?.entries 
+        ? leg.closingTransaction.entries.filter(e => !e.isExcluded).reduce((sum, e) => sum + e.quantity, 0)
+        : (leg.closingTransaction?.quantity || 0))
+    : 0;
+  const remainingQuantity = leg.quantity - closedQuantity;
+  // Display remaining quantity for open positions (use remaining if there are closings)
+  const displayQuantity = leg.position === "long" 
+    ? (closedQuantity > 0 ? remainingQuantity : leg.quantity)
+    : (closedQuantity > 0 ? -remainingQuantity : -leg.quantity);
   
   // Calculate average of bid/ask for cost basis
   const calculateAverageCost = () => {
@@ -426,11 +440,45 @@ export function OptionDetailsPanel({
   };
 
   // === Exclude Toggle ===
+  // For closed view with a specific entry, toggle that entry's exclusion
+  // For open position view, toggle the leg's exclusion
   const handleToggleExclude = () => {
-    if (onUpdateLeg) {
+    if (!onUpdateLeg) return;
+    
+    // If we're in closed view and have a selected entry, toggle that entry's exclusion
+    if (isClosedView && selectedEntryId && leg.closingTransaction?.entries) {
+      const updatedEntries = leg.closingTransaction.entries.map(entry => {
+        if (entry.id === selectedEntryId) {
+          return { ...entry, isExcluded: !entry.isExcluded };
+        }
+        return entry;
+      });
+      
+      // Recalculate aggregated values from non-excluded entries
+      const activeEntries = updatedEntries.filter(e => !e.isExcluded);
+      const totalActiveQty = activeEntries.reduce((sum, e) => sum + e.quantity, 0);
+      const weightedAvgPrice = totalActiveQty > 0 
+        ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
+        : 0;
+      
+      onUpdateLeg({ 
+        closingTransaction: {
+          ...leg.closingTransaction,
+          quantity: totalActiveQty,
+          closingPrice: weightedAvgPrice,
+          entries: updatedEntries,
+        }
+      });
+    } else {
+      // Toggle the leg's exclusion (for remaining open position)
       onUpdateLeg({ isExcluded: !leg.isExcluded });
     }
   };
+  
+  // Get the current entry if we have a selectedEntryId
+  const selectedEntry = selectedEntryId 
+    ? leg.closingTransaction?.entries?.find(e => e.id === selectedEntryId)
+    : null;
 
   // === Reopen Closed Position ===
   const handleReopenPosition = () => {
@@ -579,14 +627,14 @@ export function OptionDetailsPanel({
           </Button>
 
           <Button
-            variant={leg.isExcluded ? "secondary" : "ghost"}
+            variant={(selectedEntry?.isExcluded) ? "secondary" : "ghost"}
             size="sm"
-            className={`w-full justify-start text-xs h-8 gap-2 ${leg.isExcluded ? 'text-amber-600 dark:text-amber-400' : ''}`}
+            className={`w-full justify-start text-xs h-8 gap-2 ${(selectedEntry?.isExcluded) ? 'text-amber-600 dark:text-amber-400' : ''}`}
             onClick={handleToggleExclude}
             data-testid="button-toggle-exclude-closed"
           >
             <EyeOff className="h-3 w-3" />
-            {leg.isExcluded ? "Excluded from P/L" : "Exclude"}
+            {(selectedEntry?.isExcluded) ? "Excluded from P/L" : "Exclude"}
           </Button>
 
           <Separator className="my-1" />

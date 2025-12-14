@@ -155,10 +155,12 @@ export function calculateGreeks(
   const multiplier = leg.position === "long" ? 1 : -1;
   
   // Use effective quantity (accounting for closing transaction)
+  // Only count non-excluded entries when calculating closed quantity
   const closing = leg.closingTransaction;
-  const effectiveQuantity = closing?.isEnabled 
-    ? Math.max(0, leg.quantity - (closing.quantity || 0))
-    : leg.quantity;
+  const closedQty = closing?.isEnabled && closing.entries
+    ? closing.entries.filter(e => !e.isExcluded).reduce((sum, e) => sum + e.quantity, 0)
+    : (closing?.isEnabled ? (closing.quantity || 0) : 0);
+  const effectiveQuantity = Math.max(0, leg.quantity - closedQty);
   
   return {
     delta: delta * multiplier * effectiveQuantity,
@@ -189,18 +191,43 @@ export function calculateProfitLoss(
     
     // Handle closing transaction if present and enabled
     const closing = leg.closingTransaction;
-    if (closing?.isEnabled && closing.quantity > 0) {
-      // Calculate P/L for closed portion (realized at closing price)
+    if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
+      // Use individual entries for P/L calculation (respects per-entry exclusion)
+      let totalClosedPnl = 0;
+      let totalClosedQty = 0;
+      
+      for (const entry of closing.entries) {
+        // Skip excluded entries
+        if (entry.isExcluded) continue;
+        
+        const entryPnl = leg.position === "long"
+          ? (entry.closingPrice - premium) * entry.quantity * 100
+          : (premium - entry.closingPrice) * entry.quantity * 100;
+        
+        totalClosedPnl += entryPnl;
+        totalClosedQty += entry.quantity;
+      }
+      
+      const remainingQty = leg.quantity - totalClosedQty;
+      
+      // Unrealized P/L for remaining quantity
+      const remainingPnl = remainingQty > 0
+        ? (leg.position === "long"
+            ? (intrinsicValue - premium) * remainingQty * 100
+            : (premium - intrinsicValue) * remainingQty * 100)
+        : 0;
+      
+      pnl += totalClosedPnl + remainingPnl;
+    } else if (closing?.isEnabled && closing.quantity > 0) {
+      // Legacy: aggregated closing transaction without entries
       const closedQty = Math.min(closing.quantity, leg.quantity);
       const remainingQty = leg.quantity - closedQty;
       
-      // Realized P/L from closing: difference between closing price and entry premium
       const closingPrice = closing.closingPrice;
       const closedPnl = leg.position === "long"
-        ? (closingPrice - premium) * closedQty * 100  // Sold at closing price, bought at premium
-        : (premium - closingPrice) * closedQty * 100; // Bought back at closing price, sold at premium
+        ? (closingPrice - premium) * closedQty * 100
+        : (premium - closingPrice) * closedQty * 100;
       
-      // Unrealized P/L for remaining quantity
       const remainingPnl = remainingQty > 0
         ? (leg.position === "long"
             ? (intrinsicValue - premium) * remainingQty * 100
@@ -258,18 +285,43 @@ export function calculateProfitLossAtDate(
     
     // Handle closing transaction if present and enabled
     const closing = leg.closingTransaction;
-    if (closing?.isEnabled && closing.quantity > 0) {
-      // Calculate P/L for closed portion (realized at closing price)
+    if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
+      // Use individual entries for P/L calculation (respects per-entry exclusion)
+      let totalClosedPnl = 0;
+      let totalClosedQty = 0;
+      
+      for (const entry of closing.entries) {
+        // Skip excluded entries
+        if (entry.isExcluded) continue;
+        
+        const entryPnl = leg.position === "long"
+          ? (entry.closingPrice - premium) * entry.quantity * 100
+          : (premium - entry.closingPrice) * entry.quantity * 100;
+        
+        totalClosedPnl += entryPnl;
+        totalClosedQty += entry.quantity;
+      }
+      
+      const remainingQty = leg.quantity - totalClosedQty;
+      
+      // Unrealized P/L for remaining quantity
+      const remainingPnl = remainingQty > 0
+        ? (leg.position === "long"
+            ? (optionValue - premium) * remainingQty * 100
+            : (premium - optionValue) * remainingQty * 100)
+        : 0;
+      
+      pnl += totalClosedPnl + remainingPnl;
+    } else if (closing?.isEnabled && closing.quantity > 0) {
+      // Legacy: aggregated closing transaction
       const closedQty = Math.min(closing.quantity, leg.quantity);
       const remainingQty = leg.quantity - closedQty;
       
-      // Realized P/L from closing: difference between closing price and entry premium
       const closingPrice = closing.closingPrice;
       const closedPnl = leg.position === "long"
-        ? (closingPrice - premium) * closedQty * 100  // Sold at closing price, bought at premium
-        : (premium - closingPrice) * closedQty * 100; // Bought back at closing price, sold at premium
+        ? (closingPrice - premium) * closedQty * 100
+        : (premium - closingPrice) * closedQty * 100;
       
-      // Unrealized P/L for remaining quantity
       const remainingPnl = remainingQty > 0
         ? (leg.position === "long"
             ? (optionValue - premium) * remainingQty * 100
@@ -313,17 +365,39 @@ export function calculateStrategyMetrics(
     const premium = Math.abs(leg.premium);
     const closing = leg.closingTransaction;
     
-    if (closing?.isEnabled && closing.quantity > 0) {
-      // Account for closed portion at closing price
+    if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
+      // Use individual entries for premium calculation (respects per-entry exclusion)
+      let closedPremiumEffect = 0;
+      let totalClosedQty = 0;
+      
+      for (const entry of closing.entries) {
+        if (entry.isExcluded) continue;
+        
+        const entryPremiumEffect = leg.position === "long"
+          ? (-premium * entry.quantity + entry.closingPrice * entry.quantity) * 100
+          : (premium * entry.quantity - entry.closingPrice * entry.quantity) * 100;
+        
+        closedPremiumEffect += entryPremiumEffect;
+        totalClosedQty += entry.quantity;
+      }
+      
+      const remainingQty = leg.quantity - totalClosedQty;
+      
+      // Remaining position premium effect
+      const remainingPremiumEffect = remainingQty > 0
+        ? (leg.position === "long" ? -premium : premium) * remainingQty * 100
+        : 0;
+      
+      return sum + closedPremiumEffect + remainingPremiumEffect;
+    } else if (closing?.isEnabled && closing.quantity > 0) {
+      // Legacy: aggregated closing transaction without entries
       const closedQty = Math.min(closing.quantity, leg.quantity);
       const remainingQty = leg.quantity - closedQty;
       
-      // Realized premium from closing
       const closedPremiumEffect = leg.position === "long"
-        ? (-premium * closedQty + closing.closingPrice * closedQty) * 100  // Paid premium, received closing
-        : (premium * closedQty - closing.closingPrice * closedQty) * 100;  // Received premium, paid closing
+        ? (-premium * closedQty + closing.closingPrice * closedQty) * 100
+        : (premium * closedQty - closing.closingPrice * closedQty) * 100;
       
-      // Remaining position premium effect
       const remainingPremiumEffect = remainingQty > 0
         ? (leg.position === "long" ? -premium : premium) * remainingQty * 100
         : 0;
