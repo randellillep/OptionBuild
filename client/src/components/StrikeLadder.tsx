@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
-import type { OptionLeg } from "@shared/schema";
+import type { OptionLeg, ClosingEntry } from "@shared/schema";
 import { calculateOptionPrice } from "@/lib/options-pricing";
 import { Check, DollarSign } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,7 @@ export function StrikeLadder({
   availableStrikes,
 }: StrikeLadderProps) {
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null); // Track which entry is selected
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [isClosedBadgeClick, setIsClosedBadgeClick] = useState(false); // Track if clicked on closed badge
   const [draggedLeg, setDraggedLeg] = useState<string | null>(null);
@@ -213,12 +214,13 @@ export function StrikeLadder({
     }
   };
 
-  const handleBadgeClick = (leg: OptionLeg, e: React.MouseEvent, isClosedBadge: boolean = false) => {
+  const handleBadgeClick = (leg: OptionLeg, e: React.MouseEvent, isClosedBadge: boolean = false, entryId?: string) => {
     // Only open popover if we didn't just finish dragging
     if (!isDragging) {
       setSelectedLeg(leg);
       // Always update the closed badge state based on what was clicked
       setIsClosedBadgeClick(isClosedBadge);
+      setSelectedEntryId(entryId || null);
       setPopoverOpen(true);
     }
   };
@@ -355,9 +357,240 @@ export function StrikeLadder({
   };
 
 
-  // Render a draggable badge with quantity indicator
-  // When there's a closing transaction, render stacked badges (closed below, open above)
+  // Render the open position badge (draggable, follows leg.strike)
+  const renderOpenBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
+    const isCall = leg.type === "call";
+    const isExcluded = leg.isExcluded;
+    const hasClosing = leg.closingTransaction?.isEnabled;
+    const closingQty = hasClosing ? (leg.closingTransaction?.quantity || 0) : 0;
+    const quantity = leg.quantity || 1;
+    const remainingQty = quantity - closingQty;
+    
+    // Don't render open badge if fully closed
+    if (hasClosing && remainingQty <= 0) return null;
+    
+    const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
+    const rawPositionPercent = getStrikePosition(leg.strike);
+    const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
+    const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
+    const isBeingDragged = draggedLeg === leg.id;
+    
+    const openBgClass = isCall 
+      ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/30" 
+      : "bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-500/30";
+    const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
+    
+    const badgeHeight = 24;
+    const stackOffset = verticalOffset * (badgeHeight + 2);
+    const topPosition = position === 'long' 
+      ? `calc(50% - ${badgeHeight}px - ${stackOffset}px)`
+      : `calc(50% + ${stackOffset}px)`;
+
+    const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
+
+    return (
+      <Popover 
+        key={`open-${leg.id}`} 
+        open={popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick && !isBeingDragged} 
+        onOpenChange={(open) => {
+          if (!open && selectedLeg?.id === leg.id && !isClosedBadgeClick) {
+            setPopoverOpen(false);
+            setSelectedLeg(null);
+          }
+        }}
+        modal={false}
+      >
+        <PopoverTrigger asChild>
+          <div
+            className="absolute"
+            style={{
+              left: `${positionPercent}%`,
+              transform: 'translateX(-50%)',
+              top: topPosition,
+              opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
+            }}
+          >
+            <button
+              onPointerDown={(e) => handleBadgePointerDown(leg, e)}
+              onClick={(e) => handleBadgeClick(leg, e, false)}
+              data-testid={testId}
+              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : openBgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
+              style={{ 
+                boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
+                touchAction: 'none'
+              }}
+            >
+              {strikeText}
+              <span 
+                className="absolute -top-1 -right-1 text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border bg-black border-slate-700"
+                data-testid={`quantity-${leg.id}`}
+              >
+                {hasClosing ? remainingQty : (leg.position === 'short' ? `-${quantity}` : `+${quantity}`)}
+              </span>
+            </button>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="p-0 w-auto z-[9999]" 
+          align="center" 
+          side="bottom" 
+          sideOffset={10}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          style={{ pointerEvents: 'auto' }}
+        >
+          <OptionDetailsPanel
+            leg={leg}
+            underlyingPrice={currentPrice}
+            volatility={volatility}
+            optionsChainData={optionsChainData}
+            symbol={symbol}
+            expirationDate={expirationDate}
+            availableExpirations={optionsChainData?.expirations || []}
+            isClosedView={false}
+            onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
+            onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
+            onSwitchType={() => {
+              onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+            }}
+            onChangePosition={() => onUpdateLeg(leg.id, { position: leg.position === "long" ? "short" : "long" })}
+            onRemove={() => {
+              onRemoveLeg(leg.id);
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+            }}
+            onClose={() => {
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  // Render a single closed entry badge at ITS OWN strike (immutable, not draggable)
+  const renderClosedEntryBadge = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', verticalOffset: number = 0) => {
+    const isCall = leg.type === "call";
+    const isExcluded = entry.isExcluded;
+    
+    // Use entry's strike (immutable) not leg's current strike
+    const entryStrike = entry.strike;
+    const rawPositionPercent = getStrikePosition(entryStrike);
+    const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
+    const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
+    
+    const closedBgClass = "bg-sky-600 hover:bg-sky-700 shadow-sm";
+    const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
+    
+    const badgeHeight = 24;
+    const stackOffset = verticalOffset * (badgeHeight + 2);
+    const topPosition = position === 'long'
+      ? `calc(50% - ${stackOffset}px)` // Below center for long
+      : `calc(50% + ${stackOffset + badgeHeight + 2}px)`; // Below short badge
+
+    const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
+
+    return (
+      <Popover 
+        key={`closed-${entry.id}`} 
+        open={popoverOpen && selectedLeg?.id === leg.id && selectedEntryId === entry.id && isClosedBadgeClick} 
+        onOpenChange={(open) => {
+          if (!open && selectedEntryId === entry.id) {
+            setPopoverOpen(false);
+            setSelectedLeg(null);
+            setSelectedEntryId(null);
+            setIsClosedBadgeClick(false);
+          }
+        }}
+        modal={false}
+      >
+        <PopoverTrigger asChild>
+          <div
+            className="absolute"
+            style={{
+              left: `${positionPercent}%`,
+              transform: 'translateX(-50%)',
+              top: topPosition,
+              opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
+            }}
+          >
+            <button
+              onClick={(e) => handleBadgeClick(leg, e, true, entry.id)}
+              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : closedBgClass} text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
+              data-testid={`badge-closed-${entry.id}`}
+            >
+              {strikeText}
+              <Check className="inline-block h-3 w-3 ml-0.5" />
+              <span 
+                className="absolute -top-1 -right-1 bg-black text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-slate-700"
+              >
+                {entry.quantity}
+              </span>
+            </button>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="p-0 w-auto z-[9999]" 
+          align="center" 
+          side="bottom" 
+          sideOffset={10}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          style={{ pointerEvents: 'auto' }}
+        >
+          <OptionDetailsPanel
+            leg={leg}
+            underlyingPrice={currentPrice}
+            volatility={volatility}
+            optionsChainData={optionsChainData}
+            symbol={symbol}
+            expirationDate={expirationDate}
+            availableExpirations={optionsChainData?.expirations || []}
+            isClosedView={true}
+            onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
+            onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
+            onRemove={() => {
+              onRemoveLeg(leg.id);
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+              setSelectedEntryId(null);
+            }}
+            onClose={() => {
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+              setSelectedEntryId(null);
+              setIsClosedBadgeClick(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  // Legacy renderBadge for backward compatibility (renders both open and aggregated closed)
   const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
+    const entries = leg.closingTransaction?.entries || [];
+    
+    // If we have individual entries, render them separately
+    if (entries.length > 0) {
+      const elements: JSX.Element[] = [];
+      
+      // Render open position badge
+      const openBadge = renderOpenBadge(leg, position, verticalOffset);
+      if (openBadge) elements.push(openBadge);
+      
+      // Render each closed entry at its own strike
+      entries.forEach((entry, idx) => {
+        elements.push(renderClosedEntryBadge(leg, entry, position, idx));
+      });
+      
+      return <>{elements}</>;
+    }
+    
+    // Fallback: legacy behavior for closing transactions without entries array
     const isCall = leg.type === "call";
     const isExcluded = leg.isExcluded;
     const hasClosing = leg.closingTransaction?.isEnabled;
@@ -367,40 +600,23 @@ export function StrikeLadder({
     
     const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
     const rawPositionPercent = getStrikePosition(leg.strike);
-    
-    // BUGFIX: Clamp badge position to stay within the visible ladder (3-97%)
-    // This prevents badges from being "thrown out" when panning
     const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
     const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
-    
     const isBeingDragged = draggedLeg === leg.id;
-    
-    // Determine if this leg can be dragged (not sold portions)
     const canDrag = !hasClosing || remainingQty > 0;
     
-    // Badge styling - Using modern emerald/rose colors
     const openBgClass = isCall 
       ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/30" 
       : "bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-500/30";
-    const closedBgClass = "bg-sky-600 hover:bg-sky-700 shadow-sm"; // Blue/teal for closed positions
+    const closedBgClass = "bg-sky-600 hover:bg-sky-700 shadow-sm";
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
-    // Calculate vertical position accounting for stacking
-    const badgeHeight = 24; // h-6 = 24px
+    const badgeHeight = 24;
     const stackOffset = verticalOffset * (badgeHeight + 2);
-    
-    // Calculate extra offset for stacked closed badge
-    const closedBadgeOffset = hasClosing && closingQty > 0 ? (badgeHeight + 2) : 0;
-    
     const topPosition = position === 'long' 
       ? `calc(50% - ${badgeHeight}px - ${stackOffset}px)`
       : `calc(50% + ${stackOffset}px)`;
-    
-    const closedBadgeTopPosition = position === 'long'
-      ? `calc(50% - ${stackOffset}px)` // Below open badge (closer to center)
-      : `calc(50% + ${stackOffset + badgeHeight + 2}px)`; // Below open badge
 
-    // Strike display text
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
     return (
@@ -426,7 +642,6 @@ export function StrikeLadder({
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
             }}
           >
-            {/* Main open position badge */}
             <button
               onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e)}
@@ -438,8 +653,6 @@ export function StrikeLadder({
               }}
             >
               {strikeText}
-              
-              {/* Quantity badge - display only (not clickable) */}
               <span 
                 className="absolute -top-1 -right-1 text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border bg-black border-slate-700"
                 data-testid={`quantity-${leg.id}`}
@@ -448,7 +661,6 @@ export function StrikeLadder({
               </span>
             </button>
             
-            {/* Closed position badge - stacked below (NOT draggable) */}
             {hasClosing && closingQty > 0 && (
               <div 
                 className="absolute left-0"
@@ -461,8 +673,6 @@ export function StrikeLadder({
                 >
                   {strikeText}
                   <Check className="inline-block h-3 w-3 ml-0.5" />
-                  
-                  {/* Closed quantity badge - black with white text */}
                   <span 
                     className="absolute -top-1 -right-1 bg-black text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-slate-700"
                   >
