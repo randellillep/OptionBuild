@@ -361,6 +361,9 @@ export function StrikeLadder({
 
   // Render the open position badge (draggable, follows leg.strike)
   const renderOpenBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
+    // Don't render if leg has no quantity (was fully removed via delete or reopen)
+    if (leg.quantity <= 0) return null;
+    
     const isCall = leg.type === "call";
     const isExcluded = leg.isExcluded;
     const hasClosing = leg.closingTransaction?.isEnabled;
@@ -370,7 +373,7 @@ export function StrikeLadder({
           ? leg.closingTransaction.entries.reduce((sum, e) => sum + e.quantity, 0)
           : (leg.closingTransaction?.quantity || 0))
       : 0;
-    const quantity = leg.quantity || 1;
+    const quantity = leg.quantity;
     const remainingQty = quantity - closingQty;
     
     // Don't render open badge if fully closed
@@ -607,12 +610,15 @@ export function StrikeLadder({
       return <>{elements}</>;
     }
     
+    // Don't render if leg has no quantity (was fully removed via delete or reopen)
+    if (leg.quantity <= 0) return null;
+    
     // Fallback: legacy behavior for closing transactions without entries array
     const isCall = leg.type === "call";
     const isExcluded = leg.isExcluded;
     const hasClosing = leg.closingTransaction?.isEnabled;
     const closingQty = hasClosing ? (leg.closingTransaction?.quantity || 0) : 0;
-    const quantity = leg.quantity || 1;
+    const quantity = leg.quantity;
     const remainingQty = quantity - closingQty;
     
     const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
