@@ -699,7 +699,7 @@ export function OptionDetailsPanel({
 
   return (
     <div 
-      className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg max-h-[70vh] overflow-y-auto" 
+      className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg" 
       data-testid="option-details-panel"
       style={{ pointerEvents: 'auto' }}
       onClick={(e) => e.stopPropagation()}
@@ -894,11 +894,12 @@ export function OptionDetailsPanel({
 
               {/* Expanded Closing Section */}
               {showClosingSection && (
-                <div className="ml-5 p-3 rounded-md bg-muted/50 space-y-3">
-                  {/* Closing Price */}
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground">Closing Price:</span>
-                    <div className="flex items-center gap-1">
+                <div className="ml-5 p-2 rounded-md bg-muted/50 space-y-2">
+                  {/* Closing Price and Quantity - Side by Side */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Closing Price */}
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground">Price</span>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -908,47 +909,47 @@ export function OptionDetailsPanel({
                         onBlur={handleClosingPriceBlur}
                         onClick={(e) => e.currentTarget.select()}
                         onMouseDown={() => { closingPriceEditingRef.current = true; }}
-                        className="flex-1 h-8 px-3 text-sm font-mono text-center rounded border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                        className="w-full h-7 px-2 text-xs font-mono text-center rounded border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                         data-testid="input-closing-price"
                       />
                     </div>
-                  </div>
 
-                  {/* Closing Quantity */}
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground">Closing Quantity:</span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-7 w-7"
-                        onClick={() => handleClosingQtyChange(-1)}
-                        disabled={closingQty <= 1}
-                        data-testid="button-close-qty-decrease"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="flex-1 text-center font-mono text-sm font-semibold">
-                        {closingQty === leg.quantity ? 'All' : closingQty}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-7 w-7"
-                        onClick={() => handleClosingQtyChange(1)}
-                        disabled={closingQty >= leg.quantity}
-                        data-testid="button-close-qty-increase"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
+                    {/* Closing Quantity */}
+                    <div className="space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground">Qty</span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-7 w-7 flex-shrink-0"
+                          onClick={() => handleClosingQtyChange(-1)}
+                          disabled={closingQty <= 1}
+                          data-testid="button-close-qty-decrease"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="flex-1 text-center font-mono text-xs font-semibold min-w-[24px]">
+                          {closingQty === leg.quantity ? 'All' : closingQty}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-7 w-7 flex-shrink-0"
+                          onClick={() => handleClosingQtyChange(1)}
+                          disabled={closingQty >= leg.quantity}
+                          data-testid="button-close-qty-increase"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
                   {/* Confirm and Cancel Buttons */}
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex gap-2">
                     <Button
                       size="sm"
-                      className="flex-1 text-xs h-8 bg-sky-600 hover:bg-sky-700"
+                      className="flex-1 text-xs h-7 bg-sky-600 hover:bg-sky-700"
                       onClick={handleConfirmClose}
                       data-testid="button-confirm-close"
                     >
@@ -957,7 +958,7 @@ export function OptionDetailsPanel({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 text-xs h-8"
+                      className="flex-1 text-xs h-7"
                       onClick={handleCancelClose}
                       data-testid="button-cancel-close"
                     >
