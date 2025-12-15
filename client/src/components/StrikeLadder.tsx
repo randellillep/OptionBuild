@@ -387,9 +387,8 @@ export function StrikeLadder({
     // Can't drag excluded legs
     const canDrag = !isExcluded;
     
-    const openBgClass = isCall 
-      ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/30" 
-      : "bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-500/30";
+    // Active calls: #35B534, Active puts: #B5312B
+    const openBgColor = isCall ? '#35B534' : '#B5312B';
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
     const badgeHeight = 24;
@@ -426,8 +425,9 @@ export function StrikeLadder({
               onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e, false)}
               data-testid={testId}
-              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : openBgClass} text-white font-bold whitespace-nowrap ${canDrag && isBeingDragged ? 'cursor-grabbing scale-110 z-50' : (canDrag ? 'cursor-grab' : 'cursor-pointer')} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
+              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : ''} text-white font-bold whitespace-nowrap ${canDrag && isBeingDragged ? 'cursor-grabbing scale-110 z-50' : (canDrag ? 'cursor-grab' : 'cursor-pointer')} rounded transition-all border-0 shadow-sm ${isExcluded ? 'line-through' : ''}`}
               style={{ 
+                backgroundColor: isExcluded ? undefined : openBgColor,
                 boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
                 touchAction: 'none'
               }}
@@ -494,10 +494,8 @@ export function StrikeLadder({
     const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
     const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
     
-    // Color based on option type: light green for sold calls, light red for sold puts
-    const closedBgClass = isCall 
-      ? "bg-emerald-400 hover:bg-emerald-500 shadow-sm shadow-emerald-400/30" 
-      : "bg-rose-400 hover:bg-rose-500 shadow-sm shadow-rose-400/30";
+    // Sold calls: #2a6f21, Sold puts: #B5312B
+    const closedBgColor = isCall ? '#2a6f21' : '#B5312B';
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
     const badgeHeight = 24;
@@ -537,7 +535,8 @@ export function StrikeLadder({
           >
             <button
               onClick={(e) => handleBadgeClick(leg, e, true, entry.id)}
-              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : closedBgClass} text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
+              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : ''} text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0 shadow-sm ${isExcluded ? 'line-through' : ''}`}
+              style={{ backgroundColor: isExcluded ? undefined : closedBgColor }}
               data-testid={`badge-closed-${entry.id}`}
             >
               {strikeText}
@@ -635,10 +634,10 @@ export function StrikeLadder({
     // Can't drag if: fully closed, OR leg is excluded
     const canDrag = (!hasClosing || remainingQty > 0) && !isExcluded;
     
-    const openBgClass = isCall 
-      ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/30" 
-      : "bg-rose-500 hover:bg-rose-600 shadow-sm shadow-rose-500/30";
-    const closedBgClass = "bg-sky-600 hover:bg-sky-700 shadow-sm";
+    // Active calls: #35B534, Active puts: #B5312B
+    const openBgColor = isCall ? '#35B534' : '#B5312B';
+    // Sold calls: #2a6f21, Sold puts: #B5312B
+    const closedBgColor = isCall ? '#2a6f21' : '#B5312B';
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
     const badgeHeight = 24;
@@ -676,8 +675,9 @@ export function StrikeLadder({
               onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e)}
               data-testid={testId}
-              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : openBgClass} text-white font-bold whitespace-nowrap ${canDrag && isBeingDragged ? 'cursor-grabbing scale-110 z-50' : (canDrag ? 'cursor-grab' : 'cursor-pointer')} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
+              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : ''} text-white font-bold whitespace-nowrap ${canDrag && isBeingDragged ? 'cursor-grabbing scale-110 z-50' : (canDrag ? 'cursor-grab' : 'cursor-pointer')} rounded transition-all border-0 shadow-sm ${isExcluded ? 'line-through' : ''}`}
               style={{ 
+                backgroundColor: isExcluded ? undefined : openBgColor,
                 boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
                 touchAction: 'none'
               }}
@@ -698,7 +698,8 @@ export function StrikeLadder({
               >
                 <button
                   onClick={(e) => handleBadgeClick(leg, e, true)}
-                  className={`relative text-[10px] h-6 px-2 ${closedBgClass} text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0`}
+                  className={`relative text-[10px] h-6 px-2 text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0 shadow-sm`}
+                  style={{ backgroundColor: closedBgColor }}
                   data-testid={`badge-closed-${leg.id}`}
                 >
                   {strikeText}
