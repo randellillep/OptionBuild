@@ -362,7 +362,12 @@ export function StrikeLadder({
     const isCall = leg.type === "call";
     const isExcluded = leg.isExcluded;
     const hasClosing = leg.closingTransaction?.isEnabled;
-    const closingQty = hasClosing ? (leg.closingTransaction?.quantity || 0) : 0;
+    // Calculate closed quantity from entries if they exist, otherwise use legacy quantity field
+    const closingQty = hasClosing 
+      ? (leg.closingTransaction?.entries && leg.closingTransaction.entries.length > 0
+          ? leg.closingTransaction.entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (leg.closingTransaction?.quantity || 0))
+      : 0;
     const quantity = leg.quantity || 1;
     const remainingQty = quantity - closingQty;
     
