@@ -876,8 +876,21 @@ export function StrikeLadder({
 
           {/* Render all option leg badges - group by strike and stack vertically */}
           {(() => {
-            // Group long legs by strike for vertical stacking
-            const longLegs = legs.filter(l => l.position === "long");
+            // Helper to check if a leg has any renderable content (open contracts or closed entries)
+            const hasRenderableContent = (leg: OptionLeg): boolean => {
+              // Has closed entries to render?
+              const hasClosedEntries = (leg.closingTransaction?.entries?.length || 0) > 0;
+              // Has open contracts to render?
+              const closingQty = leg.closingTransaction?.isEnabled 
+                ? (leg.closingTransaction?.entries?.reduce((sum, e) => sum + e.quantity, 0) || leg.closingTransaction?.quantity || 0)
+                : 0;
+              const remainingQty = (leg.quantity || 0) - closingQty;
+              const hasOpenContracts = leg.quantity > 0 && remainingQty > 0;
+              return hasClosedEntries || hasOpenContracts;
+            };
+
+            // Group long legs by strike for vertical stacking (exclude legs with no renderable content)
+            const longLegs = legs.filter(l => l.position === "long" && hasRenderableContent(l));
             const longByStrike = new Map<number, OptionLeg[]>();
             longLegs.forEach(leg => {
               const key = Math.round(leg.strike * 100) / 100;
@@ -885,8 +898,8 @@ export function StrikeLadder({
               longByStrike.get(key)!.push(leg);
             });
 
-            // Group short legs by strike for vertical stacking
-            const shortLegs = legs.filter(l => l.position === "short");
+            // Group short legs by strike for vertical stacking (exclude legs with no renderable content)
+            const shortLegs = legs.filter(l => l.position === "short" && hasRenderableContent(l));
             const shortByStrike = new Map<number, OptionLeg[]>();
             shortLegs.forEach(leg => {
               const key = Math.round(leg.strike * 100) / 100;
