@@ -186,10 +186,10 @@ export function OptionDetailsPanel({
   const oppositePosition = leg.position === "long" ? "Sell" : "Buy";
   
   // Calculate remaining quantity (original - closed)
-  // Include ALL closing entries (excluded entries still reduce quantity, they just hide P/L)
+  // Only count NON-excluded entries - excluded entries = "pretend sale never happened"
   const closedQuantity = leg.closingTransaction?.isEnabled 
     ? (leg.closingTransaction?.entries 
-        ? leg.closingTransaction.entries.reduce((sum, e) => sum + e.quantity, 0)
+        ? leg.closingTransaction.entries.filter(e => !e.isExcluded).reduce((sum, e) => sum + e.quantity, 0)
         : (leg.closingTransaction?.quantity || 0))
     : 0;
   const remainingQuantity = leg.quantity - closedQuantity;
