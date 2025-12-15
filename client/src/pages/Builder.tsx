@@ -619,11 +619,11 @@ export default function Builder() {
       ...legTemplate,
       id: Date.now().toString(),
     };
-    setLegs([...legs, newLeg]);
+    setLegs(prevLegs => [...prevLegs, newLeg]);
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
-    setLegs(legs.map((leg) => (leg.id === id ? { ...leg, ...updates } : leg)));
+    setLegs(prevLegs => prevLegs.map((leg) => (leg.id === id ? { ...leg, ...updates } : leg)));
   };
 
   const removeLeg = (id: string) => {
@@ -946,6 +946,7 @@ export default function Builder() {
                 volatility={volatility}
                 onUpdateLeg={updateLeg}
                 onRemoveLeg={removeLeg}
+                onAddLeg={addLeg}
                 optionsChainData={optionsChainData}
                 availableStrikes={availableStrikes}
               />

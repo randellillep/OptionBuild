@@ -18,6 +18,7 @@ interface StrikeLadderProps {
   volatility?: number;
   onUpdateLeg: (legId: string, updates: Partial<OptionLeg>) => void;
   onRemoveLeg: (legId: string) => void;
+  onAddLeg: (leg: Omit<OptionLeg, "id">) => void;
   optionsChainData?: any;
   availableStrikes?: {
     min: number;
@@ -43,6 +44,7 @@ export function StrikeLadder({
   volatility = 0.3,
   onUpdateLeg,
   onRemoveLeg,
+  onAddLeg,
   optionsChainData,
   availableStrikes,
 }: StrikeLadderProps) {
@@ -558,6 +560,13 @@ export function StrikeLadder({
             selectedEntryId={entry.id}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
+            onReopenAsNewLeg={(newLeg) => {
+              onAddLeg(newLeg);
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+              setSelectedEntryId(null);
+              setIsClosedBadgeClick(false);
+            }}
             onRemove={() => {
               onRemoveLeg(leg.id);
               setPopoverOpen(false);

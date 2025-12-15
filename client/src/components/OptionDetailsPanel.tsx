@@ -34,6 +34,8 @@ interface OptionDetailsPanelProps {
   isClosedView?: boolean;
   // Selected closing entry ID (for per-entry operations)
   selectedEntryId?: string | null;
+  // Callback to reopen a closed entry as a NEW separate leg
+  onReopenAsNewLeg?: (leg: Omit<OptionLeg, "id">) => void;
   // Legacy props for backward compatibility
   symbol?: string;
   expirationDate?: string | null;
@@ -55,6 +57,7 @@ export function OptionDetailsPanel({
   availableExpirations = [],
   isClosedView = false,
   selectedEntryId,
+  onReopenAsNewLeg,
   // Legacy props
   symbol: legacySymbol,
   expirationDate: legacyExpirationDate,
@@ -480,17 +483,68 @@ export function OptionDetailsPanel({
     ? leg.closingTransaction?.entries?.find(e => e.id === selectedEntryId)
     : null;
 
-  // === Reopen Closed Position ===
+  // === Reopen Closed Entry as NEW Separate Leg ===
   const handleReopenPosition = () => {
-    if (onUpdateLeg) {
-      onUpdateLeg({ 
-        closingTransaction: {
+    if (!onUpdateLeg) return;
+    
+    // If we have a selectedEntryId, reopen just that entry as a NEW separate leg
+    if (selectedEntryId && leg.closingTransaction?.entries && onReopenAsNewLeg) {
+      const entryToReopen = leg.closingTransaction.entries.find(e => e.id === selectedEntryId);
+      if (!entryToReopen) return;
+      
+      // Create a NEW leg with the reopened entry's data
+      // Use the entry's ORIGINAL cost basis (leg.premium) not the closing price
+      const newLeg: Omit<OptionLeg, "id"> = {
+        type: leg.type,
+        position: leg.position,
+        strike: entryToReopen.strike, // Use entry's strike (may differ from current leg)
+        premium: leg.premium, // Original cost basis
+        quantity: entryToReopen.quantity,
+        expirationDays: leg.expirationDays,
+        expirationDate: leg.expirationDate,
+        premiumSource: leg.premiumSource,
+        impliedVolatility: leg.impliedVolatility,
+        // No closing transaction - it's now open
+      };
+      
+      // Remove the entry from the current leg's closing transaction
+      const updatedEntries = leg.closingTransaction.entries.filter(e => e.id !== selectedEntryId);
+      const activeEntries = updatedEntries.filter(e => !e.isExcluded);
+      const totalActiveQty = activeEntries.reduce((sum, e) => sum + e.quantity, 0);
+      const weightedAvgPrice = totalActiveQty > 0 
+        ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
+        : 0;
+      
+      // Update the original leg (remove the entry from closing transaction)
+      const hasRemainingEntries = updatedEntries.length > 0;
+      onUpdateLeg({
+        closingTransaction: hasRemainingEntries ? {
+          ...leg.closingTransaction,
+          quantity: totalActiveQty,
+          closingPrice: weightedAvgPrice,
+          entries: updatedEntries,
+          isEnabled: true,
+        } : {
           quantity: 0,
           closingPrice: 0,
-          isEnabled: false
+          isEnabled: false,
+          entries: [],
         }
       });
+      
+      // Add the new separate leg
+      onReopenAsNewLeg(newLeg);
+      return;
     }
+    
+    // Legacy fallback: clear the entire closing transaction (old behavior)
+    onUpdateLeg({ 
+      closingTransaction: {
+        quantity: 0,
+        closingPrice: 0,
+        isEnabled: false
+      }
+    });
   };
 
   // === Delete Specific Closing Entry ===
