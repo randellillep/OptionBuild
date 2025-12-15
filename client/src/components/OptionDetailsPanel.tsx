@@ -692,17 +692,6 @@ export function OptionDetailsPanel({
             <Trash2 className="h-3 w-3" />
             Delete This Sale
           </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-xs h-8 gap-2 text-destructive hover:text-destructive"
-            onClick={onRemove}
-            data-testid="button-remove-entire-leg"
-          >
-            <X className="h-3 w-3" />
-            Remove Entire Position
-          </Button>
         </div>
       </div>
     );
