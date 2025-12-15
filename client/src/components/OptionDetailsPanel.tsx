@@ -493,6 +493,49 @@ export function OptionDetailsPanel({
     }
   };
 
+  // === Delete Specific Closing Entry ===
+  // Removes the entry without restoring contracts to open position
+  // The contracts are considered "removed" entirely (neither open nor closed)
+  const handleDeleteClosingEntry = () => {
+    if (!onUpdateLeg || !selectedEntryId || !leg.closingTransaction?.entries) return;
+    
+    const entryToDelete = leg.closingTransaction.entries.find(e => e.id === selectedEntryId);
+    if (!entryToDelete) return;
+    
+    // Remove the entry from the entries array
+    const updatedEntries = leg.closingTransaction.entries.filter(e => e.id !== selectedEntryId);
+    
+    // Reduce the leg's quantity by the deleted entry's quantity
+    // This ensures those contracts don't come back as "open"
+    const newQuantity = Math.max(0, leg.quantity - entryToDelete.quantity);
+    
+    // Recalculate aggregated values from remaining non-excluded entries
+    const activeEntries = updatedEntries.filter(e => !e.isExcluded);
+    const totalActiveQty = activeEntries.reduce((sum, e) => sum + e.quantity, 0);
+    const weightedAvgPrice = totalActiveQty > 0 
+      ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
+      : 0;
+    
+    // If no entries left, disable the closing transaction entirely
+    const hasRemainingEntries = updatedEntries.length > 0;
+    
+    onUpdateLeg({ 
+      quantity: newQuantity,
+      closingTransaction: hasRemainingEntries ? {
+        ...leg.closingTransaction,
+        quantity: totalActiveQty,
+        closingPrice: weightedAvgPrice,
+        entries: updatedEntries,
+        isEnabled: true,
+      } : {
+        quantity: 0,
+        closingPrice: 0,
+        isEnabled: false,
+        entries: [],
+      }
+    });
+  };
+
   // === Change Expiration ===
   const handleExpirationChange = (newExpiration: string) => {
     if (onUpdateLeg) {
@@ -643,11 +686,11 @@ export function OptionDetailsPanel({
             variant="ghost"
             size="sm"
             className="w-full justify-start text-xs h-8 gap-2 text-destructive hover:text-destructive"
-            onClick={onRemove}
-            data-testid="button-remove-closed"
+            onClick={handleDeleteClosingEntry}
+            data-testid="button-delete-closing-entry"
           >
             <Trash2 className="h-3 w-3" />
-            Remove
+            Delete This Sale
           </Button>
         </div>
       </div>
