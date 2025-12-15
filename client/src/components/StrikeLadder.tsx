@@ -381,6 +381,8 @@ export function StrikeLadder({
     const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
     const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
     const isBeingDragged = draggedLeg === leg.id;
+    // Can't drag excluded legs
+    const canDrag = !isExcluded;
     
     const openBgClass = isCall 
       ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/30" 
@@ -418,10 +420,10 @@ export function StrikeLadder({
             }}
           >
             <button
-              onPointerDown={(e) => handleBadgePointerDown(leg, e)}
+              onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e, false)}
               data-testid={testId}
-              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : openBgClass} text-white font-bold whitespace-nowrap ${isBeingDragged ? 'cursor-grabbing scale-110 z-50' : 'cursor-grab'} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
+              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : openBgClass} text-white font-bold whitespace-nowrap ${canDrag && isBeingDragged ? 'cursor-grabbing scale-110 z-50' : (canDrag ? 'cursor-grab' : 'cursor-pointer')} rounded transition-all border-0 ${isExcluded ? 'line-through' : ''}`}
               style={{ 
                 boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
                 touchAction: 'none'
@@ -618,7 +620,8 @@ export function StrikeLadder({
     const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
     const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
     const isBeingDragged = draggedLeg === leg.id;
-    const canDrag = !hasClosing || remainingQty > 0;
+    // Can't drag if: fully closed, OR leg is excluded
+    const canDrag = (!hasClosing || remainingQty > 0) && !isExcluded;
     
     const openBgClass = isCall 
       ? "bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/30" 
