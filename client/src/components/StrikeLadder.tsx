@@ -494,14 +494,20 @@ export function StrikeLadder({
     const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
     const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
     
-    const closedBgClass = "bg-sky-600 hover:bg-sky-700 shadow-sm";
+    // Color based on option type: light green for sold calls, light red for sold puts
+    const closedBgClass = isCall 
+      ? "bg-emerald-400 hover:bg-emerald-500 shadow-sm shadow-emerald-400/30" 
+      : "bg-rose-400 hover:bg-rose-500 shadow-sm shadow-rose-400/30";
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
     const badgeHeight = 24;
     const stackOffset = verticalOffset * (badgeHeight + 2);
+    // Sold trades stack BELOW the open position:
+    // For longs: open is above center, sold goes below open (closer to center)
+    // For shorts: open is below center, sold goes further below
     const topPosition = position === 'long'
-      ? `calc(50% - ${stackOffset}px)` // Below center for long
-      : `calc(50% + ${stackOffset + badgeHeight + 2}px)`; // Below short badge
+      ? `calc(50% + ${stackOffset}px)` // Below center line for long closed entries
+      : `calc(50% + ${badgeHeight + 2 + stackOffset}px)`; // Further below for short closed entries
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
