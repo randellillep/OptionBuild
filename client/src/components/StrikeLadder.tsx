@@ -494,8 +494,8 @@ export function StrikeLadder({
     const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
     const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
     
-    // Sold calls: #2a6f21, Sold puts: #B5312B
-    const closedBgColor = isCall ? '#2a6f21' : '#B5312B';
+    // Sold calls: darker green, Sold puts: darker red
+    const closedBgColor = isCall ? '#1a4a15' : '#7a211c';
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
     const badgeHeight = 24;
@@ -636,8 +636,8 @@ export function StrikeLadder({
     
     // Active calls: #35B534, Active puts: #B5312B
     const openBgColor = isCall ? '#35B534' : '#B5312B';
-    // Sold calls: #2a6f21, Sold puts: #B5312B
-    const closedBgColor = isCall ? '#2a6f21' : '#B5312B';
+    // Sold calls: darker green, Sold puts: darker red
+    const closedBgColor = isCall ? '#1a4a15' : '#7a211c';
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
     const badgeHeight = 24;
