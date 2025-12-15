@@ -627,7 +627,27 @@ export default function Builder() {
   };
 
   const removeLeg = (id: string) => {
-    setLegs(prevLegs => prevLegs.filter((leg) => leg.id !== id));
+    setLegs(prevLegs => prevLegs.map((leg) => {
+      if (leg.id !== id) return leg;
+      
+      // Check if this leg has closed entries
+      const closedEntries = leg.closingTransaction?.entries || [];
+      const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
+      
+      if (hasClosedEntries) {
+        // Don't delete - just set quantity to match closed quantity so open position is 0
+        const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
+        return { ...leg, quantity: closedQty };
+      }
+      
+      // No closed entries - mark for removal by setting quantity to 0
+      return { ...leg, quantity: 0 };
+    }).filter(leg => {
+      // Remove legs with 0 quantity that have no closed entries
+      const closedEntries = leg.closingTransaction?.entries || [];
+      const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
+      return leg.quantity > 0 || hasClosedEntries;
+    }));
   };
 
   // Helper function to apply market prices to legs (with theoretical fallback)
