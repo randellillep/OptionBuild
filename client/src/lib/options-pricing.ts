@@ -155,10 +155,10 @@ export function calculateGreeks(
   const multiplier = leg.position === "long" ? 1 : -1;
   
   // Use effective quantity (accounting for closing transaction)
-  // Only count NON-excluded entries - excluded entries = "pretend sale never happened"
+  // ALL closing entries reduce quantity (excluded entries still count as sold, just hide P/L)
   const closing = leg.closingTransaction;
   const closedQty = closing?.isEnabled && closing.entries
-    ? closing.entries.filter(e => !e.isExcluded).reduce((sum, e) => sum + e.quantity, 0)
+    ? closing.entries.reduce((sum, e) => sum + e.quantity, 0)
     : (closing?.isEnabled ? (closing.quantity || 0) : 0);
   const effectiveQuantity = Math.max(0, leg.quantity - closedQty);
   
