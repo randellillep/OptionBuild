@@ -728,27 +728,16 @@ export function OptionDetailsPanel({
             Reopen Position
           </Button>
 
-          {/* Exclusion is one-way: once excluded, show static indicator instead of toggle */}
-          {selectedEntry?.isExcluded ? (
-            <div 
-              className="w-full flex items-center justify-start text-xs h-8 gap-2 px-3 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-md"
-              data-testid="indicator-excluded"
-            >
-              <EyeOff className="h-3 w-3" />
-              Excluded from P/L
-            </div>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start text-xs h-8 gap-2"
-              onClick={handleToggleExclude}
-              data-testid="button-toggle-exclude-closed"
-            >
-              <EyeOff className="h-3 w-3" />
-              Exclude from P/L
-            </Button>
-          )}
+          <Button
+            variant={(selectedEntry?.isExcluded) ? "secondary" : "ghost"}
+            size="sm"
+            className={`w-full justify-start text-xs h-8 gap-2 ${(selectedEntry?.isExcluded) ? 'text-amber-600 dark:text-amber-400' : ''}`}
+            onClick={handleToggleExclude}
+            data-testid="button-toggle-exclude-closed"
+          >
+            <EyeOff className="h-3 w-3" />
+            {(selectedEntry?.isExcluded) ? "Excluded from P/L" : "Exclude from P/L"}
+          </Button>
 
           <Separator className="my-1" />
 
