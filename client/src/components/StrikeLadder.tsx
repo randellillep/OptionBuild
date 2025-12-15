@@ -577,7 +577,7 @@ export function StrikeLadder({
   };
 
   // Legacy renderBadge for backward compatibility (renders both open and aggregated closed)
-  const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
+  const renderBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0, closedEntryBaseOffset: number = 0) => {
     const entries = leg.closingTransaction?.entries || [];
     
     // If we have individual entries, render them separately
@@ -588,9 +588,9 @@ export function StrikeLadder({
       const openBadge = renderOpenBadge(leg, position, verticalOffset);
       if (openBadge) elements.push(openBadge);
       
-      // Render each closed entry at its own strike
+      // Render each closed entry at its own strike, with cumulative offset from previous legs
       entries.forEach((entry, idx) => {
-        elements.push(renderClosedEntryBadge(leg, entry, position, idx));
+        elements.push(renderClosedEntryBadge(leg, entry, position, closedEntryBaseOffset + idx));
       });
       
       return <>{elements}</>;
@@ -876,15 +876,26 @@ export function StrikeLadder({
               shortByStrike.get(key)!.push(leg);
             });
 
+            // Render badges with cumulative closed entry offsets to prevent overlap
+            const renderLegsWithOffsets = (legsAtStrike: OptionLeg[], position: 'long' | 'short') => {
+              let closedEntryOffset = 0;
+              return legsAtStrike.map((leg, index) => {
+                const result = renderBadge(leg, position, index, closedEntryOffset);
+                // Add this leg's entries count to the cumulative offset for next leg
+                closedEntryOffset += (leg.closingTransaction?.entries?.length || 0);
+                return result;
+              });
+            };
+
             return (
               <>
                 {/* Render long badges with vertical offsets */}
                 {Array.from(longByStrike.values()).flatMap(legsAtStrike =>
-                  legsAtStrike.map((leg, index) => renderBadge(leg, 'long', index))
+                  renderLegsWithOffsets(legsAtStrike, 'long')
                 )}
                 {/* Render short badges with vertical offsets */}
                 {Array.from(shortByStrike.values()).flatMap(legsAtStrike =>
-                  legsAtStrike.map((leg, index) => renderBadge(leg, 'short', index))
+                  renderLegsWithOffsets(legsAtStrike, 'short')
                 )}
               </>
             );
