@@ -627,9 +627,7 @@ export default function Builder() {
   };
 
   const removeLeg = (id: string) => {
-    if (legs.length > 1) {
-      setLegs(legs.filter((leg) => leg.id !== id));
-    }
+    setLegs(prevLegs => prevLegs.filter((leg) => leg.id !== id));
   };
 
   // Helper function to apply market prices to legs (with theoretical fallback)

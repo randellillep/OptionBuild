@@ -699,7 +699,7 @@ export function OptionDetailsPanel({
 
   return (
     <div 
-      className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg" 
+      className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg max-h-[70vh] overflow-y-auto" 
       data-testid="option-details-panel"
       style={{ pointerEvents: 'auto' }}
       onClick={(e) => e.stopPropagation()}
@@ -1013,7 +1013,9 @@ export function OptionDetailsPanel({
               variant="ghost"
               size="sm"
               className="w-full justify-start text-xs h-8 gap-2 text-destructive hover:text-destructive"
-              onClick={onRemove}
+              onClick={() => {
+                if (onRemove) onRemove();
+              }}
               data-testid="button-remove-leg"
             >
               <X className="h-3 w-3" />
