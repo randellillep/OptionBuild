@@ -515,9 +515,14 @@ export function OptionDetailsPanel({
         ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
         : 0;
       
-      // Update the original leg (remove the entry from closing transaction)
+      // Update the original leg:
+      // 1. Remove the entry from closing transaction
+      // 2. REDUCE the leg's quantity by the reopened amount (so it transfers to the new leg)
       const hasRemainingEntries = updatedEntries.length > 0;
+      const newOriginalQuantity = Math.max(0, leg.quantity - entryToReopen.quantity);
+      
       onUpdateLeg({
+        quantity: newOriginalQuantity,
         closingTransaction: hasRemainingEntries ? {
           ...leg.closingTransaction,
           quantity: totalActiveQty,
