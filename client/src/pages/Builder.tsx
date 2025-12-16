@@ -29,6 +29,23 @@ import { useOptionsChain } from "@/hooks/useOptionsChain";
 import { calculateImpliedVolatility, calculateOptionPrice } from "@/lib/options-pricing";
 import { useAuth } from "@/hooks/useAuth";
 
+// Helper to deep copy a leg, preserving immutable closingTransaction entries
+// This prevents cost basis (openingPrice) and strike from being mutated
+// when the leg is updated after partial closes
+const deepCopyLeg = (leg: OptionLeg, updates: Partial<OptionLeg> = {}): OptionLeg => {
+  const preservedClosingTransaction = leg.closingTransaction ? {
+    ...leg.closingTransaction,
+    entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
+  } : undefined;
+  
+  return {
+    ...leg,
+    ...updates,
+    // Preserve existing closingTransaction unless explicitly updated
+    closingTransaction: updates.closingTransaction ?? preservedClosingTransaction
+  };
+};
+
 export default function Builder() {
   const [, setLocation] = useLocation();
   const searchString = useSearch();
@@ -236,11 +253,10 @@ export default function Builder() {
             const strikeOffset = leg.strike - 100;
             const newStrike = atmStrike + strikeOffset;
             
-            return {
-              ...leg,
+            return deepCopyLeg(leg, {
               strike: newStrike,
               id: Date.now().toString() + leg.id + index,
-            };
+            });
           });
           
           setLegs(adjustedLegs);
@@ -346,12 +362,11 @@ export default function Builder() {
           newStrike = roundStrike(targetStrike, direction);
         }
         
-        return {
-          ...leg,
+        return deepCopyLeg(leg, {
           strike: newStrike,
           // Reset premium source to theoretical since we changed the strike
           premiumSource: 'theoretical' as const,
-        };
+        });
       });
       
       return adjustedLegs;
@@ -425,14 +440,13 @@ export default function Builder() {
               );
             }
             
-            return {
-              ...leg,
+            return deepCopyLeg(leg, {
               premium: newPremium,
               marketQuoteId: matchingQuote.optionSymbol,
               premiumSource: 'market' as const,
               impliedVolatility: calculatedIV,
               expirationDays: daysToExpiration,
-            };
+            });
           }
         } else if (!isFinite(leg.premium) || leg.premium <= 0) {
           // Fallback to theoretical pricing if leg has no valid premium
@@ -448,23 +462,21 @@ export default function Builder() {
             
             if (isFinite(theoreticalPremium) && theoreticalPremium >= 0) {
               updated = true;
-              return {
-                ...leg,
+              return deepCopyLeg(leg, {
                 premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
                 premiumSource: 'theoretical' as const,
                 expirationDays: daysToExpiration,
-              };
+              });
             }
           }
           
           // Ultimate fallback: minimal placeholder premium
           updated = true;
-          return {
-            ...leg,
+          return deepCopyLeg(leg, {
             premium: 0.01,
             premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
-          };
+          });
         }
         
         return leg;
@@ -512,23 +524,21 @@ export default function Builder() {
 
             if (isFinite(theoreticalPremium) && theoreticalPremium >= 0) {
               updated = true;
-              return {
-                ...leg,
+              return deepCopyLeg(leg, {
                 premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
                 premiumSource: 'theoretical' as const,
                 expirationDays: daysToExpiration,
-              };
+              });
             }
           }
 
           // Ultimate fallback
           updated = true;
-          return {
-            ...leg,
+          return deepCopyLeg(leg, {
             premium: 0.01,
             premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
-          };
+          });
         });
 
         return updated ? newLegs : currentLegs;
@@ -602,8 +612,7 @@ export default function Builder() {
     );
     
     if (hasOutOfBoundsStrikes) {
-      const constrainedLegs = legs.map(leg => ({
-        ...leg,
+      const constrainedLegs = legs.map(leg => deepCopyLeg(leg, {
         strike: constrainToMarketLimits(leg.strike),
         // Reset premium source since we changed the strike
         premiumSource: 'theoretical' as const,
@@ -661,11 +670,11 @@ export default function Builder() {
       if (hasClosedEntries) {
         // Don't delete - just set quantity to match closed quantity so open position is 0
         const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
-        return { ...leg, quantity: closedQty };
+        return deepCopyLeg(leg, { quantity: closedQty });
       }
       
       // No closed entries - mark for removal by setting quantity to 0
-      return { ...leg, quantity: 0 };
+      return deepCopyLeg(leg, { quantity: 0 });
     }).filter(leg => {
       // Remove legs with 0 quantity that have no closed entries
       const closedEntries = leg.closingTransaction?.entries || [];
@@ -773,8 +782,7 @@ export default function Builder() {
     if (!currentPrice || !isFinite(currentPrice) || currentPrice <= 0) {
       // Fallback to template's original strikes if no valid price
       // Still apply market prices where possible (uses fallback logic)
-      const fallbackLegs = template.legs.map((leg, index) => ({ 
-        ...leg, 
+      const fallbackLegs = template.legs.map((leg, index) => deepCopyLeg(leg, { 
         id: Date.now().toString() + leg.id + index 
       }));
       setLegs(applyMarketPrices(fallbackLegs));
@@ -829,11 +837,10 @@ export default function Builder() {
           break;
       }
       
-      return {
-        ...leg,
+      return deepCopyLeg(leg, {
         strike: newStrike,
         id: Date.now().toString() + leg.id + index,
-      };
+      });
     });
     
     // Apply market prices immediately if options chain data is available

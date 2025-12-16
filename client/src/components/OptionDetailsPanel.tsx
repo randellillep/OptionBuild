@@ -634,6 +634,19 @@ export function OptionDetailsPanel({
     const closingEntries = leg.closingTransaction.entries || [];
     const hasMultipleEntries = closingEntries.length > 1;
     
+    // Get the selected entry if there's a selectedEntryId
+    // This allows displaying the IMMUTABLE strike and cost basis from the entry itself
+    const selectedClosedEntry = selectedEntryId 
+      ? closingEntries.find(e => e.id === selectedEntryId)
+      : (closingEntries.length === 1 ? closingEntries[0] : null);
+    
+    // Use entry's immutable strike and openingPrice if available, otherwise fall back to leg values (legacy)
+    const displayStrike = selectedClosedEntry?.strike ?? leg.strike;
+    const displayCostBasis = selectedClosedEntry?.openingPrice ?? leg.premium;
+    
+    // Create title using the ENTRY's immutable strike (not leg.strike which can change)
+    const closedTitle = `${symbol.toUpperCase()} ${formatStrike(displayStrike)}${leg.type === "call" ? "C" : "P"} ${formatDate(expirationDate)}`;
+    
     // P/L calculation using each entry's stored opening price (immutable cost basis)
     // For entries with openingPrice, use it; otherwise fall back to leg.premium (legacy)
     // Long: P/L = (closePrice - openingPrice) * qty * 100
@@ -662,7 +675,7 @@ export function OptionDetailsPanel({
         {/* Header for Closed Position */}
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="font-semibold text-sm">{title}</h3>
+            <h3 className="font-semibold text-sm">{closedTitle}</h3>
             <Badge className="mt-1 text-xs bg-sky-600 text-white">
               <Check className="h-3 w-3 mr-1" />
               {closedActionText} {closedQty} Contract{closedQty !== 1 ? 's' : ''}
@@ -686,7 +699,7 @@ export function OptionDetailsPanel({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <label className="text-xs font-medium text-muted-foreground">{openPriceLabel}</label>
-              <div className="font-mono font-semibold">${leg.premium.toFixed(2)}</div>
+              <div className="font-mono font-semibold">${displayCostBasis.toFixed(2)}</div>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">{closePriceLabel}</label>
