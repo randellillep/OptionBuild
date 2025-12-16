@@ -371,18 +371,23 @@ export function OptionDetailsPanel({
     const closingPrice = parseFloat(closingPriceText) || marketData?.ask || leg.premium;
     
     // Create a new closing entry with the current strike and opening price (cost basis)
+    // These values are captured as primitives and will NOT change when the leg is moved
     const newEntry: import("@shared/schema").ClosingEntry = {
       id: `close-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       quantity: closingQty,
       closingPrice: closingPrice,
       closedAt: new Date().toISOString(),
-      strike: leg.strike, // Capture strike at time of close (immutable)
-      openingPrice: leg.premium, // Capture cost basis at time of close (immutable - doesn't change when leg moves)
+      strike: leg.strike, // Capture strike at time of close (immutable primitive)
+      openingPrice: leg.premium, // Capture cost basis at time of close (immutable primitive)
       isExcluded: false,
     };
     
-    // Get existing entries or create empty array
-    const existingEntries = leg.closingTransaction?.entries || [];
+    // Deep copy ALL existing entries to prevent any shared references
+    // This ensures that when the leg is later updated (e.g., dragged to new strike),
+    // the closed entries' openingPrice and strike values are NOT mutated
+    const existingEntries = (leg.closingTransaction?.entries || []).map(entry => ({
+      ...entry // Create a new object for each entry
+    }));
     const allEntries = [...existingEntries, newEntry];
     
     // Calculate aggregated values for compatibility
@@ -451,11 +456,12 @@ export function OptionDetailsPanel({
     
     // If we're in closed view and have a selected entry, toggle that entry's exclusion
     if (isClosedView && selectedEntryId && leg.closingTransaction?.entries) {
+      // Deep copy ALL entries to prevent shared references
       const updatedEntries = leg.closingTransaction.entries.map(entry => {
         if (entry.id === selectedEntryId) {
           return { ...entry, isExcluded: !entry.isExcluded };
         }
-        return entry;
+        return { ...entry }; // Deep copy unchanged entries too
       });
       
       // Recalculate aggregated values from non-excluded entries
@@ -509,7 +515,10 @@ export function OptionDetailsPanel({
       };
       
       // Remove the entry from the current leg's closing transaction
-      const updatedEntries = leg.closingTransaction.entries.filter(e => e.id !== selectedEntryId);
+      // Deep copy remaining entries to prevent shared references
+      const updatedEntries = leg.closingTransaction.entries
+        .filter(e => e.id !== selectedEntryId)
+        .map(e => ({ ...e }));
       const activeEntries = updatedEntries.filter(e => !e.isExcluded);
       const totalActiveQty = activeEntries.reduce((sum, e) => sum + e.quantity, 0);
       const weightedAvgPrice = totalActiveQty > 0 
@@ -563,7 +572,10 @@ export function OptionDetailsPanel({
     if (!entryToDelete) return;
     
     // Remove the entry from the entries array
-    const updatedEntries = leg.closingTransaction.entries.filter(e => e.id !== selectedEntryId);
+    // Deep copy remaining entries to prevent shared references
+    const updatedEntries = leg.closingTransaction.entries
+      .filter(e => e.id !== selectedEntryId)
+      .map(e => ({ ...e }));
     
     // Reduce the leg's quantity by the deleted entry's quantity
     // This ensures those contracts don't come back as "open"
