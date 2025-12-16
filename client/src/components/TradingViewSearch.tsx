@@ -6,6 +6,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Search, TrendingUp, TrendingDown, Loader2, X, Star, Clock, BarChart3, Landmark, Fuel, ListOrdered, Bookmark } from "lucide-react";
 import type { SymbolInfo } from "@/hooks/useStrategyEngine";
 import { useQuery } from "@tanstack/react-query";
+import { PositionsModal } from "@/components/PositionsModal";
+import type { OptionLeg } from "@shared/schema";
 
 interface TradingViewSearchProps {
   symbolInfo: SymbolInfo;
@@ -13,6 +15,7 @@ interface TradingViewSearchProps {
   renderAddButton?: () => React.ReactNode;
   onSaveTrade?: () => void;
   legsCount?: number;
+  legs?: OptionLeg[];
 }
 
 interface SearchResult {
@@ -95,11 +98,12 @@ const etfs = [
   { symbol: "XLV", name: "Health Care Select Sector SPDR" },
 ];
 
-export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton, onSaveTrade, legsCount = 0 }: TradingViewSearchProps) {
+export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton, onSaveTrade, legsCount = 0, legs = [] }: TradingViewSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState("stocks");
+  const [isPositionsModalOpen, setIsPositionsModalOpen] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -253,6 +257,7 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton,
               size="sm"
               className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground"
               data-testid="button-positions"
+              onClick={() => setIsPositionsModalOpen(true)}
             >
               <ListOrdered className="h-3.5 w-3.5 mr-1.5" />
               Positions ({legsCount})
@@ -458,6 +463,14 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton,
           </Card>
         </div>
       )}
+
+      <PositionsModal
+        isOpen={isPositionsModalOpen}
+        onClose={() => setIsPositionsModalOpen(false)}
+        legs={legs}
+        symbol={symbolInfo.symbol}
+        currentPrice={symbolInfo.price}
+      />
     </div>
   );
 }

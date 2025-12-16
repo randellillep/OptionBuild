@@ -939,6 +939,7 @@ export default function Builder() {
             onSymbolChange={setSymbolInfo}
             onSaveTrade={() => setIsSaveTradeOpen(true)}
             legsCount={legs.length}
+            legs={legs}
             renderAddButton={() => (
               <AddLegDropdown 
                 currentPrice={symbolInfo.price} 
