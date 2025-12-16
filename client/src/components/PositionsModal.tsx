@@ -1,7 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 import type { OptionLeg, ClosingEntry } from "@shared/schema";
+
+export interface CommissionSettings {
+  perTrade: number;
+  perContract: number;
+  roundTrip: boolean;
+}
 
 interface PositionsModalProps {
   isOpen: boolean;
@@ -9,6 +19,8 @@ interface PositionsModalProps {
   legs: OptionLeg[];
   symbol: string;
   currentPrice: number;
+  commissionSettings?: CommissionSettings;
+  onCommissionChange?: (settings: CommissionSettings) => void;
 }
 
 interface OpenPosition {
@@ -27,8 +39,45 @@ interface ClosedPosition {
   symbol: string;
 }
 
-export function PositionsModal({ isOpen, onClose, legs, symbol, currentPrice }: PositionsModalProps) {
+export function PositionsModal({ 
+  isOpen, 
+  onClose, 
+  legs, 
+  symbol, 
+  currentPrice,
+  commissionSettings = { perTrade: 0, perContract: 0, roundTrip: false },
+  onCommissionChange
+}: PositionsModalProps) {
   const [activeTab, setActiveTab] = useState<"open" | "closed">("open");
+  const [perTrade, setPerTrade] = useState(commissionSettings.perTrade.toString());
+  const [perContract, setPerContract] = useState(commissionSettings.perContract.toString());
+  const [roundTrip, setRoundTrip] = useState(commissionSettings.roundTrip);
+
+  // Update local state when props change
+  useEffect(() => {
+    setPerTrade(commissionSettings.perTrade.toString());
+    setPerContract(commissionSettings.perContract.toString());
+    setRoundTrip(commissionSettings.roundTrip);
+  }, [commissionSettings]);
+
+  // Notify parent of commission changes
+  const handleCommissionChange = (field: 'perTrade' | 'perContract' | 'roundTrip', value: string | boolean) => {
+    if (field === 'perTrade') {
+      setPerTrade(value as string);
+    } else if (field === 'perContract') {
+      setPerContract(value as string);
+    } else if (field === 'roundTrip') {
+      setRoundTrip(value as boolean);
+    }
+
+    const newSettings: CommissionSettings = {
+      perTrade: field === 'perTrade' ? parseFloat(value as string) || 0 : parseFloat(perTrade) || 0,
+      perContract: field === 'perContract' ? parseFloat(value as string) || 0 : parseFloat(perContract) || 0,
+      roundTrip: field === 'roundTrip' ? value as boolean : roundTrip
+    };
+    
+    onCommissionChange?.(newSettings);
+  };
 
   // Calculate open positions (excluding excluded legs)
   const openPositions: OpenPosition[] = legs
@@ -40,7 +89,7 @@ export function PositionsModal({ isOpen, onClose, legs, symbol, currentPrice }: 
       // Calculate closed quantity from entries, excluding entries marked as isExcluded
       const closedQty = leg.closingTransaction?.isEnabled 
         ? (leg.closingTransaction.entries?.filter(e => !e.isExcluded).reduce((sum, e) => sum + e.quantity, 0) || 
-           (leg.closingTransaction.isExcluded ? 0 : leg.closingTransaction.quantity || 0))
+           leg.closingTransaction.quantity || 0)
         : 0;
       const remainingQty = totalQty - closedQty;
       
@@ -99,6 +148,14 @@ export function PositionsModal({ isOpen, onClose, legs, symbol, currentPrice }: 
   // Calculate total realized gain
   const totalRealizedGain = closedPositions.reduce((sum, p) => sum + p.realizedGain, 0);
 
+  // Calculate total commissions
+  const numTrades = openPositions.length;
+  const totalContracts = openPositions.reduce((sum, p) => sum + p.remainingQty, 0);
+  const perTradeValue = parseFloat(perTrade) || 0;
+  const perContractValue = parseFloat(perContract) || 0;
+  const multiplier = roundTrip ? 2 : 1;
+  const totalCommissions = (numTrades * perTradeValue + totalContracts * perContractValue) * multiplier;
+
   const formatStrike = (strike: number) => {
     return strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2).replace(/\.?0+$/, '');
   };
@@ -116,7 +173,7 @@ export function PositionsModal({ isOpen, onClose, legs, symbol, currentPrice }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg p-0 gap-0">
+      <DialogContent className="max-w-lg p-0 gap-0 top-[35%] translate-y-[-50%]">
         <DialogHeader className="p-4 pb-2">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-semibold">Positions</DialogTitle>
@@ -151,7 +208,7 @@ export function PositionsModal({ isOpen, onClose, legs, symbol, currentPrice }: 
               </div>
 
               {/* Open positions list */}
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {openPositions.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     No open positions
@@ -186,6 +243,68 @@ export function PositionsModal({ isOpen, onClose, legs, symbol, currentPrice }: 
                     </div>
                   ))
                 )}
+              </div>
+
+              {/* Commissions Section */}
+              <div className="mt-4 pt-3 border-t">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm text-muted-foreground">Commissions:</span>
+                  <span className={`text-sm font-medium ${totalCommissions > 0 ? 'text-red-600 dark:text-red-500' : 'text-green-600 dark:text-green-500'}`}>
+                    ${totalCommissions.toFixed(0)}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      value={perTrade}
+                      onChange={(e) => handleCommissionChange('perTrade', e.target.value)}
+                      className="w-20 h-8 text-sm"
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      data-testid="input-per-trade"
+                    />
+                    <span className="text-sm text-muted-foreground">per trade</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      value={perContract}
+                      onChange={(e) => handleCommissionChange('perContract', e.target.value)}
+                      className="w-20 h-8 text-sm"
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      data-testid="input-per-contract"
+                    />
+                    <span className="text-sm text-muted-foreground">per contract</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="round-trip"
+                    checked={roundTrip}
+                    onCheckedChange={(checked) => handleCommissionChange('roundTrip', checked === true)}
+                    data-testid="checkbox-round-trip"
+                  />
+                  <label htmlFor="round-trip" className="text-sm text-muted-foreground cursor-pointer">
+                    Round-Trip
+                  </label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p>When enabled, commissions are calculated for both opening and closing trades (doubled).</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
             </TabsContent>
 

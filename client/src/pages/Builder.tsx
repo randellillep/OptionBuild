@@ -21,6 +21,7 @@ import { SaveTradeModal } from "@/components/SaveTradeModal";
 import { StrategySelector } from "@/components/StrategySelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
+import type { CommissionSettings } from "@/components/PositionsModal";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation, useSearch } from "wouter";
 import { useStrategyEngine } from "@/hooks/useStrategyEngine";
@@ -34,6 +35,11 @@ export default function Builder() {
   const [range, setRange] = useState(14);
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
+  const [commissionSettings, setCommissionSettings] = useState<CommissionSettings>({
+    perTrade: 0,
+    perContract: 0,
+    roundTrip: false
+  });
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   const urlParamsProcessed = useRef(false);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -940,6 +946,8 @@ export default function Builder() {
             onSaveTrade={() => setIsSaveTradeOpen(true)}
             legsCount={legs.length}
             legs={legs}
+            commissionSettings={commissionSettings}
+            onCommissionChange={setCommissionSettings}
             renderAddButton={() => (
               <AddLegDropdown 
                 currentPrice={symbolInfo.price} 
@@ -990,6 +998,9 @@ export default function Builder() {
                   calculatedIV={calculatedIVPercent}
                   onResetIV={handleResetIV}
                   metrics={metrics}
+                  commissionSettings={commissionSettings}
+                  numTrades={legs.filter(l => !l.isExcluded).length}
+                  totalContracts={legs.filter(l => !l.isExcluded).reduce((sum, l) => sum + Math.abs(l.quantity), 0)}
                 />
               ) : (
                 <ProfitLossChart 

@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Search, TrendingUp, TrendingDown, Loader2, X, Star, Clock, BarChart3, Landmark, Fuel, ListOrdered, Bookmark } from "lucide-react";
 import type { SymbolInfo } from "@/hooks/useStrategyEngine";
 import { useQuery } from "@tanstack/react-query";
-import { PositionsModal } from "@/components/PositionsModal";
+import { PositionsModal, CommissionSettings } from "@/components/PositionsModal";
 import type { OptionLeg } from "@shared/schema";
 
 interface TradingViewSearchProps {
@@ -16,6 +16,8 @@ interface TradingViewSearchProps {
   onSaveTrade?: () => void;
   legsCount?: number;
   legs?: OptionLeg[];
+  commissionSettings?: CommissionSettings;
+  onCommissionChange?: (settings: CommissionSettings) => void;
 }
 
 interface SearchResult {
@@ -98,7 +100,16 @@ const etfs = [
   { symbol: "XLV", name: "Health Care Select Sector SPDR" },
 ];
 
-export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton, onSaveTrade, legsCount = 0, legs = [] }: TradingViewSearchProps) {
+export function TradingViewSearch({ 
+  symbolInfo, 
+  onSymbolChange, 
+  renderAddButton, 
+  onSaveTrade, 
+  legsCount = 0, 
+  legs = [],
+  commissionSettings,
+  onCommissionChange
+}: TradingViewSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -470,6 +481,8 @@ export function TradingViewSearch({ symbolInfo, onSymbolChange, renderAddButton,
         legs={legs}
         symbol={symbolInfo.symbol}
         currentPrice={symbolInfo.price}
+        commissionSettings={commissionSettings}
+        onCommissionChange={onCommissionChange}
       />
     </div>
   );

@@ -12,6 +12,12 @@ interface DateGroup {
   count: number;
 }
 
+interface CommissionSettings {
+  perTrade: number;
+  perContract: number;
+  roundTrip: boolean;
+}
+
 interface PLHeatmapProps {
   grid: ScenarioPoint[][];
   strikes: number[];
@@ -29,6 +35,9 @@ interface PLHeatmapProps {
   calculatedIV: number;
   onResetIV: () => void;
   metrics?: StrategyMetrics;
+  commissionSettings?: CommissionSettings;
+  numTrades?: number;
+  totalContracts?: number;
 }
 
 export function PLHeatmap({ 
@@ -48,11 +57,22 @@ export function PLHeatmap({
   calculatedIV,
   onResetIV,
   metrics,
+  commissionSettings = { perTrade: 0, perContract: 0, roundTrip: false },
+  numTrades = 0,
+  totalContracts = 0,
 }: PLHeatmapProps) {
-  const allPnlValues = grid.flatMap(row => row.map(cell => cell.pnl));
+  // Calculate total commissions to subtract from P&L
+  const multiplier = commissionSettings.roundTrip ? 2 : 1;
+  const totalCommissions = (numTrades * commissionSettings.perTrade + totalContracts * commissionSettings.perContract) * multiplier;
+
+  // Adjust P&L values by subtracting commissions
+  const adjustPnl = (pnl: number) => pnl - totalCommissions;
+  
+  const allPnlValues = grid.flatMap(row => row.map(cell => adjustPnl(cell.pnl)));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
 
-  const getPnlColor = (pnl: number) => {
+  const getPnlColor = (rawPnl: number) => {
+    const pnl = adjustPnl(rawPnl);
     if (maxAbsPnl === 0) return 'bg-muted';
     
     const intensity = Math.abs(pnl) / maxAbsPnl;
@@ -271,17 +291,20 @@ export function PLHeatmap({
                   >
                     {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(0)}%
                   </td>
-                  {row.map((cell, colIdx) => (
-                    <td
-                      key={colIdx}
-                      className={`text-[11px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
-                        isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
-                      }`}
-                      data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
-                    >
-                      {cell.pnl >= 0 ? '+' : ''}${cell.pnl.toFixed(0)}
-                    </td>
-                  ))}
+                  {row.map((cell, colIdx) => {
+                    const adjustedPnl = adjustPnl(cell.pnl);
+                    return (
+                      <td
+                        key={colIdx}
+                        className={`text-[11px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
+                          isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
+                        }`}
+                        data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
+                      >
+                        {adjustedPnl >= 0 ? '+' : ''}${adjustedPnl.toFixed(0)}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}
