@@ -370,13 +370,14 @@ export function OptionDetailsPanel({
   const handleConfirmClose = () => {
     const closingPrice = parseFloat(closingPriceText) || marketData?.ask || leg.premium;
     
-    // Create a new closing entry with the current strike
+    // Create a new closing entry with the current strike and opening price (cost basis)
     const newEntry: import("@shared/schema").ClosingEntry = {
       id: `close-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       quantity: closingQty,
       closingPrice: closingPrice,
       closedAt: new Date().toISOString(),
       strike: leg.strike, // Capture strike at time of close (immutable)
+      openingPrice: leg.premium, // Capture cost basis at time of close (immutable - doesn't change when leg moves)
       isExcluded: false,
     };
     
@@ -621,12 +622,17 @@ export function OptionDetailsPanel({
     const closingEntries = leg.closingTransaction.entries || [];
     const hasMultipleEntries = closingEntries.length > 1;
     
-    // P/L calculation:
-    // Long: You buy at premium, sell at closePrice. P/L = (closePrice - premium) * qty * 100
-    // Short: You sell at premium, buy back at closePrice. P/L = (premium - closePrice) * qty * 100
-    const profitLoss = leg.position === "long" 
-      ? (closePrice - leg.premium) * closedQty * 100
-      : (leg.premium - closePrice) * closedQty * 100;
+    // P/L calculation using each entry's stored opening price (immutable cost basis)
+    // For entries with openingPrice, use it; otherwise fall back to leg.premium (legacy)
+    // Long: P/L = (closePrice - openingPrice) * qty * 100
+    // Short: P/L = (openingPrice - closePrice) * qty * 100
+    const profitLoss = closingEntries.reduce((total, entry) => {
+      const costBasis = entry.openingPrice ?? leg.premium;
+      const entryPL = leg.position === "long"
+        ? (entry.closingPrice - costBasis) * entry.quantity * 100
+        : (costBasis - entry.closingPrice) * entry.quantity * 100;
+      return total + entryPL;
+    }, 0);
     const isProfitable = profitLoss >= 0;
     
     // Labels based on position type
@@ -681,9 +687,11 @@ export function OptionDetailsPanel({
             <div className="bg-muted/50 rounded p-2 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Closing Entries</label>
               {closingEntries.map((entry, idx) => {
+                // Use entry's stored opening price (immutable cost basis), fallback to leg.premium for legacy
+                const costBasis = entry.openingPrice ?? leg.premium;
                 const entryPL = leg.position === "long"
-                  ? (entry.closingPrice - leg.premium) * entry.quantity * 100
-                  : (leg.premium - entry.closingPrice) * entry.quantity * 100;
+                  ? (entry.closingPrice - costBasis) * entry.quantity * 100
+                  : (costBasis - entry.closingPrice) * entry.quantity * 100;
                 const entryProfitable = entryPL >= 0;
                 return (
                   <div key={entry.id || idx} className="flex justify-between items-center text-xs">
@@ -758,32 +766,37 @@ export function OptionDetailsPanel({
 
   return (
     <div 
-      className="w-80 p-4 space-y-3 bg-background border border-border rounded-lg shadow-lg" 
+      className="w-80 max-h-[calc(100vh-8rem)] flex flex-col bg-background border border-border rounded-lg shadow-lg" 
       data-testid="option-details-panel"
       style={{ pointerEvents: 'auto' }}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="font-semibold text-sm">{title}</h3>
-          <Badge variant="outline" className="mt-1 text-xs">
-            {positionText} {leg.type === "call" ? "Call" : "Put"}
-          </Badge>
+      {/* Header - fixed at top */}
+      <div className="flex-none p-4 pb-0 space-y-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="font-semibold text-sm">{title}</h3>
+            <Badge variant="outline" className="mt-1 text-xs">
+              {positionText} {leg.type === "call" ? "Call" : "Put"}
+            </Badge>
+          </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onClose}
+            className="h-6 w-6"
+            data-testid="button-close-details"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={onClose}
-          className="h-6 w-6"
-          data-testid="button-close-details"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
 
-      <Separator />
+        <Separator />
+      </div>
+      
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-4 space-y-3">
 
       {/* Quantity and Cost Basis - Side by Side */}
       <div className="grid grid-cols-2 gap-4">
@@ -1084,6 +1097,11 @@ export function OptionDetailsPanel({
           </div>
         )}
       </div>
+      {/* End scrollable content */}
+      </div>
+      
+      {/* Bottom padding for scrollable panel */}
+      <div className="flex-none p-2" />
     </div>
   );
 }

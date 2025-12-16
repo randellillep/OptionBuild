@@ -129,7 +129,9 @@ export function PositionsModal({
         // Calculate realized gain per contract
         // For long: (closing price - opening price) * quantity * 100
         // For short: (opening price - closing price) * quantity * 100
-        const openCost = leg.premium * entry.quantity * 100;
+        // Use entry.openingPrice (immutable) if available, fallback to leg.premium for legacy entries
+        const costBasisPerContract = entry.openingPrice ?? leg.premium;
+        const openCost = costBasisPerContract * entry.quantity * 100;
         const closeCost = entry.closingPrice * entry.quantity * 100;
         const realizedGain = leg.position === "long" 
           ? closeCost - openCost 
@@ -335,7 +337,8 @@ export function PositionsModal({
                       <div className="flex-1 text-sm">
                         <span className="font-semibold">{symbol}</span>
                         <span className="ml-1">
-                          {formatStrike(pos.leg.strike)}{pos.leg.type === 'call' ? 'C' : 'P'}
+                          {/* Use entry.strike (immutable at time of close), not leg.strike */}
+                          {formatStrike(pos.entry.strike)}{pos.leg.type === 'call' ? 'C' : 'P'}
                         </span>
                         {pos.leg.expirationDate && (
                           <span className="text-muted-foreground ml-1">
