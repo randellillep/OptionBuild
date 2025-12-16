@@ -462,7 +462,7 @@ export default function Builder() {
           return {
             ...leg,
             premium: 0.01,
-            premiumSource: 'placeholder' as const,
+            premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
           };
         }
@@ -526,7 +526,7 @@ export default function Builder() {
           return {
             ...leg,
             premium: 0.01,
-            premiumSource: 'placeholder' as const,
+            premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
           };
         });
@@ -629,7 +629,25 @@ export default function Builder() {
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
-    setLegs(prevLegs => prevLegs.map((leg) => (leg.id === id ? { ...leg, ...updates } : leg)));
+    setLegs(prevLegs => prevLegs.map((leg) => {
+      if (leg.id !== id) return leg;
+      
+      // Deep copy the closing transaction to preserve immutable entry data
+      // This prevents mutations from affecting stored openingPrice/strike values
+      const preservedClosingTransaction = leg.closingTransaction ? {
+        ...leg.closingTransaction,
+        // Deep copy entries array to prevent reference mutations
+        entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
+      } : undefined;
+      
+      return { 
+        ...leg, 
+        ...updates,
+        // Always preserve the existing closing transaction (with deep-copied entries)
+        // unless the update explicitly includes closing transaction changes
+        closingTransaction: updates.closingTransaction ?? preservedClosingTransaction
+      };
+    }));
   };
 
   const removeLeg = (id: string) => {
@@ -677,6 +695,12 @@ export default function Builder() {
     const currentVol = volatility || 0.3; // Default IV if not set
 
     return legsToUpdate.map(leg => {
+      // Deep copy closing transaction to preserve immutable entry data
+      const preservedClosingTransaction = leg.closingTransaction ? {
+        ...leg.closingTransaction,
+        entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
+      } : undefined;
+      
       // Try to find matching market quote (same strike and type)
       const matchingQuote = optionsChainData?.quotes?.find(
         (q: any) => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
@@ -704,6 +728,7 @@ export default function Builder() {
           premiumSource: 'market' as const,
           impliedVolatility: calculatedIV,
           expirationDays: daysToExpiration,
+          closingTransaction: preservedClosingTransaction,
         };
       }
       
@@ -724,6 +749,7 @@ export default function Builder() {
             premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
             premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
+            closingTransaction: preservedClosingTransaction,
           };
         }
       }
@@ -732,8 +758,9 @@ export default function Builder() {
       return {
         ...leg,
         premium: leg.premium ?? 0.01,
-        premiumSource: 'placeholder' as const,
+        premiumSource: 'theoretical' as const,
         expirationDays: daysToExpiration,
+        closingTransaction: preservedClosingTransaction,
       };
     });
   };
