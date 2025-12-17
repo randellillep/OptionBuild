@@ -334,10 +334,13 @@ export function OptionDetailsPanel({
   // Fix: Initialize to false - only open when explicitly clicked, not based on existing transactions
   const [showClosingSection, setShowClosingSection] = useState(false);
   // Default closing quantity to 1 when first enabling (not full position)
-  // For existing transactions, calculate remaining quantity available to close
-  const existingClosedQty = leg.closingTransaction?.quantity || 0;
-  const remainingToClose = leg.quantity - existingClosedQty;
-  const [closingQty, setClosingQty] = useState(Math.min(1, remainingToClose));
+  // For existing transactions, calculate remaining quantity available to close from entries
+  // Only count non-excluded entries to get accurate remaining open quantity
+  const existingClosedQty = leg.closingTransaction?.entries
+    ?.filter(e => !e.isExcluded)
+    .reduce((sum, e) => sum + e.quantity, 0) || 0;
+  const remainingToClose = Math.max(0, leg.quantity - existingClosedQty);
+  const [closingQty, setClosingQty] = useState(Math.min(1, Math.max(1, remainingToClose)));
   const [closingPriceText, setClosingPriceText] = useState(
     (leg.closingTransaction?.closingPrice || marketData?.ask || leg.premium).toFixed(2)
   );
@@ -358,10 +361,12 @@ export function OptionDetailsPanel({
       // Initialize closing price to market ask or current premium
       const defaultPrice = marketData?.ask || leg.premium;
       setClosingPriceText(defaultPrice.toFixed(2));
-      // Calculate remaining quantity available to close
-      const alreadyClosed = leg.closingTransaction?.quantity || 0;
-      const remaining = leg.quantity - alreadyClosed;
-      setClosingQty(Math.min(1, remaining)); // Default to 1 contract (or less if only 1 remaining)
+      // Calculate remaining quantity available to close from non-excluded entries
+      const alreadyClosed = leg.closingTransaction?.entries
+        ?.filter(e => !e.isExcluded)
+        .reduce((sum, e) => sum + e.quantity, 0) || 0;
+      const remaining = Math.max(0, leg.quantity - alreadyClosed);
+      setClosingQty(Math.min(1, Math.max(1, remaining))); // Default to 1 contract (or less if only 1 remaining)
     }
   };
 
@@ -412,7 +417,12 @@ export function OptionDetailsPanel({
   };
 
   const handleClosingQtyChange = (delta: number) => {
-    const newQty = Math.max(1, Math.min(leg.quantity, closingQty + delta));
+    // Calculate max closable from remaining open quantity (not already closed)
+    const alreadyClosed = leg.closingTransaction?.entries
+      ?.filter(e => !e.isExcluded)
+      .reduce((sum, e) => sum + e.quantity, 0) || 0;
+    const maxClosable = Math.max(1, leg.quantity - alreadyClosed);
+    const newQty = Math.max(1, Math.min(maxClosable, closingQty + delta));
     setClosingQty(newQty);
     if (leg.closingTransaction?.isEnabled && onUpdateLeg) {
       onUpdateLeg({ 
