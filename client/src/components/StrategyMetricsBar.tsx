@@ -48,21 +48,25 @@ export function StrategyMetricsBar({ metrics, realizedPL = 0, unrealizedPL = 0 }
         </span>
       </div>
 
-      <div className="flex items-center gap-1">
-        <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-        <span className="text-muted-foreground">Realized:</span>
-        <span className={`font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
-          {realizedPL >= 0 ? '+' : '-'}${Math.abs(realizedPL).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </span>
-      </div>
+      {realizedPL !== 0 && (
+        <div className="flex items-center gap-1">
+          <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="text-muted-foreground">Realized:</span>
+          <span className={`font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
+            {realizedPL >= 0 ? '' : '-'}${Math.abs(realizedPL).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+      )}
 
-      <div className="flex items-center gap-1">
-        <Clock className="h-3.5 w-3.5 text-amber-500" />
-        <span className="text-muted-foreground">Unrealized:</span>
-        <span className={`font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
-          {unrealizedPL >= 0 ? '+' : '-'}${Math.abs(unrealizedPL).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </span>
-      </div>
+      {unrealizedPL !== 0 && (
+        <div className="flex items-center gap-1">
+          <Clock className="h-3.5 w-3.5 text-amber-500" />
+          <span className="text-muted-foreground">Unrealized:</span>
+          <span className={`font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
+            {unrealizedPL >= 0 ? '' : '-'}${Math.abs(unrealizedPL).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
