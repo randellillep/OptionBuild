@@ -131,32 +131,13 @@ export function useStrategyEngine(rangePercent: number = 14) {
   }, [legs]);
 
   const strikeRange = useMemo(() => {
-    // Always center around current price using the range percent
+    // Center around current price using the range percent - user has full control
     const rangeMultiplier = rangePercent / 100;
-    let min = symbolInfo.price * (1 - rangeMultiplier);
-    let max = symbolInfo.price * (1 + rangeMultiplier);
-    
-    // If we have legs, ensure they're all visible by expanding range symmetrically
-    if (legs.length > 0) {
-      const strikes = legs.map(leg => leg.strike);
-      const minLegStrike = Math.min(...strikes);
-      const maxLegStrike = Math.max(...strikes);
-      
-      // Calculate how much we need to expand on each side
-      const lowerExpansion = Math.max(0, min - minLegStrike * 0.95);
-      const upperExpansion = Math.max(0, maxLegStrike * 1.05 - max);
-      
-      // Expand symmetrically by the larger of the two needed expansions
-      const expansion = Math.max(lowerExpansion, upperExpansion);
-      
-      if (expansion > 0) {
-        min = min - expansion;
-        max = max + expansion;
-      }
-    }
+    const min = symbolInfo.price * (1 - rangeMultiplier);
+    const max = symbolInfo.price * (1 + rangeMultiplier);
     
     return { min, max };
-  }, [legs, symbolInfo.price, rangePercent]);
+  }, [symbolInfo.price, rangePercent]);
 
   const scenarioGrid = useMemo(() => {
     const strikeCount = 15;
