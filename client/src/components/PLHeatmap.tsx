@@ -150,28 +150,28 @@ export function PLHeatmap({
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Max Profit:</span>
                 <span className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-500" data-testid="text-max-profit">
-                  {metrics.maxProfit !== null ? `$${metrics.maxProfit.toFixed(0)}` : "∞"}
+                  {metrics.maxProfit !== null ? `$${Math.abs(metrics.maxProfit).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : "∞"}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Max Loss:</span>
                 <span className="text-base font-bold font-mono text-rose-600 dark:text-rose-500" data-testid="text-max-loss">
-                  {metrics.maxLoss !== null ? `$${metrics.maxLoss.toFixed(0)}` : "∞"}
+                  {metrics.maxLoss !== null ? `$${Math.abs(metrics.maxLoss).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : "∞"}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Breakeven:</span>
                 <span className="text-base font-semibold font-mono" data-testid="text-breakeven">
                   {metrics.breakeven.length > 0 
-                    ? metrics.breakeven.slice(0, 2).map(p => `$${p.toFixed(0)}`).join(', ')
+                    ? metrics.breakeven.slice(0, 2).map(p => `$${p.toLocaleString('en-US', { maximumFractionDigits: 0 })}`).join(', ')
                     : "N/A"
                   }
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">Net:</span>
-                <span className={`text-base font-bold font-mono ${metrics.netPremium >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-net-premium">
-                  ${metrics.netPremium.toFixed(0)}
+                <span className="text-base font-bold font-mono text-foreground" data-testid="text-net-premium">
+                  ${Math.abs(metrics.netPremium).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 </span>
                 <span className="text-xs text-muted-foreground/70">
                   {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
