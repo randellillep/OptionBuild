@@ -298,7 +298,7 @@ export function PLHeatmap({
               
               // Current price row gets a dashed border to mark it
               const currentPriceRowStyle = isNearCurrent 
-                ? 'border-t-2 border-t-white/70 border-dashed' 
+                ? 'border-t-2 border-t-black/70 dark:border-t-white/70 border-dashed' 
                 : '';
               
               return (
