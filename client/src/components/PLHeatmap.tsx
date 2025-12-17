@@ -285,10 +285,22 @@ export function PLHeatmap({
             </tr>
           </thead>
           <tbody>
-            {grid.map((row, rowIdx) => {
+            {(() => {
+              // Find the single row closest to current price
+              let closestRowIdx = 0;
+              let minDiff = Infinity;
+              strikes.forEach((strike, idx) => {
+                const diff = Math.abs(strike - currentPrice);
+                if (diff < minDiff) {
+                  minDiff = diff;
+                  closestRowIdx = idx;
+                }
+              });
+              
+              return grid.map((row, rowIdx) => {
               const strike = strikes[rowIdx];
               const percentChange = ((strike - currentPrice) / currentPrice) * 100;
-              const isNearCurrent = Math.abs(strike - currentPrice) < (currentPrice * 0.02);
+              const isClosestToCurrentPrice = rowIdx === closestRowIdx;
               
               // Format strike price: show 2 decimals if value has meaningful decimals, otherwise show whole number
               const hasDecimals = strike % 1 !== 0;
@@ -296,16 +308,16 @@ export function PLHeatmap({
                 ? strike.toFixed(2) 
                 : strike.toFixed(0);
               
-              // Current price row gets a dashed border to mark it
-              const currentPriceRowStyle = isNearCurrent 
-                ? 'border-t-2 border-t-black/70 dark:border-t-white/70 border-dashed' 
+              // Current price row gets a dashed border below it to mark it
+              const currentPriceRowStyle = isClosestToCurrentPrice 
+                ? 'border-b-2 border-b-black/70 dark:border-b-white/70 border-dashed' 
                 : '';
               
               return (
                 <tr key={rowIdx} className={`h-[24px] ${currentPriceRowStyle}`}>
                   <td
                     className={`text-[11px] font-mono font-semibold p-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
-                      isNearCurrent ? 'text-foreground dark:text-white font-bold' : ''
+                      isClosestToCurrentPrice ? 'text-foreground dark:text-white font-bold' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
                   >
@@ -337,7 +349,8 @@ export function PLHeatmap({
                   })}
                 </tr>
               );
-            })}
+            });
+            })()}
           </tbody>
         </table>
       </div>
