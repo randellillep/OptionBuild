@@ -71,17 +71,6 @@ export function PLHeatmap({
 
   // Adjust P&L values by subtracting commissions
   const adjustPnl = (pnl: number) => pnl - totalCommissions;
-
-  // Format strike price with appropriate decimal places based on range
-  const formatStrike = (strike: number) => {
-    if (strikes.length < 2) return strike.toFixed(2);
-    const strikeStep = Math.abs(strikes[0] - strikes[1]);
-    if (strikeStep < 0.01) return strike.toFixed(4);
-    if (strikeStep < 0.1) return strike.toFixed(3);
-    if (strikeStep < 1) return strike.toFixed(2);
-    if (strikeStep < 10) return strike.toFixed(1);
-    return strike.toFixed(0);
-  };
   
   const allPnlValues = grid.flatMap(row => row.map(cell => adjustPnl(cell.pnl)));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
@@ -309,7 +298,7 @@ export function PLHeatmap({
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
                   >
-                    ${formatStrike(strike)}
+                    ${strike < 10 ? strike.toFixed(2) : strike.toFixed(0)}
                     {isNearCurrent && (
                       <span className="ml-0.5 text-[9px] text-primary font-bold">ATM</span>
                     )}
