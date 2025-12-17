@@ -343,7 +343,7 @@ export function PLHeatmap({
                         }`}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
-                        {adjustedPnl >= 0 ? '+' : ''}${adjustedPnl.toFixed(0)}
+                        ${adjustedPnl.toFixed(0)}
                       </td>
                     );
                   })}
