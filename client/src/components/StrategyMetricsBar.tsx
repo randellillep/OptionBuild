@@ -5,9 +5,11 @@ interface StrategyMetricsBarProps {
   metrics: StrategyMetrics;
   realizedPL?: number;
   unrealizedPL?: number;
+  hasRealizedPL?: boolean;
+  hasUnrealizedPL?: boolean;
 }
 
-export function StrategyMetricsBar({ metrics, realizedPL = 0, unrealizedPL = 0 }: StrategyMetricsBarProps) {
+export function StrategyMetricsBar({ metrics, realizedPL = 0, unrealizedPL = 0, hasRealizedPL = false, hasUnrealizedPL = false }: StrategyMetricsBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-2 py-1.5 text-xs" data-testid="strategy-metrics-bar">
       <div className="flex items-center gap-1">
@@ -48,7 +50,7 @@ export function StrategyMetricsBar({ metrics, realizedPL = 0, unrealizedPL = 0 }
         </span>
       </div>
 
-      {Math.abs(realizedPL) >= 0.01 && (
+      {hasRealizedPL && (
         <div className="flex items-center gap-1">
           <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
           <span className="text-muted-foreground">Realized:</span>
@@ -58,7 +60,7 @@ export function StrategyMetricsBar({ metrics, realizedPL = 0, unrealizedPL = 0 }
         </div>
       )}
 
-      {Math.abs(unrealizedPL) >= 0.01 && (
+      {hasUnrealizedPL && (
         <div className="flex items-center gap-1">
           <Clock className="h-3.5 w-3.5 text-amber-500" />
           <span className="text-muted-foreground">Unrealized:</span>

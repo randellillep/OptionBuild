@@ -40,6 +40,8 @@ interface PLHeatmapProps {
   totalContracts?: number;
   realizedPL?: number;
   unrealizedPL?: number;
+  hasRealizedPL?: boolean;
+  hasUnrealizedPL?: boolean;
 }
 
 export function PLHeatmap({ 
@@ -64,6 +66,8 @@ export function PLHeatmap({
   totalContracts = 0,
   realizedPL = 0,
   unrealizedPL = 0,
+  hasRealizedPL = false,
+  hasUnrealizedPL = false,
 }: PLHeatmapProps) {
   // Calculate total commissions to subtract from P&L
   const multiplier = commissionSettings.roundTrip ? 2 : 1;
@@ -185,20 +189,24 @@ export function PLHeatmap({
                   {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                <span className="text-xs text-muted-foreground">Realized:</span>
-                <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
-                  {realizedPL >= 0 ? '+' : '-'}${Math.abs(realizedPL).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-xs text-muted-foreground">Unrealized:</span>
-                <span className={`text-base font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
-                  {unrealizedPL >= 0 ? '+' : '-'}${Math.abs(unrealizedPL).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </span>
-              </div>
+              {hasRealizedPL && (
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-xs text-muted-foreground">Realized:</span>
+                  <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
+                    {realizedPL >= 0 ? '' : '-'}${Math.abs(realizedPL).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+              )}
+              {hasUnrealizedPL && (
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-xs text-muted-foreground">Unrealized:</span>
+                  <span className={`text-base font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
+                    {unrealizedPL >= 0 ? '' : '-'}${Math.abs(unrealizedPL).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+              )}
             </>
           ) : null}
         </div>

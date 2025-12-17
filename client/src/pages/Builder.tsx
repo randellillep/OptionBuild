@@ -83,9 +83,9 @@ export default function Builder() {
   const calculatedIVPercent = Math.round(calculatedIV * 100);
   
   // Calculate realized and unrealized P/L
-  const { realizedPL, unrealizedPL } = useMemo(() => {
+  const { realizedPL, unrealizedPL, hasRealizedPL, hasUnrealizedPL } = useMemo(() => {
     if (!symbolInfo.price || legs.length === 0) {
-      return { realizedPL: 0, unrealizedPL: 0 };
+      return { realizedPL: 0, unrealizedPL: 0, hasRealizedPL: false, hasUnrealizedPL: false };
     }
     return calculateRealizedUnrealizedPL(legs, symbolInfo.price);
   }, [legs, symbolInfo.price]);
@@ -1045,6 +1045,8 @@ export default function Builder() {
                   totalContracts={legs.filter(l => !l.isExcluded).reduce((sum, l) => sum + Math.abs(l.quantity), 0)}
                   realizedPL={realizedPL}
                   unrealizedPL={unrealizedPL}
+                  hasRealizedPL={hasRealizedPL}
+                  hasUnrealizedPL={hasUnrealizedPL}
                 />
               ) : (
                 <ProfitLossChart 

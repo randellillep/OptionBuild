@@ -495,9 +495,11 @@ export function calculateStrategyMetrics(
 export function calculateRealizedUnrealizedPL(
   legs: OptionLeg[],
   underlyingPrice: number
-): { realizedPL: number; unrealizedPL: number } {
+): { realizedPL: number; unrealizedPL: number; hasRealizedPL: boolean; hasUnrealizedPL: boolean } {
   let realizedPL = 0;
   let unrealizedPL = 0;
+  let hasClosingTransactions = false;
+  let hasOpenPositionsWithSavedBasis = false;
   
   for (const leg of legs) {
     // For unrealized P/L, we need to compare cost basis to current option price
@@ -531,6 +533,7 @@ export function calculateRealizedUnrealizedPL(
       for (const entry of closing.entries) {
         if (entry.isExcluded) continue;
         
+        hasClosingTransactions = true;
         const entryCostBasis = entry.openingPrice ?? costBasis;
         const entryPnl = leg.position === "long"
           ? (entry.closingPrice - entryCostBasis) * entry.quantity * 100
@@ -544,6 +547,7 @@ export function calculateRealizedUnrealizedPL(
         // Only calculate unrealized if this is a saved trade with preserved cost basis
         // For live trades where premium updates with market, unrealized is 0
         if (leg.premiumSource === 'saved') {
+          hasOpenPositionsWithSavedBasis = true;
           const remainingPnl = leg.position === "long"
             ? (currentPrice - costBasis) * remainingQty * 100
             : (costBasis - currentPrice) * remainingQty * 100;
@@ -552,6 +556,7 @@ export function calculateRealizedUnrealizedPL(
         // For non-saved trades, current price = cost basis, so unrealized = 0
       }
     } else if (closing?.isEnabled && closing.quantity > 0) {
+      hasClosingTransactions = true;
       const closedQty = Math.min(closing.quantity, leg.quantity);
       const remainingQty = leg.quantity - closedQty;
       
@@ -562,6 +567,7 @@ export function calculateRealizedUnrealizedPL(
       
       if (remainingQty > 0 && !leg.isExcluded) {
         if (leg.premiumSource === 'saved') {
+          hasOpenPositionsWithSavedBasis = true;
           const remainingPnl = leg.position === "long"
             ? (currentPrice - costBasis) * remainingQty * 100
             : (costBasis - currentPrice) * remainingQty * 100;
@@ -573,6 +579,7 @@ export function calculateRealizedUnrealizedPL(
       
       // Only calculate unrealized if this is a saved trade with preserved cost basis
       if (leg.premiumSource === 'saved') {
+        hasOpenPositionsWithSavedBasis = true;
         const legPnl = leg.position === "long"
           ? (currentPrice - costBasis) * Math.abs(leg.quantity) * 100
           : (costBasis - currentPrice) * Math.abs(leg.quantity) * 100;
@@ -582,5 +589,10 @@ export function calculateRealizedUnrealizedPL(
     }
   }
   
-  return { realizedPL, unrealizedPL };
+  return { 
+    realizedPL, 
+    unrealizedPL, 
+    hasRealizedPL: hasClosingTransactions, 
+    hasUnrealizedPL: hasOpenPositionsWithSavedBasis 
+  };
 }
