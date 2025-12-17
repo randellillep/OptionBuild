@@ -30,13 +30,13 @@ export function RangeVolatilitySliders({
           <Slider
             value={[range]}
             onValueChange={([value]) => onRangeChange(value)}
-            min={5}
+            min={1}
             max={50}
-            step={1}
+            step={0.5}
             className="flex-1"
             data-testid="slider-range"
           />
-          <span className="text-xs font-mono font-semibold w-10 text-right">±{range}%</span>
+          <span className="text-xs font-mono font-semibold w-12 text-right">±{range}%</span>
         </div>
 
         {/* Divider */}
