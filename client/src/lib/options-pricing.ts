@@ -475,3 +475,72 @@ export function calculateStrategyMetrics(
     riskRewardRatio,
   };
 }
+
+/**
+ * Calculate realized and unrealized P/L separately
+ * Realized: P/L from closed positions (actual gains/losses from sales)
+ * Unrealized: P/L from open positions (hypothetical gains/losses at current price)
+ */
+export function calculateRealizedUnrealizedPL(
+  legs: OptionLeg[],
+  underlyingPrice: number
+): { realizedPL: number; unrealizedPL: number } {
+  let realizedPL = 0;
+  let unrealizedPL = 0;
+  
+  for (const leg of legs) {
+    const intrinsicValue = leg.type === "call" 
+      ? Math.max(underlyingPrice - leg.strike, 0)
+      : Math.max(leg.strike - underlyingPrice, 0);
+    
+    const premium = Math.abs(leg.premium);
+    const closing = leg.closingTransaction;
+    
+    if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
+      const allClosedQty = closing.entries.reduce((sum, e) => sum + e.quantity, 0);
+      
+      for (const entry of closing.entries) {
+        if (entry.isExcluded) continue;
+        
+        const entryCostBasis = entry.openingPrice ?? premium;
+        const entryPnl = leg.position === "long"
+          ? (entry.closingPrice - entryCostBasis) * entry.quantity * 100
+          : (entryCostBasis - entry.closingPrice) * entry.quantity * 100;
+        
+        realizedPL += entryPnl;
+      }
+      
+      const remainingQty = leg.quantity - allClosedQty;
+      if (remainingQty > 0 && !leg.isExcluded) {
+        const remainingPnl = leg.position === "long"
+          ? (intrinsicValue - premium) * remainingQty * 100
+          : (premium - intrinsicValue) * remainingQty * 100;
+        unrealizedPL += remainingPnl;
+      }
+    } else if (closing?.isEnabled && closing.quantity > 0) {
+      const closedQty = Math.min(closing.quantity, leg.quantity);
+      const remainingQty = leg.quantity - closedQty;
+      
+      const closedPnl = leg.position === "long"
+        ? (closing.closingPrice - premium) * closedQty * 100
+        : (premium - closing.closingPrice) * closedQty * 100;
+      realizedPL += closedPnl;
+      
+      if (remainingQty > 0 && !leg.isExcluded) {
+        const remainingPnl = leg.position === "long"
+          ? (intrinsicValue - premium) * remainingQty * 100
+          : (premium - intrinsicValue) * remainingQty * 100;
+        unrealizedPL += remainingPnl;
+      }
+    } else {
+      if (leg.isExcluded) continue;
+      
+      const legPnl = leg.position === "long"
+        ? (intrinsicValue - premium) * Math.abs(leg.quantity) * 100
+        : (premium - intrinsicValue) * Math.abs(leg.quantity) * 100;
+      unrealizedPL += legPnl;
+    }
+  }
+  
+  return { realizedPL, unrealizedPL };
+}

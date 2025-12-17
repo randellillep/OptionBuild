@@ -26,7 +26,7 @@ import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation, useSearch } from "wouter";
 import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 import { useOptionsChain } from "@/hooks/useOptionsChain";
-import { calculateImpliedVolatility, calculateOptionPrice } from "@/lib/options-pricing";
+import { calculateImpliedVolatility, calculateOptionPrice, calculateRealizedUnrealizedPL } from "@/lib/options-pricing";
 import { useAuth } from "@/hooks/useAuth";
 
 // Helper to deep copy a leg, preserving immutable closingTransaction entries
@@ -81,6 +81,14 @@ export default function Builder() {
 
   const volatilityPercent = Math.round(volatility * 100);
   const calculatedIVPercent = Math.round(calculatedIV * 100);
+  
+  // Calculate realized and unrealized P/L
+  const { realizedPL, unrealizedPL } = useMemo(() => {
+    if (!symbolInfo.price || legs.length === 0) {
+      return { realizedPL: 0, unrealizedPL: 0 };
+    }
+    return calculateRealizedUnrealizedPL(legs, symbolInfo.price);
+  }, [legs, symbolInfo.price]);
   
   const handleVolatilityChange = (percent: number) => {
     setVolatility(percent / 100);
@@ -1035,6 +1043,8 @@ export default function Builder() {
                   commissionSettings={commissionSettings}
                   numTrades={legs.filter(l => !l.isExcluded).length}
                   totalContracts={legs.filter(l => !l.isExcluded).reduce((sum, l) => sum + Math.abs(l.quantity), 0)}
+                  realizedPL={realizedPL}
+                  unrealizedPL={unrealizedPL}
                 />
               ) : (
                 <ProfitLossChart 
