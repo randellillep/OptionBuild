@@ -198,9 +198,13 @@ export function calculateProfitLoss(
         // Skip excluded entries for P/L calculation (but they still count toward closed quantity)
         if (entry.isExcluded) continue;
         
+        // Use entry's IMMUTABLE openingPrice (cost basis captured at close time)
+        // Fall back to leg.premium only for legacy entries that don't have openingPrice
+        const entryCostBasis = entry.openingPrice ?? premium;
+        
         const entryPnl = leg.position === "long"
-          ? (entry.closingPrice - premium) * entry.quantity * 100
-          : (premium - entry.closingPrice) * entry.quantity * 100;
+          ? (entry.closingPrice - entryCostBasis) * entry.quantity * 100
+          : (entryCostBasis - entry.closingPrice) * entry.quantity * 100;
         
         totalClosedPnl += entryPnl;
       }
@@ -295,9 +299,13 @@ export function calculateProfitLossAtDate(
         // Skip excluded entries for P/L calculation (but they still count toward closed quantity)
         if (entry.isExcluded) continue;
         
+        // Use entry's IMMUTABLE openingPrice (cost basis captured at close time)
+        // Fall back to leg.premium only for legacy entries that don't have openingPrice
+        const entryCostBasis = entry.openingPrice ?? premium;
+        
         const entryPnl = leg.position === "long"
-          ? (entry.closingPrice - premium) * entry.quantity * 100
-          : (premium - entry.closingPrice) * entry.quantity * 100;
+          ? (entry.closingPrice - entryCostBasis) * entry.quantity * 100
+          : (entryCostBasis - entry.closingPrice) * entry.quantity * 100;
         
         totalClosedPnl += entryPnl;
       }
@@ -381,9 +389,13 @@ export function calculateStrategyMetrics(
       for (const entry of closing.entries) {
         if (entry.isExcluded) continue;
         
+        // Use entry's IMMUTABLE openingPrice (cost basis captured at close time)
+        // Fall back to leg.premium only for legacy entries that don't have openingPrice
+        const entryCostBasis = entry.openingPrice ?? premium;
+        
         const entryPremiumEffect = leg.position === "long"
-          ? (-premium * entry.quantity + entry.closingPrice * entry.quantity) * 100
-          : (premium * entry.quantity - entry.closingPrice * entry.quantity) * 100;
+          ? (-entryCostBasis * entry.quantity + entry.closingPrice * entry.quantity) * 100
+          : (entryCostBasis * entry.quantity - entry.closingPrice * entry.quantity) * 100;
         
         closedPremiumEffect += entryPremiumEffect;
       }
