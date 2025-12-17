@@ -331,7 +331,7 @@ export function PLHeatmap({
                     }`}
                     data-testid={`percent-${strike.toFixed(2)}`}
                   >
-                    {percentChange >= 0 ? '+' : ''}{Math.abs(percentChange) < 1 ? percentChange.toFixed(2) : percentChange.toFixed(1)}%
+                    {Math.abs(percentChange) < 1 ? percentChange.toFixed(2) : percentChange.toFixed(1)}%
                   </td>
                   {row.map((cell, colIdx) => {
                     const adjustedPnl = adjustPnl(cell.pnl);
