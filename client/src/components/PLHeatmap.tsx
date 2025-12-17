@@ -235,7 +235,7 @@ export function PLHeatmap({
                 <th 
                   colSpan={2} 
                   rowSpan={1}
-                  className="text-[10px] font-semibold text-center p-1 border-b border-border bg-background"
+                  className="text-[10px] font-semibold text-center p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
                   style={{ width: '80px' }}
                 />
                 {dateGroups.map((group, idx) => (
@@ -243,7 +243,7 @@ export function PLHeatmap({
                     key={idx}
                     colSpan={group.count}
                     scope="colgroup"
-                    className="text-[10px] font-bold text-center p-1 border-b border-border bg-muted/50"
+                    className="text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200"
                     data-testid={`header-dategroup-${idx}`}
                   >
                     {group.dateLabel}
@@ -254,14 +254,14 @@ export function PLHeatmap({
             {/* Time/day column row */}
             <tr>
               <th 
-                className="text-[11px] font-semibold text-left p-1 border-b border-border sticky left-0 bg-background z-10"
+                className="text-[11px] font-semibold text-left p-1 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
                 scope="col"
                 style={{ width: '50px' }}
               >
                 Strike
               </th>
               <th 
-                className="text-[11px] font-semibold text-right p-1 border-b border-border bg-background"
+                className="text-[11px] font-semibold text-right p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
                 scope="col"
                 style={{ width: '30px' }}
               >
@@ -271,7 +271,7 @@ export function PLHeatmap({
                 <th
                   key={idx}
                   scope="col"
-                  className={`text-[11px] font-semibold text-center p-1 border-b border-border bg-background ${
+                  className={`text-[11px] font-semibold text-center p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
                     isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
                   }`}
                   data-testid={`header-time-${idx}`}
@@ -296,18 +296,23 @@ export function PLHeatmap({
                 ? strike.toFixed(2) 
                 : strike.toFixed(0);
               
+              // Current price row gets a dashed border to mark it
+              const currentPriceRowStyle = isNearCurrent 
+                ? 'border-t-2 border-t-white/70 border-dashed' 
+                : '';
+              
               return (
-                <tr key={rowIdx} className="h-[24px]">
+                <tr key={rowIdx} className={`h-[24px] ${currentPriceRowStyle}`}>
                   <td
-                    className={`text-[11px] font-mono font-semibold p-1 border-b border-border sticky left-0 bg-background z-10 whitespace-nowrap ${
-                      isNearCurrent ? 'text-foreground dark:text-white' : ''
+                    className={`text-[11px] font-mono font-semibold p-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
+                      isNearCurrent ? 'text-foreground dark:text-white font-bold' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
                   >
                     ${strikeDisplay}
                   </td>
                   <td
-                    className={`text-[11px] font-mono text-right p-1 border-b border-border bg-background ${
+                    className={`text-[11px] font-mono text-right p-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
                       percentChange > 0 ? 'text-green-600 dark:text-green-400' : 
                       percentChange < 0 ? 'text-red-600 dark:text-red-400' : 
                       'text-muted-foreground'
