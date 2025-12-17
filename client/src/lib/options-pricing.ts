@@ -259,17 +259,21 @@ export function calculateProfitLossAtDate(
   legs: OptionLeg[],
   underlyingPrice: number,
   atPrice: number,
-  daysToExpiration: number,
+  daysFromNow: number,
   volatility: number = 0.3,
   riskFreeRate: number = 0.05
 ): number {
   let pnl = 0;
   
   for (const leg of legs) {
-    const daysRemaining = Math.max(0, daysToExpiration);
+    // Calculate remaining days to expiration from the given point in time
+    // daysFromNow = 0 means today, so we have leg.expirationDays remaining
+    // daysFromNow = 5 means 5 days from now, so we have leg.expirationDays - 5 remaining
+    const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
     
     let optionValue: number;
     if (daysRemaining <= 0) {
+      // At or past expiration - use intrinsic value
       optionValue = leg.type === "call" 
         ? Math.max(atPrice - leg.strike, 0)
         : Math.max(leg.strike - atPrice, 0);
