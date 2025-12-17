@@ -236,7 +236,7 @@ export function PLHeatmap({
                   colSpan={2} 
                   rowSpan={1}
                   className="text-[10px] font-semibold text-center p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
-                  style={{ width: '80px' }}
+                  style={{ width: '105px' }}
                 />
                 {dateGroups.map((group, idx) => (
                   <th
@@ -254,16 +254,16 @@ export function PLHeatmap({
             {/* Time/day column row */}
             <tr>
               <th 
-                className="text-[11px] font-semibold text-left p-1 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
+                className="text-[11px] font-semibold text-left px-2 py-1 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
                 scope="col"
-                style={{ width: '50px' }}
+                style={{ width: '60px' }}
               >
                 Strike
               </th>
               <th 
-                className="text-[11px] font-semibold text-right p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
+                className="text-[11px] font-semibold text-right pl-3 pr-2 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
                 scope="col"
-                style={{ width: '30px' }}
+                style={{ width: '45px' }}
               >
                 %
               </th>
@@ -316,7 +316,7 @@ export function PLHeatmap({
               return (
                 <tr key={rowIdx} className={`h-[24px] ${currentPriceRowStyle}`}>
                   <td
-                    className={`text-[11px] font-mono font-semibold p-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[11px] font-mono font-semibold px-2 py-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
                       isClosestToCurrentPrice ? 'text-foreground dark:text-white font-bold' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
@@ -324,7 +324,7 @@ export function PLHeatmap({
                     ${strikeDisplay}
                   </td>
                   <td
-                    className={`text-[11px] font-mono text-right p-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[11px] font-mono text-right pl-3 pr-2 py-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
                       percentChange > 0 ? 'text-green-600 dark:text-green-400' : 
                       percentChange < 0 ? 'text-red-600 dark:text-red-400' : 
                       'text-muted-foreground'
