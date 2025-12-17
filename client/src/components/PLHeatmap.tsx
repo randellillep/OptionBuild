@@ -290,18 +290,21 @@ export function PLHeatmap({
               const percentChange = ((strike - currentPrice) / currentPrice) * 100;
               const isNearCurrent = Math.abs(strike - currentPrice) < (currentPrice * 0.02);
               
+              // Format strike price: show 2 decimals if value has meaningful decimals, otherwise show whole number
+              const hasDecimals = strike % 1 !== 0;
+              const strikeDisplay = hasDecimals || strike < 10 
+                ? strike.toFixed(2) 
+                : strike.toFixed(0);
+              
               return (
                 <tr key={rowIdx} className="h-[24px]">
                   <td
                     className={`text-[11px] font-mono font-semibold p-1 border-b border-border sticky left-0 bg-background z-10 whitespace-nowrap ${
-                      isNearCurrent ? 'text-primary' : ''
+                      isNearCurrent ? 'text-foreground dark:text-white' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
                   >
-                    ${strike < 10 ? strike.toFixed(2) : strike.toFixed(0)}
-                    {isNearCurrent && (
-                      <span className="ml-0.5 text-[9px] text-primary font-bold">ATM</span>
-                    )}
+                    ${strikeDisplay}
                   </td>
                   <td
                     className={`text-[11px] font-mono text-right p-1 border-b border-border bg-background ${
