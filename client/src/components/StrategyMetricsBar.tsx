@@ -48,7 +48,7 @@ export function StrategyMetricsBar({ metrics, realizedPL = 0, unrealizedPL = 0 }
         </span>
       </div>
 
-      {realizedPL !== 0 && (
+      {Math.abs(realizedPL) >= 0.01 && (
         <div className="flex items-center gap-1">
           <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
           <span className="text-muted-foreground">Realized:</span>
@@ -58,7 +58,7 @@ export function StrategyMetricsBar({ metrics, realizedPL = 0, unrealizedPL = 0 }
         </div>
       )}
 
-      {unrealizedPL !== 0 && (
+      {Math.abs(unrealizedPL) >= 0.01 && (
         <div className="flex items-center gap-1">
           <Clock className="h-3.5 w-3.5 text-amber-500" />
           <span className="text-muted-foreground">Unrealized:</span>
