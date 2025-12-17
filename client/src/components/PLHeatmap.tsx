@@ -298,7 +298,7 @@ export function PLHeatmap({
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
                   >
-                    ${strike.toFixed(0)}
+                    ${strike < 10 ? strike.toFixed(2) : strike.toFixed(0)}
                     {isNearCurrent && (
                       <span className="ml-0.5 text-[9px] text-primary font-bold">ATM</span>
                     )}
@@ -311,7 +311,7 @@ export function PLHeatmap({
                     }`}
                     data-testid={`percent-${strike.toFixed(2)}`}
                   >
-                    {percentChange >= 0 ? '+' : ''}{percentChange.toFixed(0)}%
+                    {percentChange >= 0 ? '+' : ''}{Math.abs(percentChange) < 1 ? percentChange.toFixed(2) : percentChange.toFixed(1)}%
                   </td>
                   {row.map((cell, colIdx) => {
                     const adjustedPnl = adjustPnl(cell.pnl);
@@ -341,13 +341,13 @@ export function PLHeatmap({
           <Slider
             value={[range]}
             onValueChange={(v) => onRangeChange(v[0])}
-            min={5}
+            min={0.1}
             max={50}
-            step={1}
+            step={0.1}
             className="flex-1"
             data-testid="slider-range"
           />
-          <span className="font-mono w-8 text-right">±{range}%</span>
+          <span className="font-mono w-12 text-right">±{range.toFixed(1)}%</span>
         </div>
         <div className="flex items-center gap-1.5 flex-1">
           <span className="text-muted-foreground whitespace-nowrap">IV</span>
