@@ -544,16 +544,13 @@ export function calculateRealizedUnrealizedPL(
       
       const remainingQty = leg.quantity - allClosedQty;
       if (remainingQty > 0 && !leg.isExcluded) {
-        // Only calculate unrealized if this is a saved trade with preserved cost basis
-        // For live trades where premium updates with market, unrealized is 0
-        if (leg.premiumSource === 'saved') {
-          hasOpenPositionsWithSavedBasis = true;
-          const remainingPnl = leg.position === "long"
-            ? (currentPrice - costBasis) * remainingQty * 100
-            : (costBasis - currentPrice) * remainingQty * 100;
-          unrealizedPL += remainingPnl;
-        }
-        // For non-saved trades, current price = cost basis, so unrealized = 0
+        // Calculate unrealized for remaining positions
+        // Use the cost basis from the leg (which user may have edited)
+        hasOpenPositionsWithSavedBasis = true;
+        const remainingPnl = leg.position === "long"
+          ? (currentPrice - costBasis) * remainingQty * 100
+          : (costBasis - currentPrice) * remainingQty * 100;
+        unrealizedPL += remainingPnl;
       }
     } else if (closing?.isEnabled && closing.quantity > 0) {
       hasClosingTransactions = true;
@@ -566,13 +563,12 @@ export function calculateRealizedUnrealizedPL(
       realizedPL += closedPnl;
       
       if (remainingQty > 0 && !leg.isExcluded) {
-        if (leg.premiumSource === 'saved') {
-          hasOpenPositionsWithSavedBasis = true;
-          const remainingPnl = leg.position === "long"
-            ? (currentPrice - costBasis) * remainingQty * 100
-            : (costBasis - currentPrice) * remainingQty * 100;
-          unrealizedPL += remainingPnl;
-        }
+        // Calculate unrealized for remaining positions
+        hasOpenPositionsWithSavedBasis = true;
+        const remainingPnl = leg.position === "long"
+          ? (currentPrice - costBasis) * remainingQty * 100
+          : (costBasis - currentPrice) * remainingQty * 100;
+        unrealizedPL += remainingPnl;
       }
     } else {
       if (leg.isExcluded) continue;
