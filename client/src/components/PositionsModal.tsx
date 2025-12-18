@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HelpCircle, Ban } from "lucide-react";
 import type { OptionLeg, ClosingEntry } from "@shared/schema";
+import { calculateOptionPrice } from "@/lib/options-pricing";
 
 export interface CommissionSettings {
   perTrade: number;
@@ -31,6 +32,9 @@ interface OpenPosition {
   action: string; // BTO or STO
   costBasis: number;
   symbol: string;
+  plOpen: number; // P/L Open - current profit/loss
+  netLiq: number; // Net Liquidating Value - current market value
+  hasPricing: boolean; // Whether we have saved cost basis for P/L calculation
 }
 
 interface ClosedPosition {
@@ -107,15 +111,50 @@ export function PositionsModal({
       // STO = Sell To Open (short position)
       const action = leg.position === "long" ? "BTO" : "STO";
       
-      // Cost basis for open positions
-      const costBasis = leg.premium * remainingQty * 100;
+      // Cost basis for open positions (per contract price)
+      const costBasisPerContract = leg.premium;
+      const costBasis = costBasisPerContract * remainingQty * 100;
+      
+      // Calculate current option price using Black-Scholes for Net Liq and P/L
+      const daysToExpiry = leg.expirationDays || 30;
+      const volatility = leg.impliedVolatility || 0.30; // Use saved IV or default
+      const riskFreeRate = 0.05;
+      
+      const currentOptionPrice = calculateOptionPrice(
+        leg.type as "call" | "put",
+        currentPrice,
+        leg.strike,
+        daysToExpiry,
+        volatility,
+        riskFreeRate
+      );
+      
+      // Net Liq = current market value of the position
+      // For long: positive value (you own the option)
+      // For short: negative value (you owe the option)
+      const netLiq = leg.position === "long" 
+        ? currentOptionPrice * remainingQty * 100
+        : -currentOptionPrice * remainingQty * 100;
+      
+      // P/L Open = difference between current value and cost basis
+      // For long: (current price - cost basis) * qty * 100
+      // For short: (cost basis - current price) * qty * 100
+      const hasPricing = leg.premiumSource === 'saved' || leg.premiumSource === 'manual';
+      const plOpen = hasPricing
+        ? (leg.position === "long"
+            ? (currentOptionPrice - costBasisPerContract) * remainingQty * 100
+            : (costBasisPerContract - currentOptionPrice) * remainingQty * 100)
+        : 0;
 
       return {
         leg,
         remainingQty,
         action,
         costBasis,
-        symbol // Use the passed symbol for now
+        symbol,
+        plOpen,
+        netLiq,
+        hasPricing
       };
     })
     .filter((p): p is OpenPosition => p !== null);
@@ -222,6 +261,15 @@ export function PositionsModal({
                 )}
               </div>
 
+              {/* Column headers for P/L and Net Liq */}
+              {openPositions.length > 0 && (
+                <div className="flex items-center gap-2 mb-1 px-2">
+                  <div className="flex-1" />
+                  <div className="text-xs text-muted-foreground font-medium w-16 text-right">P/L</div>
+                  <div className="text-xs text-muted-foreground font-medium w-16 text-right">NET</div>
+                </div>
+              )}
+
               {/* Open positions list */}
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {openPositions.length === 0 && excludedLegs.length === 0 ? (
@@ -254,6 +302,22 @@ export function PositionsModal({
                           </span>
                           <span className="text-muted-foreground ml-1">
                             at {pos.leg.premium.toFixed(2)}
+                          </span>
+                        </div>
+                        {/* P/L Open */}
+                        <div className="w-16 text-right text-sm">
+                          {pos.hasPricing ? (
+                            <span className={pos.plOpen >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}>
+                              {formatGain(pos.plOpen)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </div>
+                        {/* Net Liq */}
+                        <div className="w-16 text-right text-sm">
+                          <span className={pos.netLiq >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}>
+                            ${Math.abs(pos.netLiq).toFixed(0)}
                           </span>
                         </div>
                       </div>
