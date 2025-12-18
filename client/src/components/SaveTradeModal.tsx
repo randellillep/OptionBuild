@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Info, Copy, Check } from "lucide-react";
 import type { OptionLeg } from "@shared/schema";
 
@@ -109,55 +111,51 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
     }
   };
 
-  const handleSave = () => {
-    setIsSaving(true);
-    
-    try {
-      const tradeData = {
-        name: tradeName || generateDefaultName(),
-        description,
-        group,
-        symbol: symbolInfo.symbol,
-        price: symbolInfo.price,
-        legs,
-        expirationDate: selectedExpirationDate,
-        savedAt: new Date().toISOString(),
-      };
-
-      let savedTrades: unknown[] = [];
-      try {
-        const stored = localStorage.getItem('savedTrades');
-        if (stored) {
-          savedTrades = JSON.parse(stored);
-          if (!Array.isArray(savedTrades)) {
-            savedTrades = [];
-          }
-        }
-      } catch {
-        savedTrades = [];
-      }
-
-      savedTrades.push({ id: Date.now().toString(), ...tradeData });
-      localStorage.setItem('savedTrades', JSON.stringify(savedTrades));
-
+  const saveMutation = useMutation({
+    mutationFn: async (tradeData: {
+      name: string;
+      description: string;
+      tradeGroup: string;
+      symbol: string;
+      price: number;
+      legs: OptionLeg[];
+      expirationDate: string | null;
+    }) => {
+      const response = await apiRequest('POST', '/api/trades', tradeData);
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trades'] });
       toast({
         title: "Trade saved",
-        description: `"${tradeData.name}" has been saved to your trades.`,
+        description: `"${variables.name}" has been saved to your trades.`,
       });
-
       setTradeName("");
       setDescription("");
       setGroup("all");
       onClose();
-    } catch (error) {
+    },
+    onError: () => {
       toast({
         title: "Error saving trade",
         description: "There was a problem saving your trade. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsSaving(false);
-    }
+    },
+  });
+
+  const handleSave = () => {
+    const tradeData = {
+      name: tradeName || generateDefaultName(),
+      description,
+      tradeGroup: group,
+      symbol: symbolInfo.symbol,
+      price: symbolInfo.price,
+      legs,
+      expirationDate: selectedExpirationDate,
+    };
+
+    saveMutation.mutate(tradeData);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -301,10 +299,10 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
 
           <Button
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={saveMutation.isPending}
             data-testid="button-save-trade-confirm"
           >
-            {isSaving ? "Saving..." : "Save trade"}
+            {saveMutation.isPending ? "Saving..." : "Save trade"}
           </Button>
         </div>
       </DialogContent>

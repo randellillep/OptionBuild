@@ -1,62 +1,40 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Footer } from "@/components/Footer";
 import { TrendingUp, Download, Star, Settings, ArrowLeft, Trash2 } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { OptionLeg } from "@shared/schema";
-
-interface SavedTrade {
-  id: string;
-  name: string;
-  description?: string;
-  group: string;
-  symbol: string;
-  price: number;
-  legs: OptionLeg[];
-  expirationDate: string | null;
-  savedAt: string;
-}
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { OptionLeg, SavedTrade } from "@shared/schema";
 
 export default function SavedTrades() {
   const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
-  const [trades, setTrades] = useState<SavedTrade[]>([]);
   const [group, setGroup] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [showFilter, setShowFilter] = useState("active");
 
-  useEffect(() => {
-    loadTrades();
-  }, []);
+  const { data: trades = [], isLoading } = useQuery<SavedTrade[]>({
+    queryKey: ['/api/trades'],
+    enabled: isAuthenticated,
+  });
 
-  const loadTrades = () => {
-    try {
-      const stored = localStorage.getItem('savedTrades');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setTrades(parsed);
-        }
-      }
-    } catch {
-      setTrades([]);
-    }
-  };
+  const deleteMutation = useMutation({
+    mutationFn: async (tradeId: string) => {
+      await apiRequest('DELETE', `/api/trades/${tradeId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trades'] });
+    },
+  });
 
   const deleteTrade = (tradeId: string) => {
-    try {
-      const updatedTrades = trades.filter(t => t.id !== tradeId);
-      localStorage.setItem('savedTrades', JSON.stringify(updatedTrades));
-      setTrades(updatedTrades);
-    } catch {
-      // Silent fail
-    }
+    deleteMutation.mutate(tradeId);
   };
 
   const getDaysUntilExpiration = (expirationDate: string | null): { days: number; dateStr: string } | null => {
@@ -69,8 +47,9 @@ export default function SavedTrades() {
     return { days: diffDays, dateStr };
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const formatDate = (dateVal: Date | string | null | undefined) => {
+    if (!dateVal) return "N/A";
+    const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric', 
@@ -96,7 +75,7 @@ export default function SavedTrades() {
   };
 
   const filteredTrades = trades
-    .filter(trade => group === "all" || trade.group === group)
+    .filter(trade => group === "all" || trade.tradeGroup === group)
     .filter(trade => {
       if (showFilter === "all") return true;
       if (showFilter === "active") {
@@ -107,7 +86,9 @@ export default function SavedTrades() {
     })
     .sort((a, b) => {
       if (sortBy === "date") {
-        return new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime();
+        const dateA = a.savedAt ? new Date(a.savedAt).getTime() : 0;
+        const dateB = b.savedAt ? new Date(b.savedAt).getTime() : 0;
+        return dateB - dateA;
       }
       return a.name.localeCompare(b.name);
     });
@@ -118,9 +99,9 @@ export default function SavedTrades() {
       ...filteredTrades.map(t => [
         `"${t.name}"`,
         t.symbol,
-        t.group,
+        t.tradeGroup || "all",
         t.expirationDate || "N/A",
-        t.savedAt
+        t.savedAt ? new Date(t.savedAt).toISOString() : ""
       ].join(","))
     ].join("\n");
     
