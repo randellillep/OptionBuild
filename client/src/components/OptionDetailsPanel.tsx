@@ -345,6 +345,12 @@ export function OptionDetailsPanel({
     (leg.closingTransaction?.closingPrice || marketData?.ask || leg.premium).toFixed(2)
   );
   const closingPriceEditingRef = useRef(false);
+  
+  // State for editing prices in closed view
+  const [editingClosedOpenPrice, setEditingClosedOpenPrice] = useState(false);
+  const [editingClosedClosePrice, setEditingClosedClosePrice] = useState(false);
+  const [closedOpenPriceText, setClosedOpenPriceText] = useState("");
+  const [closedClosePriceText, setClosedClosePriceText] = useState("");
 
   // Sync closing transaction state with leg - but DON'T auto-open the section
   useEffect(() => {
@@ -709,11 +715,115 @@ export function OptionDetailsPanel({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <label className="text-xs font-medium text-muted-foreground">{openPriceLabel}</label>
-              <div className="font-mono font-semibold">${displayCostBasis.toFixed(2)}</div>
+              {editingClosedOpenPrice && selectedClosedEntry ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-mono">$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={closedOpenPriceText}
+                    onChange={(e) => setClosedOpenPriceText(e.target.value)}
+                    onBlur={() => {
+                      const price = parseFloat(closedOpenPriceText);
+                      if (!isNaN(price) && price >= 0 && selectedClosedEntry && onUpdateLeg) {
+                        const updatedEntries = (leg.closingTransaction?.entries || []).map(entry => 
+                          entry.id === selectedClosedEntry.id 
+                            ? { ...entry, openingPrice: price }
+                            : entry
+                        );
+                        onUpdateLeg({
+                          closingTransaction: {
+                            ...leg.closingTransaction!,
+                            entries: updatedEntries
+                          }
+                        });
+                      }
+                      setEditingClosedOpenPrice(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                      if (e.key === 'Escape') setEditingClosedOpenPrice(false);
+                    }}
+                    autoFocus
+                    className="w-16 h-6 px-1 text-sm font-mono font-semibold rounded border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    data-testid="input-closed-open-price"
+                  />
+                </div>
+              ) : selectedClosedEntry ? (
+                <div 
+                  className="font-mono font-semibold cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1"
+                  onClick={() => {
+                    setClosedOpenPriceText(displayCostBasis.toFixed(2));
+                    setEditingClosedOpenPrice(true);
+                  }}
+                  data-testid="text-closed-open-price"
+                >
+                  ${displayCostBasis.toFixed(2)}
+                </div>
+              ) : (
+                <div className="font-mono font-semibold" data-testid="text-closed-open-price">
+                  ${displayCostBasis.toFixed(2)}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">{closePriceLabel}</label>
-              <div className="font-mono font-semibold">${closePrice.toFixed(2)}</div>
+              {editingClosedClosePrice && selectedClosedEntry ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-mono">$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={closedClosePriceText}
+                    onChange={(e) => setClosedClosePriceText(e.target.value)}
+                    onBlur={() => {
+                      const price = parseFloat(closedClosePriceText);
+                      if (!isNaN(price) && price >= 0 && selectedClosedEntry && onUpdateLeg) {
+                        const updatedEntries = (leg.closingTransaction?.entries || []).map(entry => 
+                          entry.id === selectedClosedEntry.id 
+                            ? { ...entry, closingPrice: price }
+                            : entry
+                        );
+                        const activeEntries = updatedEntries.filter(e => !e.isExcluded);
+                        const totalActiveQty = activeEntries.reduce((sum, e) => sum + e.quantity, 0);
+                        const weightedAvgPrice = totalActiveQty > 0 
+                          ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
+                          : 0;
+                        onUpdateLeg({
+                          closingTransaction: {
+                            ...leg.closingTransaction!,
+                            closingPrice: weightedAvgPrice,
+                            entries: updatedEntries
+                          }
+                        });
+                      }
+                      setEditingClosedClosePrice(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                      if (e.key === 'Escape') setEditingClosedClosePrice(false);
+                    }}
+                    autoFocus
+                    className="w-16 h-6 px-1 text-sm font-mono font-semibold rounded border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    data-testid="input-closed-close-price"
+                  />
+                </div>
+              ) : selectedClosedEntry ? (
+                <div 
+                  className="font-mono font-semibold cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1"
+                  onClick={() => {
+                    setClosedClosePriceText(closePrice.toFixed(2));
+                    setEditingClosedClosePrice(true);
+                  }}
+                  data-testid="text-closed-close-price"
+                >
+                  ${closePrice.toFixed(2)}
+                </div>
+              ) : (
+                <div className="font-mono font-semibold" data-testid="text-closed-close-price">
+                  ${closePrice.toFixed(2)}
+                </div>
+              )}
             </div>
           </div>
 

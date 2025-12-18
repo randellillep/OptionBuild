@@ -18,11 +18,17 @@ interface OptionLegEditorProps {
 export function OptionLegEditor({ leg, onUpdate, onRemove, underlyingPrice }: OptionLegEditorProps) {
   const [costBasisOpen, setCostBasisOpen] = useState(false);
   const [editedCostBasis, setEditedCostBasis] = useState<string>(leg.premium.toFixed(2));
+  const [editedQuantity, setEditedQuantity] = useState<string>(leg.quantity.toString());
 
   // Sync editedCostBasis with leg.premium when it changes externally (e.g., from drag or market refresh)
   useEffect(() => {
     setEditedCostBasis(leg.premium.toFixed(2));
   }, [leg.premium]);
+  
+  // Sync editedQuantity with leg.quantity when it changes externally
+  useEffect(() => {
+    setEditedQuantity(leg.quantity.toString());
+  }, [leg.quantity]);
   
   const isCall = leg.type === "call";
   const isLong = leg.position === "long";
@@ -37,14 +43,16 @@ export function OptionLegEditor({ leg, onUpdate, onRemove, underlyingPrice }: Op
 
   const handleCostBasisSave = () => {
     const newPremium = parseFloat(editedCostBasis);
-    if (!isNaN(newPremium) && newPremium >= 0) {
-      onUpdate({ ...leg, premium: newPremium, premiumSource: 'manual' as const });
+    const newQuantity = parseInt(editedQuantity) || 1;
+    if (!isNaN(newPremium) && newPremium >= 0 && newQuantity >= 1) {
+      onUpdate({ ...leg, premium: newPremium, quantity: newQuantity, premiumSource: 'manual' as const });
       setCostBasisOpen(false);
     }
   };
 
   const handleCostBasisReset = () => {
     setEditedCostBasis(leg.premium.toFixed(2));
+    setEditedQuantity(leg.quantity.toString());
     onUpdate({ ...leg, premiumSource: 'market' as const });
     setCostBasisOpen(false);
   };
@@ -87,28 +95,45 @@ export function OptionLegEditor({ leg, onUpdate, onRemove, underlyingPrice }: Op
                 </p>
               </div>
               
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Cost Basis (per contract)</Label>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono">$</span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Quantity</Label>
                   <Input
                     type="number"
-                    value={editedCostBasis}
-                    onChange={(e) => setEditedCostBasis(e.target.value)}
+                    value={editedQuantity}
+                    onChange={(e) => setEditedQuantity(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleCostBasisSave();
                       if (e.key === 'Escape') setCostBasisOpen(false);
                     }}
                     className="h-9 font-mono"
-                    step="0.01"
-                    min="0"
-                    data-testid={`input-cost-basis-${leg.id}`}
+                    min="1"
+                    data-testid={`input-quantity-edit-${leg.id}`}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Total: ${(parseFloat(editedCostBasis) * leg.quantity * 100 || 0).toFixed(2)} ({leg.quantity} × 100 shares)
-                </p>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Cost Basis</Label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-mono">$</span>
+                    <Input
+                      type="number"
+                      value={editedCostBasis}
+                      onChange={(e) => setEditedCostBasis(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCostBasisSave();
+                        if (e.key === 'Escape') setCostBasisOpen(false);
+                      }}
+                      className="h-9 font-mono"
+                      step="0.01"
+                      min="0"
+                      data-testid={`input-cost-basis-${leg.id}`}
+                    />
+                  </div>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Total: ${(parseFloat(editedCostBasis) * (parseInt(editedQuantity) || 1) * 100 || 0).toFixed(2)} ({parseInt(editedQuantity) || 1} × 100 shares)
+              </p>
 
               <div className="flex justify-between gap-2 pt-2">
                 <Button
