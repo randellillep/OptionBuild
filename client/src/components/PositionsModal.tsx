@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Ban } from "lucide-react";
 import type { OptionLeg, ClosingEntry } from "@shared/schema";
 
 export interface CommissionSettings {
@@ -82,6 +82,9 @@ export function PositionsModal({
     
     onCommissionChange?.(newSettings);
   };
+
+  // Get excluded legs
+  const excludedLegs = legs.filter(leg => leg.isExcluded);
 
   // Calculate open positions (excluding excluded legs)
   const openPositions: OpenPosition[] = legs
@@ -221,39 +224,80 @@ export function PositionsModal({
 
               {/* Open positions list */}
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {openPositions.length === 0 ? (
+                {openPositions.length === 0 && excludedLegs.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     No open positions
                   </div>
                 ) : (
-                  openPositions.map((pos) => (
-                    <div 
-                      key={pos.leg.id} 
-                      className="flex items-center gap-2 py-2 px-2 rounded-md hover:bg-muted/50"
-                      data-testid={`open-position-${pos.leg.id}`}
-                    >
-                      <div className="flex-1 text-sm">
-                        <span className="font-semibold">{symbol}</span>
-                        <span className="ml-1">
-                          {formatStrike(pos.leg.strike)}{pos.leg.type === 'call' ? 'C' : 'P'}
-                        </span>
-                        {pos.leg.expirationDate && (
-                          <span className="text-muted-foreground ml-1">
-                            {formatDate(pos.leg.expirationDate)}
+                  <>
+                    {openPositions.map((pos) => (
+                      <div 
+                        key={pos.leg.id} 
+                        className="flex items-center gap-2 py-2 px-2 rounded-md hover:bg-muted/50"
+                        data-testid={`open-position-${pos.leg.id}`}
+                      >
+                        <div className="flex-1 text-sm">
+                          <span className="font-semibold">{symbol}</span>
+                          <span className="ml-1">
+                            {formatStrike(pos.leg.strike)}{pos.leg.type === 'call' ? 'C' : 'P'}
                           </span>
-                        )}
-                        <span className={`ml-2 font-medium ${pos.action === 'BTO' ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-                          {pos.action}
-                        </span>
-                        <span className="ml-1">
-                          {pos.leg.position === 'short' ? '-' : '+'}{pos.remainingQty}×
-                        </span>
-                        <span className="text-muted-foreground ml-1">
-                          at {pos.leg.premium.toFixed(2)}
-                        </span>
+                          {pos.leg.expirationDate && (
+                            <span className="text-muted-foreground ml-1">
+                              {formatDate(pos.leg.expirationDate)}
+                            </span>
+                          )}
+                          <span className={`ml-2 font-medium ${pos.action === 'BTO' ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                            {pos.action}
+                          </span>
+                          <span className="ml-1">
+                            {pos.leg.position === 'short' ? '-' : '+'}{pos.remainingQty}×
+                          </span>
+                          <span className="text-muted-foreground ml-1">
+                            at {pos.leg.premium.toFixed(2)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                    {excludedLegs.map((leg) => {
+                      const action = leg.position === "long" ? "BTO" : "STO";
+                      return (
+                        <div 
+                          key={leg.id} 
+                          className="flex items-center gap-2 py-2 px-2 rounded-md hover:bg-muted/50 opacity-60"
+                          data-testid={`excluded-position-${leg.id}`}
+                        >
+                          <div className="flex-1 text-sm">
+                            <span className="font-semibold">{symbol}</span>
+                            <span className="ml-1">
+                              {formatStrike(leg.strike)}{leg.type === 'call' ? 'C' : 'P'}
+                            </span>
+                            {leg.expirationDate && (
+                              <span className="text-muted-foreground ml-1">
+                                {formatDate(leg.expirationDate)}
+                              </span>
+                            )}
+                            <span className={`ml-2 font-medium ${action === 'BTO' ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                              {action}
+                            </span>
+                            <span className="ml-1">
+                              {leg.position === 'short' ? '-' : '+'}{leg.quantity}×
+                            </span>
+                            <span className="text-muted-foreground ml-1">
+                              at {leg.premium.toFixed(2)}
+                            </span>
+                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Ban className="h-4 w-4 text-amber-500 shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Excluded from P/L calculations</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      );
+                    })}
+                  </>
                 )}
               </div>
 
