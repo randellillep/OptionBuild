@@ -573,15 +573,15 @@ export function calculateRealizedUnrealizedPL(
     } else {
       if (leg.isExcluded) continue;
       
-      // Only calculate unrealized if this is a saved trade with preserved cost basis
-      if (leg.premiumSource === 'saved') {
+      // Only calculate unrealized if this is a saved trade with preserved cost basis OR manually edited
+      if (leg.premiumSource === 'saved' || leg.premiumSource === 'manual') {
         hasOpenPositionsWithSavedBasis = true;
         const legPnl = leg.position === "long"
           ? (currentPrice - costBasis) * Math.abs(leg.quantity) * 100
           : (costBasis - currentPrice) * Math.abs(leg.quantity) * 100;
         unrealizedPL += legPnl;
       }
-      // For non-saved trades, current price = cost basis, so unrealized = 0
+      // For non-saved trades with market prices, current price = cost basis, so unrealized = 0
     }
   }
   
