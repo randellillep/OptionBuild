@@ -990,6 +990,8 @@ export default function Builder() {
             legs={legs}
             commissionSettings={commissionSettings}
             onCommissionChange={setCommissionSettings}
+            unrealizedPL={unrealizedPL}
+            hasUnrealizedPL={hasUnrealizedPL}
             renderAddButton={() => (
               <AddLegDropdown 
                 currentPrice={symbolInfo.price} 

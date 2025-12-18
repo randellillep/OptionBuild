@@ -18,6 +18,8 @@ interface TradingViewSearchProps {
   legs?: OptionLeg[];
   commissionSettings?: CommissionSettings;
   onCommissionChange?: (settings: CommissionSettings) => void;
+  unrealizedPL?: number;
+  hasUnrealizedPL?: boolean;
 }
 
 interface SearchResult {
@@ -108,7 +110,9 @@ export function TradingViewSearch({
   legsCount = 0, 
   legs = [],
   commissionSettings,
-  onCommissionChange
+  onCommissionChange,
+  unrealizedPL = 0,
+  hasUnrealizedPL = false
 }: TradingViewSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -483,6 +487,8 @@ export function TradingViewSearch({
         currentPrice={symbolInfo.price}
         commissionSettings={commissionSettings}
         onCommissionChange={onCommissionChange}
+        unrealizedPL={unrealizedPL}
+        hasUnrealizedPL={hasUnrealizedPL}
       />
     </div>
   );

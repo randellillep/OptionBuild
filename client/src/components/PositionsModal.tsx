@@ -21,6 +21,8 @@ interface PositionsModalProps {
   currentPrice: number;
   commissionSettings?: CommissionSettings;
   onCommissionChange?: (settings: CommissionSettings) => void;
+  unrealizedPL?: number;
+  hasUnrealizedPL?: boolean;
 }
 
 interface OpenPosition {
@@ -46,7 +48,9 @@ export function PositionsModal({
   symbol, 
   currentPrice,
   commissionSettings = { perTrade: 0, perContract: 0, roundTrip: false },
-  onCommissionChange
+  onCommissionChange,
+  unrealizedPL = 0,
+  hasUnrealizedPL = false
 }: PositionsModalProps) {
   const [activeTab, setActiveTab] = useState<"open" | "closed">("open");
   const [perTrade, setPerTrade] = useState(commissionSettings.perTrade.toString());
@@ -201,12 +205,18 @@ export function PositionsModal({
             </TabsList>
 
             <TabsContent value="open" className="mt-0">
-              {/* Total unrealized gain - placeholder since we don't have live pricing */}
+              {/* Total unrealized gain */}
               <div className="mb-3 text-sm">
                 <span className="text-muted-foreground">Total unrealized gain: </span>
-                <span className="text-muted-foreground font-semibold">
-                  (requires live pricing)
-                </span>
+                {hasUnrealizedPL ? (
+                  <span className={`font-semibold ${unrealizedPL >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                    {formatGain(unrealizedPL)}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground font-semibold">
+                    (requires saved cost basis)
+                  </span>
+                )}
               </div>
 
               {/* Open positions list */}
