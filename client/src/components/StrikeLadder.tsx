@@ -324,9 +324,17 @@ export function StrikeLadder({
       // Pan moves opposite to drag direction (like dragging a map)
       const newOffset = panStartOffset - deltaPercent;
       
-      // Clamp pan offset to reasonable limits (allow panning ±50% of range)
-      const maxPanPercent = 50;
-      setPanOffset(Math.max(-maxPanPercent, Math.min(maxPanPercent, newOffset)));
+      // Calculate pan limits that keep current price visible (at least 10% from edges)
+      const edgeMargin = 10; // percentage from edge
+      // Max pan offset: current price should be at least edgeMargin% from left edge
+      // adjustedMin = strikeRange.min + (panOffset/100)*baseRange
+      // For currentPrice to be edgeMargin% from left: currentPrice = adjustedMin + (edgeMargin/100)*range
+      // panOffset = ((currentPrice - strikeRange.min) / baseRange - edgeMargin/100) * 100
+      const maxPan = ((currentPrice - strikeRange.min) / baseRange - edgeMargin/100) * 100;
+      // Min pan offset: current price should be at least edgeMargin% from right edge  
+      const minPan = ((currentPrice - strikeRange.max) / baseRange + edgeMargin/100) * 100;
+      
+      setPanOffset(Math.max(minPan, Math.min(maxPan, newOffset)));
     };
 
     const handlePointerUp = () => {
