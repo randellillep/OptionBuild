@@ -22,21 +22,32 @@ export function useStrategyEngine(rangePercent: number = 14) {
   const [legs, setLegs] = useState<OptionLeg[]>([]);
   const [hasFetchedInitialPrice, setHasFetchedInitialPrice] = useState(false);
   const prevSymbolRef = useRef<string>(symbolInfo.symbol);
+  const isLoadingSavedTradeRef = useRef<boolean>(false);
   
-  // Clear closing transactions and exclusions when symbol changes
+  // Clear closing transactions and exclusions when symbol changes via user action (not when loading saved trade)
   useEffect(() => {
     if (prevSymbolRef.current !== symbolInfo.symbol) {
-      // Symbol changed - clear all closing transactions and exclusions from legs
-      setLegs(currentLegs => 
-        currentLegs.map(leg => ({
-          ...leg,
-          closingTransaction: undefined,
-          isExcluded: false,
-        }))
-      );
+      // Skip clearing if we're loading a saved trade - we want to preserve the saved data
+      if (!isLoadingSavedTradeRef.current) {
+        // Symbol changed via user action - clear all closing transactions and exclusions from legs
+        setLegs(currentLegs => 
+          currentLegs.map(leg => ({
+            ...leg,
+            closingTransaction: undefined,
+            isExcluded: false,
+          }))
+        );
+      }
+      isLoadingSavedTradeRef.current = false; // Reset the flag after the check
       prevSymbolRef.current = symbolInfo.symbol;
     }
   }, [symbolInfo.symbol]);
+  
+  // Wrapper to set symbol when loading saved trades (skips clearing)
+  const setSymbolInfoForSavedTrade = (info: SymbolInfo) => {
+    isLoadingSavedTradeRef.current = true;
+    setSymbolInfo(info);
+  };
 
   useEffect(() => {
     if (!hasFetchedInitialPrice) {
@@ -234,6 +245,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
   return {
     symbolInfo,
     setSymbolInfo,
+    setSymbolInfoForSavedTrade,
     legs,
     setLegs,
     volatility,

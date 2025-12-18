@@ -64,6 +64,7 @@ export default function Builder() {
   const {
     symbolInfo,
     setSymbolInfo,
+    setSymbolInfoForSavedTrade,
     legs,
     setLegs,
     volatility,
@@ -115,7 +116,7 @@ export default function Builder() {
         if (savedTradeData) {
           const trade = JSON.parse(savedTradeData);
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
-            setSymbolInfo({ symbol: trade.symbol, price: trade.price || 100 });
+            setSymbolInfoForSavedTrade({ symbol: trade.symbol, price: trade.price || 100 });
             
             // Normalize legs to ensure required fields exist
             // Mark as 'saved' to preserve the original cost basis from when trade was saved
@@ -188,7 +189,7 @@ export default function Builder() {
         if (sharedData) {
           const strategy = JSON.parse(sharedData);
           if (strategy.symbol && strategy.legs && Array.isArray(strategy.legs)) {
-            setSymbolInfo({ symbol: strategy.symbol, price: strategy.price || 100 });
+            setSymbolInfoForSavedTrade({ symbol: strategy.symbol, price: strategy.price || 100 });
             
             // Normalize legs from shared format
             // Mark as 'saved' to preserve the original cost basis from when trade was shared
