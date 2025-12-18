@@ -1,6 +1,6 @@
-import { type User, type UpsertUser, type MarketOptionChainSummary, users } from "@shared/schema";
+import { type User, type UpsertUser, type MarketOptionChainSummary, type InsertSavedTrade, type SavedTrade, users, savedTrades } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 interface CachedOptionsChain {
   data: MarketOptionChainSummary;
@@ -12,6 +12,9 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   getOptionsChainCache(cacheKey: string): Promise<MarketOptionChainSummary | undefined>;
   setOptionsChainCache(cacheKey: string, data: MarketOptionChainSummary, ttlSeconds: number): Promise<void>;
+  getSavedTrades(userId: string): Promise<SavedTrade[]>;
+  createSavedTrade(trade: InsertSavedTrade): Promise<SavedTrade>;
+  deleteSavedTrade(id: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -65,6 +68,20 @@ export class DatabaseStorage implements IStorage {
         this.optionsChainCache.delete(firstKey.value);
       }
     }
+  }
+
+  async getSavedTrades(userId: string): Promise<SavedTrade[]> {
+    return await db.select().from(savedTrades).where(eq(savedTrades.userId, userId)).orderBy(desc(savedTrades.savedAt));
+  }
+
+  async createSavedTrade(trade: InsertSavedTrade): Promise<SavedTrade> {
+    const [newTrade] = await db.insert(savedTrades).values(trade).returning();
+    return newTrade;
+  }
+
+  async deleteSavedTrade(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(savedTrades).where(eq(savedTrades.id, id)).returning();
+    return result.length > 0;
   }
 }
 

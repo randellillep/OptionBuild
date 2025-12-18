@@ -30,6 +30,28 @@ export const users = pgTable("users", {
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
+// Saved trades table - stores user's saved option strategies
+export const savedTrades = pgTable("saved_trades", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  tradeGroup: varchar("trade_group").default("all"),
+  symbol: varchar("symbol").notNull(),
+  price: real("price").notNull(),
+  legs: jsonb("legs").notNull(),
+  expirationDate: varchar("expiration_date"),
+  savedAt: timestamp("saved_at").defaultNow(),
+}, (table) => [index("IDX_saved_trades_user").on(table.userId)]);
+
+export const insertSavedTradeSchema = createInsertSchema(savedTrades).omit({
+  id: true,
+  savedAt: true,
+});
+
+export type InsertSavedTrade = z.infer<typeof insertSavedTradeSchema>;
+export type SavedTrade = typeof savedTrades.$inferSelect;
+
 export type OptionType = "call" | "put";
 export type PositionType = "long" | "short";
 export type PremiumSource = "market" | "theoretical" | "manual" | "saved";
