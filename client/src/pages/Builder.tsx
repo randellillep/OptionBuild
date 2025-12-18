@@ -1081,6 +1081,7 @@ export default function Builder() {
                 volatility={volatility}
                 expirationDate={selectedExpirationDate}
                 optionsChainData={optionsChainData}
+                legs={legs}
               />
             </div>
 

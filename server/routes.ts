@@ -2,8 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import type { MarketOptionQuote, MarketOptionChainSummary, OptionType } from "@shared/schema";
+import type { MarketOptionQuote, MarketOptionChainSummary, OptionType, BacktestRequest } from "@shared/schema";
 import { setupGoogleAuth, isAuthenticated } from "./googleAuth";
+import { runBacktest } from "./backtesting";
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
@@ -721,6 +722,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(404).json({ error: "Logo not found" });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch logo" });
+    }
+  });
+
+  // Backtesting endpoint - runs strategy backtest against historical data
+  const backtestRequestSchema = z.object({
+    symbol: z.string().min(1).max(10),
+    legs: z.array(z.object({
+      id: z.string(),
+      type: z.enum(["call", "put"]),
+      position: z.enum(["long", "short"]),
+      strike: z.number().positive(),
+      quantity: z.number().int().positive(),
+      premium: z.number().min(0),
+      expirationDays: z.number().int().min(0),
+      expirationDate: z.string().optional(),
+      isExcluded: z.boolean().optional(),
+      closingTransaction: z.object({
+        quantity: z.number(),
+        closingPrice: z.number(),
+        isEnabled: z.boolean(),
+        entries: z.array(z.any()).optional(),
+      }).optional(),
+    })).min(1),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    initialVolatility: z.number().min(0.01).max(3),
+    entryPrice: z.number().positive(),
+  });
+
+  app.post("/api/backtest", async (req, res) => {
+    try {
+      const validation = backtestRequestSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid backtest request", 
+          details: validation.error.errors 
+        });
+      }
+
+      const request: BacktestRequest = validation.data as BacktestRequest;
+      
+      // Validate date range
+      const start = new Date(request.startDate);
+      const end = new Date(request.endDate);
+      const now = new Date();
+      
+      if (start >= end) {
+        return res.status(400).json({ error: "Start date must be before end date" });
+      }
+      
+      if (end > now) {
+        return res.status(400).json({ error: "End date cannot be in the future" });
+      }
+      
+      // Limit to 2 years of data
+      const maxDays = 730;
+      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff > maxDays) {
+        return res.status(400).json({ error: `Date range cannot exceed ${maxDays} days` });
+      }
+
+      console.log(`[BACKTEST] Running backtest for ${request.symbol} from ${request.startDate} to ${request.endDate}`);
+      
+      const result = await runBacktest(request);
+      
+      console.log(`[BACKTEST] Completed: ${result.dataPoints.length} data points, return: $${result.metrics.totalReturn.toFixed(2)}`);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("[BACKTEST] Error:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to run backtest" 
+      });
     }
   });
 

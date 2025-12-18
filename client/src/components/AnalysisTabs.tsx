@@ -2,9 +2,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, TrendingUp, BarChart3, FileText, PieChart, Users, Building2, ExternalLink } from "lucide-react";
-import type { Greeks, MarketOptionChainSummary } from "@shared/schema";
+import { Activity, TrendingUp, BarChart3, FileText, PieChart, Users, Building2, ExternalLink, History } from "lucide-react";
+import type { Greeks, MarketOptionChainSummary, OptionLeg } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
+import { BacktestPanel } from "./BacktestPanel";
 import { useQuery } from "@tanstack/react-query";
 import { 
   LineChart, 
@@ -74,6 +75,7 @@ interface AnalysisTabsProps {
   volatility?: number;
   expirationDate?: string | null;
   optionsChainData?: MarketOptionChainSummary;
+  legs?: OptionLeg[];
 }
 
 export function AnalysisTabs({ 
@@ -82,7 +84,8 @@ export function AnalysisTabs({
   currentPrice = 185,
   volatility = 0.30,
   expirationDate,
-  optionsChainData
+  optionsChainData,
+  legs = []
 }: AnalysisTabsProps) {
   
   // Calculate expected move based on volatility and time to expiration
@@ -237,10 +240,14 @@ export function AnalysisTabs({
 
   return (
     <Tabs defaultValue="greeks" className="w-full">
-      <TabsList className="grid w-full grid-cols-7 h-7">
+      <TabsList className="grid w-full grid-cols-8 h-7">
         <TabsTrigger value="greeks" className="text-[10px] h-6" data-testid="tab-greeks">
           <Activity className="h-2.5 w-2.5 mr-0.5" />
           Greeks
+        </TabsTrigger>
+        <TabsTrigger value="backtest" className="text-[10px] h-6" data-testid="tab-backtest">
+          <History className="h-2.5 w-2.5 mr-0.5" />
+          Backtest
         </TabsTrigger>
         <TabsTrigger value="expected-move" className="text-[10px] h-6" data-testid="tab-expected-move">
           <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
@@ -270,6 +277,26 @@ export function AnalysisTabs({
 
       <TabsContent value="greeks" className="mt-2">
         <GreeksDashboard greeks={greeks} />
+      </TabsContent>
+
+      <TabsContent value="backtest" className="mt-2">
+        <Card className="p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant="outline" className="bg-primary/10 text-primary">
+              Strategy Backtesting
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              Test your strategy against historical price data
+            </span>
+          </div>
+          <BacktestPanel
+            symbol={symbol}
+            currentPrice={currentPrice}
+            legs={legs}
+            volatility={volatility}
+            expirationDate={expirationDate || null}
+          />
+        </Card>
       </TabsContent>
 
       <TabsContent value="expected-move" className="mt-2">
