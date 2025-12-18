@@ -1,14 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, TrendingUp, BarChart3, FileText, PieChart, Users, Building2, ExternalLink, History } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, AlertTriangle, Users, History } from "lucide-react";
 import type { Greeks, MarketOptionChainSummary, OptionLeg } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
 import { BacktestPanel } from "./BacktestPanel";
-import { useQuery } from "@tanstack/react-query";
 import { 
-  LineChart, 
   Line, 
   XAxis, 
   YAxis, 
@@ -18,55 +15,9 @@ import {
   ReferenceLine,
   Area,
   AreaChart,
-  ComposedChart,
-  Bar
+  ComposedChart
 } from "recharts";
 import { useMemo } from "react";
-
-interface CompanyFundamentals {
-  symbol: string;
-  name: string;
-  logo?: string;
-  exchange?: string;
-  industry?: string;
-  marketCap?: number;
-  currency?: string;
-  country?: string;
-  weburl?: string;
-  ipo?: string;
-  shareOutstanding?: number;
-  peRatio?: number;
-  eps?: number;
-  epsGrowth?: number;
-  revenueGrowth?: number;
-  profitMargin?: number;
-  roe?: number;
-  roa?: number;
-  debtToEquity?: number;
-  currentRatio?: number;
-  quickRatio?: number;
-  dividendYield?: number;
-  beta?: number;
-  high52Week?: number;
-  low52Week?: number;
-  priceToBook?: number;
-  priceToSales?: number;
-}
-
-interface StockCandle {
-  timestamp: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
-interface CandleResponse {
-  symbol: string;
-  resolution: string;
-  candles: StockCandle[];
-}
 
 interface AnalysisTabsProps {
   greeks: Greeks;
@@ -196,51 +147,47 @@ export function AnalysisTabs({
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Fetch company fundamentals for Financials tab
-  const effectiveSymbol = symbol || 'AAPL';
-  const { data: fundamentals, isLoading: fundamentalsLoading } = useQuery<CompanyFundamentals>({
-    queryKey: [`/api/stock/fundamentals/${effectiveSymbol}`],
-    enabled: !!effectiveSymbol && effectiveSymbol.length > 0,
-  });
+  // Calculate risk metrics from current strategy
+  const riskMetrics = useMemo(() => {
+    const activeLegs = legs.filter(leg => !leg.isExcluded && leg.premium > 0);
+    if (activeLegs.length === 0) return null;
 
-  // Fetch historical candle data for stock chart
-  const { data: candleData, isLoading: candlesLoading } = useQuery<CandleResponse>({
-    queryKey: [`/api/stock/candles/${effectiveSymbol}`],
-    enabled: !!effectiveSymbol && effectiveSymbol.length > 0,
-  });
+    const totalPremium = activeLegs.reduce((sum, leg) => {
+      const legPremium = leg.premium * leg.quantity * 100;
+      return sum + (leg.position === 'long' ? -legPremium : legPremium);
+    }, 0);
 
-  // Prepare chart data from candles
-  const chartData = useMemo(() => {
-    if (!candleData?.candles || candleData.candles.length === 0) return [];
-    return candleData.candles.map(candle => ({
-      date: new Date(candle.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      timestamp: candle.timestamp,
-      price: candle.close,
-      volume: candle.volume,
-    }));
-  }, [candleData]);
+    const maxLoss = activeLegs.some(l => l.position === 'long' && l.type === 'call') 
+      ? Math.abs(totalPremium)
+      : activeLegs.some(l => l.position === 'short') 
+        ? 'Unlimited' 
+        : Math.abs(totalPremium);
 
-  const formatMarketCap = (value?: number) => {
-    if (!value) return 'N/A';
-    if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    return `$${value.toLocaleString()}`;
-  };
+    const breakevens = activeLegs.map(leg => {
+      if (leg.type === 'call') {
+        return leg.position === 'long' 
+          ? leg.strike + leg.premium
+          : leg.strike + leg.premium;
+      } else {
+        return leg.position === 'long'
+          ? leg.strike - leg.premium
+          : leg.strike - leg.premium;
+      }
+    });
 
-  const formatPercent = (value?: number) => {
-    if (value === undefined || value === null) return 'N/A';
-    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
-  };
-
-  const formatNumber = (value?: number, decimals = 2) => {
-    if (value === undefined || value === null || isNaN(value)) return 'N/A';
-    return value.toFixed(decimals);
-  };
+    return {
+      totalPremium,
+      maxLoss,
+      breakevens: Array.from(new Set(breakevens)).sort((a, b) => a - b),
+      contractCount: activeLegs.reduce((sum, l) => sum + l.quantity, 0),
+      hasShortPositions: activeLegs.some(l => l.position === 'short'),
+      hasLongPositions: activeLegs.some(l => l.position === 'long'),
+    };
+  }, [legs]);
 
   return (
     <Tabs defaultValue="greeks" className="w-full">
-      <TabsList className="grid w-full grid-cols-8 h-7">
+      <TabsList className="grid w-full grid-cols-6 h-7">
         <TabsTrigger value="greeks" className="text-[10px] h-6" data-testid="tab-greeks">
           <Activity className="h-2.5 w-2.5 mr-0.5" />
           Greeks
@@ -257,17 +204,9 @@ export function AnalysisTabs({
           <BarChart3 className="h-2.5 w-2.5 mr-0.5" />
           Vol Skew
         </TabsTrigger>
-        <TabsTrigger value="financials" className="text-[10px] h-6" data-testid="tab-financials">
-          <Building2 className="h-2.5 w-2.5 mr-0.5" />
-          Financials
-        </TabsTrigger>
-        <TabsTrigger value="option-overview" className="text-[10px] h-6" data-testid="tab-option-overview">
-          <FileText className="h-2.5 w-2.5 mr-0.5" />
-          Overview
-        </TabsTrigger>
-        <TabsTrigger value="analysis" className="text-[10px] h-6" data-testid="tab-analysis">
-          <PieChart className="h-2.5 w-2.5 mr-0.5" />
-          Analysis
+        <TabsTrigger value="risks" className="text-[10px] h-6" data-testid="tab-risks">
+          <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+          Risks
         </TabsTrigger>
         <TabsTrigger value="open-interest" className="text-[10px] h-6" data-testid="tab-open-interest">
           <Users className="h-2.5 w-2.5 mr-0.5" />
@@ -494,266 +433,78 @@ export function AnalysisTabs({
         </Card>
       </TabsContent>
 
-      <TabsContent value="financials" className="mt-2">
-        <div className="max-h-[400px] overflow-y-auto space-y-3 pr-1">
-          <Card className="p-3">
-            {fundamentalsLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-8 w-48" />
-                <div className="grid grid-cols-2 gap-2">
-                  {[...Array(6)].map((_, i) => (
-                    <Skeleton key={i} className="h-14 w-full" />
+      <TabsContent value="risks" className="mt-2">
+        <Card className="p-3">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <h3 className="text-sm font-semibold">Risk Analysis</h3>
+          </div>
+          
+          {riskMetrics ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Total Premium</p>
+                  <p className={`text-lg font-bold font-mono ${riskMetrics.totalPremium >= 0 ? 'text-profit' : 'text-loss'}`}>
+                    {riskMetrics.totalPremium >= 0 ? '+' : ''}${riskMetrics.totalPremium.toFixed(0)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {riskMetrics.totalPremium >= 0 ? 'Credit received' : 'Debit paid'}
+                  </p>
+                </div>
+                <div className="p-2 bg-muted/30 rounded-md">
+                  <p className="text-[10px] text-muted-foreground mb-0.5">Max Loss</p>
+                  <p className={`text-lg font-bold font-mono ${riskMetrics.maxLoss === 'Unlimited' ? 'text-loss' : ''}`}>
+                    {riskMetrics.maxLoss === 'Unlimited' ? 'Unlimited' : `-$${(riskMetrics.maxLoss as number).toFixed(0)}`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {riskMetrics.hasShortPositions ? 'Short exposure' : 'Limited risk'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-2 bg-muted/30 rounded-md">
+                <p className="text-[10px] text-muted-foreground mb-1">Breakeven Points</p>
+                <div className="flex flex-wrap gap-2">
+                  {riskMetrics.breakevens.map((be, i) => (
+                    <Badge key={i} variant="outline" className="font-mono text-xs">
+                      ${be.toFixed(2)}
+                    </Badge>
                   ))}
                 </div>
               </div>
-            ) : fundamentals ? (
-              <>
-                <div className="flex items-center gap-3 mb-3">
-                  {fundamentals.logo && (
-                    <img 
-                      src={fundamentals.logo} 
-                      alt={fundamentals.name} 
-                      className="h-8 w-8 rounded object-contain"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold">{fundamentals.name}</h3>
-                      <Badge variant="outline" className="text-[10px]">{fundamentals.symbol}</Badge>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                      {fundamentals.exchange && <span>{fundamentals.exchange}</span>}
-                      {fundamentals.industry && <span>• {fundamentals.industry}</span>}
-                      {fundamentals.weburl && (
-                        <a 
-                          href={fundamentals.weburl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-0.5 text-primary hover:underline"
-                        >
-                          Website <ExternalLink className="h-2.5 w-2.5" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-4 gap-2 mb-3">
-                  <div className="p-2 bg-muted/30 rounded-md">
-                    <p className="text-[10px] text-muted-foreground mb-0.5">Market Cap</p>
-                    <p className="text-sm font-bold font-mono">{formatMarketCap(fundamentals.marketCap)}</p>
-                  </div>
-                  <div className="p-2 bg-muted/30 rounded-md">
-                    <p className="text-[10px] text-muted-foreground mb-0.5">P/E Ratio</p>
-                    <p className="text-sm font-bold font-mono">{formatNumber(fundamentals.peRatio)}</p>
-                  </div>
-                  <div className="p-2 bg-muted/30 rounded-md">
-                    <p className="text-[10px] text-muted-foreground mb-0.5">EPS</p>
-                    <p className="text-sm font-bold font-mono">${formatNumber(fundamentals.eps)}</p>
-                  </div>
-                  <div className="p-2 bg-muted/30 rounded-md">
-                    <p className="text-[10px] text-muted-foreground mb-0.5">Dividend</p>
-                    <p className="text-sm font-bold font-mono">
-                      {fundamentals.dividendYield ? `${formatNumber(fundamentals.dividendYield, 2)}%` : 'N/A'}
+              <div className="grid grid-cols-3 gap-2 text-[10px]">
+                <div className="p-2 bg-muted/30 rounded-md text-center">
+                  <p className="text-muted-foreground mb-0.5">Contracts</p>
+                  <p className="font-bold font-mono">{riskMetrics.contractCount}</p>
+                </div>
+                <div className="p-2 bg-muted/30 rounded-md text-center">
+                  <p className="text-muted-foreground mb-0.5">IV</p>
+                  <p className="font-bold font-mono">{(volatility * 100).toFixed(0)}%</p>
+                </div>
+                <div className="p-2 bg-muted/30 rounded-md text-center">
+                  <p className="text-muted-foreground mb-0.5">DTE</p>
+                  <p className="font-bold font-mono">{expectedMove?.daysToExpiration || 'N/A'}</p>
+                </div>
+              </div>
+
+              {riskMetrics.hasShortPositions && (
+                <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      This strategy includes short positions with potentially unlimited risk.
                     </p>
                   </div>
                 </div>
-              </>
-            ) : (
-              <div className="h-16 flex items-center justify-center bg-muted/30 rounded-md">
-                <p className="text-xs text-muted-foreground">No fundamentals data available for {symbol}</p>
-              </div>
-            )}
-          </Card>
-
-          <Card className="p-3">
-            <p className="text-xs font-semibold mb-2">6-Month Price Chart</p>
-            {candlesLoading ? (
-              <Skeleton className="h-28 w-full" />
-            ) : chartData.length > 0 ? (
-              <div className="h-28">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                    <defs>
-                      <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(168 76% 42%)" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(168 76% 42%)" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 9 }} 
-                      tickLine={false}
-                      axisLine={false}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 9 }} 
-                      tickLine={false}
-                      axisLine={false}
-                      domain={['auto', 'auto']}
-                      tickFormatter={(value) => `$${value}`}
-                      width={40}
-                    />
-                    <Tooltip
-                      contentStyle={{ 
-                        background: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '4px',
-                        fontSize: '10px'
-                      }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="price"
-                      stroke="hsl(168 76% 42%)"
-                      strokeWidth={2}
-                      fill="url(#priceGradient)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="h-28 flex items-center justify-center bg-muted/30 rounded-md">
-                <p className="text-xs text-muted-foreground">No chart data available</p>
-              </div>
-            )}
-          </Card>
-
-          <Card className="p-3">
-            <p className="text-xs font-semibold mb-2">Key Ratios</p>
-            {fundamentals ? (
-              <div className="grid grid-cols-4 gap-x-3 gap-y-1.5 text-[10px]">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">P/E</span>
-                  <span className="font-mono">{formatNumber(fundamentals.peRatio)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">P/B</span>
-                  <span className="font-mono">{formatNumber(fundamentals.priceToBook)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">P/S</span>
-                  <span className="font-mono">{formatNumber(fundamentals.priceToSales)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Beta</span>
-                  <span className="font-mono">{formatNumber(fundamentals.beta)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">ROE</span>
-                  <span className="font-mono">{formatNumber(fundamentals.roe)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">ROA</span>
-                  <span className="font-mono">{formatNumber(fundamentals.roa)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Margin</span>
-                  <span className="font-mono">{formatNumber(fundamentals.profitMargin)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">D/E</span>
-                  <span className="font-mono">{formatNumber(fundamentals.debtToEquity)}</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No data available</p>
-            )}
-          </Card>
-
-          <Card className="p-3">
-            <p className="text-xs font-semibold mb-2">52-Week Range</p>
-            {fundamentals && fundamentals.low52Week && fundamentals.high52Week ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-loss font-mono">${formatNumber(fundamentals.low52Week, 2)}</span>
-                  <span className="text-muted-foreground">52W Range</span>
-                  <span className="text-profit font-mono">${formatNumber(fundamentals.high52Week, 2)}</span>
-                </div>
-                <div className="relative h-2 bg-muted/50 rounded-full">
-                  {(() => {
-                    const rangeWidth = fundamentals.high52Week - fundamentals.low52Week;
-                    const position = currentPrice && rangeWidth > 0
-                      ? Math.min(100, Math.max(0, ((currentPrice - fundamentals.low52Week) / rangeWidth) * 100))
-                      : 50;
-                    return (
-                      <>
-                        <div 
-                          className="absolute h-full bg-gradient-to-r from-loss/50 via-primary/50 to-profit/50 rounded-full"
-                          style={{ width: `${position}%` }}
-                        />
-                        <div 
-                          className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full border-2 border-background"
-                          style={{ left: `${position}%` }}
-                        />
-                      </>
-                    );
-                  })()}
-                </div>
-                <p className="text-[10px] text-muted-foreground text-center">
-                  Current: <span className="font-mono font-medium">${currentPrice?.toFixed(2) || 'N/A'}</span>
-                </p>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">52-week range data not available</p>
-            )}
-          </Card>
-
-          <Card className="p-3">
-            <p className="text-xs font-semibold mb-2">Liquidity Ratios</p>
-            {fundamentals ? (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Current Ratio</p>
-                  <p className="text-sm font-bold font-mono">{formatNumber(fundamentals.currentRatio)}</p>
-                </div>
-                <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Quick Ratio</p>
-                  <p className="text-sm font-bold font-mono">{formatNumber(fundamentals.quickRatio)}</p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No data available</p>
-            )}
-          </Card>
-        </div>
-      </TabsContent>
-
-      <TabsContent value="option-overview" className="mt-2">
-        <Card className="p-3">
-          <h3 className="text-sm font-semibold mb-2">Option Overview</h3>
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center p-2 bg-muted/30 rounded-md">
-              <span className="text-xs font-medium">Total Contracts</span>
-              <span className="text-xs font-mono font-semibold">2</span>
+              )}
             </div>
-            <div className="flex justify-between items-center p-2 bg-muted/30 rounded-md">
-              <span className="text-xs font-medium">Total Premium</span>
-              <span className="text-xs font-mono font-semibold">$350.00</span>
+          ) : (
+            <div className="h-24 flex items-center justify-center bg-muted/30 rounded-md">
+              <p className="text-xs text-muted-foreground">Add option legs to see risk analysis</p>
             </div>
-            <div className="flex justify-between items-center p-2 bg-muted/30 rounded-md">
-              <span className="text-xs font-medium">Margin Requirement</span>
-              <span className="text-xs font-mono font-semibold">$2,500.00</span>
-            </div>
-          </div>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="analysis" className="mt-2">
-        <Card className="p-3">
-          <h3 className="text-sm font-semibold mb-2">Strategy Analysis</h3>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="p-2 bg-muted/30 rounded-md">
-              <p className="text-[10px] text-muted-foreground mb-0.5">Win Rate</p>
-              <p className="text-lg font-bold">68%</p>
-            </div>
-            <div className="p-2 bg-muted/30 rounded-md">
-              <p className="text-[10px] text-muted-foreground mb-0.5">Average Return</p>
-              <p className="text-lg font-bold text-green-600 dark:text-green-500">+12.3%</p>
-            </div>
-          </div>
+          )}
         </Card>
       </TabsContent>
 
