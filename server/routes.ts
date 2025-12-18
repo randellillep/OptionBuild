@@ -102,6 +102,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Saved trades routes - user-specific trade storage
+  app.get('/api/trades', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+      const trades = await storage.getSavedTrades(userId);
+      res.json(trades);
+    } catch (error) {
+      console.error("Error fetching saved trades:", error);
+      res.status(500).json({ error: "Failed to fetch saved trades" });
+    }
+  });
+
+  app.post('/api/trades', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const tradeSchema = z.object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        tradeGroup: z.string().optional().default("all"),
+        symbol: z.string().min(1),
+        price: z.number().positive(),
+        legs: z.array(z.any()),
+        expirationDate: z.string().nullable().optional(),
+      });
+
+      const validation = tradeSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid trade data", details: validation.error.errors });
+      }
+
+      const trade = await storage.createSavedTrade({
+        userId,
+        ...validation.data,
+      });
+
+      res.status(201).json(trade);
+    } catch (error) {
+      console.error("Error saving trade:", error);
+      res.status(500).json({ error: "Failed to save trade" });
+    }
+  });
+
+  app.delete('/api/trades/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const { id } = req.params;
+      const deleted = await storage.deleteSavedTrade(id, userId);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting trade:", error);
+      res.status(500).json({ error: "Failed to delete trade" });
+    }
+  });
+
   // Stock quote endpoint - fetches real-time price for a symbol
   app.get("/api/stock/quote/:symbol", async (req, res) => {
     try {
