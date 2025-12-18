@@ -57,6 +57,8 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
         pr: leg.premium,
         expD: leg.expirationDays,
         expDt: leg.expirationDate,
+        ex: leg.isExcluded,
+        ct: leg.closingTransaction,
       })),
     };
     

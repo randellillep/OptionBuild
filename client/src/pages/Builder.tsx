@@ -119,6 +119,7 @@ export default function Builder() {
             
             // Normalize legs to ensure required fields exist
             // Mark as 'saved' to preserve the original cost basis from when trade was saved
+            // Preserve all leg properties including isExcluded, closingTransaction, etc.
             const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `saved-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -129,6 +130,9 @@ export default function Builder() {
               expirationDays: leg.expirationDays || 30,
               premiumSource: 'saved' as const,  // Preserve original cost basis
               impliedVolatility: leg.impliedVolatility,
+              expirationDate: leg.expirationDate,
+              isExcluded: leg.isExcluded,
+              closingTransaction: leg.closingTransaction,
             }));
             
             setLegs(normalizedLegs);
@@ -188,6 +192,7 @@ export default function Builder() {
             
             // Normalize legs from shared format
             // Mark as 'saved' to preserve the original cost basis from when trade was shared
+            // Preserve all leg properties including isExcluded, closingTransaction, etc.
             const normalizedLegs: OptionLeg[] = strategy.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `shared-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -199,6 +204,8 @@ export default function Builder() {
               premiumSource: 'saved' as const,  // Preserve original cost basis
               impliedVolatility: leg.impliedVolatility,
               expirationDate: leg.expirationDate,
+              isExcluded: leg.isExcluded,
+              closingTransaction: leg.closingTransaction,
             }));
             
             setLegs(normalizedLegs);

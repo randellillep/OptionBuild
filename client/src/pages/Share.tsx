@@ -18,6 +18,8 @@ interface SharedTradeData {
     pr: number;  // premium
     expD: number;  // expirationDays
     expDt?: string;  // expirationDate
+    ex?: boolean;  // isExcluded
+    ct?: unknown;  // closingTransaction
   }>;
 }
 
@@ -47,6 +49,8 @@ export default function Share() {
         premium: leg.pr,
         expirationDays: leg.expD,
         expirationDate: leg.expDt,
+        isExcluded: leg.ex,
+        closingTransaction: leg.ct,
       }));
 
       const sharedStrategy = {
