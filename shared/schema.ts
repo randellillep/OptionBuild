@@ -132,3 +132,46 @@ export interface MarketOptionChainSummary {
   cachedAt: number;
   availableExpirations?: string[]; // Available expirations from data source (for validation)
 }
+
+// Backtesting types
+export interface BacktestRequest {
+  symbol: string;
+  legs: OptionLeg[];
+  startDate: string;       // ISO date string (YYYY-MM-DD)
+  endDate: string;         // ISO date string (YYYY-MM-DD)
+  initialVolatility: number; // IV assumption (0.0-1.0)
+  entryPrice: number;      // Underlying price at strategy entry
+}
+
+export interface BacktestDataPoint {
+  date: string;            // ISO date string
+  underlyingPrice: number;
+  strategyValue: number;   // Current value of strategy
+  pnl: number;             // P/L from entry
+  pnlPercent: number;      // P/L as percentage of max risk
+  daysToExpiration: number;
+}
+
+export interface BacktestMetrics {
+  totalReturn: number;     // Total P/L in dollars
+  totalReturnPercent: number;
+  maxDrawdown: number;     // Maximum drawdown in dollars
+  maxDrawdownPercent: number;
+  maxGain: number;         // Peak profit achieved
+  winRate: number;         // Percentage of profitable days
+  sharpeRatio: number;     // Risk-adjusted return (simplified)
+  avgDailyReturn: number;
+  volatility: number;      // Standard deviation of daily returns
+  daysInTrade: number;
+}
+
+export interface BacktestResult {
+  symbol: string;
+  startDate: string;
+  endDate: string;
+  entryPrice: number;
+  exitPrice: number;
+  dataPoints: BacktestDataPoint[];
+  metrics: BacktestMetrics;
+  legs: OptionLeg[];       // Original legs for reference
+}
