@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Table, BarChart3, RotateCcw, TrendingUp, TrendingDown, Target, DollarSign, CheckCircle, Clock, History } from "lucide-react";
+import { Table, BarChart3, RotateCcw, TrendingUp, TrendingDown, Target, DollarSign, CheckCircle, Clock } from "lucide-react";
 import type { ScenarioPoint } from "@/hooks/useStrategyEngine";
 import type { StrategyMetrics } from "@shared/schema";
 
@@ -26,8 +26,8 @@ interface PLHeatmapProps {
   useHours?: boolean;
   targetDays?: number;
   dateGroups?: DateGroup[];
-  activeTab: "heatmap" | "chart" | "backtest";
-  onTabChange: (tab: "heatmap" | "chart" | "backtest") => void;
+  activeTab: "heatmap" | "chart";
+  onTabChange: (tab: "heatmap" | "chart") => void;
   range: number;
   onRangeChange: (value: number) => void;
   impliedVolatility: number;
@@ -230,16 +230,6 @@ export function PLHeatmap({
           >
             <BarChart3 className="h-2.5 w-2.5 mr-0.5" />
             P/L Chart
-          </Button>
-          <Button
-            variant={activeTab === "backtest" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-5 px-1.5 text-[10px]"
-            onClick={() => onTabChange("backtest")}
-            data-testid="tab-backtest-view"
-          >
-            <History className="h-2.5 w-2.5 mr-0.5" />
-            Backtest
           </Button>
         </div>
       </div>
