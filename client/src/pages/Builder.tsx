@@ -14,6 +14,7 @@ import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
+import { UpperBacktestPanel } from "@/components/UpperBacktestPanel";
 import { Footer } from "@/components/Footer";
 import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Bookmark, Search } from "lucide-react";
 import { AIChatAssistant } from "@/components/AIChatAssistant";
@@ -50,7 +51,7 @@ export default function Builder() {
   const [, setLocation] = useLocation();
   const searchString = useSearch();
   const [range, setRange] = useState(14);
-  const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
+  const [activeTab, setActiveTab] = useState<"heatmap" | "chart" | "backtest">("heatmap");
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
   const [commissionSettings, setCommissionSettings] = useState<CommissionSettings>({
     perTrade: 0,
@@ -1032,7 +1033,7 @@ export default function Builder() {
                 availableStrikes={availableStrikes}
               />
 
-              {activeTab === "heatmap" ? (
+              {activeTab === "heatmap" && (
                 <PLHeatmap
                   grid={scenarioGrid.grid}
                   strikes={scenarioGrid.strikes}
@@ -1058,7 +1059,8 @@ export default function Builder() {
                   hasRealizedPL={hasRealizedPL}
                   hasUnrealizedPL={hasUnrealizedPL}
                 />
-              ) : (
+              )}
+              {activeTab === "chart" && (
                 <ProfitLossChart 
                   legs={legs} 
                   underlyingPrice={symbolInfo.price}
@@ -1070,6 +1072,18 @@ export default function Builder() {
                   onVolatilityChange={handleVolatilityChange}
                   calculatedIV={calculatedIVPercent}
                   onResetIV={handleResetIV}
+                  metrics={metrics}
+                />
+              )}
+              {activeTab === "backtest" && (
+                <UpperBacktestPanel
+                  symbol={symbolInfo.symbol}
+                  currentPrice={symbolInfo.price}
+                  legs={legs}
+                  volatility={volatility}
+                  expirationDate={selectedExpirationDate}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
                   metrics={metrics}
                 />
               )}

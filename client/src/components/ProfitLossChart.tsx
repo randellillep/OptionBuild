@@ -5,13 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Table, BarChart3, RotateCcw } from "lucide-react";
+import { Table, BarChart3, RotateCcw, History } from "lucide-react";
 
 interface ProfitLossChartProps {
   legs: OptionLeg[];
   underlyingPrice: number;
-  activeTab: "heatmap" | "chart";
-  onTabChange: (tab: "heatmap" | "chart") => void;
+  activeTab: "heatmap" | "chart" | "backtest";
+  onTabChange: (tab: "heatmap" | "chart" | "backtest") => void;
   range: number;
   onRangeChange: (value: number) => void;
   impliedVolatility: number;
@@ -128,6 +128,16 @@ export function ProfitLossChart({
           >
             <BarChart3 className="h-3 w-3 mr-1" />
             P/L Chart
+          </Button>
+          <Button
+            variant={activeTab === "backtest" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-6 px-2 text-[10px]"
+            onClick={() => onTabChange("backtest")}
+            data-testid="tab-backtest-view"
+          >
+            <History className="h-3 w-3 mr-1" />
+            Backtest
           </Button>
         </div>
       </div>

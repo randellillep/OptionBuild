@@ -222,7 +222,7 @@ export function AnalysisTabs({
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-4">
             <Badge variant="outline" className="bg-primary/10 text-primary">
-              Strategy Backtesting
+              Price History
             </Badge>
             <span className="text-xs text-muted-foreground">
               Test your strategy against historical price data
