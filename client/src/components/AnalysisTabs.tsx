@@ -1,10 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, BarChart3, AlertTriangle, Users, History } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, AlertTriangle, Users } from "lucide-react";
 import type { Greeks, MarketOptionChainSummary, OptionLeg } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
-import { BacktestPanel } from "./BacktestPanel";
 import { 
   Line, 
   XAxis, 
@@ -187,14 +186,10 @@ export function AnalysisTabs({
 
   return (
     <Tabs defaultValue="greeks" className="w-full">
-      <TabsList className="grid w-full grid-cols-6 h-7">
+      <TabsList className="grid w-full grid-cols-5 h-7">
         <TabsTrigger value="greeks" className="text-[10px] h-6" data-testid="tab-greeks">
           <Activity className="h-2.5 w-2.5 mr-0.5" />
           Greeks
-        </TabsTrigger>
-        <TabsTrigger value="backtest" className="text-[10px] h-6" data-testid="tab-backtest">
-          <History className="h-2.5 w-2.5 mr-0.5" />
-          Backtest
         </TabsTrigger>
         <TabsTrigger value="expected-move" className="text-[10px] h-6" data-testid="tab-expected-move">
           <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
@@ -218,25 +213,6 @@ export function AnalysisTabs({
         <GreeksDashboard greeks={greeks} />
       </TabsContent>
 
-      <TabsContent value="backtest" className="mt-2">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Badge variant="outline" className="bg-primary/10 text-primary">
-              Price History
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              Test your strategy against historical price data
-            </span>
-          </div>
-          <BacktestPanel
-            symbol={symbol}
-            currentPrice={currentPrice}
-            legs={legs}
-            volatility={volatility}
-            expirationDate={expirationDate || null}
-          />
-        </Card>
-      </TabsContent>
 
       <TabsContent value="expected-move" className="mt-2">
         <Card className="p-4">
