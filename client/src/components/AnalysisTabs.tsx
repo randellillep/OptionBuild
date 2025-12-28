@@ -194,7 +194,7 @@ export function AnalysisTabs({
         </TabsTrigger>
         <TabsTrigger value="backtest" className="text-[10px] h-6" data-testid="tab-backtest">
           <History className="h-2.5 w-2.5 mr-0.5" />
-          Backtest
+          Historical Price
         </TabsTrigger>
         <TabsTrigger value="expected-move" className="text-[10px] h-6" data-testid="tab-expected-move">
           <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
@@ -222,7 +222,7 @@ export function AnalysisTabs({
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-4">
             <Badge variant="outline" className="bg-primary/10 text-primary">
-              Strategy Backtesting
+              Historical Price
             </Badge>
             <span className="text-xs text-muted-foreground">
               Test your strategy against historical price data

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, TrendingUp, TrendingDown, Loader2, Plus, ListOrdered, Bookmark, Clock } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Loader2, Plus, ListOrdered, Bookmark } from "lucide-react";
 import type { SymbolInfo } from "@/hooks/useStrategyEngine";
 import { useQuery } from "@tanstack/react-query";
 
@@ -297,15 +297,6 @@ export function SymbolSearchBar({ symbolInfo, onSymbolChange, compact = false, r
             Save Trade
           </Button>
           
-          <Button 
-            variant="default" 
-            size="sm" 
-            className="h-5 px-1 text-[9px]"
-            data-testid="button-historical-chart"
-          >
-            <Clock className="h-2.5 w-2.5 mr-0.5" />
-            Historical Chart
-          </Button>
         </div>
       </div>
     </Card>

@@ -289,15 +289,6 @@ export function TradingViewSearch({
               Save Trade
             </Button>
             
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground"
-              data-testid="button-historical-chart"
-            >
-              <Clock className="h-3.5 w-3.5 mr-1.5" />
-              Historical Chart
-            </Button>
           </div>
         </div>
       </Card>
