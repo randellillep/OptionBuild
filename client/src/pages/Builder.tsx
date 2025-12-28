@@ -1032,7 +1032,7 @@ export default function Builder() {
                 availableStrikes={availableStrikes}
               />
 
-              {activeTab === "heatmap" && (
+              {activeTab === "heatmap" ? (
                 <PLHeatmap
                   grid={scenarioGrid.grid}
                   strikes={scenarioGrid.strikes}
@@ -1058,8 +1058,7 @@ export default function Builder() {
                   hasRealizedPL={hasRealizedPL}
                   hasUnrealizedPL={hasUnrealizedPL}
                 />
-              )}
-              {activeTab === "chart" && (
+              ) : (
                 <ProfitLossChart 
                   legs={legs} 
                   underlyingPrice={symbolInfo.price}
