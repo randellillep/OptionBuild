@@ -1100,7 +1100,44 @@ export default function Builder() {
             </div>
 
             <div className="space-y-2">
-              <AIChatAssistant onNavigate={setLocation} />
+              <AIChatAssistant 
+                onNavigate={setLocation}
+                strategyContext={{
+                  symbolInfo,
+                  legs,
+                  volatility,
+                  expirationDays: uniqueExpirationDays[0] || 30,
+                  currentPrice: symbolInfo.price,
+                  greeks: totalGreeks,
+                }}
+                onLookupPrice={async (symbol, strike, type) => {
+                  // Use existing options chain data if available
+                  if (optionsChainData && symbol.toUpperCase() === symbolInfo.symbol.toUpperCase()) {
+                    const quote = optionsChainData.quotes.find(
+                      q => q.strike === strike && q.side === type
+                    );
+                    if (quote) {
+                      return { bid: quote.bid, ask: quote.ask, mid: quote.mid };
+                    }
+                  }
+                  // Otherwise try to fetch from API
+                  try {
+                    const res = await fetch(`/api/options/chain/${symbol.toUpperCase()}`);
+                    if (res.ok) {
+                      const data = await res.json();
+                      const quote = data.quotes?.find(
+                        (q: { strike: number; side: string }) => q.strike === strike && q.side === type
+                      );
+                      if (quote) {
+                        return { bid: quote.bid, ask: quote.ask, mid: quote.mid };
+                      }
+                    }
+                  } catch (e) {
+                    console.error('Price lookup failed:', e);
+                  }
+                  return null;
+                }}
+              />
             </div>
           </div>
         </div>
