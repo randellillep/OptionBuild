@@ -293,22 +293,25 @@ export function calculateProfitLossAtDate(
     const premium = Math.abs(leg.premium);
     
     // Calculate baseline option value at entry point for proper P/L anchoring
-    // This ensures P/L = 0 when price hasn't moved from entry
+    // For manual/saved/theoretical premiums, use the premium directly as cost basis
+    // For market premiums with entryUnderlyingPrice, anchor to the entry point
     let baselineValue: number;
-    const entryPrice = leg.entryUnderlyingPrice ?? underlyingPrice;
-    if (leg.entryUnderlyingPrice !== undefined) {
-      // We have entry price - calculate what the option was worth at entry
+    
+    // If premium was manually set, saved, or theoretical, use it directly as baseline
+    // This allows users to set their own cost basis and see P/L relative to it
+    if (leg.premiumSource === 'manual' || leg.premiumSource === 'saved' || leg.premiumSource === 'theoretical' || !leg.entryUnderlyingPrice) {
+      baselineValue = premium;
+    } else {
+      // Market-sourced premium with entry price - calculate theoretical value at entry
+      // This anchors P/L to 0 at the entry point for market data
       baselineValue = calculateOptionPrice(
         leg.type,
-        entryPrice,
+        leg.entryUnderlyingPrice,
         leg.strike,
         leg.expirationDays, // Full days at entry
         legVolatility,
         riskFreeRate
       );
-    } else {
-      // No entry price stored - use premium as baseline (legacy behavior)
-      baselineValue = premium;
     }
     
     // Handle closing transaction if present and enabled
