@@ -88,8 +88,8 @@ export default function Builder() {
     if (!symbolInfo.price || legs.length === 0) {
       return { realizedPL: 0, unrealizedPL: 0, hasRealizedPL: false, hasUnrealizedPL: false };
     }
-    return calculateRealizedUnrealizedPL(legs, symbolInfo.price);
-  }, [legs, symbolInfo.price]);
+    return calculateRealizedUnrealizedPL(legs, symbolInfo.price, volatility);
+  }, [legs, symbolInfo.price, volatility]);
   
   const handleVolatilityChange = (percent: number) => {
     setVolatility(percent / 100);
@@ -996,6 +996,7 @@ export default function Builder() {
             onSaveTrade={() => setIsSaveTradeOpen(true)}
             legsCount={legs.length}
             legs={legs}
+            volatility={volatility}
             commissionSettings={commissionSettings}
             onCommissionChange={setCommissionSettings}
             unrealizedPL={unrealizedPL}

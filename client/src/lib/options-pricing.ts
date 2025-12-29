@@ -494,7 +494,8 @@ export function calculateStrategyMetrics(
  */
 export function calculateRealizedUnrealizedPL(
   legs: OptionLeg[],
-  underlyingPrice: number
+  underlyingPrice: number,
+  strategyVolatility: number = 0.30
 ): { realizedPL: number; unrealizedPL: number; hasRealizedPL: boolean; hasUnrealizedPL: boolean } {
   let realizedPL = 0;
   let unrealizedPL = 0;
@@ -509,11 +510,10 @@ export function calculateRealizedUnrealizedPL(
     const costBasis = Math.abs(leg.premium);
     
     // Calculate current option price using Black-Scholes
-    // Use reasonable defaults: 30 DTE, 30% IV, 5% risk-free rate
+    // Use leg's saved IV if available, otherwise use strategy volatility
     const daysToExpiry = leg.expirationDays || 30;
-    const volatility = 0.30; // Default IV
+    const volatility = leg.impliedVolatility || strategyVolatility;
     const riskFreeRate = 0.05;
-    const timeToExpiry = daysToExpiry / 365;
     
     // Calculate current theoretical option price
     const currentPrice = calculateOptionPrice(

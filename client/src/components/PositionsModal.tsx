@@ -20,6 +20,7 @@ interface PositionsModalProps {
   legs: OptionLeg[];
   symbol: string;
   currentPrice: number;
+  strategyVolatility?: number;
   commissionSettings?: CommissionSettings;
   onCommissionChange?: (settings: CommissionSettings) => void;
   unrealizedPL?: number;
@@ -51,6 +52,7 @@ export function PositionsModal({
   legs, 
   symbol, 
   currentPrice,
+  strategyVolatility = 0.30,
   commissionSettings = { perTrade: 0, perContract: 0, roundTrip: false },
   onCommissionChange,
   unrealizedPL = 0,
@@ -117,7 +119,7 @@ export function PositionsModal({
       
       // Calculate current option price using Black-Scholes for Net Liq and P/L
       const daysToExpiry = leg.expirationDays || 30;
-      const volatility = leg.impliedVolatility || 0.30; // Use saved IV or default
+      const volatility = leg.impliedVolatility || strategyVolatility; // Use saved IV or strategy volatility
       const riskFreeRate = 0.05;
       
       const currentOptionPrice = calculateOptionPrice(

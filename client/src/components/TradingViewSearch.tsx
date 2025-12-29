@@ -16,6 +16,7 @@ interface TradingViewSearchProps {
   onSaveTrade?: () => void;
   legsCount?: number;
   legs?: OptionLeg[];
+  volatility?: number;
   commissionSettings?: CommissionSettings;
   onCommissionChange?: (settings: CommissionSettings) => void;
   unrealizedPL?: number;
@@ -109,6 +110,7 @@ export function TradingViewSearch({
   onSaveTrade, 
   legsCount = 0, 
   legs = [],
+  volatility = 0.30,
   commissionSettings,
   onCommissionChange,
   unrealizedPL = 0,
@@ -476,6 +478,7 @@ export function TradingViewSearch({
         legs={legs}
         symbol={symbolInfo.symbol}
         currentPrice={symbolInfo.price}
+        strategyVolatility={volatility}
         commissionSettings={commissionSettings}
         onCommissionChange={onCommissionChange}
         unrealizedPL={unrealizedPL}
