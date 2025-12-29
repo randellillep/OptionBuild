@@ -96,6 +96,36 @@ export function useStrategyEngine(rangePercent: number = 14) {
     }
   }, [hasFetchedInitialPrice]);
 
+  // Poll for price updates every 10 seconds for live heatmap updates
+  useEffect(() => {
+    if (!symbolInfo.symbol) return;
+    
+    const pollPrice = async () => {
+      try {
+        const res = await fetch(`/api/stock/quote/${symbolInfo.symbol}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.price && data.price > 0) {
+          setSymbolInfo(prev => {
+            // Only update if price actually changed (avoid unnecessary re-renders)
+            if (prev.price !== data.price) {
+              console.log('[PRICE-POLL] Updated price:', prev.price, '->', data.price);
+              return { ...prev, price: data.price };
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error('[PRICE-POLL] Failed to fetch price:', err);
+      }
+    };
+    
+    // Poll every 10 seconds
+    const intervalId = setInterval(pollPrice, 10000);
+    
+    return () => clearInterval(intervalId);
+  }, [symbolInfo.symbol]);
+
   const [volatility, setVolatility] = useState(persistedState.current?.volatility ?? 0.3);
   const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(persistedState.current?.expirationDays ?? null);
   const [selectedExpirationDate, setSelectedExpirationDate] = useState<string>(persistedState.current?.expirationDate ?? "");

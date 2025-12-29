@@ -195,6 +195,8 @@ export function TradingViewSearch({
   const { data: currentQuote } = useQuery<StockQuote>({
     queryKey: ["/api/stock/quote", symbolInfo.symbol],
     enabled: !!symbolInfo.symbol,
+    refetchInterval: 10000, // Refresh every 10 seconds for live updates
+    refetchIntervalInBackground: false, // Only refresh when tab is active
   });
 
   const handleSymbolSelect = async (symbol: string) => {
