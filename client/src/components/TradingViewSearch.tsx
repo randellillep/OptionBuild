@@ -292,7 +292,7 @@ export function TradingViewSearch({
               onClick={() => setIsPositionsModalOpen(true)}
             >
               <ListOrdered className="h-3.5 w-3.5 mr-1.5" />
-              Positions ({openPositionsCount} open, {closedPositionsCount} closed)
+              Positions ({openPositionsCount + closedPositionsCount})
             </Button>
             
             <Button 
