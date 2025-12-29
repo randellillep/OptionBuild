@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
   ReferenceLine,
   Area,
   AreaChart,
+  Cell,
 } from "recharts";
 
 interface HistoricalPriceTabProps {
@@ -56,8 +57,67 @@ function formatDate(timestamp: number, range: TimeRange): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function formatPrice(value: number): string {
-  return `$${value.toFixed(2)}`;
+interface CandlestickShapeProps {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  payload?: any;
+  yAxisScale?: any;
+}
+
+function CandlestickShape({ x, y, width, height, payload, yAxisScale }: CandlestickShapeProps) {
+  if (!payload || x === undefined || width === undefined || !yAxisScale) {
+    return null;
+  }
+
+  const { stockOpen, stockHigh, stockLow, stockClose } = payload;
+  if (!stockOpen || !stockHigh || !stockLow || !stockClose) return null;
+
+  const isBullish = stockClose >= stockOpen;
+  const bodyColor = isBullish ? "#22c55e" : "#ef4444";
+  const wickColor = isBullish ? "#16a34a" : "#dc2626";
+
+  const bodyTop = yAxisScale(Math.max(stockOpen, stockClose));
+  const bodyBottom = yAxisScale(Math.min(stockOpen, stockClose));
+  const bodyHeight = Math.max(1, bodyBottom - bodyTop);
+
+  const wickTop = yAxisScale(stockHigh);
+  const wickBottom = yAxisScale(stockLow);
+
+  const candleWidth = Math.max(3, width * 0.7);
+  const candleX = x + (width - candleWidth) / 2;
+  const wickX = x + width / 2;
+
+  return (
+    <g>
+      <line
+        x1={wickX}
+        y1={wickTop}
+        x2={wickX}
+        y2={bodyTop}
+        stroke={wickColor}
+        strokeWidth={1}
+      />
+      <line
+        x1={wickX}
+        y1={bodyBottom}
+        x2={wickX}
+        y2={wickBottom}
+        stroke={wickColor}
+        strokeWidth={1}
+      />
+      <rect
+        x={candleX}
+        y={bodyTop}
+        width={candleWidth}
+        height={bodyHeight}
+        fill={bodyColor}
+        stroke={wickColor}
+        strokeWidth={0.5}
+      />
+    </g>
+  );
 }
 
 export function HistoricalPriceTab({
@@ -124,6 +184,7 @@ export function HistoricalPriceTab({
       });
 
       const historicalIV = volatility * 100;
+      const isBullish = candle.close >= candle.open;
 
       return {
         timestamp: candle.timestamp,
@@ -135,6 +196,8 @@ export function HistoricalPriceTab({
         strategyValue: hasValidLegs ? strategyValue : null,
         iv: historicalIV,
         volume: candle.volume,
+        isBullish,
+        candleBody: [Math.min(candle.open, candle.close), Math.max(candle.open, candle.close)],
       };
     });
   }, [candleData, legs, volatility, timeRange]);
@@ -167,6 +230,16 @@ export function HistoricalPriceTab({
     }
     return `Strategy (${legs.length} legs)`;
   }, [legs, symbol]);
+
+  const priceRange = useMemo(() => {
+    if (!chartData.length) return { min: 0, max: 100 };
+    const lows = chartData.map((d) => d.stockLow);
+    const highs = chartData.map((d) => d.stockHigh);
+    const min = Math.min(...lows);
+    const max = Math.max(...highs);
+    const padding = (max - min) * 0.05;
+    return { min: min - padding, max: max + padding };
+  }, [chartData]);
 
   if (isLoading) {
     return (
@@ -237,10 +310,10 @@ export function HistoricalPriceTab({
                 </Badge>
               )}
             </div>
-            {latestData?.strategyValue && (
+            {latestData?.strategyValue !== null && latestData?.strategyValue !== undefined && (
               <div className="flex items-center gap-2">
                 <span className="text-lg font-mono font-semibold">
-                  ${latestData.strategyValue.toFixed(2)}
+                  ${Math.abs(latestData.strategyValue).toFixed(2)}
                 </span>
                 <Badge
                   variant={strategyChange >= 0 ? "default" : "destructive"}
@@ -280,31 +353,13 @@ export function HistoricalPriceTab({
                 formatter={(value: number) => [`$${value.toFixed(2)}`, "Strategy"]}
                 labelFormatter={(label) => label}
               />
-              {chartType === "candlestick" ? (
-                <>
-                  <Bar
-                    dataKey="strategyValue"
-                    fill="hsl(var(--chart-2))"
-                    opacity={0.3}
-                    barSize={6}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="strategyValue"
-                    stroke="hsl(var(--chart-2))"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </>
-              ) : (
-                <Line
-                  type="monotone"
-                  dataKey="strategyValue"
-                  stroke="hsl(var(--chart-2))"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              )}
+              <Line
+                type="monotone"
+                dataKey="strategyValue"
+                stroke="hsl(var(--chart-2))"
+                strokeWidth={2}
+                dot={false}
+              />
             </ComposedChart>
           </ResponsiveContainer>
         </Card>
@@ -328,7 +383,7 @@ export function HistoricalPriceTab({
             </div>
           )}
         </div>
-        <ResponsiveContainer width="100%" height={150}>
+        <ResponsiveContainer width="100%" height={200}>
           <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis
@@ -339,12 +394,13 @@ export function HistoricalPriceTab({
               interval="preserveStartEnd"
             />
             <YAxis
-              domain={["auto", "auto"]}
+              domain={[priceRange.min, priceRange.max]}
               tick={{ fontSize: 10 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => `$${v.toFixed(0)}`}
               width={45}
+              yAxisId="price"
             />
             <Tooltip
               contentStyle={{
@@ -353,36 +409,58 @@ export function HistoricalPriceTab({
                 borderRadius: "6px",
                 fontSize: "12px",
               }}
-              formatter={(value: number, name: string) => {
-                if (name === "stockClose") return [`$${value.toFixed(2)}`, "Close"];
-                if (name === "stockHigh") return [`$${value.toFixed(2)}`, "High"];
-                if (name === "stockLow") return [`$${value.toFixed(2)}`, "Low"];
-                return [`$${value.toFixed(2)}`, name];
+              content={({ active, payload, label }) => {
+                if (!active || !payload || !payload.length) return null;
+                const data = payload[0]?.payload;
+                if (!data) return null;
+                return (
+                  <div className="bg-card border rounded-md p-2 shadow-lg">
+                    <div className="text-xs font-medium mb-1">{label}</div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                      <span className="text-muted-foreground">Open:</span>
+                      <span className="font-mono">${data.stockOpen?.toFixed(2)}</span>
+                      <span className="text-muted-foreground">High:</span>
+                      <span className="font-mono">${data.stockHigh?.toFixed(2)}</span>
+                      <span className="text-muted-foreground">Low:</span>
+                      <span className="font-mono">${data.stockLow?.toFixed(2)}</span>
+                      <span className="text-muted-foreground">Close:</span>
+                      <span className="font-mono">${data.stockClose?.toFixed(2)}</span>
+                    </div>
+                  </div>
+                );
               }}
             />
             {chartType === "candlestick" ? (
               <>
-                <Area
-                  type="monotone"
-                  dataKey="stockHigh"
-                  stroke="none"
-                  fill="hsl(var(--chart-1))"
-                  fillOpacity={0.1}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="stockLow"
-                  stroke="none"
-                  fill="hsl(var(--background))"
-                  fillOpacity={1}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="stockClose"
-                  stroke="hsl(var(--chart-1))"
-                  strokeWidth={2}
-                  dot={false}
-                />
+                {chartData.map((entry, index) => {
+                  const isBullish = entry.stockClose >= entry.stockOpen;
+                  return (
+                    <ReferenceLine
+                      key={`wick-${index}`}
+                      yAxisId="price"
+                      segment={[
+                        { x: entry.date, y: entry.stockLow },
+                        { x: entry.date, y: entry.stockHigh },
+                      ]}
+                      stroke={isBullish ? "#16a34a" : "#dc2626"}
+                      strokeWidth={1}
+                    />
+                  );
+                })}
+                <Bar
+                  dataKey="candleBody"
+                  yAxisId="price"
+                  barSize={Math.max(3, Math.min(12, 300 / chartData.length))}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.isBullish ? "#22c55e" : "#ef4444"}
+                      stroke={entry.isBullish ? "#16a34a" : "#dc2626"}
+                      strokeWidth={0.5}
+                    />
+                  ))}
+                </Bar>
               </>
             ) : (
               <Line
@@ -391,9 +469,10 @@ export function HistoricalPriceTab({
                 stroke="hsl(var(--chart-1))"
                 strokeWidth={2}
                 dot={false}
+                yAxisId="price"
               />
             )}
-            <ReferenceLine y={currentPrice} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" />
+            <ReferenceLine y={currentPrice} yAxisId="price" stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" />
           </ComposedChart>
         </ResponsiveContainer>
       </Card>
