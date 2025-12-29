@@ -379,7 +379,10 @@ export function OptionDetailsPanel({
   // Confirm the closing transaction - this actually executes the sell
   // Creates a new ClosingEntry with the current strike (immutable)
   const handleConfirmClose = () => {
-    const closingPrice = parseFloat(closingPriceText) || marketData?.ask || leg.premium;
+    // Use explicit NaN check instead of || to allow 0 as valid closing price
+    // This is important when user wants to close at $0 (e.g., option expired worthless)
+    const parsedPrice = parseFloat(closingPriceText);
+    const closingPrice = !isNaN(parsedPrice) ? parsedPrice : (marketData?.ask || leg.premium);
     
     // Create a new closing entry with the current strike and opening price (cost basis)
     // These values are captured as primitives and will NOT change when the leg is moved
