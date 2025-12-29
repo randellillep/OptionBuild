@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Activity, TrendingUp, BarChart3, AlertTriangle, Users, History } from "lucide-react";
 import type { Greeks, MarketOptionChainSummary, OptionLeg } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
-import { BacktestPanel } from "./BacktestPanel";
+import { HistoricalPriceTab } from "./HistoricalPriceTab";
 import { 
   Line, 
   XAxis, 
@@ -219,23 +219,12 @@ export function AnalysisTabs({
       </TabsContent>
 
       <TabsContent value="backtest" className="mt-2">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Badge variant="outline" className="bg-primary/10 text-primary">
-              Historical Price
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              Test your strategy against historical price data
-            </span>
-          </div>
-          <BacktestPanel
-            symbol={symbol}
-            currentPrice={currentPrice}
-            legs={legs}
-            volatility={volatility}
-            expirationDate={expirationDate || null}
-          />
-        </Card>
+        <HistoricalPriceTab
+          symbol={symbol}
+          currentPrice={currentPrice}
+          legs={legs}
+          volatility={volatility}
+        />
       </TabsContent>
 
       <TabsContent value="expected-move" className="mt-2">
