@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,9 +8,10 @@ import { TrendingUp, Download, Star, Settings, ArrowLeft, Trash2 } from "lucide-
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { OptionLeg, SavedTrade } from "@shared/schema";
+import { calculateRealizedUnrealizedPL } from "@/lib/options-pricing";
 
 export default function SavedTrades() {
   const [, setLocation] = useLocation();
@@ -23,6 +24,33 @@ export default function SavedTrades() {
     queryKey: ['/api/trades'],
     enabled: isAuthenticated,
   });
+
+  // Get unique symbols from all trades to fetch current prices
+  const uniqueSymbols = useMemo(() => {
+    return Array.from(new Set(trades.map(t => t.symbol)));
+  }, [trades]);
+
+  // Fetch current prices for all unique symbols
+  const priceQueries = useQueries({
+    queries: uniqueSymbols.map(symbol => ({
+      queryKey: ['/api/stock/quote', symbol],
+      enabled: !!symbol,
+      refetchInterval: 30000, // Refresh every 30 seconds
+      staleTime: 10000,
+    })),
+  });
+
+  // Build a map of symbol -> current price
+  const currentPrices = useMemo(() => {
+    const priceMap: Record<string, number> = {};
+    uniqueSymbols.forEach((symbol, index) => {
+      const queryResult = priceQueries[index];
+      if (queryResult?.data && typeof queryResult.data === 'object' && 'price' in queryResult.data) {
+        priceMap[symbol] = (queryResult.data as { price: number }).price;
+      }
+    });
+    return priceMap;
+  }, [uniqueSymbols, priceQueries]);
 
   const deleteMutation = useMutation({
     mutationFn: async (tradeId: string) => {
@@ -61,17 +89,34 @@ export default function SavedTrades() {
   };
 
   const calculateTotalReturn = (trade: SavedTrade): { value: number; percent: number } => {
-    // Mock calculation - in real app would use current prices
-    const randomReturn = (Math.random() - 0.6) * 2000;
-    const randomPercent = (Math.random() - 0.6) * 100;
-    return { value: randomReturn, percent: randomPercent };
-  };
+    // Get current price for this trade's symbol
+    const currentPrice = currentPrices[trade.symbol];
+    if (!currentPrice) {
+      return { value: 0, percent: 0 }; // No price available yet
+    }
 
-  const calculateTodayReturn = (trade: SavedTrade): { value: number; percent: number } => {
-    // Mock calculation - in real app would use today's price change
-    const randomReturn = (Math.random() - 0.5) * 500;
-    const randomPercent = (Math.random() - 0.5) * 50;
-    return { value: randomReturn, percent: randomPercent };
+    // Parse legs from the trade (stored as JSONB)
+    const legs = (trade.legs as OptionLeg[]) || [];
+    if (legs.length === 0) {
+      return { value: 0, percent: 0 };
+    }
+
+    // Calculate realized and unrealized P/L using current price
+    // Use leg's saved IV if available, otherwise default to 0.30
+    const avgIV = legs.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.30), 0) / legs.length;
+    const { realizedPL, unrealizedPL } = calculateRealizedUnrealizedPL(legs, currentPrice, avgIV);
+    
+    const totalReturn = realizedPL + unrealizedPL;
+    
+    // Calculate total cost basis for percent calculation
+    const totalCostBasis = legs.reduce((sum, leg) => {
+      const premium = Math.abs(leg.premium) * leg.quantity * 100;
+      return sum + premium;
+    }, 0);
+    
+    const percent = totalCostBasis > 0 ? (totalReturn / totalCostBasis) * 100 : 0;
+    
+    return { value: totalReturn, percent };
   };
 
   const filteredTrades = trades
@@ -234,7 +279,6 @@ export default function SavedTrades() {
                 <tbody>
                   {filteredTrades.map((trade) => {
                     const totalReturn = calculateTotalReturn(trade);
-                    const todayReturn = calculateTodayReturn(trade);
                     const expInfo = getDaysUntilExpiration(trade.expirationDate);
                     
                     return (
@@ -271,8 +315,8 @@ export default function SavedTrades() {
                           </span>
                         </td>
                         <td className="py-3 px-2 text-right">
-                          <span className={todayReturn.value >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}>
-                            {todayReturn.value >= 0 ? '+' : ''}${todayReturn.value.toFixed(2)} ({todayReturn.percent >= 0 ? '+' : ''}{todayReturn.percent.toFixed(0)}%)
+                          <span className="text-muted-foreground">
+                            —
                           </span>
                         </td>
                         <td className="py-3 px-2 text-sm text-muted-foreground">
