@@ -147,6 +147,8 @@ export function HistoricalPriceTab({
     staleTime: 60000,
   });
 
+  const isSingleLeg = legs.length === 1;
+
   const chartData = useMemo(() => {
     if (!candleData?.candles?.length) return [];
 
@@ -154,12 +156,16 @@ export function HistoricalPriceTab({
     const today = new Date();
 
     return candles.map((candle, index) => {
-      const stockPrice = candle.close;
       const candleDate = new Date(candle.timestamp);
       const daysDiff = Math.ceil((today.getTime() - candleDate.getTime()) / (1000 * 60 * 60 * 24));
 
       let strategyValue = 0;
       let hasValidLegs = false;
+      
+      let optionOpen: number | null = null;
+      let optionHigh: number | null = null;
+      let optionLow: number | null = null;
+      let optionClose: number | null = null;
 
       legs.forEach((leg) => {
         if (leg.expirationDays <= 0) return;
@@ -170,21 +176,53 @@ export function HistoricalPriceTab({
         
         hasValidLegs = true;
         const legVolatility = leg.impliedVolatility ?? volatility;
+        const positionMultiplier = leg.position === "long" ? 1 : -1;
 
-        const optionValue = calculateOptionPrice(
+        const valueAtClose = calculateOptionPrice(
           leg.type,
-          stockPrice,
+          candle.close,
           leg.strike,
           daysRemainingAtCandle,
           legVolatility
         );
 
-        const positionMultiplier = leg.position === "long" ? 1 : -1;
-        strategyValue += optionValue * positionMultiplier * leg.quantity;
+        strategyValue += valueAtClose * positionMultiplier * leg.quantity;
+
+        if (isSingleLeg) {
+          const valueAtOpen = calculateOptionPrice(
+            leg.type,
+            candle.open,
+            leg.strike,
+            daysRemainingAtCandle,
+            legVolatility
+          );
+          const valueAtHigh = calculateOptionPrice(
+            leg.type,
+            candle.high,
+            leg.strike,
+            daysRemainingAtCandle,
+            legVolatility
+          );
+          const valueAtLow = calculateOptionPrice(
+            leg.type,
+            candle.low,
+            leg.strike,
+            daysRemainingAtCandle,
+            legVolatility
+          );
+
+          const allValues = [valueAtOpen, valueAtClose, valueAtHigh, valueAtLow];
+          optionOpen = valueAtOpen * leg.quantity;
+          optionClose = valueAtClose * leg.quantity;
+          optionHigh = Math.max(...allValues) * leg.quantity;
+          optionLow = Math.min(...allValues) * leg.quantity;
+        }
       });
 
       const historicalIV = volatility * 100;
       const isBullish = candle.close >= candle.open;
+      
+      const optionIsBullish = optionClose !== null && optionOpen !== null ? optionClose >= optionOpen : isBullish;
 
       return {
         timestamp: candle.timestamp,
@@ -194,13 +232,21 @@ export function HistoricalPriceTab({
         stockLow: candle.low,
         stockClose: candle.close,
         strategyValue: hasValidLegs ? strategyValue : null,
+        optionOpen: hasValidLegs ? optionOpen : null,
+        optionHigh: hasValidLegs ? optionHigh : null,
+        optionLow: hasValidLegs ? optionLow : null,
+        optionClose: hasValidLegs ? optionClose : null,
+        optionIsBullish,
+        optionCandleBody: hasValidLegs && optionOpen !== null && optionClose !== null
+          ? [Math.min(optionOpen, optionClose), Math.max(optionOpen, optionClose)]
+          : null,
         iv: historicalIV,
         volume: candle.volume,
         isBullish,
         candleBody: [Math.min(candle.open, candle.close), Math.max(candle.open, candle.close)],
       };
     });
-  }, [candleData, legs, volatility, timeRange]);
+  }, [candleData, legs, volatility, timeRange, isSingleLeg]);
 
   const latestData = chartData[chartData.length - 1];
   const firstData = chartData[0];
@@ -240,6 +286,20 @@ export function HistoricalPriceTab({
     const padding = (max - min) * 0.05;
     return { min: min - padding, max: max + padding };
   }, [chartData]);
+
+  const optionPriceRange = useMemo(() => {
+    if (!chartData.length || !isSingleLeg) return { min: 0, max: 10 };
+    const validData = chartData.filter((d): d is typeof d & { optionLow: number; optionHigh: number } => 
+      d.optionLow !== null && d.optionHigh !== null
+    );
+    if (!validData.length) return { min: 0, max: 10 };
+    const lows = validData.map((d) => d.optionLow);
+    const highs = validData.map((d) => d.optionHigh);
+    const min = Math.min(...lows);
+    const max = Math.max(...highs);
+    const padding = (max - min) * 0.1;
+    return { min: Math.max(0, min - padding), max: max + padding };
+  }, [chartData, isSingleLeg]);
 
   if (isLoading) {
     return (
@@ -309,6 +369,9 @@ export function HistoricalPriceTab({
                   Net Credit
                 </Badge>
               )}
+              {!isSingleLeg && legs.length > 1 && (
+                <Badge variant="outline" className="text-[9px]">Combined</Badge>
+              )}
             </div>
             {latestData?.strategyValue !== null && latestData?.strategyValue !== undefined && (
               <div className="flex items-center gap-2">
@@ -325,7 +388,7 @@ export function HistoricalPriceTab({
               </div>
             )}
           </div>
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={200}>
             <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis
@@ -336,12 +399,15 @@ export function HistoricalPriceTab({
                 interval="preserveStartEnd"
               />
               <YAxis
-                domain={["auto", "auto"]}
+                domain={isSingleLeg && chartType === "candlestick" 
+                  ? [optionPriceRange.min, optionPriceRange.max] 
+                  : ["auto", "auto"]}
                 tick={{ fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v) => `$${v.toFixed(0)}`}
+                tickFormatter={(v) => `$${Math.abs(v).toFixed(0)}`}
                 width={45}
+                yAxisId="option"
               />
               <Tooltip
                 contentStyle={{
@@ -350,16 +416,82 @@ export function HistoricalPriceTab({
                   borderRadius: "6px",
                   fontSize: "12px",
                 }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, "Strategy"]}
-                labelFormatter={(label) => label}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || !payload.length) return null;
+                  const data = payload[0]?.payload;
+                  if (!data) return null;
+                  
+                  if (isSingleLeg && chartType === "candlestick" && data.optionOpen !== null) {
+                    return (
+                      <div className="bg-card border rounded-md p-2 shadow-lg">
+                        <div className="text-xs font-medium mb-1">{label}</div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                          <span className="text-muted-foreground">Open:</span>
+                          <span className="font-mono">${Math.abs(data.optionOpen)?.toFixed(2)}</span>
+                          <span className="text-muted-foreground">High:</span>
+                          <span className="font-mono">${Math.abs(data.optionHigh)?.toFixed(2)}</span>
+                          <span className="text-muted-foreground">Low:</span>
+                          <span className="font-mono">${Math.abs(data.optionLow)?.toFixed(2)}</span>
+                          <span className="text-muted-foreground">Close:</span>
+                          <span className="font-mono">${Math.abs(data.optionClose)?.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="bg-card border rounded-md p-2 shadow-lg">
+                      <div className="text-xs font-medium mb-1">{label}</div>
+                      <div className="text-xs">
+                        <span className="text-muted-foreground">Value: </span>
+                        <span className="font-mono">${Math.abs(data.strategyValue)?.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                }}
               />
-              <Line
-                type="monotone"
-                dataKey="strategyValue"
-                stroke="hsl(var(--chart-2))"
-                strokeWidth={2}
-                dot={false}
-              />
+              {isSingleLeg && chartType === "candlestick" ? (
+                <>
+                  {chartData.map((entry, index) => {
+                    if (entry.optionLow === null || entry.optionHigh === null) return null;
+                    return (
+                      <ReferenceLine
+                        key={`option-wick-${index}`}
+                        yAxisId="option"
+                        segment={[
+                          { x: entry.date, y: entry.optionLow },
+                          { x: entry.date, y: entry.optionHigh },
+                        ]}
+                        stroke={entry.optionIsBullish ? "#16a34a" : "#dc2626"}
+                        strokeWidth={1}
+                      />
+                    );
+                  })}
+                  <Bar
+                    dataKey="optionCandleBody"
+                    yAxisId="option"
+                    barSize={Math.max(3, Math.min(12, 300 / chartData.length))}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`option-cell-${index}`}
+                        fill={entry.optionIsBullish ? "#22c55e" : "#ef4444"}
+                        stroke={entry.optionIsBullish ? "#16a34a" : "#dc2626"}
+                        strokeWidth={0.5}
+                      />
+                    ))}
+                  </Bar>
+                </>
+              ) : (
+                <Line
+                  type="monotone"
+                  dataKey="strategyValue"
+                  stroke="hsl(var(--chart-2))"
+                  strokeWidth={2}
+                  dot={false}
+                  yAxisId="option"
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </Card>
