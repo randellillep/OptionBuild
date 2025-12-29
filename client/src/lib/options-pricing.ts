@@ -278,12 +278,15 @@ export function calculateProfitLossAtDate(
         ? Math.max(atPrice - leg.strike, 0)
         : Math.max(leg.strike - atPrice, 0);
     } else {
+      // Use leg's implied volatility if available, otherwise fallback to strategy volatility
+      // This ensures that at current price/time, the theoretical value matches the market price paid
+      const legVolatility = leg.impliedVolatility ?? volatility;
       optionValue = calculateOptionPrice(
         leg.type,
         atPrice,
         leg.strike,
         daysRemaining,
-        volatility,
+        legVolatility,
         riskFreeRate
       );
     }
