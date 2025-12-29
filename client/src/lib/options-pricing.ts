@@ -290,13 +290,29 @@ export function calculateProfitLossAtDate(
     }
     
     // Normalize premium to always be positive (absolute value)
-    // This is the actual cost basis - what the user paid or received
     const premium = Math.abs(leg.premium);
     
-    // Always use the actual premium as the cost basis for P/L calculations
-    // This ensures max profit for a short option = premium * 100 when option expires worthless
-    // and max loss for a long option = premium * 100 when option expires worthless
-    const baselineValue = premium;
+    // Calculate baseline option value for P/L anchoring
+    // For manual/saved premiums: use premium directly (user's actual cost basis)
+    // For market/theoretical premiums: calculate at entry point using Black-Scholes
+    // This ensures P/L = 0 at the entry underlying price
+    let baselineValue: number;
+    
+    if (leg.premiumSource === 'manual' || leg.premiumSource === 'saved' || !leg.entryUnderlyingPrice) {
+      // Use premium directly - this is the user's actual cost basis
+      baselineValue = premium;
+    } else {
+      // Calculate baseline using Black-Scholes at entry point
+      // This anchors P/L to 0 when atPrice === entryUnderlyingPrice
+      baselineValue = calculateOptionPrice(
+        leg.type,
+        leg.entryUnderlyingPrice,
+        leg.strike,
+        leg.expirationDays, // Full days at entry
+        legVolatility,
+        riskFreeRate
+      );
+    }
     
     // Handle closing transaction if present and enabled
     const closing = leg.closingTransaction;
