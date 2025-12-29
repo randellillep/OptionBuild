@@ -264,13 +264,15 @@ export function StrikeLadder({
         }
 
         // Always update strike and reset premium (market or theoretical)
+        // Also update entryUnderlyingPrice to current price for proper P/L anchoring
         if (marketPrice !== undefined && marketPrice > 0) {
           // Market data available - reset to market price and IV
           onUpdateLeg(draggedLeg, { 
             strike: newStrike, 
             premium: marketPrice,
             premiumSource: "market",
-            impliedVolatility: marketIV
+            impliedVolatility: marketIV,
+            entryUnderlyingPrice: currentPrice
           });
         } else {
           // No market data - calculate theoretical premium using Black-Scholes
@@ -286,7 +288,8 @@ export function StrikeLadder({
             strike: newStrike,
             premium: theoreticalPremium,
             premiumSource: "theoretical",
-            impliedVolatility: undefined
+            impliedVolatility: undefined,
+            entryUnderlyingPrice: currentPrice
           });
         }
       }

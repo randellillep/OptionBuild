@@ -464,6 +464,7 @@ export default function Builder() {
               premiumSource: 'market' as const,
               impliedVolatility: calculatedIV,
               expirationDays: daysToExpiration,
+              entryUnderlyingPrice: symbolInfo.price,
             });
           }
         } else if (!isFinite(leg.premium) || leg.premium <= 0) {
@@ -484,6 +485,7 @@ export default function Builder() {
                 premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
                 premiumSource: 'theoretical' as const,
                 expirationDays: daysToExpiration,
+                entryUnderlyingPrice: symbolInfo.price,
               });
             }
           }
@@ -494,6 +496,7 @@ export default function Builder() {
             premium: 0.01,
             premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
+            entryUnderlyingPrice: symbolInfo.price,
           });
         }
         
@@ -546,6 +549,7 @@ export default function Builder() {
                 premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
                 premiumSource: 'theoretical' as const,
                 expirationDays: daysToExpiration,
+                entryUnderlyingPrice: symbolInfo.price,
               });
             }
           }
@@ -556,6 +560,7 @@ export default function Builder() {
             premium: 0.01,
             premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
+            entryUnderlyingPrice: symbolInfo.price,
           });
         });
 
@@ -755,7 +760,7 @@ export default function Builder() {
           premiumSource: 'market' as const,
           impliedVolatility: calculatedIV,
           expirationDays: daysToExpiration,
-          entryUnderlyingPrice: leg.entryUnderlyingPrice ?? symbolInfo.price,
+          entryUnderlyingPrice: symbolInfo.price,
           closingTransaction: preservedClosingTransaction,
         };
       }
@@ -777,7 +782,7 @@ export default function Builder() {
             premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
             premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
-            entryUnderlyingPrice: leg.entryUnderlyingPrice ?? symbolInfo.price,
+            entryUnderlyingPrice: symbolInfo.price,
             closingTransaction: preservedClosingTransaction,
           };
         }
@@ -789,7 +794,7 @@ export default function Builder() {
         premium: leg.premium ?? 0.01,
         premiumSource: 'theoretical' as const,
         expirationDays: daysToExpiration,
-        entryUnderlyingPrice: leg.entryUnderlyingPrice ?? symbolInfo?.price,
+        entryUnderlyingPrice: symbolInfo?.price,
         closingTransaction: preservedClosingTransaction,
       };
     });
