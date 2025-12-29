@@ -87,6 +87,7 @@ export interface OptionLeg {
   marketQuoteId?: string;
   premiumSource?: PremiumSource;
   impliedVolatility?: number;
+  entryUnderlyingPrice?: number;   // Stock price when position was opened (for P/L anchoring)
   // New fields for advanced features
   expirationDate?: string;         // ISO date string for expiration
   isExcluded?: boolean;            // Whether to exclude from P/L calculations

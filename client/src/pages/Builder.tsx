@@ -131,6 +131,7 @@ export default function Builder() {
               expirationDays: leg.expirationDays || 30,
               premiumSource: 'saved' as const,  // Preserve original cost basis
               impliedVolatility: leg.impliedVolatility,
+              entryUnderlyingPrice: leg.entryUnderlyingPrice ?? trade.price,
               expirationDate: leg.expirationDate,
               isExcluded: leg.isExcluded,
               closingTransaction: leg.closingTransaction,
@@ -204,6 +205,7 @@ export default function Builder() {
               expirationDays: leg.expirationDays || 30,
               premiumSource: 'saved' as const,  // Preserve original cost basis
               impliedVolatility: leg.impliedVolatility,
+              entryUnderlyingPrice: leg.entryUnderlyingPrice ?? strategy.price,
               expirationDate: leg.expirationDate,
               isExcluded: leg.isExcluded,
               closingTransaction: leg.closingTransaction,
@@ -753,6 +755,7 @@ export default function Builder() {
           premiumSource: 'market' as const,
           impliedVolatility: calculatedIV,
           expirationDays: daysToExpiration,
+          entryUnderlyingPrice: leg.entryUnderlyingPrice ?? symbolInfo.price,
           closingTransaction: preservedClosingTransaction,
         };
       }
@@ -774,6 +777,7 @@ export default function Builder() {
             premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
             premiumSource: 'theoretical' as const,
             expirationDays: daysToExpiration,
+            entryUnderlyingPrice: leg.entryUnderlyingPrice ?? symbolInfo.price,
             closingTransaction: preservedClosingTransaction,
           };
         }
@@ -785,6 +789,7 @@ export default function Builder() {
         premium: leg.premium ?? 0.01,
         premiumSource: 'theoretical' as const,
         expirationDays: daysToExpiration,
+        entryUnderlyingPrice: leg.entryUnderlyingPrice ?? symbolInfo?.price,
         closingTransaction: preservedClosingTransaction,
       };
     });

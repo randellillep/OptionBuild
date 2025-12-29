@@ -527,6 +527,7 @@ export function OptionDetailsPanel({
         expirationDate: leg.expirationDate,
         premiumSource: leg.premiumSource,
         impliedVolatility: leg.impliedVolatility,
+        entryUnderlyingPrice: leg.entryUnderlyingPrice ?? underlyingPrice,
         // No closing transaction - it's now open
       };
       

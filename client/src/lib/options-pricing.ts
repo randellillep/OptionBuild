@@ -270,6 +270,7 @@ export function calculateProfitLossAtDate(
     // daysFromNow = 0 means today, so we have leg.expirationDays remaining
     // daysFromNow = 5 means 5 days from now, so we have leg.expirationDays - 5 remaining
     const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
+    const legVolatility = leg.impliedVolatility ?? volatility;
     
     let optionValue: number;
     if (daysRemaining <= 0) {
@@ -278,9 +279,6 @@ export function calculateProfitLossAtDate(
         ? Math.max(atPrice - leg.strike, 0)
         : Math.max(leg.strike - atPrice, 0);
     } else {
-      // Use leg's implied volatility if available, otherwise fallback to strategy volatility
-      // This ensures that at current price/time, the theoretical value matches the market price paid
-      const legVolatility = leg.impliedVolatility ?? volatility;
       optionValue = calculateOptionPrice(
         leg.type,
         atPrice,
@@ -293,6 +291,25 @@ export function calculateProfitLossAtDate(
     
     // Normalize premium to always be positive (absolute value)
     const premium = Math.abs(leg.premium);
+    
+    // Calculate baseline option value at entry point for proper P/L anchoring
+    // This ensures P/L = 0 when price hasn't moved from entry
+    let baselineValue: number;
+    const entryPrice = leg.entryUnderlyingPrice ?? underlyingPrice;
+    if (leg.entryUnderlyingPrice !== undefined) {
+      // We have entry price - calculate what the option was worth at entry
+      baselineValue = calculateOptionPrice(
+        leg.type,
+        entryPrice,
+        leg.strike,
+        leg.expirationDays, // Full days at entry
+        legVolatility,
+        riskFreeRate
+      );
+    } else {
+      // No entry price stored - use premium as baseline (legacy behavior)
+      baselineValue = premium;
+    }
     
     // Handle closing transaction if present and enabled
     const closing = leg.closingTransaction;
@@ -321,10 +338,11 @@ export function calculateProfitLossAtDate(
       const remainingQty = leg.quantity - allClosedQty;
       
       // Unrealized P/L for remaining quantity (only if leg is NOT excluded)
+      // Use baselineValue for proper anchoring so P/L = 0 at entry point
       const remainingPnl = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long"
-            ? (optionValue - premium) * remainingQty * 100
-            : (premium - optionValue) * remainingQty * 100)
+            ? (optionValue - baselineValue) * remainingQty * 100
+            : (baselineValue - optionValue) * remainingQty * 100)
         : 0;
       
       pnl += totalClosedPnl + remainingPnl;
@@ -340,10 +358,11 @@ export function calculateProfitLossAtDate(
         : (premium - closingPrice) * closedQty * 100;
       
       // Unrealized P/L for remaining quantity (only if leg is NOT excluded)
+      // Use baselineValue for proper anchoring so P/L = 0 at entry point
       const remainingPnl = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long"
-            ? (optionValue - premium) * remainingQty * 100
-            : (premium - optionValue) * remainingQty * 100)
+            ? (optionValue - baselineValue) * remainingQty * 100
+            : (baselineValue - optionValue) * remainingQty * 100)
         : 0;
       
       pnl += closedPnl + remainingPnl;
@@ -352,9 +371,10 @@ export function calculateProfitLossAtDate(
       if (leg.isExcluded) continue;
       
       // Standard calculation for full quantity
+      // Use baselineValue for proper anchoring so P/L = 0 at entry point
       const legPnl = leg.position === "long"
-        ? (optionValue - premium) * Math.abs(leg.quantity) * 100
-        : (premium - optionValue) * Math.abs(leg.quantity) * 100;
+        ? (optionValue - baselineValue) * Math.abs(leg.quantity) * 100
+        : (baselineValue - optionValue) * Math.abs(leg.quantity) * 100;
       
       pnl += legPnl;
     }
