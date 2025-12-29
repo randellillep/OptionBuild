@@ -317,48 +317,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Historical stock candles endpoint for charts
+  // Historical stock candles endpoint for charts (using Alpaca API)
   app.get("/api/stock/candles/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
       const { resolution = 'D', from, to } = req.query;
       
-      if (!FINNHUB_API_KEY) {
-        return res.status(500).json({ error: "API key not configured" });
+      if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+        return res.status(500).json({ error: "Alpaca API keys not configured" });
       }
 
       // Default to last 6 months of daily data
       const toTimestamp = to ? parseInt(to as string) : Math.floor(Date.now() / 1000);
       const fromTimestamp = from ? parseInt(from as string) : toTimestamp - (180 * 24 * 60 * 60);
 
-      const response = await fetch(
-        `${FINNHUB_BASE_URL}/stock/candle?symbol=${symbol.toUpperCase()}&resolution=${resolution}&from=${fromTimestamp}&to=${toTimestamp}&token=${FINNHUB_API_KEY}`
-      );
+      // Convert timestamps to ISO 8601 format for Alpaca
+      const startDate = new Date(fromTimestamp * 1000).toISOString();
+      const endDate = new Date(toTimestamp * 1000).toISOString();
+
+      // Map resolution to Alpaca timeframe
+      let timeframe = '1Day';
+      if (resolution === '1' || resolution === '5') {
+        timeframe = '5Min';
+      } else if (resolution === '15') {
+        timeframe = '15Min';
+      } else if (resolution === '60') {
+        timeframe = '1Hour';
+      }
+
+      const alpacaUrl = `https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/bars?timeframe=${timeframe}&start=${startDate}&end=${endDate}&limit=1000&adjustment=split&feed=iex`;
+
+      const response = await fetch(alpacaUrl, {
+        headers: {
+          'APCA-API-KEY-ID': ALPACA_API_KEY,
+          'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+        },
+      });
 
       if (!response.ok) {
-        throw new Error(`Finnhub API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error("Alpaca bars API error:", response.status, errorText);
+        throw new Error(`Alpaca API error: ${response.status}`);
       }
 
       const data = await response.json();
       
-      if (data.s === 'no_data') {
+      if (!data.bars || data.bars.length === 0) {
         return res.json({ candles: [] });
       }
 
-      // Transform Finnhub response to array of candles
-      const candles = [];
-      if (data.t && data.c && data.o && data.h && data.l && data.v) {
-        for (let i = 0; i < data.t.length; i++) {
-          candles.push({
-            timestamp: data.t[i] * 1000, // Convert to milliseconds
-            open: data.o[i],
-            high: data.h[i],
-            low: data.l[i],
-            close: data.c[i],
-            volume: data.v[i],
-          });
-        }
-      }
+      // Transform Alpaca response to array of candles
+      const candles = data.bars.map((bar: any) => ({
+        timestamp: new Date(bar.t).getTime(),
+        open: bar.o,
+        high: bar.h,
+        low: bar.l,
+        close: bar.c,
+        volume: bar.v,
+      }));
 
       res.json({
         symbol: symbol.toUpperCase(),
