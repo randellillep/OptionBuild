@@ -652,61 +652,8 @@ export default function Builder() {
       }
     : strikeRange;
 
-  const addLeg = (legTemplate: Omit<OptionLeg, "id">) => {
-    const newLeg: OptionLeg = {
-      ...legTemplate,
-      id: Date.now().toString(),
-    };
-    setLegs(prevLegs => [...prevLegs, newLeg]);
-  };
-
-  const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
-    setLegs(prevLegs => prevLegs.map((leg) => {
-      if (leg.id !== id) return leg;
-      
-      // Deep copy the closing transaction to preserve immutable entry data
-      // This prevents mutations from affecting stored openingPrice/strike values
-      const preservedClosingTransaction = leg.closingTransaction ? {
-        ...leg.closingTransaction,
-        // Deep copy entries array to prevent reference mutations
-        entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
-      } : undefined;
-      
-      return { 
-        ...leg, 
-        ...updates,
-        // Always preserve the existing closing transaction (with deep-copied entries)
-        // unless the update explicitly includes closing transaction changes
-        closingTransaction: updates.closingTransaction ?? preservedClosingTransaction
-      };
-    }));
-  };
-
-  const removeLeg = (id: string) => {
-    setLegs(prevLegs => prevLegs.map((leg) => {
-      if (leg.id !== id) return leg;
-      
-      // Check if this leg has closed entries
-      const closedEntries = leg.closingTransaction?.entries || [];
-      const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
-      
-      if (hasClosedEntries) {
-        // Don't delete - just set quantity to match closed quantity so open position is 0
-        const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
-        return deepCopyLeg(leg, { quantity: closedQty });
-      }
-      
-      // No closed entries - mark for removal by setting quantity to 0
-      return deepCopyLeg(leg, { quantity: 0 });
-    }).filter(leg => {
-      // Remove legs with 0 quantity that have no closed entries
-      const closedEntries = leg.closingTransaction?.entries || [];
-      const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
-      return leg.quantity > 0 || hasClosedEntries;
-    }));
-  };
-
   // Helper function to apply market prices to legs (with theoretical fallback)
+  // Defined before addLeg so it can be used when adding new legs
   const applyMarketPrices = (legsToUpdate: OptionLeg[]): OptionLeg[] => {
     // Calculate days to expiration from selected date
     const calculateDTE = (): number => {
@@ -798,6 +745,62 @@ export default function Builder() {
         closingTransaction: preservedClosingTransaction,
       };
     });
+  };
+
+  const addLeg = (legTemplate: Omit<OptionLeg, "id">) => {
+    const newLeg: OptionLeg = {
+      ...legTemplate,
+      id: Date.now().toString(),
+    };
+    // Apply market prices immediately to get accurate pricing
+    const [legWithPrice] = applyMarketPrices([newLeg]);
+    setLegs(prevLegs => [...prevLegs, legWithPrice]);
+  };
+
+  const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
+    setLegs(prevLegs => prevLegs.map((leg) => {
+      if (leg.id !== id) return leg;
+      
+      // Deep copy the closing transaction to preserve immutable entry data
+      // This prevents mutations from affecting stored openingPrice/strike values
+      const preservedClosingTransaction = leg.closingTransaction ? {
+        ...leg.closingTransaction,
+        // Deep copy entries array to prevent reference mutations
+        entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
+      } : undefined;
+      
+      return { 
+        ...leg, 
+        ...updates,
+        // Always preserve the existing closing transaction (with deep-copied entries)
+        // unless the update explicitly includes closing transaction changes
+        closingTransaction: updates.closingTransaction ?? preservedClosingTransaction
+      };
+    }));
+  };
+
+  const removeLeg = (id: string) => {
+    setLegs(prevLegs => prevLegs.map((leg) => {
+      if (leg.id !== id) return leg;
+      
+      // Check if this leg has closed entries
+      const closedEntries = leg.closingTransaction?.entries || [];
+      const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
+      
+      if (hasClosedEntries) {
+        // Don't delete - just set quantity to match closed quantity so open position is 0
+        const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
+        return deepCopyLeg(leg, { quantity: closedQty });
+      }
+      
+      // No closed entries - mark for removal by setting quantity to 0
+      return deepCopyLeg(leg, { quantity: 0 });
+    }).filter(leg => {
+      // Remove legs with 0 quantity that have no closed entries
+      const closedEntries = leg.closingTransaction?.entries || [];
+      const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
+      return leg.quantity > 0 || hasClosedEntries;
+    }));
   };
 
   const loadTemplate = (templateIndex: number) => {
