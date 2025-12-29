@@ -289,12 +289,13 @@ export function HistoricalPriceTab({
 
   const optionPriceRange = useMemo(() => {
     if (!chartData.length || !isSingleLeg) return { min: 0, max: 10 };
-    const validData = chartData.filter((d): d is typeof d & { optionLow: number; optionHigh: number } => 
-      d.optionLow !== null && d.optionHigh !== null
-    );
-    if (!validData.length) return { min: 0, max: 10 };
-    const lows = validData.map((d) => d.optionLow);
-    const highs = validData.map((d) => d.optionHigh);
+    const lows: number[] = [];
+    const highs: number[] = [];
+    chartData.forEach((d) => {
+      if (d.optionLow !== null) lows.push(d.optionLow);
+      if (d.optionHigh !== null) highs.push(d.optionHigh);
+    });
+    if (!lows.length || !highs.length) return { min: 0, max: 10 };
     const min = Math.min(...lows);
     const max = Math.max(...highs);
     const padding = (max - min) * 0.1;
@@ -609,57 +610,6 @@ export function HistoricalPriceTab({
         </ResponsiveContainer>
       </Card>
 
-      <Card className="p-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Implied Volatility</span>
-            <Badge variant="secondary" className="text-[9px]">Current IV</Badge>
-          </div>
-          <span className="text-lg font-mono font-semibold">
-            {(volatility * 100).toFixed(1)}%
-          </span>
-        </div>
-        <div className="text-xs text-muted-foreground mb-2">
-          Historical IV data unavailable. Showing current IV as reference.
-        </div>
-        <ResponsiveContainer width="100%" height={80}>
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 10 }}
-              tickLine={false}
-              axisLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              domain={[(volatility * 100) - 5, (volatility * 100) + 5]}
-              tick={{ fontSize: 10 }}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(v) => `${v.toFixed(0)}%`}
-              width={45}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "6px",
-                fontSize: "12px",
-              }}
-              formatter={(value: number) => [`${value.toFixed(1)}%`, "IV"]}
-            />
-            <Area
-              type="monotone"
-              dataKey="iv"
-              stroke="hsl(var(--chart-4))"
-              fill="hsl(var(--chart-4))"
-              fillOpacity={0.2}
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </Card>
     </div>
   );
 }
