@@ -121,6 +121,21 @@ export function TradingViewSearch({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState("stocks");
   const [isPositionsModalOpen, setIsPositionsModalOpen] = useState(false);
+
+  // Calculate open and closed position counts
+  const openPositionsCount = legs.filter(leg => {
+    if (leg.isExcluded) return false;
+    const totalQty = leg.quantity;
+    const closedQty = leg.closingTransaction?.isEnabled 
+      ? (leg.closingTransaction.entries || []).filter(e => !e.isExcluded).reduce((sum, e) => sum + e.quantity, 0)
+      : 0;
+    return totalQty - closedQty > 0;
+  }).length;
+
+  const closedPositionsCount = legs.reduce((count, leg) => {
+    if (!leg.closingTransaction?.isEnabled) return count;
+    return count + (leg.closingTransaction.entries || []).filter(e => !e.isExcluded).length;
+  }, 0);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -277,7 +292,7 @@ export function TradingViewSearch({
               onClick={() => setIsPositionsModalOpen(true)}
             >
               <ListOrdered className="h-3.5 w-3.5 mr-1.5" />
-              Positions ({legsCount})
+              Positions ({openPositionsCount} open, {closedPositionsCount} closed)
             </Button>
             
             <Button 
