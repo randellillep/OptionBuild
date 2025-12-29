@@ -79,28 +79,6 @@ export function PLHeatmap({
   const allPnlValues = grid.flatMap(row => row.map(cell => adjustPnl(cell.pnl)));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
 
-  // Calculate current position P/L (closest price row, first time column = now)
-  const getCurrentPositionPL = () => {
-    if (grid.length === 0 || strikes.length === 0) return null;
-    
-    let closestRowIdx = 0;
-    let minDiff = Infinity;
-    strikes.forEach((strike, idx) => {
-      const diff = Math.abs(strike - currentPrice);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestRowIdx = idx;
-      }
-    });
-    
-    if (grid[closestRowIdx] && grid[closestRowIdx][0]) {
-      return adjustPnl(grid[closestRowIdx][0].pnl);
-    }
-    return null;
-  };
-  
-  const currentPL = getCurrentPositionPL();
-
   const getPnlColor = (rawPnl: number) => {
     const pnl = adjustPnl(rawPnl);
     if (maxAbsPnl === 0) return 'bg-muted';
@@ -211,15 +189,6 @@ export function PLHeatmap({
                   {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
                 </span>
               </div>
-              {currentPL !== null && (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700">
-                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                  <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">Now:</span>
-                  <span className={`text-base font-bold font-mono ${currentPL >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`} data-testid="text-current-pl">
-                    {currentPL >= 0 ? '+' : '-'}${Math.abs(currentPL).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-              )}
               {hasRealizedPL && (
                 <div className="flex items-center gap-1">
                   <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
@@ -374,21 +343,14 @@ export function PLHeatmap({
                   </td>
                   {row.map((cell, colIdx) => {
                     const adjustedPnl = adjustPnl(cell.pnl);
-                    // Check if this is the "current position" cell (closest price row + first time column = now)
-                    const isCurrentPositionCell = isClosestToCurrentPrice && colIdx === 0;
-                    
                     return (
                       <td
                         key={colIdx}
                         className={`text-[11px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
                           isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
-                        } ${isCurrentPositionCell ? 'ring-2 ring-blue-500 ring-inset font-bold relative z-20' : ''}`}
+                        }`}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
-                        title={isCurrentPositionCell ? `Current P/L: $${adjustedPnl.toFixed(0)}` : undefined}
                       >
-                        {isCurrentPositionCell && (
-                          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                        )}
                         ${adjustedPnl.toFixed(0)}
                       </td>
                     );
