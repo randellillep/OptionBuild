@@ -57,6 +57,12 @@ export default function Builder() {
     perContract: 0,
     roundTrip: false
   });
+  // Store the exact Total Return value passed from SavedTrades for consistency
+  const [savedTotalReturn, setSavedTotalReturn] = useState<{
+    value: number;
+    realizedPL: number;
+    unrealizedPL: number;
+  } | null>(null);
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   const urlParamsProcessed = useRef(false);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -198,6 +204,16 @@ export default function Builder() {
             }
             
             setSelectedExpiration(expirationDays, expirationDateStr);
+            
+            // Store the exact Total Return value passed from SavedTrades
+            // This ensures the heatmap displays EXACTLY the same value
+            if (trade._totalReturnValue !== undefined) {
+              setSavedTotalReturn({
+                value: trade._totalReturnValue,
+                realizedPL: trade._realizedPL || 0,
+                unrealizedPL: trade._unrealizedPL || 0,
+              });
+            }
             
             localStorage.removeItem('loadTrade');
           }
@@ -1149,10 +1165,10 @@ export default function Builder() {
                   commissionSettings={commissionSettings}
                   numTrades={legs.filter(l => !l.isExcluded).length}
                   totalContracts={legs.filter(l => !l.isExcluded).reduce((sum, l) => sum + Math.abs(l.quantity), 0)}
-                  realizedPL={realizedPL}
-                  unrealizedPL={unrealizedPL}
-                  hasRealizedPL={hasRealizedPL}
-                  hasUnrealizedPL={hasUnrealizedPL}
+                  realizedPL={savedTotalReturn?.realizedPL ?? realizedPL}
+                  unrealizedPL={savedTotalReturn?.unrealizedPL ?? unrealizedPL}
+                  hasRealizedPL={savedTotalReturn ? true : hasRealizedPL}
+                  hasUnrealizedPL={savedTotalReturn ? true : hasUnrealizedPL}
                 />
               ) : (
                 <ProfitLossChart 
