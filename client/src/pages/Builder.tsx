@@ -59,6 +59,13 @@ export default function Builder() {
   });
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   const urlParamsProcessed = useRef(false);
+  
+  // Store initial P/L values from SavedTrades for immediate consistency
+  // These values are used for the heatmap's current-scenario cell until user makes changes
+  const [initialPLFromSavedTrade, setInitialPLFromSavedTrade] = useState<{
+    realizedPL: number;
+    unrealizedPL: number;
+  } | null>(null);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   
   const {
@@ -198,6 +205,15 @@ export default function Builder() {
             }
             
             setSelectedExpiration(expirationDays, expirationDateStr);
+            
+            // Store the EXACT P/L values calculated by SavedTrades for immediate consistency
+            // This ensures the heatmap's current-scenario cell shows the SAME value as Total Return
+            if (trade._realizedPL !== undefined && trade._unrealizedPL !== undefined) {
+              setInitialPLFromSavedTrade({
+                realizedPL: trade._realizedPL,
+                unrealizedPL: trade._unrealizedPL,
+              });
+            }
             
             localStorage.removeItem('loadTrade');
           }
@@ -1149,10 +1165,10 @@ export default function Builder() {
                   commissionSettings={commissionSettings}
                   numTrades={legs.filter(l => !l.isExcluded).length}
                   totalContracts={legs.filter(l => !l.isExcluded).reduce((sum, l) => sum + Math.abs(l.quantity), 0)}
-                  realizedPL={realizedPL}
-                  unrealizedPL={unrealizedPL}
+                  realizedPL={initialPLFromSavedTrade?.realizedPL ?? realizedPL}
+                  unrealizedPL={initialPLFromSavedTrade?.unrealizedPL ?? unrealizedPL}
                   hasRealizedPL={hasRealizedPL}
-                  hasUnrealizedPL={hasUnrealizedPL}
+                  hasUnrealizedPL={initialPLFromSavedTrade !== null || hasUnrealizedPL}
                 />
               ) : (
                 <ProfitLossChart 
