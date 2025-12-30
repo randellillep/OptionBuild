@@ -31,10 +31,13 @@ export default function SavedTrades() {
   }, [trades]);
 
   // Get unique (symbol, expiration) pairs for fetching options chain data
+  // IMPORTANT: Collect expirations from BOTH trade.expirationDate AND individual leg.expirationDate
+  // This ensures multi-expiration strategies (spreads, rolls) get market data for all legs
   const uniqueSymbolExpirations = useMemo(() => {
     const pairs: { symbol: string; expiration: string }[] = [];
     const seen = new Set<string>();
     trades.forEach(trade => {
+      // Add trade-level expiration
       if (trade.expirationDate) {
         const key = `${trade.symbol}|${trade.expirationDate}`;
         if (!seen.has(key)) {
@@ -42,6 +45,17 @@ export default function SavedTrades() {
           pairs.push({ symbol: trade.symbol, expiration: trade.expirationDate });
         }
       }
+      // Also add each leg's individual expiration (for multi-expiration strategies)
+      const legs = (trade.legs as OptionLeg[]) || [];
+      legs.forEach(leg => {
+        if (leg.expirationDate) {
+          const key = `${trade.symbol}|${leg.expirationDate}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            pairs.push({ symbol: trade.symbol, expiration: leg.expirationDate });
+          }
+        }
+      });
     });
     return pairs;
   }, [trades]);
@@ -165,14 +179,15 @@ export default function SavedTrades() {
       return { value: 0, percent: 0 };
     }
 
-    // Get options chain data for this trade's symbol and expiration
-    const chainKey = trade.expirationDate ? `${trade.symbol}|${trade.expirationDate}` : null;
-    const chainData = chainKey ? optionsChainMap[chainKey] : null;
-
     // Normalize legs with recalculated expirationDays and market prices
     // IMPORTANT: Always force premiumSource to 'saved' for saved trades
     // This ensures P/L calculation uses the stored premium as cost basis
     const legs = rawLegs.map(leg => {
+      // Get options chain data using leg's expiration first, then trade's expiration as fallback
+      const legExpiration = leg.expirationDate || trade.expirationDate;
+      const chainKey = legExpiration ? `${trade.symbol}|${legExpiration}` : null;
+      const chainData = chainKey ? optionsChainMap[chainKey] : null;
+      
       // Find matching market quote for this leg
       const matchingQuote = chainData?.quotes?.find(
         q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
