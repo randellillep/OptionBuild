@@ -355,7 +355,7 @@ export function PLHeatmap({
                         key={colIdx}
                         className={`text-[11px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cellPnl)} ${
                           isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
-                        } ${isCurrentScenarioCell ? 'ring-1 ring-inset ring-foreground/40' : ''}`}
+                        }`}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
                         ${adjustedPnl.toFixed(0)}
