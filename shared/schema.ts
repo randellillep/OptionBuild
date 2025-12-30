@@ -82,12 +82,17 @@ export interface OptionLeg {
   position: PositionType;
   strike: number;
   quantity: number;
-  premium: number;
+  premium: number;                  // Entry premium (cost basis) - preserved for P/L calculation
   expirationDays: number;
   marketQuoteId?: string;
   premiumSource?: PremiumSource;
   impliedVolatility?: number;
   entryUnderlyingPrice?: number;   // Stock price when position was opened (for P/L anchoring)
+  // Live market price fields - refreshed on each price poll
+  marketBid?: number;              // Current bid price from options chain
+  marketAsk?: number;              // Current ask price from options chain
+  marketMark?: number;             // Current mark/mid price from options chain
+  marketLast?: number;             // Last traded price from options chain
   // New fields for advanced features
   expirationDate?: string;         // ISO date string for expiration
   isExcluded?: boolean;            // Whether to exclude from P/L calculations

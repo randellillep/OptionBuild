@@ -530,26 +530,40 @@ export function calculateRealizedUnrealizedPL(
   
   for (const leg of legs) {
     // For unrealized P/L, we need to compare cost basis to current option price
-    // For saved trades: cost basis = leg.premium, current price = calculated from Black-Scholes
+    // For saved trades: cost basis = leg.premium, current price = market price (or Black-Scholes fallback)
     // For live trades: cost basis = current price (both are leg.premium), so unrealized = 0
     
     const costBasis = Math.abs(leg.premium);
     
-    // Calculate current option price using Black-Scholes
-    // Use leg's saved IV if available, otherwise use strategy volatility
-    const daysToExpiry = leg.expirationDays || 30;
-    const volatility = leg.impliedVolatility || strategyVolatility;
-    const riskFreeRate = 0.05;
+    // PRIORITY: Use actual market prices when available, fall back to Black-Scholes only if no market data
+    // This ensures P/L reflects real market conditions, not theoretical values
+    let currentPrice: number;
     
-    // Calculate current theoretical option price
-    const currentPrice = calculateOptionPrice(
-      leg.type as "call" | "put",
-      underlyingPrice,
-      leg.strike,
-      daysToExpiry,
-      volatility,
-      riskFreeRate
-    );
+    if (leg.marketMark !== undefined && leg.marketMark > 0) {
+      // Best: use mark/mid price directly from options chain
+      currentPrice = leg.marketMark;
+    } else if (leg.marketBid !== undefined && leg.marketAsk !== undefined && leg.marketBid > 0 && leg.marketAsk > 0) {
+      // Second best: calculate midpoint from bid/ask
+      currentPrice = (leg.marketBid + leg.marketAsk) / 2;
+    } else if (leg.marketLast !== undefined && leg.marketLast > 0) {
+      // Third: use last traded price
+      currentPrice = leg.marketLast;
+    } else {
+      // Fallback: Calculate theoretical option price using Black-Scholes
+      // Only used when no market data is available
+      const daysToExpiry = leg.expirationDays || 30;
+      const volatility = leg.impliedVolatility || strategyVolatility;
+      const riskFreeRate = 0.05;
+      
+      currentPrice = calculateOptionPrice(
+        leg.type as "call" | "put",
+        underlyingPrice,
+        leg.strike,
+        daysToExpiry,
+        volatility,
+        riskFreeRate
+      );
+    }
     
     const closing = leg.closingTransaction;
     
