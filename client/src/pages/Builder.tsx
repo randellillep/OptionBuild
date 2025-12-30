@@ -477,19 +477,38 @@ export default function Builder() {
 
     const daysToExpiration = calculateDTE();
 
-    // Update legs with market prices - skip manually edited legs
+    // Update legs with market prices and populate market fields
     setLegs(currentLegs => {
       let updated = false;
       const newLegs = currentLegs.map(leg => {
-        // Skip manually edited or saved legs - respect user's custom/original price
-        if (leg.premiumSource === 'manual' || leg.premiumSource === 'saved') {
-          return leg;
-        }
-
         // Find matching market quote (same strike and type)
         const matchingQuote = optionsChainData.quotes.find(
           q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
         );
+
+        // For saved/manual legs, ONLY update market fields (preserve entry premium)
+        if (leg.premiumSource === 'manual' || leg.premiumSource === 'saved') {
+          if (matchingQuote) {
+            // Check if market fields need updating
+            const marketNeedsUpdate = 
+              leg.marketBid !== matchingQuote.bid ||
+              leg.marketAsk !== matchingQuote.ask ||
+              leg.marketMark !== matchingQuote.mid ||
+              leg.marketLast !== matchingQuote.last;
+            
+            if (marketNeedsUpdate) {
+              updated = true;
+              return deepCopyLeg(leg, {
+                marketBid: matchingQuote.bid,
+                marketAsk: matchingQuote.ask,
+                marketMark: matchingQuote.mid,
+                marketLast: matchingQuote.last,
+                expirationDays: daysToExpiration,
+              });
+            }
+          }
+          return leg;
+        }
 
         if (matchingQuote && matchingQuote.mid > 0) {
           const newPremium = Number(matchingQuote.mid.toFixed(2));
@@ -498,7 +517,10 @@ export default function Builder() {
           const needsUpdate = leg.premium !== newPremium || 
                               leg.premiumSource !== 'market' || 
                               !isFinite(leg.premium) || 
-                              leg.premium <= 0;
+                              leg.premium <= 0 ||
+                              leg.marketBid !== matchingQuote.bid ||
+                              leg.marketAsk !== matchingQuote.ask ||
+                              leg.marketMark !== matchingQuote.mid;
           
           if (needsUpdate) {
             updated = true;
@@ -522,6 +544,10 @@ export default function Builder() {
               impliedVolatility: calculatedIV,
               expirationDays: daysToExpiration,
               entryUnderlyingPrice: symbolInfo.price,
+              marketBid: matchingQuote.bid,
+              marketAsk: matchingQuote.ask,
+              marketMark: matchingQuote.mid,
+              marketLast: matchingQuote.last,
             });
           }
         } else if (!isFinite(leg.premium) || leg.premium <= 0) {

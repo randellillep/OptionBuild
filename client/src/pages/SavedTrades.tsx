@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { OptionLeg, SavedTrade } from "@shared/schema";
+import type { OptionLeg, SavedTrade, MarketOptionChainSummary } from "@shared/schema";
 import { calculateRealizedUnrealizedPL } from "@/lib/options-pricing";
 
 export default function SavedTrades() {
@@ -30,6 +30,22 @@ export default function SavedTrades() {
     return Array.from(new Set(trades.map(t => t.symbol)));
   }, [trades]);
 
+  // Get unique (symbol, expiration) pairs for fetching options chain data
+  const uniqueSymbolExpirations = useMemo(() => {
+    const pairs: { symbol: string; expiration: string }[] = [];
+    const seen = new Set<string>();
+    trades.forEach(trade => {
+      if (trade.expirationDate) {
+        const key = `${trade.symbol}|${trade.expirationDate}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          pairs.push({ symbol: trade.symbol, expiration: trade.expirationDate });
+        }
+      }
+    });
+    return pairs;
+  }, [trades]);
+
   // Fetch current prices for all unique symbols
   const priceQueries = useQueries({
     queries: uniqueSymbols.map(symbol => ({
@@ -41,6 +57,34 @@ export default function SavedTrades() {
       staleTime: 5000,
     })),
   });
+
+  // Fetch options chain for each unique (symbol, expiration) pair
+  const optionsChainQueries = useQueries({
+    queries: uniqueSymbolExpirations.map(({ symbol, expiration }) => ({
+      queryKey: ['/api/options/chain', symbol, expiration] as const,
+      queryFn: async () => {
+        const url = `/api/options/chain/${encodeURIComponent(symbol)}?expiration=${encodeURIComponent(expiration)}`;
+        const response = await fetch(url, { credentials: "include" });
+        if (!response.ok) return null;
+        return await response.json() as MarketOptionChainSummary;
+      },
+      enabled: !!symbol && !!expiration,
+      refetchInterval: 30000, // Refresh every 30 seconds
+      staleTime: 15000,
+    })),
+  });
+
+  // Build a map of (symbol, expiration) -> options quotes
+  const optionsChainMap = useMemo(() => {
+    const chainMap: Record<string, MarketOptionChainSummary> = {};
+    uniqueSymbolExpirations.forEach(({ symbol, expiration }, index) => {
+      const queryResult = optionsChainQueries[index];
+      if (queryResult?.data) {
+        chainMap[`${symbol}|${expiration}`] = queryResult.data;
+      }
+    });
+    return chainMap;
+  }, [uniqueSymbolExpirations, optionsChainQueries]);
 
   // Build a map of symbol -> current price
   const currentPrices = useMemo(() => {
@@ -121,14 +165,30 @@ export default function SavedTrades() {
       return { value: 0, percent: 0 };
     }
 
-    // Normalize legs with recalculated expirationDays based on current date
+    // Get options chain data for this trade's symbol and expiration
+    const chainKey = trade.expirationDate ? `${trade.symbol}|${trade.expirationDate}` : null;
+    const chainData = chainKey ? optionsChainMap[chainKey] : null;
+
+    // Normalize legs with recalculated expirationDays and market prices
     // IMPORTANT: Always force premiumSource to 'saved' for saved trades
     // This ensures P/L calculation uses the stored premium as cost basis
-    const legs = rawLegs.map(leg => ({
-      ...leg,
-      expirationDays: recalculateExpirationDays(leg, trade.expirationDate),
-      premiumSource: 'saved' as const,  // Force 'saved' - these are saved trades with stored cost basis
-    }));
+    const legs = rawLegs.map(leg => {
+      // Find matching market quote for this leg
+      const matchingQuote = chainData?.quotes?.find(
+        q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
+      );
+      
+      return {
+        ...leg,
+        expirationDays: recalculateExpirationDays(leg, trade.expirationDate),
+        premiumSource: 'saved' as const,  // Force 'saved' - these are saved trades with stored cost basis
+        // Populate market fields from live options chain data
+        marketBid: matchingQuote?.bid,
+        marketAsk: matchingQuote?.ask,
+        marketMark: matchingQuote?.mid,
+        marketLast: matchingQuote?.last,
+      };
+    });
 
     // Use EXACTLY the same function as Builder's unrealizedPL display:
     // calculateRealizedUnrealizedPL with the leg's saved IV as fallback
