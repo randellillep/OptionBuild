@@ -853,6 +853,8 @@ export default function Builder() {
     // Apply market prices immediately to get accurate pricing
     const [legWithPrice] = applyMarketPrices([newLeg]);
     setLegs(prevLegs => [...prevLegs, legWithPrice]);
+    // Clear frozen P/L values so live calculations take over
+    setInitialPLFromSavedTrade(null);
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
@@ -875,6 +877,8 @@ export default function Builder() {
         closingTransaction: updates.closingTransaction ?? preservedClosingTransaction
       };
     }));
+    // Clear frozen P/L values so live calculations take over
+    setInitialPLFromSavedTrade(null);
   };
 
   const removeLeg = (id: string) => {
@@ -899,6 +903,8 @@ export default function Builder() {
       const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
       return leg.quantity > 0 || hasClosedEntries;
     }));
+    // Clear frozen P/L values so live calculations take over
+    setInitialPLFromSavedTrade(null);
   };
 
   const loadTemplate = (templateIndex: number) => {
