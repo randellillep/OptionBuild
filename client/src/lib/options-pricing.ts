@@ -1,5 +1,27 @@
 import type { OptionLeg, Greeks, StrategyMetrics } from "@shared/schema";
 
+/**
+ * Get the current market price for an option leg.
+ * Priority: marketMark > midpoint(bid/ask) > marketLast > undefined (fallback to theoretical)
+ * This ensures P/L calculations use actual market prices when available.
+ */
+export function getLegMarketPrice(leg: OptionLeg): number | undefined {
+  // Best: use mark/mid price directly from options chain
+  if (leg.marketMark !== undefined && leg.marketMark > 0) {
+    return leg.marketMark;
+  }
+  // Second best: calculate midpoint from bid/ask
+  if (leg.marketBid !== undefined && leg.marketAsk !== undefined && leg.marketBid > 0 && leg.marketAsk > 0) {
+    return (leg.marketBid + leg.marketAsk) / 2;
+  }
+  // Third: use last traded price
+  if (leg.marketLast !== undefined && leg.marketLast > 0) {
+    return leg.marketLast;
+  }
+  // No market data available
+  return undefined;
+}
+
 function cumulativeNormalDistribution(x: number): number {
   const t = 1 / (1 + 0.2316419 * Math.abs(x));
   const d = 0.3989423 * Math.exp(-x * x / 2);
@@ -265,6 +287,10 @@ export function calculateProfitLossAtDate(
 ): number {
   let pnl = 0;
   
+  // Check if this is the "current" scenario (today at current price)
+  // For this scenario, we should use actual market prices when available
+  const isCurrentScenario = daysFromNow === 0 && Math.abs(atPrice - underlyingPrice) < 0.01;
+  
   for (const leg of legs) {
     // Calculate remaining days to expiration from the given point in time
     // daysFromNow = 0 means today, so we have leg.expirationDays remaining
@@ -273,7 +299,30 @@ export function calculateProfitLossAtDate(
     const legVolatility = leg.impliedVolatility ?? volatility;
     
     let optionValue: number;
-    if (daysRemaining <= 0) {
+    
+    // For current scenario with saved/manual trades, use actual market price when available
+    // This ensures P/L reflects real market conditions, not theoretical values
+    if (isCurrentScenario && (leg.premiumSource === 'saved' || leg.premiumSource === 'manual')) {
+      const marketPrice = getLegMarketPrice(leg);
+      if (marketPrice !== undefined) {
+        optionValue = marketPrice;
+      } else if (daysRemaining <= 0) {
+        // At or past expiration - use intrinsic value
+        optionValue = leg.type === "call" 
+          ? Math.max(atPrice - leg.strike, 0)
+          : Math.max(leg.strike - atPrice, 0);
+      } else {
+        // Fallback to theoretical pricing
+        optionValue = calculateOptionPrice(
+          leg.type,
+          atPrice,
+          leg.strike,
+          daysRemaining,
+          legVolatility,
+          riskFreeRate
+        );
+      }
+    } else if (daysRemaining <= 0) {
       // At or past expiration - use intrinsic value
       optionValue = leg.type === "call" 
         ? Math.max(atPrice - leg.strike, 0)
@@ -535,19 +584,12 @@ export function calculateRealizedUnrealizedPL(
     
     const costBasis = Math.abs(leg.premium);
     
-    // PRIORITY: Use actual market prices when available, fall back to Black-Scholes only if no market data
-    // This ensures P/L reflects real market conditions, not theoretical values
+    // Use shared helper to get market price, fall back to Black-Scholes only if no market data
+    const marketPrice = getLegMarketPrice(leg);
     let currentPrice: number;
     
-    if (leg.marketMark !== undefined && leg.marketMark > 0) {
-      // Best: use mark/mid price directly from options chain
-      currentPrice = leg.marketMark;
-    } else if (leg.marketBid !== undefined && leg.marketAsk !== undefined && leg.marketBid > 0 && leg.marketAsk > 0) {
-      // Second best: calculate midpoint from bid/ask
-      currentPrice = (leg.marketBid + leg.marketAsk) / 2;
-    } else if (leg.marketLast !== undefined && leg.marketLast > 0) {
-      // Third: use last traded price
-      currentPrice = leg.marketLast;
+    if (marketPrice !== undefined) {
+      currentPrice = marketPrice;
     } else {
       // Fallback: Calculate theoretical option price using Black-Scholes
       // Only used when no market data is available
