@@ -120,9 +120,11 @@ export default function SavedTrades() {
     }
 
     // Normalize legs with recalculated expirationDays based on current date
+    // IMPORTANT: Set premiumSource to 'saved' so calculateRealizedUnrealizedPL computes unrealized P/L
     const legs = rawLegs.map(leg => ({
       ...leg,
       expirationDays: recalculateExpirationDays(leg),
+      premiumSource: (leg.premiumSource || 'saved') as 'saved' | 'manual' | 'market' | 'theoretical',
     }));
 
     // Calculate realized and unrealized P/L using current price
