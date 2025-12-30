@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { OptionLeg, SavedTrade } from "@shared/schema";
-import { calculateRealizedUnrealizedPL } from "@/lib/options-pricing";
+import { calculateProfitLossAtDate } from "@/lib/options-pricing";
 
 export default function SavedTrades() {
   const [, setLocation] = useLocation();
@@ -130,13 +130,11 @@ export default function SavedTrades() {
       premiumSource: 'saved' as const,  // Force 'saved' - these are saved trades with stored cost basis
     }));
 
-    // Use the EXACT same calculation as the Builder's unrealized P/L display:
-    // calculateRealizedUnrealizedPL with the leg's saved IV
-    // This ensures Total Return matches what the heatmap's "Unrealized" shows
+    // Use EXACTLY the same function as the heatmap's current cell:
+    // calculateProfitLossAtDate with atPrice=currentPrice and daysFromNow=0
+    // This ensures Total Return matches the heatmap exactly
     const avgIV = legs.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.30), 0) / legs.length;
-    const { realizedPL, unrealizedPL } = calculateRealizedUnrealizedPL(legs, currentPrice, avgIV);
-    
-    const totalReturn = realizedPL + unrealizedPL;
+    const totalReturn = calculateProfitLossAtDate(legs, currentPrice, currentPrice, 0, avgIV);
     
     // Calculate total cost basis for percent calculation
     const totalCostBasis = legs.reduce((sum, leg) => {
