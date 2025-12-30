@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Table, BarChart3, RotateCcw, TrendingUp, TrendingDown, Target, DollarSign, CheckCircle, Clock } from "lucide-react";
+import { Table, BarChart3, RotateCcw, TrendingUp, TrendingDown, Target, DollarSign } from "lucide-react";
 import type { ScenarioPoint } from "@/hooks/useStrategyEngine";
 import type { StrategyMetrics } from "@shared/schema";
 
@@ -189,24 +189,6 @@ export function PLHeatmap({
                   {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
                 </span>
               </div>
-              {hasRealizedPL && (
-                <div className="flex items-center gap-1">
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-xs text-muted-foreground">Realized:</span>
-                  <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
-                    {realizedPL >= 0 ? '' : '-'}${Math.abs(realizedPL).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-              )}
-              {hasUnrealizedPL && (
-                <div className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-xs text-muted-foreground">Unrealized:</span>
-                  <span className={`text-base font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
-                    {unrealizedPL >= 0 ? '' : '-'}${Math.abs(unrealizedPL).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-              )}
             </>
           ) : null}
         </div>
