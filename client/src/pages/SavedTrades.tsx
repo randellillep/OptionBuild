@@ -304,21 +304,11 @@ export default function SavedTrades() {
       };
     });
     
-    // Calculate the exact Total Return that SavedTrades displays
-    // This uses the same function as calculateTotalReturn
-    const avgIV = enrichedLegs.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.30), 0) / enrichedLegs.length;
-    const { realizedPL, unrealizedPL } = calculateRealizedUnrealizedPL(enrichedLegs, currentPrice, avgIV);
-    const totalReturnValue = realizedPL + unrealizedPL;
-    
-    // Store enriched trade data with current price AND the exact Total Return value
-    // Builder will use this exact value for the heatmap to ensure they match
+    // Store enriched trade data with current price so Builder shows identical values
     const enrichedTrade = {
       ...trade,
       legs: enrichedLegs,
-      _currentPrice: currentPrice,
-      _totalReturnValue: totalReturnValue, // Pass the exact calculated value
-      _realizedPL: realizedPL,
-      _unrealizedPL: unrealizedPL,
+      _currentPrice: currentPrice, // Pass current price to Builder
     };
     
     localStorage.setItem('loadTrade', JSON.stringify(enrichedTrade));
