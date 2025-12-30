@@ -91,10 +91,12 @@ export default function SavedTrades() {
   };
 
   // Helper to recalculate expirationDays from expirationDate
-  const recalculateExpirationDays = (leg: OptionLeg): number => {
-    if (leg.expirationDate) {
+  // Uses leg's expirationDate first, then falls back to trade's expirationDate
+  const recalculateExpirationDays = (leg: OptionLeg, tradeExpirationDate?: string | null): number => {
+    const expDateStr = leg.expirationDate || tradeExpirationDate;
+    if (expDateStr) {
       try {
-        const expDate = new Date(leg.expirationDate);
+        const expDate = new Date(expDateStr);
         const today = new Date();
         const diffTime = expDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -120,11 +122,12 @@ export default function SavedTrades() {
     }
 
     // Normalize legs with recalculated expirationDays based on current date
-    // IMPORTANT: Set premiumSource to 'saved' so calculateRealizedUnrealizedPL computes unrealized P/L
+    // IMPORTANT: Always force premiumSource to 'saved' for saved trades
+    // This ensures calculateRealizedUnrealizedPL computes unrealized P/L against the stored premium
     const legs = rawLegs.map(leg => ({
       ...leg,
-      expirationDays: recalculateExpirationDays(leg),
-      premiumSource: (leg.premiumSource || 'saved') as 'saved' | 'manual' | 'market' | 'theoretical',
+      expirationDays: recalculateExpirationDays(leg, trade.expirationDate),
+      premiumSource: 'saved' as const,  // Force 'saved' - these are saved trades with stored cost basis
     }));
 
     // Calculate realized and unrealized P/L using current price
