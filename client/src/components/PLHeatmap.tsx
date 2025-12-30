@@ -349,7 +349,15 @@ export function PLHeatmap({
                     const cellPnl = isCurrentScenarioCell && hasUnrealizedPL
                       ? (realizedPL + unrealizedPL)  // Use actual P/L from market prices
                       : cell.pnl;
-                    const adjustedPnl = adjustPnl(cellPnl);
+                    // Don't apply commission adjustment to current scenario cell - it's already
+                    // the actual P/L and should match Saved Trades Total Return exactly
+                    const adjustedPnl = isCurrentScenarioCell && hasUnrealizedPL
+                      ? cellPnl  // No commission adjustment for actual P/L
+                      : adjustPnl(cellPnl);
+                    // Format: current scenario cell shows 2 decimals to match Saved Trades Total Return
+                    const displayValue = isCurrentScenarioCell && hasUnrealizedPL
+                      ? adjustedPnl.toFixed(2)
+                      : adjustedPnl.toFixed(0);
                     return (
                       <td
                         key={colIdx}
@@ -358,7 +366,7 @@ export function PLHeatmap({
                         }`}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
-                        ${adjustedPnl.toFixed(0)}
+                        ${displayValue}
                       </td>
                     );
                   })}
