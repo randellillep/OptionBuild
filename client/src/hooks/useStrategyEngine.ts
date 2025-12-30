@@ -143,39 +143,42 @@ export function useStrategyEngine(rangePercent: number = 14) {
   }, [symbolInfo, legs, volatility, selectedExpirationDays, selectedExpirationDate]);
 
   // Calculate average implied volatility from legs first (needed for auto-sync)
+  // Include ALL legs with IV (market, manual, saved) so saved trades use their saved IV
   const calculatedIV = useMemo(() => {
     if (legs.length === 0) {
       console.log('[IV-CALC] No legs, returning default 0.3');
       return 0.3;
     }
     
-    // Average the IV from all legs that have real market data (premiumSource === 'market')
-    const marketLegs = legs.filter(leg => leg.premiumSource === 'market' && leg.impliedVolatility);
+    // Average the IV from ALL legs that have impliedVolatility set
+    // This includes market, manual, and saved legs
+    const legsWithIV = legs.filter(leg => leg.impliedVolatility && leg.impliedVolatility > 0);
     
-    console.log('[IV-CALC] Market legs with IV:', marketLegs.length, 'of', legs.length);
-    marketLegs.forEach(leg => {
-      console.log(`[IV-CALC] Leg ${leg.type} ${leg.strike}: IV=${leg.impliedVolatility} (${(leg.impliedVolatility || 0) * 100}%)`);
+    console.log('[IV-CALC] Legs with IV:', legsWithIV.length, 'of', legs.length);
+    legsWithIV.forEach(leg => {
+      console.log(`[IV-CALC] Leg ${leg.type} ${leg.strike}: IV=${leg.impliedVolatility} (${(leg.impliedVolatility || 0) * 100}%) source=${leg.premiumSource}`);
     });
     
-    if (marketLegs.length === 0) {
-      console.log('[IV-CALC] No market legs with IV, returning default 0.3');
+    if (legsWithIV.length === 0) {
+      console.log('[IV-CALC] No legs with IV, returning default 0.3');
       return 0.3; // Default fallback
     }
     
-    const avgIV = marketLegs.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.3), 0) / marketLegs.length;
+    const avgIV = legsWithIV.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.3), 0) / legsWithIV.length;
     console.log('[IV-CALC] Calculated average IV:', avgIV, `(${(avgIV * 100).toFixed(1)}%)`);
     return avgIV;
   }, [legs]);
 
-  // Auto-sync volatility to calculated IV when market legs change
+  // Auto-sync volatility to calculated IV when legs with IV exist
+  // This includes saved/manual legs so that saved trades display with correct IV
   useEffect(() => {
-    const marketLegs = legs.filter(leg => leg.premiumSource === 'market' && leg.impliedVolatility);
-    console.log('[IV-SYNC] Effect triggered. Market legs:', marketLegs.length, 'calculatedIV:', calculatedIV, `(${(calculatedIV * 100).toFixed(1)}%)`);
-    if (marketLegs.length > 0) {
+    const legsWithIV = legs.filter(leg => leg.impliedVolatility && leg.impliedVolatility > 0);
+    console.log('[IV-SYNC] Effect triggered. Legs with IV:', legsWithIV.length, 'calculatedIV:', calculatedIV, `(${(calculatedIV * 100).toFixed(1)}%)`);
+    if (legsWithIV.length > 0) {
       console.log('[IV-SYNC] Setting volatility to:', calculatedIV);
       setVolatility(calculatedIV);
     } else {
-      console.log('[IV-SYNC] No market legs with IV, skipping sync');
+      console.log('[IV-SYNC] No legs with IV, skipping sync');
     }
   }, [calculatedIV, legs]);
 
