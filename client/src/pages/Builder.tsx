@@ -116,19 +116,13 @@ export default function Builder() {
         if (savedTradeData) {
           const trade = JSON.parse(savedTradeData);
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
-            // IMMEDIATELY fetch current price so heatmap shows accurate P/L from the start
-            // Use saved price as fallback while fetching
-            setSymbolInfoForSavedTrade({ symbol: trade.symbol, price: trade.price || 100 });
+            // Use the current price passed from SavedTrades (if available) for immediate consistency
+            // This ensures the heatmap shows the EXACT same P/L as Total Return in Saved Trades
+            const initialPrice = trade._currentPrice || trade.price || 100;
+            setSymbolInfoForSavedTrade({ symbol: trade.symbol, price: initialPrice });
             
-            // Fetch current price right away (don't wait for 10s poll interval)
-            fetch(`/api/stock/quote/${trade.symbol}`)
-              .then(res => res.ok ? res.json() : null)
-              .then(data => {
-                if (data && data.price && data.price > 0) {
-                  setSymbolInfo({ symbol: trade.symbol, price: data.price });
-                }
-              })
-              .catch(() => { /* Use saved price as fallback */ });
+            // Don't immediately override with fetched price - keep the passed price for consistency
+            // The 10-second price poll will update it later if needed
             
             // Helper to recalculate expirationDays from expirationDate
             const recalculateExpirationDays = (legExpDate?: string, fallback?: number): number => {
@@ -148,8 +142,8 @@ export default function Builder() {
 
             // Normalize legs to ensure required fields exist
             // Mark as 'saved' to preserve the original cost basis from when trade was saved
-            // Preserve all leg properties including isExcluded, closingTransaction, etc.
-            // IMPORTANT: Recalculate expirationDays from expirationDate to reflect current time
+            // Preserve all leg properties including isExcluded, closingTransaction, market data, etc.
+            // IMPORTANT: Preserve marketBid/Ask/Mark/Last from SavedTrades for immediate P/L consistency
             const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `saved-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -164,6 +158,11 @@ export default function Builder() {
               expirationDate: leg.expirationDate,
               isExcluded: leg.isExcluded,
               closingTransaction: leg.closingTransaction,
+              // Preserve market data from SavedTrades for immediate consistency
+              marketBid: leg.marketBid,
+              marketAsk: leg.marketAsk,
+              marketMark: leg.marketMark,
+              marketLast: leg.marketLast,
             }));
             
             setLegs(normalizedLegs);

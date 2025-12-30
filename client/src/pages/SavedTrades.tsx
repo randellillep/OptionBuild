@@ -265,8 +265,53 @@ export default function SavedTrades() {
   };
 
   const openTradeInBuilder = (trade: SavedTrade) => {
-    // Store the trade data to load in builder
-    localStorage.setItem('loadTrade', JSON.stringify(trade));
+    // Get the current price for this trade's symbol
+    const currentPrice = currentPrices[trade.symbol];
+    
+    // Parse and enrich legs with market data (same as calculateTotalReturn)
+    const rawLegs = (trade.legs as OptionLeg[]) || [];
+    const enrichedLegs = rawLegs.map(leg => {
+      const legExpiration = leg.expirationDate || trade.expirationDate;
+      const chainKey = legExpiration ? `${trade.symbol}|${legExpiration}` : null;
+      const chainData = chainKey ? optionsChainMap[chainKey] : null;
+      
+      const matchingQuote = chainData?.quotes?.find(
+        q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
+      );
+      
+      // Recalculate expiration days
+      let expirationDays = leg.expirationDays || 30;
+      const expDateStr = leg.expirationDate || trade.expirationDate;
+      if (expDateStr) {
+        try {
+          const expDate = new Date(expDateStr);
+          const today = new Date();
+          const diffTime = expDate.getTime() - today.getTime();
+          expirationDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+        } catch {
+          // Keep default
+        }
+      }
+      
+      return {
+        ...leg,
+        expirationDays,
+        premiumSource: 'saved' as const,
+        marketBid: matchingQuote?.bid,
+        marketAsk: matchingQuote?.ask,
+        marketMark: matchingQuote?.mid,
+        marketLast: matchingQuote?.last,
+      };
+    });
+    
+    // Store enriched trade data with current price so Builder shows identical values
+    const enrichedTrade = {
+      ...trade,
+      legs: enrichedLegs,
+      _currentPrice: currentPrice, // Pass current price to Builder
+    };
+    
+    localStorage.setItem('loadTrade', JSON.stringify(enrichedTrade));
     setLocation('/builder?loadSaved=true');
   };
 
