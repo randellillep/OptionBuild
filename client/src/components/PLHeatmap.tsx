@@ -342,13 +342,20 @@ export function PLHeatmap({
                     {Math.abs(percentChange) < 1 ? percentChange.toFixed(2) : percentChange.toFixed(1)}%
                   </td>
                   {row.map((cell, colIdx) => {
-                    const adjustedPnl = adjustPnl(cell.pnl);
+                    // For the "current scenario" cell (current price row, day 0),
+                    // use the actual unrealized P/L from market prices instead of theoretical
+                    // This ensures the heatmap matches the Saved Trades Total Return
+                    const isCurrentScenarioCell = isClosestToCurrentPrice && colIdx === 0;
+                    const cellPnl = isCurrentScenarioCell && hasUnrealizedPL
+                      ? (realizedPL + unrealizedPL)  // Use actual P/L from market prices
+                      : cell.pnl;
+                    const adjustedPnl = adjustPnl(cellPnl);
                     return (
                       <td
                         key={colIdx}
-                        className={`text-[11px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cell.pnl)} ${
+                        className={`text-[11px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cellPnl)} ${
                           isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
-                        }`}
+                        } ${isCurrentScenarioCell ? 'ring-1 ring-inset ring-foreground/40' : ''}`}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
                         ${adjustedPnl.toFixed(0)}
