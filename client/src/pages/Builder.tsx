@@ -116,7 +116,19 @@ export default function Builder() {
         if (savedTradeData) {
           const trade = JSON.parse(savedTradeData);
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
+            // IMMEDIATELY fetch current price so heatmap shows accurate P/L from the start
+            // Use saved price as fallback while fetching
             setSymbolInfoForSavedTrade({ symbol: trade.symbol, price: trade.price || 100 });
+            
+            // Fetch current price right away (don't wait for 10s poll interval)
+            fetch(`/api/stock/quote/${trade.symbol}`)
+              .then(res => res.ok ? res.json() : null)
+              .then(data => {
+                if (data && data.price && data.price > 0) {
+                  setSymbolInfo({ symbol: trade.symbol, price: data.price });
+                }
+              })
+              .catch(() => { /* Use saved price as fallback */ });
             
             // Helper to recalculate expirationDays from expirationDate
             const recalculateExpirationDays = (legExpDate?: string, fallback?: number): number => {
@@ -207,7 +219,18 @@ export default function Builder() {
         if (sharedData) {
           const strategy = JSON.parse(sharedData);
           if (strategy.symbol && strategy.legs && Array.isArray(strategy.legs)) {
+            // IMMEDIATELY fetch current price so heatmap shows accurate P/L from the start
             setSymbolInfoForSavedTrade({ symbol: strategy.symbol, price: strategy.price || 100 });
+            
+            // Fetch current price right away (don't wait for 10s poll interval)
+            fetch(`/api/stock/quote/${strategy.symbol}`)
+              .then(res => res.ok ? res.json() : null)
+              .then(data => {
+                if (data && data.price && data.price > 0) {
+                  setSymbolInfo({ symbol: strategy.symbol, price: data.price });
+                }
+              })
+              .catch(() => { /* Use saved price as fallback */ });
             
             // Helper to recalculate expirationDays from expirationDate
             const recalculateSharedExpirationDays = (legExpDate?: string, fallback?: number): number => {
