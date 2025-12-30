@@ -194,7 +194,7 @@ export function PLHeatmap({
                   <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
                   <span className="text-xs text-muted-foreground">Realized:</span>
                   <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
-                    {realizedPL >= 0 ? '' : '-'}${Math.abs(realizedPL).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {realizedPL >= 0 ? '' : '-'}${Math.abs(Math.round(realizedPL)).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </span>
                 </div>
               )}
@@ -203,7 +203,7 @@ export function PLHeatmap({
                   <Clock className="h-3.5 w-3.5 text-amber-500" />
                   <span className="text-xs text-muted-foreground">Unrealized:</span>
                   <span className={`text-base font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
-                    {unrealizedPL >= 0 ? '' : '-'}${Math.abs(unrealizedPL).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {unrealizedPL >= 0 ? '' : '-'}${Math.abs(Math.round(unrealizedPL)).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </span>
                 </div>
               )}
@@ -354,10 +354,8 @@ export function PLHeatmap({
                     const adjustedPnl = isCurrentScenarioCell && hasUnrealizedPL
                       ? cellPnl  // No commission adjustment for actual P/L
                       : adjustPnl(cellPnl);
-                    // Format: current scenario cell shows 2 decimals to match Saved Trades Total Return
-                    const displayValue = isCurrentScenarioCell && hasUnrealizedPL
-                      ? adjustedPnl.toFixed(2)
-                      : adjustedPnl.toFixed(0);
+                    // Format: all cells show rounded whole numbers for consistency
+                    const displayValue = Math.round(adjustedPnl).toLocaleString('en-US', { maximumFractionDigits: 0 });
                     return (
                       <td
                         key={colIdx}

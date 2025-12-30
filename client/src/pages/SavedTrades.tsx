@@ -471,7 +471,7 @@ export default function SavedTrades() {
                         </td>
                         <td className="py-3 px-2 text-right">
                           <span className={totalReturn.value >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}>
-                            {totalReturn.value >= 0 ? '+' : ''}${totalReturn.value.toFixed(2)} ({totalReturn.percent >= 0 ? '+' : ''}{totalReturn.percent.toFixed(0)}%)
+                            {totalReturn.value >= 0 ? '+' : ''}${Math.round(totalReturn.value).toLocaleString('en-US', { maximumFractionDigits: 0 })} ({totalReturn.percent >= 0 ? '+' : ''}{Math.round(totalReturn.percent)}%)
                           </span>
                         </td>
                         <td className="py-3 px-2 text-right">
