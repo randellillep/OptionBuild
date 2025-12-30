@@ -118,9 +118,26 @@ export default function Builder() {
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
             setSymbolInfoForSavedTrade({ symbol: trade.symbol, price: trade.price || 100 });
             
+            // Helper to recalculate expirationDays from expirationDate
+            const recalculateExpirationDays = (legExpDate?: string, fallback?: number): number => {
+              if (legExpDate) {
+                try {
+                  const expDate = new Date(legExpDate);
+                  const today = new Date();
+                  const diffTime = expDate.getTime() - today.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  return Math.max(0, diffDays);
+                } catch {
+                  return fallback || 30;
+                }
+              }
+              return fallback || 30;
+            };
+
             // Normalize legs to ensure required fields exist
             // Mark as 'saved' to preserve the original cost basis from when trade was saved
             // Preserve all leg properties including isExcluded, closingTransaction, etc.
+            // IMPORTANT: Recalculate expirationDays from expirationDate to reflect current time
             const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `saved-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -128,7 +145,7 @@ export default function Builder() {
               strike: leg.strike || trade.price || 100,
               quantity: leg.quantity || 1,
               premium: leg.premium || 0,
-              expirationDays: leg.expirationDays || 30,
+              expirationDays: recalculateExpirationDays(leg.expirationDate, leg.expirationDays),
               premiumSource: 'saved' as const,  // Preserve original cost basis
               impliedVolatility: leg.impliedVolatility,
               entryUnderlyingPrice: leg.entryUnderlyingPrice ?? trade.price,
@@ -192,9 +209,26 @@ export default function Builder() {
           if (strategy.symbol && strategy.legs && Array.isArray(strategy.legs)) {
             setSymbolInfoForSavedTrade({ symbol: strategy.symbol, price: strategy.price || 100 });
             
+            // Helper to recalculate expirationDays from expirationDate
+            const recalculateSharedExpirationDays = (legExpDate?: string, fallback?: number): number => {
+              if (legExpDate) {
+                try {
+                  const expDate = new Date(legExpDate);
+                  const today = new Date();
+                  const diffTime = expDate.getTime() - today.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  return Math.max(0, diffDays);
+                } catch {
+                  return fallback || 30;
+                }
+              }
+              return fallback || 30;
+            };
+
             // Normalize legs from shared format
             // Mark as 'saved' to preserve the original cost basis from when trade was shared
             // Preserve all leg properties including isExcluded, closingTransaction, etc.
+            // IMPORTANT: Recalculate expirationDays from expirationDate to reflect current time
             const normalizedLegs: OptionLeg[] = strategy.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `shared-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -202,7 +236,7 @@ export default function Builder() {
               strike: leg.strike || strategy.price || 100,
               quantity: leg.quantity || 1,
               premium: leg.premium || 0,
-              expirationDays: leg.expirationDays || 30,
+              expirationDays: recalculateSharedExpirationDays(leg.expirationDate, leg.expirationDays),
               premiumSource: 'saved' as const,  // Preserve original cost basis
               impliedVolatility: leg.impliedVolatility,
               entryUnderlyingPrice: leg.entryUnderlyingPrice ?? strategy.price,

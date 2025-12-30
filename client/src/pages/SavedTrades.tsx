@@ -35,8 +35,10 @@ export default function SavedTrades() {
     queries: uniqueSymbols.map(symbol => ({
       queryKey: ['/api/stock/quote', symbol],
       enabled: !!symbol,
-      refetchInterval: 30000, // Refresh every 30 seconds
-      staleTime: 10000,
+      refetchInterval: 10000, // Refresh every 10 seconds for live updates
+      refetchIntervalInBackground: true, // Keep refreshing even when tab is in background
+      refetchOnMount: 'always' as const, // Always fetch fresh data on mount
+      staleTime: 5000,
     })),
   });
 
@@ -88,6 +90,22 @@ export default function SavedTrades() {
     });
   };
 
+  // Helper to recalculate expirationDays from expirationDate
+  const recalculateExpirationDays = (leg: OptionLeg): number => {
+    if (leg.expirationDate) {
+      try {
+        const expDate = new Date(leg.expirationDate);
+        const today = new Date();
+        const diffTime = expDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return Math.max(0, diffDays);
+      } catch {
+        return leg.expirationDays || 30;
+      }
+    }
+    return leg.expirationDays || 30;
+  };
+
   const calculateTotalReturn = (trade: SavedTrade): { value: number; percent: number } => {
     // Get current price for this trade's symbol
     const currentPrice = currentPrices[trade.symbol];
@@ -96,10 +114,16 @@ export default function SavedTrades() {
     }
 
     // Parse legs from the trade (stored as JSONB)
-    const legs = (trade.legs as OptionLeg[]) || [];
-    if (legs.length === 0) {
+    const rawLegs = (trade.legs as OptionLeg[]) || [];
+    if (rawLegs.length === 0) {
       return { value: 0, percent: 0 };
     }
+
+    // Normalize legs with recalculated expirationDays based on current date
+    const legs = rawLegs.map(leg => ({
+      ...leg,
+      expirationDays: recalculateExpirationDays(leg),
+    }));
 
     // Calculate realized and unrealized P/L using current price
     // Use leg's saved IV if available, otherwise default to 0.30
