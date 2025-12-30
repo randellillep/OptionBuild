@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { OptionLeg, SavedTrade } from "@shared/schema";
-import { calculateRealizedUnrealizedPL } from "@/lib/options-pricing";
+import { calculateProfitLossAtDate } from "@/lib/options-pricing";
 
 export default function SavedTrades() {
   const [, setLocation] = useLocation();
@@ -123,19 +123,25 @@ export default function SavedTrades() {
 
     // Normalize legs with recalculated expirationDays based on current date
     // IMPORTANT: Always force premiumSource to 'saved' for saved trades
-    // This ensures calculateRealizedUnrealizedPL computes unrealized P/L against the stored premium
+    // This ensures P/L calculation uses the stored premium as cost basis
     const legs = rawLegs.map(leg => ({
       ...leg,
       expirationDays: recalculateExpirationDays(leg, trade.expirationDate),
       premiumSource: 'saved' as const,  // Force 'saved' - these are saved trades with stored cost basis
     }));
 
-    // Calculate realized and unrealized P/L using current price
-    // Use leg's saved IV if available, otherwise default to 0.30
+    // Use the same calculation as the heatmap: calculateProfitLossAtDate
+    // This ensures the Total Return matches what the heatmap shows
+    // daysFromNow = 0 means "today" (current P/L)
+    // atPrice = currentPrice (current underlying price)
     const avgIV = legs.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.30), 0) / legs.length;
-    const { realizedPL, unrealizedPL } = calculateRealizedUnrealizedPL(legs, currentPrice, avgIV);
-    
-    const totalReturn = realizedPL + unrealizedPL;
+    const totalReturn = calculateProfitLossAtDate(
+      legs,
+      currentPrice,  // underlyingPrice (for entry price anchoring)
+      currentPrice,  // atPrice (current price to calculate P/L at)
+      0,             // daysFromNow (0 = today)
+      avgIV          // volatility
+    );
     
     // Calculate total cost basis for percent calculation
     const totalCostBasis = legs.reduce((sum, leg) => {
