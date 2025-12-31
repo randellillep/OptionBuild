@@ -249,16 +249,40 @@ export function AnalysisTabs({
                 <div className="p-3 bg-muted/30 rounded-lg border">
                   <p className="text-xs text-muted-foreground mb-1">1 Standard Deviation (68%)</p>
                   <p className="text-xl font-bold font-mono text-primary">±${expectedMove.move1SD.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}
-                  </p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                    <span>
+                      ${expectedMove.lowerBound1SD.toFixed(2)}{" "}
+                      <span className="text-red-500">
+                        ({(((expectedMove.lowerBound1SD - currentPrice) / currentPrice) * 100).toFixed(1)}%)
+                      </span>
+                    </span>
+                    <span className="mx-1">-</span>
+                    <span>
+                      ${expectedMove.upperBound1SD.toFixed(2)}{" "}
+                      <span className="text-green-500">
+                        (+{(((expectedMove.upperBound1SD - currentPrice) / currentPrice) * 100).toFixed(1)}%)
+                      </span>
+                    </span>
+                  </div>
                 </div>
                 <div className="p-3 bg-muted/30 rounded-lg border">
                   <p className="text-xs text-muted-foreground mb-1">2 Standard Deviations (95%)</p>
                   <p className="text-xl font-bold font-mono">±${expectedMove.move2SD.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ${expectedMove.lowerBound2SD.toFixed(2)} - ${expectedMove.upperBound2SD.toFixed(2)}
-                  </p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                    <span>
+                      ${expectedMove.lowerBound2SD.toFixed(2)}{" "}
+                      <span className="text-red-500">
+                        ({(((expectedMove.lowerBound2SD - currentPrice) / currentPrice) * 100).toFixed(1)}%)
+                      </span>
+                    </span>
+                    <span className="mx-1">-</span>
+                    <span>
+                      ${expectedMove.upperBound2SD.toFixed(2)}{" "}
+                      <span className="text-green-500">
+                        (+{(((expectedMove.upperBound2SD - currentPrice) / currentPrice) * 100).toFixed(1)}%)
+                      </span>
+                    </span>
+                  </div>
                 </div>
               </div>
 
