@@ -296,7 +296,9 @@ export function calculateProfitLossAtDate(
     // daysFromNow = 0 means today, so we have leg.expirationDays remaining
     // daysFromNow = 5 means 5 days from now, so we have leg.expirationDays - 5 remaining
     const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
-    const legVolatility = leg.impliedVolatility ?? volatility;
+    // Always use the volatility parameter from the slider for what-if scenarios
+    // This allows the IV slider to affect heatmap calculations
+    const legVolatility = volatility;
     
     let optionValue: number;
     
