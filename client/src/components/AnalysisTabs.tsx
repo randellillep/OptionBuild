@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, TrendingUp, BarChart3, AlertTriangle, Users, History, Info } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { Greeks, MarketOptionChainSummary, OptionLeg } from "@shared/schema";
+import type { Greeks, MarketOptionChainSummary, OptionLeg, StrategyMetrics } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
 import { HistoricalPriceTab } from "./HistoricalPriceTab";
 import { 
@@ -28,6 +28,7 @@ interface AnalysisTabsProps {
   expirationDate?: string | null;
   optionsChainData?: MarketOptionChainSummary;
   legs?: OptionLeg[];
+  metrics?: StrategyMetrics | null;
 }
 
 export function AnalysisTabs({ 
@@ -37,7 +38,8 @@ export function AnalysisTabs({
   volatility = 0.30,
   expirationDate,
   optionsChainData,
-  legs = []
+  legs = [],
+  metrics
 }: AnalysisTabsProps) {
   
   // Calculate expected move based on volatility and time to expiration
@@ -148,43 +150,36 @@ export function AnalysisTabs({
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Calculate risk metrics from current strategy
+  // Calculate risk metrics from passed strategy metrics (same source as heatmap header)
+  // This ensures consistency between Risks tab and heatmap header values
   const riskMetrics = useMemo(() => {
     const activeLegs = legs.filter(leg => !leg.isExcluded && leg.premium > 0);
     if (activeLegs.length === 0) return null;
 
-    const totalPremium = activeLegs.reduce((sum, leg) => {
-      const legPremium = leg.premium * leg.quantity * 100;
-      return sum + (leg.position === 'long' ? -legPremium : legPremium);
-    }, 0);
-
-    const maxLoss = activeLegs.some(l => l.position === 'long' && l.type === 'call') 
-      ? Math.abs(totalPremium)
-      : activeLegs.some(l => l.position === 'short') 
-        ? 'Unlimited' 
+    // Use metrics from calculateStrategyMetrics for consistency with heatmap header
+    const totalPremium = metrics?.netPremium ?? 0;
+    
+    // Max loss from metrics (already calculated properly across time/price scenarios)
+    // If metrics shows null maxLoss but we have short positions, show "Unlimited"
+    const hasShortPositions = activeLegs.some(l => l.position === 'short');
+    const maxLoss = metrics?.maxLoss != null 
+      ? Math.abs(metrics.maxLoss)
+      : hasShortPositions 
+        ? 'Unlimited' as const
         : Math.abs(totalPremium);
 
-    const breakevens = activeLegs.map(leg => {
-      if (leg.type === 'call') {
-        return leg.position === 'long' 
-          ? leg.strike + leg.premium
-          : leg.strike + leg.premium;
-      } else {
-        return leg.position === 'long'
-          ? leg.strike - leg.premium
-          : leg.strike - leg.premium;
-      }
-    });
+    // Use breakevens from metrics
+    const breakevens = metrics?.breakeven ?? [];
 
     return {
       totalPremium,
       maxLoss,
-      breakevens: Array.from(new Set(breakevens)).sort((a, b) => a - b),
+      breakevens,
       contractCount: activeLegs.reduce((sum, l) => sum + l.quantity, 0),
-      hasShortPositions: activeLegs.some(l => l.position === 'short'),
+      hasShortPositions,
       hasLongPositions: activeLegs.some(l => l.position === 'long'),
     };
-  }, [legs]);
+  }, [legs, metrics]);
 
   return (
     <Tabs defaultValue="greeks" className="w-full">

@@ -1197,6 +1197,7 @@ export default function Builder() {
                 expirationDate={selectedExpirationDate}
                 optionsChainData={optionsChainData}
                 legs={legs}
+                metrics={metrics}
               />
             </div>
 
