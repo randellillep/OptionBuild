@@ -19,6 +19,7 @@ import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, B
 import { AIChatAssistant } from "@/components/AIChatAssistant";
 import { SaveTradeModal } from "@/components/SaveTradeModal";
 import { StrategySelector } from "@/components/StrategySelector";
+import { EconomicCalendarModal } from "@/components/EconomicCalendarModal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
 import type { CommissionSettings } from "@/components/PositionsModal";
@@ -52,6 +53,7 @@ export default function Builder() {
   const [range, setRange] = useState(14);
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
+  const [isEconomicCalendarOpen, setIsEconomicCalendarOpen] = useState(false);
   const [commissionSettings, setCommissionSettings] = useState<CommissionSettings>({
     perTrade: 0,
     perContract: 0,
@@ -1033,6 +1035,12 @@ export default function Builder() {
                   <DropdownMenuItem data-testid="menu-earnings-calendar">
                     Earnings Calendar
                   </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    data-testid="menu-economic-calendar"
+                    onClick={() => setIsEconomicCalendarOpen(true)}
+                  >
+                    Economic Calendar
+                  </DropdownMenuItem>
                   <DropdownMenuItem data-testid="menu-volatility-leaders">
                     Volatility Leaders
                   </DropdownMenuItem>
@@ -1254,6 +1262,11 @@ export default function Builder() {
         legs={legs}
         selectedExpirationDate={selectedExpirationDate}
         isAuthenticated={isAuthenticated}
+      />
+
+      <EconomicCalendarModal
+        isOpen={isEconomicCalendarOpen}
+        onClose={() => setIsEconomicCalendarOpen(false)}
       />
 
       <Footer />
