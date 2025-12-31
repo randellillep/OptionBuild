@@ -274,15 +274,31 @@ export function AnalysisTabs({
                       tickFormatter={(v) => `$${v.toFixed(0)}`}
                     />
                     <Tooltip 
-                      formatter={(value: number, name: string) => [
-                        `$${value.toFixed(2)}`,
-                        name === 'upper' ? 'Upper Bound' : 'Lower Bound'
-                      ]}
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '11px'
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload || !payload.length) return null;
+                        return (
+                          <div className="bg-card border rounded-md p-2 shadow-lg text-xs">
+                            <div className="font-medium mb-1">{label}</div>
+                            {payload.map((entry: any, index: number) => {
+                              const value = entry.value as number;
+                              const percentDiff = ((value - currentPrice) / currentPrice) * 100;
+                              const isUpper = entry.dataKey === 'upper';
+                              return (
+                                <div key={index} className="flex justify-between gap-3">
+                                  <span className={isUpper ? "text-green-500" : "text-red-500"}>
+                                    {isUpper ? 'Upper Bound' : 'Lower Bound'}:
+                                  </span>
+                                  <span className="font-mono">
+                                    ${value.toFixed(2)}{" "}
+                                    <span className={percentDiff >= 0 ? "text-green-500" : "text-red-500"}>
+                                      ({percentDiff >= 0 ? "+" : ""}{percentDiff.toFixed(2)}%)
+                                    </span>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
                       }}
                     />
                     <Area 
