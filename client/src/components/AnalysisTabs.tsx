@@ -1,7 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, BarChart3, AlertTriangle, Users, History } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, AlertTriangle, Users, History, Info } from "lucide-react";
+import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Greeks, MarketOptionChainSummary, OptionLeg } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
 import { HistoricalPriceTab } from "./HistoricalPriceTab";
@@ -231,17 +232,25 @@ export function AnalysisTabs({
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Badge variant="outline" className="bg-primary/10 text-primary">
-              Expected Move
+              Expected Stock Move
             </Badge>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" data-testid="icon-expected-move-info" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">
+                <p>Based on implied volatility, this shows the expected price range for the underlying stock by expiration. There's a 68% probability the stock stays within 1 standard deviation, and 95% within 2 standard deviations.</p>
+              </TooltipContent>
+            </UITooltip>
           </div>
           
           {expectedMove ? (
             <>
               <p className="text-sm text-muted-foreground mb-4">
-                The expected move for <strong>{symbol}</strong> options expiring on{" "}
-                <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days) is{" "}
-                <strong>±${expectedMove.move1SD.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>,{" "}
-                with a price range of{" "}
+                Based on current implied volatility, <strong>{symbol}</strong> stock is expected to move{" "}
+                <strong>±${expectedMove.move1SD.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
+                by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
+                with a projected price range of{" "}
                 <strong>${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}</strong>.
               </p>
 
