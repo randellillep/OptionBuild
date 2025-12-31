@@ -69,10 +69,11 @@ export function calculateOptionPrice(
 ): number {
   const T = daysToExpiration / 365;
   
+  // Option prices can never be negative - ensure minimum of 0
   if (type === "call") {
-    return blackScholesCall(underlyingPrice, strike, T, riskFreeRate, volatility);
+    return Math.max(0, blackScholesCall(underlyingPrice, strike, T, riskFreeRate, volatility));
   } else {
-    return blackScholesPut(underlyingPrice, strike, T, riskFreeRate, volatility);
+    return Math.max(0, blackScholesPut(underlyingPrice, strike, T, riskFreeRate, volatility));
   }
 }
 
@@ -298,8 +299,6 @@ export function calculateProfitLossAtDate(
     const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
     // Use slider volatility for scenario valuation (what-if analysis)
     const scenarioVolatility = volatility;
-    // Use leg's original IV for baseline (entry cost basis) - fallback to slider if not available
-    const entryVolatility = leg.impliedVolatility ?? volatility;
     
     let optionValue: number;
     
@@ -344,27 +343,12 @@ export function calculateProfitLossAtDate(
     // Normalize premium to always be positive (absolute value)
     const premium = Math.abs(leg.premium);
     
-    // Calculate baseline option value for P/L anchoring
-    // For manual/saved premiums: use premium directly (user's actual cost basis)
-    // For market/theoretical premiums: calculate at entry point using Black-Scholes
-    // This ensures P/L = 0 at the entry underlying price
-    let baselineValue: number;
-    
-    if (leg.premiumSource === 'manual' || leg.premiumSource === 'saved' || !leg.entryUnderlyingPrice) {
-      // Use premium directly - this is the user's actual cost basis
-      baselineValue = premium;
-    } else {
-      // Calculate baseline using Black-Scholes at entry point with original IV
-      // This anchors P/L to 0 when atPrice === entryUnderlyingPrice at original IV
-      baselineValue = calculateOptionPrice(
-        leg.type,
-        leg.entryUnderlyingPrice,
-        leg.strike,
-        leg.expirationDays, // Full days at entry
-        entryVolatility,
-        riskFreeRate
-      );
-    }
+    // Always use premium as baseline - this is the actual cost/credit for the position
+    // This ensures:
+    // - P/L = 0 when option is worth the same as when position was opened
+    // - Max profit for short positions = premium received (can't profit more than credit)
+    // - Max loss for long positions = premium paid (can't lose more than debit)
+    const baselineValue = premium;
     
     // Handle closing transaction if present and enabled
     const closing = leg.closingTransaction;
