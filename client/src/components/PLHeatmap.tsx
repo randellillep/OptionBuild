@@ -342,10 +342,19 @@ export function PLHeatmap({
                     {Math.abs(percentChange) < 1 ? percentChange.toFixed(2) : percentChange.toFixed(1)}%
                   </td>
                   {row.map((cell, colIdx) => {
-                    // All cells use the grid P/L value which respects the IV slider
-                    // This ensures the IV slider updates ALL cells for what-if analysis
-                    const cellPnl = cell.pnl;
-                    const adjustedPnl = adjustPnl(cellPnl);
+                    // For the "current scenario" cell (current price row, day 0),
+                    // use actual Realized + Unrealized P/L from market prices
+                    // This ensures the heatmap matches the header totals exactly
+                    // All other cells use theoretical pricing with slider IV for what-if analysis
+                    const isCurrentScenarioCell = isClosestToCurrentPrice && colIdx === 0;
+                    const cellPnl = isCurrentScenarioCell && hasUnrealizedPL
+                      ? (realizedPL + unrealizedPL)  // Actual P/L from header
+                      : cell.pnl;                     // Theoretical P/L with slider IV
+                    // Don't apply commission adjustment to current scenario cell 
+                    // (it already includes commissions in the realized/unrealized calculation)
+                    const adjustedPnl = isCurrentScenarioCell && hasUnrealizedPL
+                      ? cellPnl
+                      : adjustPnl(cellPnl);
                     // Format: all cells show rounded whole numbers for consistency
                     const displayValue = Math.round(adjustedPnl).toLocaleString('en-US', { maximumFractionDigits: 0 });
                     return (
