@@ -296,9 +296,10 @@ export function calculateProfitLossAtDate(
     // daysFromNow = 0 means today, so we have leg.expirationDays remaining
     // daysFromNow = 5 means 5 days from now, so we have leg.expirationDays - 5 remaining
     const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
-    // Always use the volatility parameter from the slider for what-if scenarios
-    // This allows the IV slider to affect heatmap calculations
-    const legVolatility = volatility;
+    // Use slider volatility for scenario valuation (what-if analysis)
+    const scenarioVolatility = volatility;
+    // Use leg's original IV for baseline (entry cost basis) - fallback to slider if not available
+    const entryVolatility = leg.impliedVolatility ?? volatility;
     
     let optionValue: number;
     
@@ -320,7 +321,7 @@ export function calculateProfitLossAtDate(
           atPrice,
           leg.strike,
           daysRemaining,
-          legVolatility,
+          scenarioVolatility,
           riskFreeRate
         );
       }
@@ -335,7 +336,7 @@ export function calculateProfitLossAtDate(
         atPrice,
         leg.strike,
         daysRemaining,
-        legVolatility,
+        scenarioVolatility,
         riskFreeRate
       );
     }
@@ -353,14 +354,14 @@ export function calculateProfitLossAtDate(
       // Use premium directly - this is the user's actual cost basis
       baselineValue = premium;
     } else {
-      // Calculate baseline using Black-Scholes at entry point
-      // This anchors P/L to 0 when atPrice === entryUnderlyingPrice
+      // Calculate baseline using Black-Scholes at entry point with original IV
+      // This anchors P/L to 0 when atPrice === entryUnderlyingPrice at original IV
       baselineValue = calculateOptionPrice(
         leg.type,
         leg.entryUnderlyingPrice,
         leg.strike,
         leg.expirationDays, // Full days at entry
-        legVolatility,
+        entryVolatility,
         riskFreeRate
       );
     }
