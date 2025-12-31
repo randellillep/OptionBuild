@@ -288,43 +288,18 @@ export function calculateProfitLossAtDate(
 ): number {
   let pnl = 0;
   
-  // Check if this is the "current" scenario (today at current price)
-  // For this scenario, we should use actual market prices when available
-  const isCurrentScenario = daysFromNow === 0 && Math.abs(atPrice - underlyingPrice) < 0.01;
-  
   for (const leg of legs) {
     // Calculate remaining days to expiration from the given point in time
     // daysFromNow = 0 means today, so we have leg.expirationDays remaining
     // daysFromNow = 5 means 5 days from now, so we have leg.expirationDays - 5 remaining
     const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
     // Use slider volatility for scenario valuation (what-if analysis)
+    // This applies to ALL cells including "current" - the heatmap is a what-if tool
     const scenarioVolatility = volatility;
     
     let optionValue: number;
     
-    // For current scenario with saved/manual trades, use actual market price when available
-    // This ensures P/L reflects real market conditions, not theoretical values
-    if (isCurrentScenario && (leg.premiumSource === 'saved' || leg.premiumSource === 'manual')) {
-      const marketPrice = getLegMarketPrice(leg);
-      if (marketPrice !== undefined) {
-        optionValue = marketPrice;
-      } else if (daysRemaining <= 0) {
-        // At or past expiration - use intrinsic value
-        optionValue = leg.type === "call" 
-          ? Math.max(atPrice - leg.strike, 0)
-          : Math.max(leg.strike - atPrice, 0);
-      } else {
-        // Fallback to theoretical pricing
-        optionValue = calculateOptionPrice(
-          leg.type,
-          atPrice,
-          leg.strike,
-          daysRemaining,
-          scenarioVolatility,
-          riskFreeRate
-        );
-      }
-    } else if (daysRemaining <= 0) {
+    if (daysRemaining <= 0) {
       // At or past expiration - use intrinsic value
       optionValue = leg.type === "call" 
         ? Math.max(atPrice - leg.strike, 0)
