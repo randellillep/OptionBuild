@@ -885,6 +885,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Economic Calendar endpoint - fetches upcoming economic events from Finnhub
+  app.get("/api/calendar/economic", async (req, res) => {
+    try {
+      if (!FINNHUB_API_KEY) {
+        return res.status(500).json({ error: "API key not configured" });
+      }
+
+      const response = await fetch(
+        `${FINNHUB_BASE_URL}/calendar/economic?token=${FINNHUB_API_KEY}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Finnhub API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Finnhub returns { economicCalendar: [...] }
+      const events = (data.economicCalendar || []).map((event: any) => ({
+        country: event.country,
+        event: event.event,
+        time: event.time,
+        impact: event.impact,
+        actual: event.actual,
+        estimate: event.estimate,
+        prev: event.prev,
+        unit: event.unit,
+      }));
+
+      res.json({ events, updated: Date.now() });
+    } catch (error) {
+      console.error("Error fetching economic calendar:", error);
+      res.status(500).json({ error: "Failed to fetch economic calendar" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
