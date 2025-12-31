@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Minus, Plus, X, RotateCcw, Check, Calendar, EyeOff, Undo2, Trash2 } from "lucide-react";
+import { Minus, Plus, X, RotateCcw, Check, EyeOff, Undo2, Trash2 } from "lucide-react";
 import type { OptionLeg, MarketOptionChainSummary, ClosingTransaction } from "@shared/schema";
 import { calculateGreeks } from "@/lib/options-pricing";
 
@@ -1189,32 +1188,6 @@ export function OptionDetailsPanel({
                 </div>
               )}
             </div>
-
-            {/* Change Expiration */}
-            {availableExpirations.length > 1 && (
-              <div className="flex items-center gap-2">
-                <Calendar className="h-3 w-3 text-muted-foreground ml-2" />
-                <Select
-                  value={leg.expirationDate || expirationDate || ''}
-                  onValueChange={handleExpirationChange}
-                >
-                  <SelectTrigger className="h-8 text-xs flex-1" data-testid="select-expiration">
-                    <SelectValue placeholder="Change Expiration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableExpirations.map((exp) => (
-                      <SelectItem key={exp} value={exp} className="text-xs">
-                        {new Date(exp).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric', 
-                          year: '2-digit' 
-                        })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             {/* Exclude Toggle */}
             <Button
