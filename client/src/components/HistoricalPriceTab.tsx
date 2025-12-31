@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceLine,
+  ReferenceArea,
   Area,
   AreaChart,
   Cell,
@@ -128,6 +129,12 @@ export function HistoricalPriceTab({
 }: HistoricalPriceTabProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("1M");
   const [chartType, setChartType] = useState<ChartType>("candlestick");
+  
+  // Range selection state for percentage calculation
+  const [selectionStart, setSelectionStart] = useState<number | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const selectionStartRef = useRef<number | null>(null);
 
   const selectedRange = timeRangeOptions.find((r) => r.value === timeRange)!;
   const resolution = timeRange === "1D" ? "5" : "D";
@@ -302,6 +309,74 @@ export function HistoricalPriceTab({
     return { min: Math.max(0, min - padding), max: max + padding };
   }, [chartData, isSingleLeg]);
 
+  // Calculate percentage change for selected range
+  const selectionPercentage = useMemo(() => {
+    if (selectionStart === null || selectionEnd === null || !chartData.length) return null;
+    
+    const startIdx = Math.min(selectionStart, selectionEnd);
+    const endIdx = Math.max(selectionStart, selectionEnd);
+    
+    if (startIdx < 0 || endIdx >= chartData.length) return null;
+    
+    const startPrice = chartData[startIdx]?.stockClose;
+    const endPrice = chartData[endIdx]?.stockClose;
+    
+    if (!startPrice || !endPrice) return null;
+    
+    const percentChange = ((endPrice - startPrice) / startPrice) * 100;
+    return {
+      startDate: chartData[startIdx]?.date,
+      endDate: chartData[endIdx]?.date,
+      startPrice,
+      endPrice,
+      percentChange,
+    };
+  }, [selectionStart, selectionEnd, chartData]);
+
+  // Mouse event handlers for range selection
+  const handleMouseDown = useCallback((e: any) => {
+    if (e && e.activeTooltipIndex !== undefined) {
+      const index = e.activeTooltipIndex;
+      selectionStartRef.current = index;
+      setSelectionStart(index);
+      setSelectionEnd(index);
+      setIsSelecting(true);
+    }
+  }, []);
+
+  const handleMouseMove = useCallback((e: any) => {
+    if (isSelecting && e && e.activeTooltipIndex !== undefined) {
+      setSelectionEnd(e.activeTooltipIndex);
+    }
+  }, [isSelecting]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsSelecting(false);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (isSelecting) {
+      setIsSelecting(false);
+    }
+  }, [isSelecting]);
+
+  // Clear selection when clicking outside the selected range
+  const handleChartClick = useCallback((e: any) => {
+    if (!isSelecting && selectionStart !== null && selectionEnd !== null) {
+      // Clear selection if clicking outside the current selection
+      setSelectionStart(null);
+      setSelectionEnd(null);
+    }
+  }, [isSelecting, selectionStart, selectionEnd]);
+
+  // Reset selection when time range changes
+  const handleTimeRangeChange = useCallback((value: TimeRange) => {
+    setTimeRange(value);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+    setIsSelecting(false);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="space-y-4 p-4">
@@ -330,7 +405,7 @@ export function HistoricalPriceTab({
               key={option.value}
               size="sm"
               variant={timeRange === option.value ? "default" : "outline"}
-              onClick={() => setTimeRange(option.value)}
+              onClick={() => handleTimeRangeChange(option.value)}
               className="text-xs px-2 py-1 h-7"
               data-testid={`button-range-${option.value}`}
             >
