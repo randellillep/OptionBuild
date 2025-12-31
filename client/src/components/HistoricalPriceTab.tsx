@@ -302,20 +302,6 @@ export function HistoricalPriceTab({
     return { min: Math.max(0, min - padding), max: max + padding };
   }, [chartData, isSingleLeg]);
 
-  // Calculate percentage change for the selected time range
-  const periodChange = useMemo(() => {
-    if (!candleData?.candles?.length || candleData.candles.length < 2) {
-      return null;
-    }
-    const candles: Candle[] = candleData.candles;
-    const firstClose = candles[0].close;
-    const lastClose = candles[candles.length - 1].close;
-    if (firstClose === 0) return null;
-    const changePercent = ((lastClose - firstClose) / firstClose) * 100;
-    const changeValue = lastClose - firstClose;
-    return { percent: changePercent, value: changeValue, first: firstClose, last: lastClose };
-  }, [candleData]);
-
   if (isLoading) {
     return (
       <div className="space-y-4 p-4">
@@ -338,33 +324,19 @@ export function HistoricalPriceTab({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1">
-            {timeRangeOptions.map((option) => (
-              <Button
-                key={option.value}
-                size="sm"
-                variant={timeRange === option.value ? "default" : "outline"}
-                onClick={() => setTimeRange(option.value)}
-                className="text-xs px-2 py-1 h-7"
-                data-testid={`button-range-${option.value}`}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-          {periodChange && (
-            <div 
-              className={`text-sm font-mono font-medium px-2 py-1 rounded ${
-                periodChange.percent >= 0 
-                  ? 'text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' 
-                  : 'text-rose-600 dark:text-rose-500 bg-rose-50 dark:bg-rose-950/30'
-              }`}
-              data-testid="text-period-change"
+        <div className="flex gap-1">
+          {timeRangeOptions.map((option) => (
+            <Button
+              key={option.value}
+              size="sm"
+              variant={timeRange === option.value ? "default" : "outline"}
+              onClick={() => setTimeRange(option.value)}
+              className="text-xs px-2 py-1 h-7"
+              data-testid={`button-range-${option.value}`}
             >
-              {periodChange.percent >= 0 ? '+' : ''}{periodChange.percent.toFixed(2)}%
-            </div>
-          )}
+              {option.label}
+            </Button>
+          ))}
         </div>
         <div className="flex gap-1">
           <Button
