@@ -199,8 +199,8 @@ export function useStrategyEngine(rangePercent: number = 14) {
   }, [legs, symbolInfo.price, volatility]);
 
   const metrics: StrategyMetrics = useMemo(() => {
-    return calculateStrategyMetrics(legs, symbolInfo.price);
-  }, [legs, symbolInfo.price]);
+    return calculateStrategyMetrics(legs, symbolInfo.price, volatility);
+  }, [legs, symbolInfo.price, volatility]);
 
   const uniqueExpirationDays = useMemo(() => {
     const days = Array.from(new Set(legs.map(leg => leg.expirationDays))).sort((a, b) => a - b);

@@ -440,7 +440,8 @@ export function calculateProfitLossAtDate(
 
 export function calculateStrategyMetrics(
   legs: OptionLeg[],
-  underlyingPrice: number
+  underlyingPrice: number,
+  volatility: number = 0.30
 ): StrategyMetrics {
   // For strike range calculation, use legs that have active positions or closed trades
   const legsWithActivity = legs.filter(leg => !leg.isExcluded || 
@@ -529,11 +530,28 @@ export function calculateStrategyMetrics(
     return minPrice + (maxPrice - minPrice) * (i / 199);
   });
   
-  // Note: calculateProfitLoss already handles excluded legs and closing transactions
-  const pnlValues = priceRange.map(price => calculateProfitLoss(legs, underlyingPrice, price));
+  // Find max DTE across all legs for time range
+  const maxDte = Math.max(...legsWithActivity.map(leg => leg.expirationDays || 0), 1);
   
-  const maxProfit = Math.max(...pnlValues);
-  const maxLoss = Math.min(...pnlValues);
+  // Scan across time AND price to find max profit/loss
+  // This ensures consistency with heatmap which shows values at all time points
+  const allPnlValues: number[] = [];
+  
+  // Sample time points: 0 (today), several intermediate points, and expiration
+  const timePoints = [0, Math.floor(maxDte / 4), Math.floor(maxDte / 2), Math.floor(maxDte * 3 / 4), maxDte];
+  
+  for (const daysFromNow of timePoints) {
+    for (const price of priceRange) {
+      const pnl = calculateProfitLossAtDate(legs, underlyingPrice, price, daysFromNow, volatility);
+      allPnlValues.push(pnl);
+    }
+  }
+  
+  const maxProfit = Math.max(...allPnlValues);
+  const maxLoss = Math.min(...allPnlValues);
+  
+  // For breakeven, use expiration values (intrinsic-based)
+  const pnlValues = priceRange.map(price => calculateProfitLoss(legs, underlyingPrice, price));
   
   const breakeven: number[] = [];
   for (let i = 1; i < pnlValues.length; i++) {
