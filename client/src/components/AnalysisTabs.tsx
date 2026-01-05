@@ -67,24 +67,32 @@ export function AnalysisTabs({
   const expectedMove = frozenExpectedMove;
 
   // Generate expected move projection data for chart
+  // Uses ONLY the frozen expected move data - never uses the IV slider value
   const expectedMoveChartData = useMemo(() => {
-    if (!expectedMove || !currentPrice) return [];
+    if (!expectedMove) return [];
     
-    const months = ['Jan 25', 'Apr 25', 'Jul 25', 'Oct 25', 'Jan 26', 'Apr 26', 'Jul 26', 'Oct 26', 'Jan 27'];
+    // Use the frozen expected move's values (calculated from market data, never changes with IV slider)
+    const frozenPrice = expectedMove.currentPrice;
+    const frozenMovePercent = expectedMove.movePercent / 100; // Convert from percentage
     
-    return months.map((month, index) => {
-      const timeMultiplier = Math.sqrt((index + 1) * 90 / 365);
-      const projectedUpper = currentPrice * (1 + volatility * timeMultiplier);
-      const projectedLower = currentPrice * (1 - volatility * timeMultiplier * 0.8); // Asymmetric for realism
+    // Generate projections for the expiration period only (not multiple months)
+    // This shows the expected range at expiration using FROZEN market data
+    const daysToExp = expectedMove.daysToExpiration;
+    const labels = ['Now', `+${Math.floor(daysToExp/2)}d`, `Exp (${daysToExp}d)`];
+    
+    return labels.map((label, index) => {
+      // Scale the move based on time (square root of time)
+      const timeRatio = index / (labels.length - 1); // 0 to 1
+      const timeMultiplier = Math.sqrt(timeRatio);
       
       return {
-        month,
-        price: index === 0 ? currentPrice : undefined,
-        upper: projectedUpper,
-        lower: projectedLower,
+        month: label,
+        price: index === 0 ? frozenPrice : undefined,
+        upper: frozenPrice * (1 + frozenMovePercent * timeMultiplier),
+        lower: frozenPrice * (1 - frozenMovePercent * timeMultiplier),
       };
     });
-  }, [currentPrice, volatility, expectedMove]);
+  }, [expectedMove]); // Only depends on frozen expected move data - NOT volatility
 
   // Calculate volatility skew from options chain data
   const volatilitySkewData = useMemo(() => {
