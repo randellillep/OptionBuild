@@ -328,90 +328,94 @@ export default function SavedTrades() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/builder" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Link href="/builder" className="flex items-center gap-1 sm:gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm">Back to Builder</span>
+              <span className="text-xs sm:text-sm hidden sm:inline">Back to Builder</span>
             </Link>
-            <div className="h-4 w-px bg-border" />
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <span className="font-bold text-lg">OptionFlow</span>
+            <div className="h-4 w-px bg-border hidden sm:block" />
+            <div className="flex items-center gap-1 sm:gap-2">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <span className="font-bold text-sm sm:text-lg">OptionFlow</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle />
             {isAuthenticated && user && (
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
                 <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || 'User'} />
-                <AvatarFallback>{user.firstName?.[0] || 'U'}</AvatarFallback>
+                <AvatarFallback className="text-xs">{user.firstName?.[0] || 'U'}</AvatarFallback>
               </Avatar>
             )}
           </div>
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-2" data-testid="text-page-title">Saved Trades</h1>
-          <p className="text-muted-foreground">View and manage your saved option strategies</p>
+      <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2" data-testid="text-page-title">Saved Trades</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">View and manage your saved option strategies</p>
         </div>
 
-        <Card className="p-4">
-          <div className="flex flex-wrap items-center gap-4 mb-6">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Group:</span>
-              <Select value={group} onValueChange={setGroup}>
-                <SelectTrigger className="w-[120px]" data-testid="select-filter-group">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="favorites">Favorites</SelectItem>
-                  <SelectItem value="watchlist">Watchlist</SelectItem>
-                  <SelectItem value="earnings">Earnings</SelectItem>
-                  <SelectItem value="research">Research</SelectItem>
-                </SelectContent>
-              </Select>
+        <Card className="p-3 sm:p-4">
+          {/* Mobile-friendly filter controls with better wrapping */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="grid grid-cols-3 sm:flex gap-2 sm:gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="text-xs sm:text-sm font-medium text-muted-foreground">Group:</span>
+                <Select value={group} onValueChange={setGroup}>
+                  <SelectTrigger className="w-full sm:w-[120px] h-8 sm:h-9 text-xs sm:text-sm" data-testid="select-filter-group">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="favorites">Favorites</SelectItem>
+                    <SelectItem value="watchlist">Watchlist</SelectItem>
+                    <SelectItem value="earnings">Earnings</SelectItem>
+                    <SelectItem value="research">Research</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="text-xs sm:text-sm font-medium text-muted-foreground">Sort:</span>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-full sm:w-[140px] h-8 sm:h-9 text-xs sm:text-sm" data-testid="select-sort-by">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Date created</SelectItem>
+                    <SelectItem value="name">Name</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="text-xs sm:text-sm font-medium text-muted-foreground">Show:</span>
+                <Select value={showFilter} onValueChange={setShowFilter}>
+                  <SelectTrigger className="w-full sm:w-[100px] h-8 sm:h-9 text-xs sm:text-sm" data-testid="select-show-filter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-[140px]" data-testid="select-sort-by">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date">Date created</SelectItem>
-                  <SelectItem value="name">Name</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Show:</span>
-              <Select value={showFilter} onValueChange={setShowFilter}>
-                <SelectTrigger className="w-[100px]" data-testid="select-show-filter">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="all">All</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1" />
+            <div className="hidden sm:flex flex-1" />
 
             <Button 
               variant="default" 
               size="sm" 
               onClick={handleExport}
+              className="w-full sm:w-auto h-8 sm:h-9 text-xs sm:text-sm"
               data-testid="button-export"
             >
-              <Download className="h-4 w-4 mr-1.5" />
+              <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
               Export
             </Button>
           </div>
@@ -424,16 +428,16 @@ export default function SavedTrades() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
+            <div className="overflow-x-auto -mx-3 sm:mx-0">
+              <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Name</th>
-                    <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Total Return</th>
-                    <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Today's Return</th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Created At</th>
-                    <th className="text-left py-3 px-2 text-sm font-medium text-muted-foreground">Days Until Expiration</th>
-                    <th className="text-right py-3 px-2 text-sm font-medium text-muted-foreground">Actions</th>
+                    <th className="text-left py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium text-muted-foreground">Name</th>
+                    <th className="text-right py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium text-muted-foreground">Total Return</th>
+                    <th className="text-right py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium text-muted-foreground hidden sm:table-cell">Today's Return</th>
+                    <th className="text-left py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium text-muted-foreground hidden md:table-cell">Created</th>
+                    <th className="text-left py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium text-muted-foreground">Expires</th>
+                    <th className="text-right py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium text-muted-foreground"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -448,61 +452,63 @@ export default function SavedTrades() {
                         onClick={() => openTradeInBuilder(trade)}
                         data-testid={`row-trade-${trade.id}`}
                       >
-                        <td className="py-3 px-2">
-                          <div className="flex items-center gap-2">
+                        <td className="py-2 sm:py-3 px-2">
+                          <div className="flex items-center gap-1 sm:gap-2">
                             <button 
-                              className="text-muted-foreground/50 hover:text-yellow-500 transition-colors"
+                              className="text-muted-foreground/50 hover:text-yellow-500 transition-colors hidden sm:block"
                               onClick={(e) => { e.stopPropagation(); }}
                               data-testid={`button-favorite-${trade.id}`}
                             >
-                              <Star className="h-4 w-4" />
+                              <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </button>
                             <button 
-                              className="text-muted-foreground/50 hover:text-foreground transition-colors"
+                              className="text-muted-foreground/50 hover:text-foreground transition-colors hidden sm:block"
                               onClick={(e) => { e.stopPropagation(); }}
                               data-testid={`button-settings-${trade.id}`}
                             >
-                              <Settings className="h-4 w-4" />
+                              <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </button>
-                            <span className="text-primary font-medium hover:underline" data-testid={`text-trade-name-${trade.id}`}>
+                            <span className="text-xs sm:text-sm text-primary font-medium hover:underline truncate max-w-[120px] sm:max-w-none" data-testid={`text-trade-name-${trade.id}`}>
                               {trade.name}
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 px-2 text-right">
-                          <span className={totalReturn.value >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}>
-                            {totalReturn.value >= 0 ? '+' : ''}${Math.round(totalReturn.value).toLocaleString('en-US', { maximumFractionDigits: 0 })} ({totalReturn.percent >= 0 ? '+' : ''}{Math.round(totalReturn.percent)}%)
+                        <td className="py-2 sm:py-3 px-2 text-right">
+                          <span className={`text-xs sm:text-sm font-mono ${totalReturn.value >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`}>
+                            {totalReturn.value >= 0 ? '+' : ''}${Math.round(totalReturn.value).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            <span className="hidden sm:inline"> ({totalReturn.percent >= 0 ? '+' : ''}{Math.round(totalReturn.percent)}%)</span>
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-right">
-                          <span className="text-muted-foreground">
+                        <td className="py-2 sm:py-3 px-2 text-right hidden sm:table-cell">
+                          <span className="text-xs sm:text-sm text-muted-foreground">
                             —
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-sm text-muted-foreground">
+                        <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm text-muted-foreground hidden md:table-cell">
                           {formatDate(trade.savedAt)}
                         </td>
-                        <td className="py-3 px-2 text-sm">
+                        <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm">
                           {expInfo ? (
                             <span className={expInfo.days <= 7 ? 'text-amber-600 dark:text-amber-500 font-medium' : 'text-muted-foreground'}>
-                              {expInfo.days}d ({expInfo.dateStr})
+                              {expInfo.days}d
+                              <span className="hidden sm:inline"> ({expInfo.dateStr})</span>
                             </span>
                           ) : (
                             <span className="text-muted-foreground">N/A</span>
                           )}
                         </td>
-                        <td className="py-3 px-2 text-right">
+                        <td className="py-2 sm:py-3 px-2 text-right">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive"
                             onClick={(e) => { 
                               e.stopPropagation(); 
                               deleteTrade(trade.id);
                             }}
                             data-testid={`button-delete-${trade.id}`}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                           </Button>
                         </td>
                       </tr>

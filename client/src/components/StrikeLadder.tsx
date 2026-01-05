@@ -402,7 +402,8 @@ export function StrikeLadder({
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
-    const badgeHeight = 24;
+    // Touch-friendly badge sizing: larger on mobile for easier tapping
+    const badgeHeight = 28; // Slightly larger for better touch targets
     const stackOffset = verticalOffset * (badgeHeight + 2);
     const topPosition = position === 'long' 
       ? `calc(50% - ${badgeHeight}px - ${stackOffset}px)`
@@ -436,16 +437,17 @@ export function StrikeLadder({
               onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e, false)}
               data-testid={testId}
-              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : ''} text-white font-bold whitespace-nowrap ${canDrag && isBeingDragged ? 'cursor-grabbing scale-110 z-50' : (canDrag ? 'cursor-grab' : 'cursor-pointer')} rounded transition-all border-0 shadow-sm ${isExcluded ? 'line-through' : ''}`}
+              className={`relative text-[11px] sm:text-[10px] h-7 sm:h-6 px-2.5 sm:px-2 ${isExcluded ? excludedBgClass : ''} text-white font-bold whitespace-nowrap ${canDrag && isBeingDragged ? 'cursor-grabbing scale-110 z-50' : (canDrag ? 'cursor-grab' : 'cursor-pointer')} rounded transition-all border-0 shadow-sm ${isExcluded ? 'line-through' : ''}`}
               style={{ 
                 backgroundColor: isExcluded ? undefined : openBgColor,
                 boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : undefined,
-                touchAction: 'none'
+                touchAction: 'none',
+                minWidth: '44px' // Minimum touch target size per accessibility guidelines
               }}
             >
               {strikeText}
               <span 
-                className="absolute -top-1 -right-1 text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border bg-black border-slate-700"
+                className="absolute -top-1.5 -right-1.5 sm:-top-1 sm:-right-1 text-white text-[9px] sm:text-[8px] font-bold rounded-full min-w-[16px] sm:min-w-[14px] h-[16px] sm:h-[14px] flex items-center justify-center px-0.5 border bg-black border-slate-700"
                 data-testid={`quantity-${leg.id}`}
               >
                 {hasClosing ? remainingQty : (leg.position === 'short' ? `-${quantity}` : `+${quantity}`)}
@@ -509,7 +511,8 @@ export function StrikeLadder({
     const closedBgColor = isCall ? '#1a4a15' : '#7a211c';
     const excludedBgClass = "bg-slate-400 hover:bg-slate-500";
     
-    const badgeHeight = 24;
+    // Touch-friendly badge sizing
+    const badgeHeight = 28;
     const stackOffset = verticalOffset * (badgeHeight + 2);
     // Sold trades stack BELOW the open position:
     // For longs: open is above center, sold goes below open (closer to center)
@@ -546,14 +549,17 @@ export function StrikeLadder({
           >
             <button
               onClick={(e) => handleBadgeClick(leg, e, true, entry.id)}
-              className={`relative text-[10px] h-6 px-2 ${isExcluded ? excludedBgClass : ''} text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0 shadow-sm ${isExcluded ? 'line-through' : ''}`}
-              style={{ backgroundColor: isExcluded ? undefined : closedBgColor }}
+              className={`relative text-[11px] sm:text-[10px] h-7 sm:h-6 px-2.5 sm:px-2 ${isExcluded ? excludedBgClass : ''} text-white font-bold whitespace-nowrap cursor-pointer rounded transition-all border-0 shadow-sm ${isExcluded ? 'line-through' : ''}`}
+              style={{ 
+                backgroundColor: isExcluded ? undefined : closedBgColor,
+                minWidth: '44px' // Minimum touch target size
+              }}
               data-testid={`badge-closed-${entry.id}`}
             >
               {strikeText}
-              <Check className="inline-block h-3 w-3 ml-0.5" />
+              <Check className="inline-block h-3.5 w-3.5 sm:h-3 sm:w-3 ml-0.5" />
               <span 
-                className="absolute -top-1 -right-1 bg-black text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 border border-slate-700"
+                className="absolute -top-1.5 -right-1.5 sm:-top-1 sm:-right-1 bg-black text-white text-[9px] sm:text-[8px] font-bold rounded-full min-w-[16px] sm:min-w-[14px] h-[16px] sm:h-[14px] flex items-center justify-center px-0.5 border border-slate-700"
               >
                 {entry.quantity}
               </span>
