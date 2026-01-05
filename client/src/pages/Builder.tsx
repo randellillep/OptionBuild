@@ -571,15 +571,45 @@ export default function Builder() {
     const atmCall = getMidPrice(atmStrike, 'call');
     const atmPut = getMidPrice(atmStrike, 'put');
     
+    console.log('[EXPECTED-MOVE] Debug:', {
+      symbol: symbolInfo.symbol,
+      currentPrice,
+      atmStrike,
+      atmCall,
+      atmPut,
+      uniqueStrikesCount: uniqueStrikes.length,
+      quotesCount: quotes.length,
+      callsCount: quotes.filter(q => q.side === 'call').length,
+      putsCount: quotes.filter(q => q.side === 'put').length,
+      nearestExpiration,
+    });
+    
     // Get OTM strangle prices
     const otm1Call = otm1StrikeAbove ? getMidPrice(otm1StrikeAbove, 'call') : null;
     const otm1Put = otm1StrikeBelow ? getMidPrice(otm1StrikeBelow, 'put') : null;
     const otm2Call = otm2StrikeAbove ? getMidPrice(otm2StrikeAbove, 'call') : null;
     const otm2Put = otm2StrikeBelow ? getMidPrice(otm2StrikeBelow, 'put') : null;
     
-    // Calculate and store frozen expected move if we have ATM straddle
+    // Calculate and store frozen expected move
+    // Prefer both ATM call and put, but fall back to approximation if one is missing
+    let atmStraddle: number | null = null;
+    
     if (atmCall !== null && atmPut !== null && atmCall > 0 && atmPut > 0) {
-      const atmStraddle = atmCall + atmPut;
+      // Ideal case: we have both ATM call and put
+      atmStraddle = atmCall + atmPut;
+    } else if (atmCall !== null && atmCall > 0) {
+      // Fallback: only have call, approximate straddle as 2x call price
+      atmStraddle = atmCall * 2;
+      console.log('[EXPECTED-MOVE] Using call-only approximation (2x call)');
+    } else if (atmPut !== null && atmPut > 0) {
+      // Fallback: only have put, approximate straddle as 2x put price
+      atmStraddle = atmPut * 2;
+      console.log('[EXPECTED-MOVE] Using put-only approximation (2x put)');
+    }
+    
+    if (atmStraddle !== null) {
+      const actualAtmCall = atmCall ?? atmStraddle / 2;
+      const actualAtmPut = atmPut ?? atmStraddle / 2;
       
       // OTM strangles (both legs required)
       const hasOtm1 = otm1Call !== null && otm1Put !== null;
@@ -603,8 +633,8 @@ export default function Builder() {
       const payload = {
         expectedMove: expectedMoveValue,
         atmStrike,
-        atmCall,
-        atmPut,
+        atmCall: actualAtmCall,
+        atmPut: actualAtmPut,
         otm1Strangle,
         otm2Strangle,
         lowerBound: currentPrice - expectedMoveValue,
