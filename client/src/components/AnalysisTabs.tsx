@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, BarChart3, Users, History, Info } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, Users, History, Info, Newspaper } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Greeks, MarketOptionChainSummary, OptionLeg, StrategyMetrics } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
 import { HistoricalPriceTab } from "./HistoricalPriceTab";
+import { NewsTab } from "./NewsTab";
 import { 
   Line, 
   XAxis, 
@@ -151,14 +152,14 @@ export function AnalysisTabs({
 
   return (
     <Tabs defaultValue="greeks" className="w-full">
-      <TabsList className="grid w-full grid-cols-5 h-7">
+      <TabsList className="grid w-full grid-cols-6 h-7">
         <TabsTrigger value="greeks" className="text-[10px] h-6" data-testid="tab-greeks">
           <Activity className="h-2.5 w-2.5 mr-0.5" />
           Greeks
         </TabsTrigger>
         <TabsTrigger value="backtest" className="text-[10px] h-6" data-testid="tab-backtest">
           <History className="h-2.5 w-2.5 mr-0.5" />
-          Historical Price
+          Historical
         </TabsTrigger>
         <TabsTrigger value="expected-move" className="text-[10px] h-6" data-testid="tab-expected-move">
           <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
@@ -171,6 +172,10 @@ export function AnalysisTabs({
         <TabsTrigger value="open-interest" className="text-[10px] h-6" data-testid="tab-open-interest">
           <Users className="h-2.5 w-2.5 mr-0.5" />
           OI
+        </TabsTrigger>
+        <TabsTrigger value="news" className="text-[10px] h-6" data-testid="tab-news">
+          <Newspaper className="h-2.5 w-2.5 mr-0.5" />
+          News
         </TabsTrigger>
       </TabsList>
 
@@ -455,6 +460,12 @@ export function AnalysisTabs({
           <div className="h-32 flex items-center justify-center bg-muted/30 rounded-md">
             <p className="text-xs text-muted-foreground">Open interest chart</p>
           </div>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="news" className="mt-2">
+        <Card className="p-3">
+          <NewsTab symbol={symbol} />
         </Card>
       </TabsContent>
     </Tabs>

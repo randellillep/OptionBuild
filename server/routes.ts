@@ -317,6 +317,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // News endpoint - fetches news from Alpaca API
+  app.get("/api/news/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { limit = '10' } = req.query;
+      
+      if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+        return res.status(500).json({ error: "Alpaca API keys not configured" });
+      }
+
+      const newsUrl = `https://data.alpaca.markets/v1beta1/news?symbols=${symbol.toUpperCase()}&limit=${limit}&sort=desc`;
+
+      const response = await fetch(newsUrl, {
+        headers: {
+          'APCA-API-KEY-ID': ALPACA_API_KEY,
+          'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Alpaca news API error:", response.status, errorText);
+        throw new Error(`Alpaca API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      const articles = (data.news || []).map((article: any) => ({
+        id: article.id,
+        headline: article.headline,
+        summary: article.summary,
+        author: article.author,
+        source: article.source,
+        url: article.url,
+        symbols: article.symbols || [],
+        createdAt: article.created_at,
+        updatedAt: article.updated_at,
+      }));
+
+      res.json({
+        symbol: symbol.toUpperCase(),
+        articles,
+        count: articles.length,
+      });
+    } catch (error) {
+      console.error("Error fetching news:", error);
+      res.status(500).json({ error: "Failed to fetch news" });
+    }
+  });
+
   // Historical stock candles endpoint for charts (using Alpaca API)
   app.get("/api/stock/candles/:symbol", async (req, res) => {
     try {

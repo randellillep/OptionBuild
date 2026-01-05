@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Greeks, OptionLeg, StrategyMetrics } from "@shared/schema";
-import { TrendingUp, TrendingDown, Activity, Zap, DollarSign, AlertTriangle, Shield } from "lucide-react";
+import { TrendingUp, Activity, DollarSign, AlertTriangle, Shield, Clock, BarChart2 } from "lucide-react";
 import { useMemo } from "react";
 
 interface GreeksDashboardProps {
@@ -33,14 +33,14 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
     {
       name: "Theta",
       value: greeks.theta,
-      icon: TrendingDown,
+      icon: Clock,
       description: "Time decay",
       color: "text-orange-600 dark:text-orange-500",
     },
     {
       name: "Vega",
       value: greeks.vega,
-      icon: Zap,
+      icon: BarChart2,
       description: "Volatility sensitivity",
       color: "text-green-600 dark:text-green-500",
     },
@@ -217,7 +217,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
 
                 <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
                   <div className="flex items-center gap-2">
-                    <TrendingDown className="h-3.5 w-3.5 text-orange-500" />
+                    <Clock className="h-3.5 w-3.5 text-orange-500" />
                     <span className="text-sm">Time Risk (Theta):</span>
                   </div>
                   {getRiskBadge(riskAnalysis.thetaRisk)}
@@ -225,7 +225,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
 
                 <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
                   <div className="flex items-center gap-2">
-                    <Zap className="h-3.5 w-3.5 text-green-500" />
+                    <BarChart2 className="h-3.5 w-3.5 text-green-500" />
                     <span className="text-sm">Volatility Risk (Vega):</span>
                   </div>
                   {getRiskBadge(riskAnalysis.vegaRisk)}
@@ -255,7 +255,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <TrendingDown className="h-3.5 w-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="h-3.5 w-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
                   <div>
                     <span className="font-semibold text-orange-600 dark:text-orange-400">Theta:</span>{' '}
                     <span className="text-muted-foreground">{getThetaInsight()}</span>
@@ -263,7 +263,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <Zap className="h-3.5 w-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+                  <BarChart2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0 mt-0.5" />
                   <div>
                     <span className="font-semibold text-green-600 dark:text-green-400">Vega:</span>{' '}
                     <span className="text-muted-foreground">{getVegaInsight()}</span>
