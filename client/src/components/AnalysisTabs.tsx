@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, BarChart3, AlertTriangle, Users, History, Info } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, Users, History, Info } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Greeks, MarketOptionChainSummary, OptionLeg, StrategyMetrics } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
@@ -149,40 +149,9 @@ export function AnalysisTabs({
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Calculate risk metrics from passed strategy metrics (same source as heatmap header)
-  // This ensures consistency between Risks tab and heatmap header values
-  const riskMetrics = useMemo(() => {
-    const activeLegs = legs.filter(leg => !leg.isExcluded && leg.premium > 0);
-    if (activeLegs.length === 0) return null;
-
-    // Use metrics from calculateStrategyMetrics for consistency with heatmap header
-    const totalPremium = metrics?.netPremium ?? 0;
-    
-    // Max loss from metrics (already calculated properly across time/price scenarios)
-    // If metrics shows null maxLoss but we have short positions, show "Unlimited"
-    const hasShortPositions = activeLegs.some(l => l.position === 'short');
-    const maxLoss = metrics?.maxLoss != null 
-      ? Math.abs(metrics.maxLoss)
-      : hasShortPositions 
-        ? 'Unlimited' as const
-        : Math.abs(totalPremium);
-
-    // Use breakevens from metrics
-    const breakevens = metrics?.breakeven ?? [];
-
-    return {
-      totalPremium,
-      maxLoss,
-      breakevens,
-      contractCount: activeLegs.reduce((sum, l) => sum + l.quantity, 0),
-      hasShortPositions,
-      hasLongPositions: activeLegs.some(l => l.position === 'long'),
-    };
-  }, [legs, metrics]);
-
   return (
     <Tabs defaultValue="greeks" className="w-full">
-      <TabsList className="grid w-full grid-cols-6 h-7">
+      <TabsList className="grid w-full grid-cols-5 h-7">
         <TabsTrigger value="greeks" className="text-[10px] h-6" data-testid="tab-greeks">
           <Activity className="h-2.5 w-2.5 mr-0.5" />
           Greeks
@@ -199,10 +168,6 @@ export function AnalysisTabs({
           <BarChart3 className="h-2.5 w-2.5 mr-0.5" />
           Vol Skew
         </TabsTrigger>
-        <TabsTrigger value="risks" className="text-[10px] h-6" data-testid="tab-risks">
-          <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-          Risks
-        </TabsTrigger>
         <TabsTrigger value="open-interest" className="text-[10px] h-6" data-testid="tab-open-interest">
           <Users className="h-2.5 w-2.5 mr-0.5" />
           OI
@@ -210,7 +175,13 @@ export function AnalysisTabs({
       </TabsList>
 
       <TabsContent value="greeks" className="mt-2">
-        <GreeksDashboard greeks={greeks} />
+        <GreeksDashboard 
+          greeks={greeks} 
+          legs={legs}
+          metrics={metrics}
+          currentPrice={currentPrice}
+          volatility={volatility}
+        />
       </TabsContent>
 
       <TabsContent value="backtest" className="mt-2">
@@ -473,81 +444,6 @@ export function AnalysisTabs({
           ) : (
             <div className="h-32 flex items-center justify-center bg-muted/30 rounded-md">
               <p className="text-xs text-muted-foreground">Loading volatility skew data...</p>
-            </div>
-          )}
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="risks" className="mt-2">
-        <Card className="p-3">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <h3 className="text-sm font-semibold">Risk Analysis</h3>
-          </div>
-          
-          {riskMetrics ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Total Premium</p>
-                  <p className={`text-lg font-bold font-mono ${riskMetrics.totalPremium >= 0 ? 'text-profit' : 'text-loss'}`}>
-                    {riskMetrics.totalPremium >= 0 ? '+' : ''}${riskMetrics.totalPremium.toFixed(0)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {riskMetrics.totalPremium >= 0 ? 'Credit received' : 'Debit paid'}
-                  </p>
-                </div>
-                <div className="p-2 bg-muted/30 rounded-md">
-                  <p className="text-[10px] text-muted-foreground mb-0.5">Max Loss</p>
-                  <p className={`text-lg font-bold font-mono ${riskMetrics.maxLoss === 'Unlimited' ? 'text-loss' : ''}`}>
-                    {riskMetrics.maxLoss === 'Unlimited' ? 'Unlimited' : `-$${(riskMetrics.maxLoss as number).toFixed(0)}`}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {riskMetrics.hasShortPositions ? 'Short exposure' : 'Limited risk'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-2 bg-muted/30 rounded-md">
-                <p className="text-[10px] text-muted-foreground mb-1">Breakeven Points</p>
-                <div className="flex flex-wrap gap-2">
-                  {riskMetrics.breakevens.map((be, i) => (
-                    <Badge key={i} variant="outline" className="font-mono text-xs">
-                      ${be.toFixed(2)}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-[10px]">
-                <div className="p-2 bg-muted/30 rounded-md text-center">
-                  <p className="text-muted-foreground mb-0.5">Contracts</p>
-                  <p className="font-bold font-mono">{riskMetrics.contractCount}</p>
-                </div>
-                <div className="p-2 bg-muted/30 rounded-md text-center">
-                  <p className="text-muted-foreground mb-0.5">IV</p>
-                  <p className="font-bold font-mono">{(volatility * 100).toFixed(0)}%</p>
-                </div>
-                <div className="p-2 bg-muted/30 rounded-md text-center">
-                  <p className="text-muted-foreground mb-0.5">DTE</p>
-                  <p className="font-bold font-mono">{expectedMove?.daysToExpiration || 'N/A'}</p>
-                </div>
-              </div>
-
-              {riskMetrics.hasShortPositions && (
-                <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-md">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-3 w-3 text-amber-500" />
-                    <p className="text-xs text-amber-700 dark:text-amber-400">
-                      This strategy includes short positions with potentially unlimited risk.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="h-24 flex items-center justify-center bg-muted/30 rounded-md">
-              <p className="text-xs text-muted-foreground">Add option legs to see risk analysis</p>
             </div>
           )}
         </Card>
