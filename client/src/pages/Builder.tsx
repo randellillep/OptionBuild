@@ -482,15 +482,31 @@ export default function Builder() {
     enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
 
-  // Capture frozen ATM straddle for Expected Move when options chain first loads
-  // This value is NOT affected by IV slider or strategy changes - purely market data
+  // Track the key for frozen expected move to prevent recalculation on IV/strategy changes
+  const frozenExpectedMoveKeyRef = useRef<string | null>(null);
+  
+  // Capture frozen ATM straddle for Expected Move ONLY when symbol or expiration changes
+  // This value is NEVER affected by IV slider or strategy changes - purely market data
   useEffect(() => {
-    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0 || !symbolInfo.price) {
+    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) {
       return;
     }
     
+    // Create a key based on symbol and expiration only (NOT price or IV)
+    const currentKey = `${symbolInfo.symbol}@${selectedExpirationDate || ''}`;
+    
+    // Only recalculate if symbol or expiration actually changed
+    if (frozenExpectedMoveKeyRef.current === currentKey) {
+      return; // Already have frozen data for this symbol/expiration
+    }
+    
     const quotes = optionsChainData.quotes;
+    
+    // Use symbolInfo.price - this is safe because we're guarded by the key ref
+    // which only allows this to run once per symbol/expiration combination
     const currentPrice = symbolInfo.price;
+    
+    if (!currentPrice) return;
     
     // Get unique strikes sorted
     const uniqueStrikes = Array.from(new Set(quotes.map(q => q.strike))).sort((a, b) => a - b);
@@ -512,6 +528,7 @@ export default function Builder() {
     
     // Calculate and store frozen expected move if we have ATM straddle
     if (atmCall !== null && atmPut !== null && atmCall > 0 && atmPut > 0) {
+      frozenExpectedMoveKeyRef.current = currentKey;
       setFrozenExpectedMove({
         expectedMove: atmCall + atmPut,
         atmStrike,
@@ -519,7 +536,7 @@ export default function Builder() {
         atmPut,
       });
     }
-  }, [optionsChainData?.quotes, symbolInfo.price, symbolInfo.symbol, selectedExpirationDate]);
+  }, [optionsChainData, symbolInfo.symbol, symbolInfo.price, selectedExpirationDate]);
 
   // Auto-update leg premiums with market data when chain loads or refreshes
   useEffect(() => {
