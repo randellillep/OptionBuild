@@ -66,6 +66,16 @@ export default function Builder() {
     realizedPL: number;
     unrealizedPL: number;
   } | null>(null);
+  
+  // Store frozen ATM straddle for Expected Move calculation
+  // This is captured once when options chain loads and NOT affected by IV slider or strategy changes
+  const [frozenExpectedMove, setFrozenExpectedMove] = useState<{
+    expectedMove: number;
+    atmStrike: number;
+    atmCall: number;
+    atmPut: number;
+  } | null>(null);
+  
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   
   const {
@@ -471,6 +481,45 @@ export default function Builder() {
     expiration: selectedExpirationDate || undefined,
     enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
+
+  // Capture frozen ATM straddle for Expected Move when options chain first loads
+  // This value is NOT affected by IV slider or strategy changes - purely market data
+  useEffect(() => {
+    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0 || !symbolInfo.price) {
+      return;
+    }
+    
+    const quotes = optionsChainData.quotes;
+    const currentPrice = symbolInfo.price;
+    
+    // Get unique strikes sorted
+    const uniqueStrikes = Array.from(new Set(quotes.map(q => q.strike))).sort((a, b) => a - b);
+    
+    // Find ATM strike (closest to current price)
+    const atmStrike = uniqueStrikes.reduce((closest, strike) => 
+      Math.abs(strike - currentPrice) < Math.abs(closest - currentPrice) ? strike : closest
+    , uniqueStrikes[0]);
+    
+    // Helper to find mid price for a specific strike and side
+    const getMidPrice = (strike: number, side: 'call' | 'put'): number | null => {
+      const quote = quotes.find(q => q.strike === strike && q.side === side);
+      return quote ? quote.mid : null;
+    };
+    
+    // Get ATM call and put prices
+    const atmCall = getMidPrice(atmStrike, 'call');
+    const atmPut = getMidPrice(atmStrike, 'put');
+    
+    // Calculate and store frozen expected move if we have ATM straddle
+    if (atmCall !== null && atmPut !== null && atmCall > 0 && atmPut > 0) {
+      setFrozenExpectedMove({
+        expectedMove: atmCall + atmPut,
+        atmStrike,
+        atmCall,
+        atmPut,
+      });
+    }
+  }, [optionsChainData?.quotes, symbolInfo.price, symbolInfo.symbol, selectedExpirationDate]);
 
   // Auto-update leg premiums with market data when chain loads or refreshes
   useEffect(() => {
@@ -1198,6 +1247,7 @@ export default function Builder() {
                 optionsChainData={optionsChainData}
                 legs={legs}
                 metrics={metrics}
+                frozenExpectedMove={frozenExpectedMove}
               />
             </div>
 

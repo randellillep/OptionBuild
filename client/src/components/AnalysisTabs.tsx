@@ -20,6 +20,14 @@ import {
 } from "recharts";
 import { useMemo } from "react";
 
+// Frozen expected move data passed from parent (calculated once from market data)
+interface FrozenExpectedMove {
+  expectedMove: number;
+  atmStrike: number;
+  atmCall: number;
+  atmPut: number;
+}
+
 interface AnalysisTabsProps {
   greeks: Greeks;
   symbol?: string;
@@ -29,6 +37,7 @@ interface AnalysisTabsProps {
   optionsChainData?: MarketOptionChainSummary;
   legs?: OptionLeg[];
   metrics?: StrategyMetrics | null;
+  frozenExpectedMove?: FrozenExpectedMove | null;
 }
 
 export function AnalysisTabs({ 
@@ -39,12 +48,12 @@ export function AnalysisTabs({
   expirationDate,
   optionsChainData,
   legs = [],
-  metrics
+  metrics,
+  frozenExpectedMove
 }: AnalysisTabsProps) {
   
-  // Calculate Classical Expected Move using ATM straddle price
-  // Formula: Expected Move = ATM Call + ATM Put
-  // This gives the market's estimate of how much the underlying can move up or down until expiration
+  // Use frozen expected move data (calculated once when options chain loads)
+  // This is NOT affected by IV slider or strategy changes - purely market data
   const expectedMove = useMemo(() => {
     if (!expirationDate || !currentPrice) return null;
     
@@ -52,6 +61,23 @@ export function AnalysisTabs({
     const expDate = new Date(expirationDate);
     const daysToExpiration = Math.max(1, Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
     
+    // Use frozen data if available (preferred - not affected by IV slider)
+    if (frozenExpectedMove) {
+      const movePercent = (frozenExpectedMove.expectedMove / currentPrice) * 100;
+      return {
+        expectedMove: frozenExpectedMove.expectedMove,
+        lowerBound: currentPrice - frozenExpectedMove.expectedMove,
+        upperBound: currentPrice + frozenExpectedMove.expectedMove,
+        movePercent,
+        daysToExpiration,
+        usedClassicalMethod: true,
+        atmStrike: frozenExpectedMove.atmStrike,
+        atmCall: frozenExpectedMove.atmCall,
+        atmPut: frozenExpectedMove.atmPut,
+      };
+    }
+    
+    // Fallback: calculate from options chain data if frozen data not available
     let atmStrike: number | null = null;
     let atmCall: number | null = null;
     let atmPut: number | null = null;
@@ -115,7 +141,7 @@ export function AnalysisTabs({
       atmCall,
       atmPut,
     };
-  }, [currentPrice, volatility, expirationDate, optionsChainData]);
+  }, [currentPrice, expirationDate, frozenExpectedMove, optionsChainData, volatility]);
 
   // Generate expected move projection data for chart
   const expectedMoveChartData = useMemo(() => {
