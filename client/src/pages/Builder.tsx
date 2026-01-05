@@ -68,7 +68,7 @@ export default function Builder() {
   } | null>(null);
   
   // Store frozen Expected Move calculation in a stable cache
-  // This is captured ONCE per symbol/expiration and NEVER affected by IV slider or strategy changes
+  // This is captured ONCE per symbol and NEVER affected by IV slider or strategy changes
   const [frozenExpectedMove, setFrozenExpectedMove] = useState<{
     expectedMove: number;
     atmStrike: number;
@@ -81,6 +81,7 @@ export default function Builder() {
     movePercent: number;
     currentPrice: number;
     daysToExpiration: number;
+    expirationDate: string;
   } | null>(null);
   
   // Stable cache Map to prevent recalculation on react-query refreshes
@@ -486,47 +487,66 @@ export default function Builder() {
     prevSymbolRef.current = current;
   }, [symbolInfo.symbol, symbolInfo.price]);
 
+  // Options chain for the STRATEGY (requires user to select expiration)
   const { data: optionsChainData, isLoading: isLoadingChain, error: chainError } = useOptionsChain({
     symbol: symbolInfo.symbol,
     expiration: selectedExpirationDate || undefined,
     enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
 
-  // Capture frozen Expected Move ONLY when symbol or expiration changes
-  // Uses Binary formula: 60% ATM Straddle + 30% 1st OTM Strangle + 10% 2nd OTM Strangle
+  // Separate options chain for EXPECTED MOVE - fetched WITHOUT expiration filter
+  // This is ALWAYS enabled when we have a symbol, independent of strategy expiration
+  const { data: expectedMoveChainData } = useOptionsChain({
+    symbol: symbolInfo.symbol,
+    enabled: !!symbolInfo.symbol,
+  });
+
+  // Calculate frozen Expected Move INDEPENDENTLY of the strategy
+  // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration
   // This value is NEVER affected by IV slider or strategy changes - purely market data
   useEffect(() => {
-    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0 || !symbolInfo.price) {
+    // Use expectedMoveChainData which is fetched independently of strategy expiration
+    if (!expectedMoveChainData?.quotes || expectedMoveChainData.quotes.length === 0 || !symbolInfo.price) {
       return;
     }
     
-    // Create a key based on symbol and expiration only (NOT price or IV)
-    const currentKey = `${symbolInfo.symbol}@${selectedExpirationDate || ''}`;
+    // Get the nearest available expiration from options chain data (independent of strategy)
+    const availableExpirations = expectedMoveChainData.expirations || [];
+    if (availableExpirations.length === 0) {
+      return;
+    }
+    
+    // Auto-select the nearest expiration for Expected Move calculation
+    const nearestExpiration = availableExpirations[0]; // Already sorted by date
+    
+    // Create a key based on symbol and the NEAREST expiration (NOT strategy expiration)
+    const currentKey = `${symbolInfo.symbol}@${nearestExpiration}`;
     
     // Check if we already have cached data for this key
     if (expectedMoveCacheRef.current.has(currentKey)) {
       // Use cached data without recalculating - always ensure state is set
       const cached = expectedMoveCacheRef.current.get(currentKey);
       if (cached) {
-        // Always set state if we have cached data (handles race conditions)
         setFrozenExpectedMove(cached);
       }
       return;
     }
     
-    const quotes = optionsChainData.quotes;
+    const quotes = expectedMoveChainData.quotes;
     const currentPrice = symbolInfo.price;
     
-    // Calculate days to expiration
+    // Calculate days to expiration using the nearest expiration
     let daysToExpiration = 30;
-    if (selectedExpirationDate) {
-      const expDate = new Date(selectedExpirationDate);
+    if (nearestExpiration) {
+      const expDate = new Date(nearestExpiration);
       const today = new Date();
       daysToExpiration = Math.max(1, Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
     }
     
     // Get unique strikes sorted
     const uniqueStrikes = Array.from(new Set(quotes.map(q => q.strike))).sort((a, b) => a - b);
+    
+    if (uniqueStrikes.length === 0) return;
     
     // Find ATM strike (closest to current price)
     const atmStrike = uniqueStrikes.reduce((closest, strike) => 
@@ -592,13 +612,14 @@ export default function Builder() {
         movePercent: (expectedMoveValue / currentPrice) * 100,
         currentPrice,
         daysToExpiration,
+        expirationDate: nearestExpiration,
       };
       
       // Cache it and set state
       expectedMoveCacheRef.current.set(currentKey, payload);
       setFrozenExpectedMove(payload);
     }
-  }, [optionsChainData, symbolInfo.symbol, symbolInfo.price, selectedExpirationDate]);
+  }, [expectedMoveChainData, symbolInfo.symbol, symbolInfo.price]);
 
   // Auto-update leg premiums with market data when chain loads or refreshes
   useEffect(() => {

@@ -34,6 +34,7 @@ interface FrozenExpectedMove {
   movePercent: number;
   currentPrice: number;
   daysToExpiration: number;
+  expirationDate: string;
 }
 
 interface AnalysisTabsProps {
@@ -234,9 +235,12 @@ export function AnalysisTabs({
               <p className="text-sm text-muted-foreground mb-4">
                 <strong>{symbol}</strong> stock is expected to move{" "}
                 <strong>±${expectedMove.expectedMove.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
-                by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
+                by <strong>{formatDate(expectedMove.expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
                 with a 68% probability of staying within{" "}
                 <strong>${expectedMove.lowerBound.toFixed(2)} - ${expectedMove.upperBound.toFixed(2)}</strong>.
+              </p>
+              <p className="text-xs text-muted-foreground mb-2 italic">
+                (Using nearest market expiration - independent of your strategy)
               </p>
 
               {/* Binary Expected Move Breakdown */}
