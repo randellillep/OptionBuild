@@ -171,7 +171,7 @@ export function PLHeatmap({
               </div>
               <div className="flex items-center gap-1">
                 <Target className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-xs text-muted-foreground">BE:</span>
+                <span className="text-xs text-muted-foreground">Breakeven:</span>
                 <span className="text-base font-semibold font-mono text-foreground" data-testid="text-breakeven">
                   {metrics.breakeven.length > 0 
                     ? metrics.breakeven.slice(0, 2).map(p => `$${p.toLocaleString('en-US', { maximumFractionDigits: 0 })}`).join(', ')
@@ -186,7 +186,7 @@ export function PLHeatmap({
                   ${Math.abs(metrics.netPremium).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 </span>
                 <span className="text-xs text-muted-foreground/70">
-                  {metrics.netPremium >= 0 ? "(cr)" : "(dr)"}
+                  {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
                 </span>
               </div>
               {hasRealizedPL && (
