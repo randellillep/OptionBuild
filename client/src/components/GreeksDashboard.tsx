@@ -240,76 +240,42 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                 </div>
               </div>
 
-              <div className="mt-3 pt-3 border-t space-y-2">
-                <div className="grid grid-cols-3 gap-2 mb-2">
-                  <div className="p-1.5 bg-muted/30 rounded-md text-center">
-                    <p className="text-[10px] text-muted-foreground">Contracts</p>
-                    <p className="text-sm font-bold font-mono">{riskAnalysis.contractCount}</p>
-                  </div>
-                  <div className="p-1.5 bg-muted/30 rounded-md text-center">
-                    <p className="text-[10px] text-muted-foreground">IV</p>
-                    <p className="text-sm font-bold font-mono">{(volatility * 100).toFixed(0)}%</p>
-                  </div>
-                  <div className="p-1.5 bg-muted/30 rounded-md text-center">
-                    <p className="text-[10px] text-muted-foreground">Price</p>
-                    <p className="text-sm font-bold font-mono">${currentPrice.toFixed(2)}</p>
-                  </div>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Net Premium:</span>
-                  <span className={`font-mono font-medium ${riskAnalysis.netPremium >= 0 ? 'text-profit' : 'text-loss'}`}>
-                    {riskAnalysis.netPremium >= 0 ? '+' : ''}${riskAnalysis.netPremium.toFixed(0)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Max Loss:</span>
-                  <span className={`font-mono font-medium ${riskAnalysis.maxLoss === 'Unlimited' ? 'text-red-500' : 'text-loss'}`}>
-                    {riskAnalysis.maxLoss === 'Unlimited' ? 'Unlimited' : riskAnalysis.maxLoss !== null ? `-$${riskAnalysis.maxLoss.toFixed(0)}` : 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Max Profit:</span>
-                  <span className="font-mono font-medium text-profit">
-                    {riskAnalysis.maxProfit !== null ? `+$${riskAnalysis.maxProfit.toFixed(0)}` : 'N/A'}
-                  </span>
-                </div>
-                {riskAnalysis.breakevens.length > 0 && (
-                  <div className="flex justify-between text-xs items-start">
-                    <span className="text-muted-foreground">Breakeven:</span>
-                    <div className="flex flex-wrap gap-1 justify-end">
-                      {riskAnalysis.breakevens.map((be, i) => (
-                        <Badge key={i} variant="outline" className="font-mono text-[10px]">
-                          ${be.toFixed(2)}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
 
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Trading Insights</h4>
               
               <div className="space-y-3 text-xs">
-                <div>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">Delta:</span>{' '}
-                  <span className="text-muted-foreground">{getDeltaInsight()}</span>
+                <div className="flex items-start gap-2">
+                  <TrendingUp className="h-3.5 w-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">Delta:</span>{' '}
+                    <span className="text-muted-foreground">{getDeltaInsight()}</span>
+                  </div>
                 </div>
 
-                <div>
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">Theta:</span>{' '}
-                  <span className="text-muted-foreground">{getThetaInsight()}</span>
+                <div className="flex items-start gap-2">
+                  <Clock className="h-3.5 w-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-orange-600 dark:text-orange-400">Theta:</span>{' '}
+                    <span className="text-muted-foreground">{getThetaInsight()}</span>
+                  </div>
                 </div>
 
-                <div>
-                  <span className="font-semibold text-green-600 dark:text-green-400">Vega:</span>{' '}
-                  <span className="text-muted-foreground">{getVegaInsight()}</span>
+                <div className="flex items-start gap-2">
+                  <BarChart2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-green-600 dark:text-green-400">Vega:</span>{' '}
+                    <span className="text-muted-foreground">{getVegaInsight()}</span>
+                  </div>
                 </div>
 
-                <div>
-                  <span className="font-semibold text-purple-600 dark:text-purple-400">Gamma:</span>{' '}
-                  <span className="text-muted-foreground">{getGammaInsight()}</span>
+                <div className="flex items-start gap-2">
+                  <Activity className="h-3.5 w-3.5 text-purple-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-purple-600 dark:text-purple-400">Gamma:</span>{' '}
+                    <span className="text-muted-foreground">{getGammaInsight()}</span>
+                  </div>
                 </div>
               </div>
 
