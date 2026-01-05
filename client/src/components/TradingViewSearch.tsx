@@ -260,52 +260,55 @@ export function TradingViewSearch({
   return (
     <div className="relative" ref={modalRef}>
       <Card className="px-2 py-1.5">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border hover-elevate active-elevate-2 transition-colors min-w-[140px]"
-            data-testid="button-open-search"
-          >
-            <Search className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Search...</span>
-          </button>
+        {/* Mobile-responsive layout: stack on small screens */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border hover-elevate active-elevate-2 transition-colors min-w-[100px] sm:min-w-[140px]"
+              data-testid="button-open-search"
+            >
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground hidden sm:inline">Search...</span>
+            </button>
 
-          <div className="flex items-center gap-1.5 shrink-0 px-2 py-1 rounded-md bg-muted/50">
-            <span className="text-sm font-bold font-mono">{symbolInfo.symbol}</span>
-            <span className="text-sm font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
-            {currentQuote && (
-              <span className={`text-[10px] flex items-center gap-0.5 ${currentQuote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
-                {currentQuote.changePercent >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
-                {currentQuote.changePercent >= 0 ? '+' : ''}{currentQuote.changePercent.toFixed(2)}%
-              </span>
-            )}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 px-2 py-1 rounded-md bg-muted/50">
+              <span className="text-xs sm:text-sm font-bold font-mono">{symbolInfo.symbol}</span>
+              <span className="text-xs sm:text-sm font-semibold font-mono">${symbolInfo.price.toFixed(2)}</span>
+              {currentQuote && (
+                <span className={`text-[10px] flex items-center gap-0.5 ${currentQuote.changePercent >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
+                  {currentQuote.changePercent >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                  {currentQuote.changePercent >= 0 ? '+' : ''}{currentQuote.changePercent.toFixed(2)}%
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="flex-1" />
+          <div className="hidden sm:flex flex-1" />
 
-          <div className="flex items-center gap-1.5 shrink-0 mr-4">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 sm:mr-4 flex-wrap">
             {renderAddButton && renderAddButton()}
             
             <Button 
               variant="outline" 
               size="sm"
-              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground"
+              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground text-xs sm:text-sm"
               data-testid="button-positions"
               onClick={() => setIsPositionsModalOpen(true)}
             >
-              <ListOrdered className="h-3.5 w-3.5 mr-1.5" />
-              Positions ({openPositionsCount + closedPositionsCount})
+              <ListOrdered className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Positions</span> ({openPositionsCount + closedPositionsCount})
             </Button>
             
             <Button 
               variant="outline" 
               size="sm"
-              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground"
+              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground text-xs sm:text-sm"
               onClick={onSaveTrade}
               data-testid="button-save-trade"
             >
-              <Bookmark className="h-3.5 w-3.5 mr-1.5" />
-              Save Trade
+              <Bookmark className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Save Trade</span>
             </Button>
             
           </div>

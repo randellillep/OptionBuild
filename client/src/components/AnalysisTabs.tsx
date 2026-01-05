@@ -152,32 +152,35 @@ export function AnalysisTabs({
 
   return (
     <Tabs defaultValue="greeks" className="w-full">
-      <TabsList className="grid w-full grid-cols-6 h-7">
-        <TabsTrigger value="greeks" className="text-[10px] h-6" data-testid="tab-greeks">
-          <Activity className="h-2.5 w-2.5 mr-0.5" />
-          Greeks
-        </TabsTrigger>
-        <TabsTrigger value="backtest" className="text-[10px] h-6" data-testid="tab-backtest">
-          <History className="h-2.5 w-2.5 mr-0.5" />
-          Historical
-        </TabsTrigger>
-        <TabsTrigger value="expected-move" className="text-[10px] h-6" data-testid="tab-expected-move">
-          <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
-          Expected
-        </TabsTrigger>
-        <TabsTrigger value="volatility-skew" className="text-[10px] h-6" data-testid="tab-volatility-skew">
-          <BarChart3 className="h-2.5 w-2.5 mr-0.5" />
-          Vol Skew
-        </TabsTrigger>
-        <TabsTrigger value="open-interest" className="text-[10px] h-6" data-testid="tab-open-interest">
-          <Users className="h-2.5 w-2.5 mr-0.5" />
-          OI
-        </TabsTrigger>
-        <TabsTrigger value="news" className="text-[10px] h-6" data-testid="tab-news">
-          <Newspaper className="h-2.5 w-2.5 mr-0.5" />
-          News
-        </TabsTrigger>
-      </TabsList>
+      {/* Scrollable tabs on mobile */}
+      <div className="overflow-x-auto -mx-2 px-2 pb-1">
+        <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-6 h-7">
+          <TabsTrigger value="greeks" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-greeks">
+            <Activity className="h-2.5 w-2.5 mr-0.5" />
+            Greeks
+          </TabsTrigger>
+          <TabsTrigger value="backtest" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-backtest">
+            <History className="h-2.5 w-2.5 mr-0.5" />
+            Historical
+          </TabsTrigger>
+          <TabsTrigger value="expected-move" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-expected-move">
+            <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+            Expected
+          </TabsTrigger>
+          <TabsTrigger value="volatility-skew" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-volatility-skew">
+            <BarChart3 className="h-2.5 w-2.5 mr-0.5" />
+            Vol Skew
+          </TabsTrigger>
+          <TabsTrigger value="open-interest" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-open-interest">
+            <Users className="h-2.5 w-2.5 mr-0.5" />
+            OI
+          </TabsTrigger>
+          <TabsTrigger value="news" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-news">
+            <Newspaper className="h-2.5 w-2.5 mr-0.5" />
+            News
+          </TabsTrigger>
+        </TabsList>
+      </div>
 
       <TabsContent value="greeks" className="mt-2">
         <GreeksDashboard 
@@ -230,7 +233,7 @@ export function AnalysisTabs({
               {/* Binary Expected Move Breakdown */}
               <div className="mb-4 p-3 bg-muted/20 rounded-lg border text-xs">
                 <p className="font-medium mb-2">Calculation Breakdown</p>
-                <div className="grid grid-cols-3 gap-2 text-muted-foreground mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-muted-foreground mb-2">
                   <div>
                     <span className="block text-[10px] uppercase">ATM Straddle (60%)</span>
                     <span className="font-mono text-foreground">${(expectedMove.atmCall + expectedMove.atmPut).toFixed(2)}</span>

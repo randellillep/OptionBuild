@@ -1148,16 +1148,17 @@ export default function Builder() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 md:px-6 flex h-10 items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-2 sm:px-4 md:px-6 flex h-10 items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4">
             <div 
-              className="flex items-center gap-1.5 cursor-pointer" 
+              className="flex items-center gap-1 sm:gap-1.5 cursor-pointer" 
               onClick={() => setLocation("/")}
             >
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <span className="text-lg font-bold">OptionFlow</span>
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <span className="text-sm sm:text-lg font-bold">OptionFlow</span>
             </div>
 
+            {/* Desktop navigation */}
             <nav className="hidden md:flex items-center gap-1">
               <StrategySelector onSelectStrategy={loadTemplate} />
 
@@ -1200,16 +1201,40 @@ export default function Builder() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </nav>
+            
+            {/* Mobile navigation dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs md:hidden" data-testid="button-mobile-menu">
+                  <ChevronDown className="h-3 w-3" />
+                  Menu
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem onClick={() => setLocation(`/option-finder?symbol=${symbolInfo.symbol}`)}>
+                  <Search className="h-3 w-3 mr-2" />
+                  Option Finder
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocation("/backtest")}>
+                  <BarChart3 className="h-3 w-3 mr-2" />
+                  Backtest
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocation("/saved-trades")}>
+                  <Bookmark className="h-3 w-3 mr-2" />
+                  Saved Trades
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" data-testid="button-tutorials">
-              <BookOpen className="h-3 w-3 mr-1" />
-              Tutorials
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <Button variant="ghost" size="sm" className="h-7 px-1 sm:px-2 text-xs hidden sm:flex" data-testid="button-tutorials">
+              <BookOpen className="h-3 w-3 sm:mr-1" />
+              <span className="hidden lg:inline">Tutorials</span>
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" data-testid="button-blog">
-              <FileText className="h-3 w-3 mr-1" />
-              Blog
+            <Button variant="ghost" size="sm" className="h-7 px-1 sm:px-2 text-xs hidden sm:flex" data-testid="button-blog">
+              <FileText className="h-3 w-3 sm:mr-1" />
+              <span className="hidden lg:inline">Blog</span>
             </Button>
             {isAuthenticated ? (
               <DropdownMenu>

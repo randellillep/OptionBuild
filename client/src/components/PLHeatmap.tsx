@@ -146,33 +146,33 @@ export function PLHeatmap({
 
   return (
     <Card className="p-2">
-      {/* Header with metrics and tab buttons */}
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
+      {/* Header with metrics and tab buttons - responsive layout */}
+      <div className="mb-1.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4" data-testid="strategy-metrics-bar">
           {metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
-            <span className="text-sm text-muted-foreground italic">
+            <span className="text-xs sm:text-sm text-muted-foreground italic">
               This strategy has no enabled items (add options from the Add button)
             </span>
           ) : metrics ? (
             <>
               <div className="flex items-center gap-1">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                <span className="text-xs text-muted-foreground">Max Profit:</span>
-                <span className="text-base font-bold font-mono text-foreground" data-testid="text-max-profit">
+                <TrendingUp className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-500" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Max Profit:</span>
+                <span className="text-sm sm:text-base font-bold font-mono text-foreground" data-testid="text-max-profit">
                   {metrics.maxProfit !== null ? `$${Math.abs(metrics.maxProfit).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : "∞"}
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <TrendingDown className="h-3.5 w-3.5 text-rose-500" />
-                <span className="text-xs text-muted-foreground">Max Loss:</span>
-                <span className="text-base font-bold font-mono text-foreground" data-testid="text-max-loss">
+                <TrendingDown className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-rose-500" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Max Loss:</span>
+                <span className="text-sm sm:text-base font-bold font-mono text-foreground" data-testid="text-max-loss">
                   {metrics.maxLoss !== null ? `$${Math.abs(metrics.maxLoss).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : "∞"}
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <Target className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-xs text-muted-foreground">Breakeven:</span>
-                <span className="text-base font-semibold font-mono text-foreground" data-testid="text-breakeven">
+                <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-500" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground">BE:</span>
+                <span className="text-sm sm:text-base font-semibold font-mono text-foreground" data-testid="text-breakeven">
                   {metrics.breakeven.length > 0 
                     ? metrics.breakeven.slice(0, 2).map(p => `$${p.toLocaleString('en-US', { maximumFractionDigits: 0 })}`).join(', ')
                     : "N/A"
@@ -180,29 +180,29 @@ export function PLHeatmap({
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Net:</span>
-                <span className="text-base font-bold font-mono text-foreground" data-testid="text-net-premium">
+                <DollarSign className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                <span className="text-[10px] sm:text-xs text-muted-foreground">Net:</span>
+                <span className="text-sm sm:text-base font-bold font-mono text-foreground" data-testid="text-net-premium">
                   ${Math.abs(metrics.netPremium).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 </span>
-                <span className="text-xs text-muted-foreground/70">
-                  {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
+                <span className="text-[10px] sm:text-xs text-muted-foreground/70">
+                  {metrics.netPremium >= 0 ? "(cr)" : "(dr)"}
                 </span>
               </div>
               {hasRealizedPL && (
                 <div className="flex items-center gap-1">
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-xs text-muted-foreground">Realized:</span>
-                  <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
+                  <CheckCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-500" />
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Realized:</span>
+                  <span className={`text-sm sm:text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
                     {realizedPL >= 0 ? '' : '-'}${Math.abs(Math.round(realizedPL)).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </span>
                 </div>
               )}
               {hasUnrealizedPL && (
                 <div className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-xs text-muted-foreground">Unrealized:</span>
-                  <span className={`text-base font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
+                  <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500" />
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">Unreal:</span>
+                  <span className={`text-sm sm:text-base font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
                     {unrealizedPL >= 0 ? '' : '-'}${Math.abs(Math.round(unrealizedPL)).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </span>
                 </div>
@@ -210,7 +210,7 @@ export function PLHeatmap({
             </>
           ) : null}
         </div>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 self-end sm:self-auto">
           <Button
             variant={activeTab === "heatmap" ? "secondary" : "ghost"}
             size="sm"
@@ -380,10 +380,10 @@ export function PLHeatmap({
         </table>
       </div>
 
-      {/* Range and IV sliders */}
-      <div className="mt-2 flex items-center gap-4 text-[10px]">
+      {/* Range and IV sliders - responsive layout */}
+      <div className="mt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 text-[10px]">
         <div className="flex items-center gap-1.5 flex-1">
-          <span className="text-muted-foreground whitespace-nowrap">Range</span>
+          <span className="text-muted-foreground whitespace-nowrap w-10 sm:w-auto">Range</span>
           <Slider
             value={[range]}
             onValueChange={(v) => onRangeChange(v[0])}
@@ -396,7 +396,7 @@ export function PLHeatmap({
           <span className="font-mono w-12 text-right">±{range.toFixed(1)}%</span>
         </div>
         <div className="flex items-center gap-1.5 flex-1">
-          <span className="text-muted-foreground whitespace-nowrap">IV</span>
+          <span className="text-muted-foreground whitespace-nowrap w-10 sm:w-auto">IV</span>
           <Slider
             value={[impliedVolatility]}
             onValueChange={(v) => onVolatilityChange(v[0])}
