@@ -505,9 +505,10 @@ export default function Builder() {
     
     // Check if we already have cached data for this key
     if (expectedMoveCacheRef.current.has(currentKey)) {
-      // Use cached data without recalculating
+      // Use cached data without recalculating - always ensure state is set
       const cached = expectedMoveCacheRef.current.get(currentKey);
-      if (cached && frozenExpectedMove?.currentPrice !== cached.currentPrice) {
+      if (cached) {
+        // Always set state if we have cached data (handles race conditions)
         setFrozenExpectedMove(cached);
       }
       return;
