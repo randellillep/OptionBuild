@@ -42,7 +42,9 @@ export function AnalysisTabs({
   metrics
 }: AnalysisTabsProps) {
   
-  // Calculate expected move based on volatility and time to expiration
+  // Calculate Binary Expected Move using ATM straddle and OTM strangles
+  // Formula: 0.6 * ATM_Straddle + 0.3 * 1st_OTM_Strangle + 0.1 * 2nd_OTM_Strangle
+  // This gives a more accurate market-implied expected move than IV-based calculation
   const expectedMove = useMemo(() => {
     if (!expirationDate || !currentPrice) return null;
     
@@ -50,9 +52,77 @@ export function AnalysisTabs({
     const expDate = new Date(expirationDate);
     const daysToExpiration = Math.max(1, Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
     
-    // Expected move = Price * IV * sqrt(DTE/365)
-    const annualizedFactor = Math.sqrt(daysToExpiration / 365);
-    const expectedMove1SD = currentPrice * volatility * annualizedFactor;
+    // Try to calculate Binary Expected Move from options chain data
+    let binaryExpectedMove: number | null = null;
+    let atmStrike: number | null = null;
+    let atmCall: number | null = null;
+    let atmPut: number | null = null;
+    let otm1Call: number | null = null;
+    let otm1Put: number | null = null;
+    let otm2Call: number | null = null;
+    let otm2Put: number | null = null;
+    
+    if (optionsChainData?.quotes && optionsChainData.quotes.length > 0) {
+      const quotes = optionsChainData.quotes;
+      
+      // Get unique strikes sorted by distance from current price
+      const uniqueStrikes = Array.from(new Set(quotes.map(q => q.strike))).sort((a, b) => a - b);
+      
+      // Find ATM strike (closest to current price)
+      atmStrike = uniqueStrikes.reduce((closest, strike) => 
+        Math.abs(strike - currentPrice) < Math.abs(closest - currentPrice) ? strike : closest
+      , uniqueStrikes[0]);
+      
+      const atmIndex = uniqueStrikes.indexOf(atmStrike);
+      
+      // Find 1st and 2nd OTM strikes above and below ATM
+      const otm1StrikeAbove = uniqueStrikes[atmIndex + 1];
+      const otm1StrikeBelow = uniqueStrikes[atmIndex - 1];
+      const otm2StrikeAbove = uniqueStrikes[atmIndex + 2];
+      const otm2StrikeBelow = uniqueStrikes[atmIndex - 2];
+      
+      // Helper to find mid price for a specific strike and side
+      const getMidPrice = (strike: number, side: 'call' | 'put'): number | null => {
+        const quote = quotes.find(q => q.strike === strike && q.side === side);
+        return quote ? quote.mid : null;
+      };
+      
+      // Get ATM call and put prices
+      atmCall = getMidPrice(atmStrike, 'call');
+      atmPut = getMidPrice(atmStrike, 'put');
+      
+      // Get 1st OTM strangle prices (OTM call = above ATM, OTM put = below ATM)
+      otm1Call = otm1StrikeAbove ? getMidPrice(otm1StrikeAbove, 'call') : null;
+      otm1Put = otm1StrikeBelow ? getMidPrice(otm1StrikeBelow, 'put') : null;
+      
+      // Get 2nd OTM strangle prices
+      otm2Call = otm2StrikeAbove ? getMidPrice(otm2StrikeAbove, 'call') : null;
+      otm2Put = otm2StrikeBelow ? getMidPrice(otm2StrikeBelow, 'put') : null;
+      
+      // Calculate Binary Expected Move if we have all required prices
+      if (atmCall !== null && atmPut !== null) {
+        const atmStraddle = atmCall + atmPut;
+        const otm1Strangle = (otm1Call ?? 0) + (otm1Put ?? 0);
+        const otm2Strangle = (otm2Call ?? 0) + (otm2Put ?? 0);
+        
+        // Weighted formula: 0.6 * ATM + 0.3 * OTM1 + 0.1 * OTM2
+        binaryExpectedMove = 0.6 * atmStraddle + 0.3 * otm1Strangle + 0.1 * otm2Strangle;
+      }
+    }
+    
+    // Use Binary Expected Move if available, otherwise fall back to IV-based
+    let expectedMove1SD: number;
+    let usedBinaryMethod = false;
+    
+    if (binaryExpectedMove !== null && binaryExpectedMove > 0) {
+      expectedMove1SD = binaryExpectedMove;
+      usedBinaryMethod = true;
+    } else {
+      // Fallback: IV-based expected move = Price * IV * sqrt(DTE/365)
+      const annualizedFactor = Math.sqrt(daysToExpiration / 365);
+      expectedMove1SD = currentPrice * volatility * annualizedFactor;
+    }
+    
     const expectedMove2SD = expectedMove1SD * 2;
     
     // Calculate price range
@@ -72,8 +142,14 @@ export function AnalysisTabs({
       upperBound2SD,
       movePercent,
       daysToExpiration,
+      usedBinaryMethod,
+      // Include component breakdown for display
+      atmStrike,
+      atmStraddle: atmCall !== null && atmPut !== null ? atmCall + atmPut : null,
+      otm1Strangle: (otm1Call ?? 0) + (otm1Put ?? 0) || null,
+      otm2Strangle: (otm2Call ?? 0) + (otm2Put ?? 0) || null,
     };
-  }, [currentPrice, volatility, expirationDate]);
+  }, [currentPrice, volatility, expirationDate, optionsChainData]);
 
   // Generate expected move projection data for chart
   const expectedMoveChartData = useMemo(() => {
@@ -227,14 +303,18 @@ export function AnalysisTabs({
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Badge variant="outline" className="bg-primary/10 text-primary">
-              Expected Stock Move
+              {expectedMove?.usedBinaryMethod ? 'Binary Expected Move' : 'Expected Stock Move'}
             </Badge>
             <UITooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" data-testid="icon-expected-move-info" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs text-xs">
-                <p>Based on implied volatility, this shows the expected price range for the underlying stock by expiration. There's a 68% probability the stock stays within 1 standard deviation, and 95% within 2 standard deviations.</p>
+                {expectedMove?.usedBinaryMethod ? (
+                  <p>Binary Expected Move uses a weighted combination of ATM straddle and OTM strangles: 60% ATM + 30% 1st OTM + 10% 2nd OTM. This provides a more accurate market-implied expected move than IV-based calculations.</p>
+                ) : (
+                  <p>Based on implied volatility, this shows the expected price range for the underlying stock by expiration. There's a 68% probability the stock stays within 1 standard deviation, and 95% within 2 standard deviations.</p>
+                )}
               </TooltipContent>
             </UITooltip>
           </div>
@@ -242,23 +322,59 @@ export function AnalysisTabs({
           {expectedMove ? (
             <>
               <p className="text-sm text-muted-foreground mb-4">
-                Based on current implied volatility, <strong>{symbol}</strong> stock is expected to move{" "}
-                <strong>±${expectedMove.move1SD.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
-                by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
-                with a projected price range of{" "}
-                <strong>${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}</strong>.
+                {expectedMove.usedBinaryMethod ? (
+                  <>
+                    Using the <strong>Binary Expected Move</strong> method, <strong>{symbol}</strong> stock is expected to move{" "}
+                    <strong>±${expectedMove.move1SD.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
+                    by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
+                    with a projected price range of{" "}
+                    <strong>${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}</strong>.
+                  </>
+                ) : (
+                  <>
+                    Based on current implied volatility, <strong>{symbol}</strong> stock is expected to move{" "}
+                    <strong>±${expectedMove.move1SD.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
+                    by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
+                    with a projected price range of{" "}
+                    <strong>${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}</strong>.
+                  </>
+                )}
               </p>
+
+              {/* Binary Expected Move Breakdown */}
+              {expectedMove.usedBinaryMethod && expectedMove.atmStraddle !== null && (
+                <div className="mb-4 p-3 bg-muted/20 rounded-lg border text-xs">
+                  <p className="font-medium mb-2">Calculation Breakdown</p>
+                  <div className="grid grid-cols-3 gap-2 text-muted-foreground">
+                    <div>
+                      <span className="block text-[10px] uppercase">ATM Straddle (60%)</span>
+                      <span className="font-mono text-foreground">${expectedMove.atmStraddle.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] uppercase">1st OTM Strangle (30%)</span>
+                      <span className="font-mono text-foreground">${(expectedMove.otm1Strangle ?? 0).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] uppercase">2nd OTM Strangle (10%)</span>
+                      <span className="font-mono text-foreground">${(expectedMove.otm2Strangle ?? 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    Formula: 0.6 × ${expectedMove.atmStraddle.toFixed(2)} + 0.3 × ${(expectedMove.otm1Strangle ?? 0).toFixed(2)} + 0.1 × ${(expectedMove.otm2Strangle ?? 0).toFixed(2)} = ${expectedMove.move1SD.toFixed(2)}
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="p-3 bg-muted/30 rounded-lg border">
-                  <p className="text-xs text-muted-foreground mb-1">1 Standard Deviation (68%)</p>
+                  <p className="text-xs text-muted-foreground mb-1">Expected Move</p>
                   <p className="text-xl font-bold font-mono text-primary">±${expectedMove.move1SD.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     ${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-muted/30 rounded-lg border">
-                  <p className="text-xs text-muted-foreground mb-1">2 Standard Deviations (95%)</p>
+                  <p className="text-xs text-muted-foreground mb-1">2x Expected Move</p>
                   <p className="text-xl font-bold font-mono">±${expectedMove.move2SD.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     ${expectedMove.lowerBound2SD.toFixed(2)} - ${expectedMove.upperBound2SD.toFixed(2)}
