@@ -67,14 +67,24 @@ export default function Builder() {
     unrealizedPL: number;
   } | null>(null);
   
-  // Store frozen ATM straddle for Expected Move calculation
-  // This is captured once when options chain loads and NOT affected by IV slider or strategy changes
+  // Store frozen Expected Move calculation in a stable cache
+  // This is captured ONCE per symbol/expiration and NEVER affected by IV slider or strategy changes
   const [frozenExpectedMove, setFrozenExpectedMove] = useState<{
     expectedMove: number;
     atmStrike: number;
     atmCall: number;
     atmPut: number;
+    otm1Strangle: number | null;
+    otm2Strangle: number | null;
+    lowerBound: number;
+    upperBound: number;
+    movePercent: number;
+    currentPrice: number;
+    daysToExpiration: number;
   } | null>(null);
+  
+  // Stable cache Map to prevent recalculation on react-query refreshes
+  const expectedMoveCacheRef = useRef<Map<string, typeof frozenExpectedMove>>(new Map());
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   
@@ -482,31 +492,37 @@ export default function Builder() {
     enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
 
-  // Track the key for frozen expected move to prevent recalculation on IV/strategy changes
-  const frozenExpectedMoveKeyRef = useRef<string | null>(null);
-  
-  // Capture frozen ATM straddle for Expected Move ONLY when symbol or expiration changes
+  // Capture frozen Expected Move ONLY when symbol or expiration changes
+  // Uses Binary formula: 60% ATM Straddle + 30% 1st OTM Strangle + 10% 2nd OTM Strangle
   // This value is NEVER affected by IV slider or strategy changes - purely market data
   useEffect(() => {
-    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) {
+    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0 || !symbolInfo.price) {
       return;
     }
     
     // Create a key based on symbol and expiration only (NOT price or IV)
     const currentKey = `${symbolInfo.symbol}@${selectedExpirationDate || ''}`;
     
-    // Only recalculate if symbol or expiration actually changed
-    if (frozenExpectedMoveKeyRef.current === currentKey) {
-      return; // Already have frozen data for this symbol/expiration
+    // Check if we already have cached data for this key
+    if (expectedMoveCacheRef.current.has(currentKey)) {
+      // Use cached data without recalculating
+      const cached = expectedMoveCacheRef.current.get(currentKey);
+      if (cached && frozenExpectedMove?.currentPrice !== cached.currentPrice) {
+        setFrozenExpectedMove(cached);
+      }
+      return;
     }
     
     const quotes = optionsChainData.quotes;
-    
-    // Use symbolInfo.price - this is safe because we're guarded by the key ref
-    // which only allows this to run once per symbol/expiration combination
     const currentPrice = symbolInfo.price;
     
-    if (!currentPrice) return;
+    // Calculate days to expiration
+    let daysToExpiration = 30;
+    if (selectedExpirationDate) {
+      const expDate = new Date(selectedExpirationDate);
+      const today = new Date();
+      daysToExpiration = Math.max(1, Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+    }
     
     // Get unique strikes sorted
     const uniqueStrikes = Array.from(new Set(quotes.map(q => q.strike))).sort((a, b) => a - b);
@@ -515,6 +531,14 @@ export default function Builder() {
     const atmStrike = uniqueStrikes.reduce((closest, strike) => 
       Math.abs(strike - currentPrice) < Math.abs(closest - currentPrice) ? strike : closest
     , uniqueStrikes[0]);
+    
+    const atmIndex = uniqueStrikes.indexOf(atmStrike);
+    
+    // Find OTM strikes
+    const otm1StrikeAbove = uniqueStrikes[atmIndex + 1];
+    const otm1StrikeBelow = uniqueStrikes[atmIndex - 1];
+    const otm2StrikeAbove = uniqueStrikes[atmIndex + 2];
+    const otm2StrikeBelow = uniqueStrikes[atmIndex - 2];
     
     // Helper to find mid price for a specific strike and side
     const getMidPrice = (strike: number, side: 'call' | 'put'): number | null => {
@@ -526,15 +550,52 @@ export default function Builder() {
     const atmCall = getMidPrice(atmStrike, 'call');
     const atmPut = getMidPrice(atmStrike, 'put');
     
+    // Get OTM strangle prices
+    const otm1Call = otm1StrikeAbove ? getMidPrice(otm1StrikeAbove, 'call') : null;
+    const otm1Put = otm1StrikeBelow ? getMidPrice(otm1StrikeBelow, 'put') : null;
+    const otm2Call = otm2StrikeAbove ? getMidPrice(otm2StrikeAbove, 'call') : null;
+    const otm2Put = otm2StrikeBelow ? getMidPrice(otm2StrikeBelow, 'put') : null;
+    
     // Calculate and store frozen expected move if we have ATM straddle
     if (atmCall !== null && atmPut !== null && atmCall > 0 && atmPut > 0) {
-      frozenExpectedMoveKeyRef.current = currentKey;
-      setFrozenExpectedMove({
-        expectedMove: atmCall + atmPut,
+      const atmStraddle = atmCall + atmPut;
+      
+      // OTM strangles (both legs required)
+      const hasOtm1 = otm1Call !== null && otm1Put !== null;
+      const otm1Strangle = hasOtm1 ? otm1Call + otm1Put : null;
+      const hasOtm2 = otm2Call !== null && otm2Put !== null;
+      const otm2Strangle = hasOtm2 ? otm2Call + otm2Put : null;
+      
+      // Binary weighted formula: 60% ATM + 30% OTM1 + 10% OTM2
+      // Redistribute weights if components are missing
+      let expectedMoveValue: number;
+      if (hasOtm1 && hasOtm2) {
+        expectedMoveValue = 0.6 * atmStraddle + 0.3 * otm1Strangle! + 0.1 * otm2Strangle!;
+      } else if (hasOtm1) {
+        expectedMoveValue = 0.7 * atmStraddle + 0.3 * otm1Strangle!;
+      } else if (hasOtm2) {
+        expectedMoveValue = 0.9 * atmStraddle + 0.1 * otm2Strangle!;
+      } else {
+        expectedMoveValue = atmStraddle;
+      }
+      
+      const payload = {
+        expectedMove: expectedMoveValue,
         atmStrike,
         atmCall,
         atmPut,
-      });
+        otm1Strangle,
+        otm2Strangle,
+        lowerBound: currentPrice - expectedMoveValue,
+        upperBound: currentPrice + expectedMoveValue,
+        movePercent: (expectedMoveValue / currentPrice) * 100,
+        currentPrice,
+        daysToExpiration,
+      };
+      
+      // Cache it and set state
+      expectedMoveCacheRef.current.set(currentKey, payload);
+      setFrozenExpectedMove(payload);
     }
   }, [optionsChainData, symbolInfo.symbol, symbolInfo.price, selectedExpirationDate]);
 

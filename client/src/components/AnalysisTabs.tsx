@@ -20,12 +20,20 @@ import {
 } from "recharts";
 import { useMemo } from "react";
 
-// Frozen expected move data passed from parent (calculated once from market data)
+// Frozen expected move data passed from parent (calculated ONCE from market data)
+// This is NEVER affected by IV slider or strategy changes
 interface FrozenExpectedMove {
   expectedMove: number;
   atmStrike: number;
   atmCall: number;
   atmPut: number;
+  otm1Strangle: number | null;
+  otm2Strangle: number | null;
+  lowerBound: number;
+  upperBound: number;
+  movePercent: number;
+  currentPrice: number;
+  daysToExpiration: number;
 }
 
 interface AnalysisTabsProps {
@@ -52,96 +60,10 @@ export function AnalysisTabs({
   frozenExpectedMove
 }: AnalysisTabsProps) {
   
-  // Use frozen expected move data (calculated once when options chain loads)
-  // This is NOT affected by IV slider or strategy changes - purely market data
-  const expectedMove = useMemo(() => {
-    if (!expirationDate || !currentPrice) return null;
-    
-    const today = new Date();
-    const expDate = new Date(expirationDate);
-    const daysToExpiration = Math.max(1, Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
-    
-    // Use frozen data if available (preferred - not affected by IV slider)
-    if (frozenExpectedMove) {
-      const movePercent = (frozenExpectedMove.expectedMove / currentPrice) * 100;
-      return {
-        expectedMove: frozenExpectedMove.expectedMove,
-        lowerBound: currentPrice - frozenExpectedMove.expectedMove,
-        upperBound: currentPrice + frozenExpectedMove.expectedMove,
-        movePercent,
-        daysToExpiration,
-        usedClassicalMethod: true,
-        atmStrike: frozenExpectedMove.atmStrike,
-        atmCall: frozenExpectedMove.atmCall,
-        atmPut: frozenExpectedMove.atmPut,
-      };
-    }
-    
-    // Fallback: calculate from options chain data if frozen data not available
-    let atmStrike: number | null = null;
-    let atmCall: number | null = null;
-    let atmPut: number | null = null;
-    let classicalExpectedMove: number | null = null;
-    
-    if (optionsChainData?.quotes && optionsChainData.quotes.length > 0) {
-      const quotes = optionsChainData.quotes;
-      
-      // Get unique strikes sorted
-      const uniqueStrikes = Array.from(new Set(quotes.map(q => q.strike))).sort((a, b) => a - b);
-      
-      // Find ATM strike (closest to current price)
-      atmStrike = uniqueStrikes.reduce((closest, strike) => 
-        Math.abs(strike - currentPrice) < Math.abs(closest - currentPrice) ? strike : closest
-      , uniqueStrikes[0]);
-      
-      // Helper to find mid price for a specific strike and side
-      const getMidPrice = (strike: number, side: 'call' | 'put'): number | null => {
-        const quote = quotes.find(q => q.strike === strike && q.side === side);
-        return quote ? quote.mid : null;
-      };
-      
-      // Get ATM call and put prices
-      atmCall = getMidPrice(atmStrike, 'call');
-      atmPut = getMidPrice(atmStrike, 'put');
-      
-      // Classical Expected Move = ATM Call + ATM Put (straddle price)
-      if (atmCall !== null && atmPut !== null) {
-        classicalExpectedMove = atmCall + atmPut;
-      }
-    }
-    
-    // Use Classical Expected Move if available, otherwise fall back to IV-based
-    let expectedMoveValue: number;
-    let usedClassicalMethod = false;
-    
-    if (classicalExpectedMove !== null && classicalExpectedMove > 0) {
-      expectedMoveValue = classicalExpectedMove;
-      usedClassicalMethod = true;
-    } else {
-      // Fallback: IV-based expected move = Price * IV * sqrt(DTE/365)
-      const annualizedFactor = Math.sqrt(daysToExpiration / 365);
-      expectedMoveValue = currentPrice * volatility * annualizedFactor;
-    }
-    
-    // Calculate price range
-    const lowerBound = currentPrice - expectedMoveValue;
-    const upperBound = currentPrice + expectedMoveValue;
-    
-    const movePercent = (expectedMoveValue / currentPrice) * 100;
-    
-    return {
-      expectedMove: expectedMoveValue,
-      lowerBound,
-      upperBound,
-      movePercent,
-      daysToExpiration,
-      usedClassicalMethod,
-      // Include component breakdown for display
-      atmStrike,
-      atmCall,
-      atmPut,
-    };
-  }, [currentPrice, expirationDate, frozenExpectedMove, optionsChainData, volatility]);
+  // Expected Move is passed in as frozen data from Builder
+  // It's calculated ONCE when options chain loads and NEVER changes with IV slider
+  // No calculation here - just use the frozen data directly
+  const expectedMove = frozenExpectedMove;
 
   // Generate expected move projection data for chart
   const expectedMoveChartData = useMemo(() => {
@@ -295,18 +217,14 @@ export function AnalysisTabs({
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Badge variant="outline" className="bg-primary/10 text-primary">
-              {expectedMove?.usedClassicalMethod ? 'Classical Expected Move' : 'Expected Stock Move'}
+              Expected Move (1σ)
             </Badge>
             <UITooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" data-testid="icon-expected-move-info" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs text-xs">
-                {expectedMove?.usedClassicalMethod ? (
-                  <p>Classical Expected Move is calculated from the ATM straddle price (ATM Call + ATM Put). This gives the market's estimate of how much the underlying can move up or down until expiration.</p>
-                ) : (
-                  <p>Based on implied volatility, this shows the expected price range for the underlying stock by expiration.</p>
-                )}
+                <p>Expected Move represents the market's prediction of how far a stock's price might move by expiration. It's derived from ATM options prices using: 60% × ATM Straddle + 30% × 1st OTM Strangle + 10% × 2nd OTM Strangle. There's a 68% probability the stock stays within this range.</p>
               </TooltipContent>
             </UITooltip>
           </div>
@@ -314,52 +232,50 @@ export function AnalysisTabs({
           {expectedMove ? (
             <>
               <p className="text-sm text-muted-foreground mb-4">
-                {expectedMove.usedClassicalMethod ? (
-                  <>
-                    Using the <strong>Classical Expected Move</strong> (ATM Straddle), <strong>{symbol}</strong> stock is expected to move{" "}
-                    <strong>±${expectedMove.expectedMove.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
-                    by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
-                    with a projected price range of{" "}
-                    <strong>${expectedMove.lowerBound.toFixed(2)} - ${expectedMove.upperBound.toFixed(2)}</strong>.
-                  </>
-                ) : (
-                  <>
-                    Based on current implied volatility, <strong>{symbol}</strong> stock is expected to move{" "}
-                    <strong>±${expectedMove.expectedMove.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
-                    by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
-                    with a projected price range of{" "}
-                    <strong>${expectedMove.lowerBound.toFixed(2)} - ${expectedMove.upperBound.toFixed(2)}</strong>.
-                  </>
-                )}
+                <strong>{symbol}</strong> stock is expected to move{" "}
+                <strong>±${expectedMove.expectedMove.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
+                by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
+                with a 68% probability of staying within{" "}
+                <strong>${expectedMove.lowerBound.toFixed(2)} - ${expectedMove.upperBound.toFixed(2)}</strong>.
               </p>
 
-              {/* Classical Expected Move Breakdown */}
-              {expectedMove.usedClassicalMethod && expectedMove.atmCall !== null && expectedMove.atmPut !== null && (
-                <div className="mb-4 p-3 bg-muted/20 rounded-lg border text-xs">
-                  <p className="font-medium mb-2">Calculation Breakdown</p>
-                  <div className="grid grid-cols-3 gap-2 text-muted-foreground">
-                    <div>
-                      <span className="block text-[10px] uppercase">ATM Strike</span>
-                      <span className="font-mono text-foreground">${expectedMove.atmStrike?.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] uppercase">ATM Call</span>
-                      <span className="font-mono text-foreground">${expectedMove.atmCall.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] uppercase">ATM Put</span>
-                      <span className="font-mono text-foreground">${expectedMove.atmPut.toFixed(2)}</span>
-                    </div>
+              {/* Binary Expected Move Breakdown */}
+              <div className="mb-4 p-3 bg-muted/20 rounded-lg border text-xs">
+                <p className="font-medium mb-2">Calculation Breakdown</p>
+                <div className="grid grid-cols-3 gap-2 text-muted-foreground mb-2">
+                  <div>
+                    <span className="block text-[10px] uppercase">ATM Straddle (60%)</span>
+                    <span className="font-mono text-foreground">${(expectedMove.atmCall + expectedMove.atmPut).toFixed(2)}</span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    Formula: ${expectedMove.atmCall.toFixed(2)} + ${expectedMove.atmPut.toFixed(2)} = ${expectedMove.expectedMove.toFixed(2)}
-                  </p>
+                  <div>
+                    <span className="block text-[10px] uppercase">1st OTM Strangle (30%)</span>
+                    <span className="font-mono text-foreground">
+                      {expectedMove.otm1Strangle !== null ? `$${expectedMove.otm1Strangle.toFixed(2)}` : 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase">2nd OTM Strangle (10%)</span>
+                    <span className="font-mono text-foreground">
+                      {expectedMove.otm2Strangle !== null ? `$${expectedMove.otm2Strangle.toFixed(2)}` : 'N/A'}
+                    </span>
+                  </div>
                 </div>
-              )}
+                <p className="text-[10px] text-muted-foreground">
+                  {expectedMove.otm1Strangle !== null && expectedMove.otm2Strangle !== null ? (
+                    <>Formula: 0.6 × ${(expectedMove.atmCall + expectedMove.atmPut).toFixed(2)} + 0.3 × ${expectedMove.otm1Strangle.toFixed(2)} + 0.1 × ${expectedMove.otm2Strangle.toFixed(2)} = ${expectedMove.expectedMove.toFixed(2)}</>
+                  ) : expectedMove.otm1Strangle !== null ? (
+                    <>Formula: 0.7 × ${(expectedMove.atmCall + expectedMove.atmPut).toFixed(2)} + 0.3 × ${expectedMove.otm1Strangle.toFixed(2)} = ${expectedMove.expectedMove.toFixed(2)}</>
+                  ) : expectedMove.otm2Strangle !== null ? (
+                    <>Formula: 0.9 × ${(expectedMove.atmCall + expectedMove.atmPut).toFixed(2)} + 0.1 × ${expectedMove.otm2Strangle.toFixed(2)} = ${expectedMove.expectedMove.toFixed(2)}</>
+                  ) : (
+                    <>Formula: ATM Straddle = ${(expectedMove.atmCall + expectedMove.atmPut).toFixed(2)}</>
+                  )}
+                </p>
+              </div>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="p-3 bg-muted/30 rounded-lg border">
-                  <p className="text-xs text-muted-foreground mb-1">Expected Move</p>
+                  <p className="text-xs text-muted-foreground mb-1">Expected Move (1σ)</p>
                   <p className="text-xl font-bold font-mono text-primary">±${expectedMove.expectedMove.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     ${expectedMove.lowerBound.toFixed(2)} - ${expectedMove.upperBound.toFixed(2)}
@@ -367,7 +283,7 @@ export function AnalysisTabs({
                 </div>
                 <div className="p-3 bg-muted/30 rounded-lg border">
                   <p className="text-xs text-muted-foreground mb-1">Current Price</p>
-                  <p className="text-xl font-bold font-mono">${currentPrice.toFixed(2)}</p>
+                  <p className="text-xl font-bold font-mono">${expectedMove.currentPrice.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {expectedMove.daysToExpiration} days to expiration
                   </p>
