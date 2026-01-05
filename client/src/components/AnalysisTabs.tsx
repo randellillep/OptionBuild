@@ -1,12 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, BarChart3, Users, History, Info, Sparkles } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, Users, History, Info } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Greeks, MarketOptionChainSummary, OptionLeg, StrategyMetrics } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
 import { HistoricalPriceTab } from "./HistoricalPriceTab";
-import { StrategyOptimizer } from "./StrategyOptimizer";
 import { 
   Line, 
   XAxis, 
@@ -154,7 +153,7 @@ export function AnalysisTabs({
     <Tabs defaultValue="greeks" className="w-full">
       {/* Scrollable tabs on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
-        <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-6 h-7">
+        <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-5 h-7">
           <TabsTrigger value="greeks" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-greeks">
             <Activity className="h-2.5 w-2.5 mr-0.5" />
             Greeks
@@ -174,10 +173,6 @@ export function AnalysisTabs({
           <TabsTrigger value="open-interest" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-open-interest">
             <Users className="h-2.5 w-2.5 mr-0.5" />
             OI
-          </TabsTrigger>
-          <TabsTrigger value="ai-optimizer" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-ai-optimizer">
-            <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-            AI Optimizer
           </TabsTrigger>
         </TabsList>
       </div>
@@ -466,19 +461,6 @@ export function AnalysisTabs({
         </Card>
       </TabsContent>
 
-      <TabsContent value="ai-optimizer" className="mt-2">
-        <Card className="p-3">
-          <StrategyOptimizer 
-            symbol={symbol}
-            currentPrice={currentPrice}
-            volatility={volatility}
-            legs={legs}
-            greeks={greeks}
-            metrics={metrics}
-            expirationDate={expirationDate}
-          />
-        </Card>
-      </TabsContent>
     </Tabs>
   );
 }
