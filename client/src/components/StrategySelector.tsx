@@ -154,7 +154,7 @@ export function StrategySelector({ onSelectStrategy }: StrategySelectorProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="button-build-menu">
+        <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="strategy-selector">
           Build
           <ChevronDown className="ml-1 h-3 w-3" />
         </Button>

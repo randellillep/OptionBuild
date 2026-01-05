@@ -11,12 +11,14 @@ import Backtest from "@/pages/Backtest";
 import OptionFinder from "@/pages/OptionFinder";
 import SavedTrades from "@/pages/SavedTrades";
 import Share from "@/pages/Share";
+import Tutorial from "@/pages/Tutorial";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/builder" component={Builder} />
+      <Route path="/tutorial" component={Tutorial} />
       <Route path="/login" component={Login} />
       <Route path="/backtest" component={Backtest} />
       <Route path="/option-finder" component={OptionFinder} />

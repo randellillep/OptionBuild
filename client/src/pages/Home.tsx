@@ -77,6 +77,13 @@ export default function Home() {
             <a href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">
               Pricing
             </a>
+            <button
+              onClick={() => setLocation("/tutorial")}
+              className="text-sm font-medium hover:text-primary transition-colors"
+              data-testid="button-nav-tutorial"
+            >
+              Tutorial
+            </button>
             <Button
               onClick={() => setLocation("/builder")}
               data-testid="button-nav-builder"

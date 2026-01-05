@@ -15,7 +15,8 @@ import { PLHeatmap } from "@/components/PLHeatmap";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
 import { Footer } from "@/components/Footer";
-import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Bookmark, Search } from "lucide-react";
+import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Bookmark, Search, HelpCircle } from "lucide-react";
+import { TutorialOverlay, useTutorial } from "@/components/TutorialOverlay";
 import { AIChatAssistant } from "@/components/AIChatAssistant";
 import { SaveTradeModal } from "@/components/SaveTradeModal";
 import { StrategySelector } from "@/components/StrategySelector";
@@ -88,6 +89,7 @@ export default function Builder() {
   const expectedMoveCacheRef = useRef<Map<string, typeof frozenExpectedMove>>(new Map());
   
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { showTutorial, hasSeenTutorial, startTutorial, closeTutorial } = useTutorial();
   
   const {
     symbolInfo,
@@ -1288,7 +1290,17 @@ export default function Builder() {
                 Sign In
               </Button>
             )}
-<ThemeToggle />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={startTutorial}
+              title="Tutorial"
+              data-testid="button-help-tutorial"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -1448,6 +1460,7 @@ export default function Builder() {
         isAuthenticated={isAuthenticated}
       />
 
+      <TutorialOverlay isOpen={showTutorial} onClose={closeTutorial} />
 
       <Footer />
     </div>

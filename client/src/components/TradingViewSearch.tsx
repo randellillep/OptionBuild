@@ -258,7 +258,7 @@ export function TradingViewSearch({
   };
 
   return (
-    <div className="relative" ref={modalRef}>
+    <div className="relative" ref={modalRef} data-testid="symbol-search">
       <Card className="px-2 py-1.5">
         {/* Mobile-responsive layout: stack on small screens */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">

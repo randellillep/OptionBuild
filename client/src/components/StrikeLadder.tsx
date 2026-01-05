@@ -794,7 +794,7 @@ export function StrikeLadder({
   };
 
   return (
-    <Card className="p-3 bg-white dark:bg-card border border-slate-200 dark:border-border shadow-sm">
+    <Card className="p-3 bg-white dark:bg-card border border-slate-200 dark:border-border shadow-sm" data-testid="strike-ladder">
       {/* Header with legend */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">

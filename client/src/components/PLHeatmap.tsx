@@ -147,7 +147,7 @@ export function PLHeatmap({
   };
 
   return (
-    <Card className="p-2">
+    <Card className="p-2" data-testid="pl-heatmap">
       {/* Header with metrics and tab buttons */}
       <div className="mb-1.5 flex items-center justify-between">
         <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
