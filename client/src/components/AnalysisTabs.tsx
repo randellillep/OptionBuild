@@ -42,9 +42,9 @@ export function AnalysisTabs({
   metrics
 }: AnalysisTabsProps) {
   
-  // Calculate Binary Expected Move using ATM straddle and OTM strangles
-  // Formula: 0.6 * ATM_Straddle + 0.3 * 1st_OTM_Strangle + 0.1 * 2nd_OTM_Strangle
-  // This gives a more accurate market-implied expected move than IV-based calculation
+  // Calculate Classical Expected Move using ATM straddle price
+  // Formula: Expected Move = ATM Call + ATM Put
+  // This gives the market's estimate of how much the underlying can move up or down until expiration
   const expectedMove = useMemo(() => {
     if (!expirationDate || !currentPrice) return null;
     
@@ -52,34 +52,21 @@ export function AnalysisTabs({
     const expDate = new Date(expirationDate);
     const daysToExpiration = Math.max(1, Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
     
-    // Try to calculate Binary Expected Move from options chain data
-    let binaryExpectedMove: number | null = null;
     let atmStrike: number | null = null;
     let atmCall: number | null = null;
     let atmPut: number | null = null;
-    let otm1Call: number | null = null;
-    let otm1Put: number | null = null;
-    let otm2Call: number | null = null;
-    let otm2Put: number | null = null;
+    let classicalExpectedMove: number | null = null;
     
     if (optionsChainData?.quotes && optionsChainData.quotes.length > 0) {
       const quotes = optionsChainData.quotes;
       
-      // Get unique strikes sorted by distance from current price
+      // Get unique strikes sorted
       const uniqueStrikes = Array.from(new Set(quotes.map(q => q.strike))).sort((a, b) => a - b);
       
       // Find ATM strike (closest to current price)
       atmStrike = uniqueStrikes.reduce((closest, strike) => 
         Math.abs(strike - currentPrice) < Math.abs(closest - currentPrice) ? strike : closest
       , uniqueStrikes[0]);
-      
-      const atmIndex = uniqueStrikes.indexOf(atmStrike);
-      
-      // Find 1st and 2nd OTM strikes above and below ATM
-      const otm1StrikeAbove = uniqueStrikes[atmIndex + 1];
-      const otm1StrikeBelow = uniqueStrikes[atmIndex - 1];
-      const otm2StrikeAbove = uniqueStrikes[atmIndex + 2];
-      const otm2StrikeBelow = uniqueStrikes[atmIndex - 2];
       
       // Helper to find mid price for a specific strike and side
       const getMidPrice = (strike: number, side: 'call' | 'put'): number | null => {
@@ -91,88 +78,42 @@ export function AnalysisTabs({
       atmCall = getMidPrice(atmStrike, 'call');
       atmPut = getMidPrice(atmStrike, 'put');
       
-      // Get 1st OTM strangle prices (OTM call = above ATM, OTM put = below ATM)
-      otm1Call = otm1StrikeAbove ? getMidPrice(otm1StrikeAbove, 'call') : null;
-      otm1Put = otm1StrikeBelow ? getMidPrice(otm1StrikeBelow, 'put') : null;
-      
-      // Get 2nd OTM strangle prices
-      otm2Call = otm2StrikeAbove ? getMidPrice(otm2StrikeAbove, 'call') : null;
-      otm2Put = otm2StrikeBelow ? getMidPrice(otm2StrikeBelow, 'put') : null;
-      
-      // Calculate Binary Expected Move if we have ATM straddle
-      // ATM straddle is required; OTM strangles are optional but must have both call AND put
+      // Classical Expected Move = ATM Call + ATM Put (straddle price)
       if (atmCall !== null && atmPut !== null) {
-        const atmStraddle = atmCall + atmPut;
-        
-        // OTM1 strangle: only include if both call and put are available
-        const hasOtm1 = otm1Call !== null && otm1Put !== null;
-        const otm1Strangle = hasOtm1 ? otm1Call! + otm1Put! : null;
-        
-        // OTM2 strangle: only include if both call and put are available
-        const hasOtm2 = otm2Call !== null && otm2Put !== null;
-        const otm2Strangle = hasOtm2 ? otm2Call! + otm2Put! : null;
-        
-        // Apply weighted formula based on available components
-        // Full formula: 0.6 * ATM + 0.3 * OTM1 + 0.1 * OTM2
-        // If OTM components are missing, redistribute weights to available components
-        if (hasOtm1 && hasOtm2) {
-          // Full binary expected move
-          binaryExpectedMove = 0.6 * atmStraddle + 0.3 * otm1Strangle! + 0.1 * otm2Strangle!;
-        } else if (hasOtm1) {
-          // OTM2 missing: use 0.7 * ATM + 0.3 * OTM1
-          binaryExpectedMove = 0.7 * atmStraddle + 0.3 * otm1Strangle!;
-        } else if (hasOtm2) {
-          // OTM1 missing: use 0.9 * ATM + 0.1 * OTM2
-          binaryExpectedMove = 0.9 * atmStraddle + 0.1 * otm2Strangle!;
-        } else {
-          // Only ATM available: use just the straddle
-          binaryExpectedMove = atmStraddle;
-        }
+        classicalExpectedMove = atmCall + atmPut;
       }
     }
     
-    // Use Binary Expected Move if available, otherwise fall back to IV-based
-    let expectedMove1SD: number;
-    let usedBinaryMethod = false;
+    // Use Classical Expected Move if available, otherwise fall back to IV-based
+    let expectedMoveValue: number;
+    let usedClassicalMethod = false;
     
-    if (binaryExpectedMove !== null && binaryExpectedMove > 0) {
-      expectedMove1SD = binaryExpectedMove;
-      usedBinaryMethod = true;
+    if (classicalExpectedMove !== null && classicalExpectedMove > 0) {
+      expectedMoveValue = classicalExpectedMove;
+      usedClassicalMethod = true;
     } else {
       // Fallback: IV-based expected move = Price * IV * sqrt(DTE/365)
       const annualizedFactor = Math.sqrt(daysToExpiration / 365);
-      expectedMove1SD = currentPrice * volatility * annualizedFactor;
+      expectedMoveValue = currentPrice * volatility * annualizedFactor;
     }
     
-    const expectedMove2SD = expectedMove1SD * 2;
-    
     // Calculate price range
-    const lowerBound1SD = currentPrice - expectedMove1SD;
-    const upperBound1SD = currentPrice + expectedMove1SD;
-    const lowerBound2SD = currentPrice - expectedMove2SD;
-    const upperBound2SD = currentPrice + expectedMove2SD;
+    const lowerBound = currentPrice - expectedMoveValue;
+    const upperBound = currentPrice + expectedMoveValue;
     
-    const movePercent = (expectedMove1SD / currentPrice) * 100;
-    
-    // Calculate actual strangles for display (only if both legs available)
-    const hasOtm1 = otm1Call !== null && otm1Put !== null;
-    const hasOtm2 = otm2Call !== null && otm2Put !== null;
+    const movePercent = (expectedMoveValue / currentPrice) * 100;
     
     return {
-      move1SD: expectedMove1SD,
-      move2SD: expectedMove2SD,
-      lowerBound1SD,
-      upperBound1SD,
-      lowerBound2SD,
-      upperBound2SD,
+      expectedMove: expectedMoveValue,
+      lowerBound,
+      upperBound,
       movePercent,
       daysToExpiration,
-      usedBinaryMethod,
-      // Include component breakdown for display (null if not available)
+      usedClassicalMethod,
+      // Include component breakdown for display
       atmStrike,
-      atmStraddle: atmCall !== null && atmPut !== null ? atmCall + atmPut : null,
-      otm1Strangle: hasOtm1 ? otm1Call! + otm1Put! : null,
-      otm2Strangle: hasOtm2 ? otm2Call! + otm2Put! : null,
+      atmCall,
+      atmPut,
     };
   }, [currentPrice, volatility, expirationDate, optionsChainData]);
 
@@ -328,17 +269,17 @@ export function AnalysisTabs({
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Badge variant="outline" className="bg-primary/10 text-primary">
-              {expectedMove?.usedBinaryMethod ? 'Binary Expected Move' : 'Expected Stock Move'}
+              {expectedMove?.usedClassicalMethod ? 'Classical Expected Move' : 'Expected Stock Move'}
             </Badge>
             <UITooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" data-testid="icon-expected-move-info" />
               </TooltipTrigger>
               <TooltipContent className="max-w-xs text-xs">
-                {expectedMove?.usedBinaryMethod ? (
-                  <p>Binary Expected Move uses a weighted combination of ATM straddle and OTM strangles: 60% ATM + 30% 1st OTM + 10% 2nd OTM. This provides a more accurate market-implied expected move than IV-based calculations.</p>
+                {expectedMove?.usedClassicalMethod ? (
+                  <p>Classical Expected Move is calculated from the ATM straddle price (ATM Call + ATM Put). This gives the market's estimate of how much the underlying can move up or down until expiration.</p>
                 ) : (
-                  <p>Based on implied volatility, this shows the expected price range for the underlying stock by expiration. There's a 68% probability the stock stays within 1 standard deviation, and 95% within 2 standard deviations.</p>
+                  <p>Based on implied volatility, this shows the expected price range for the underlying stock by expiration.</p>
                 )}
               </TooltipContent>
             </UITooltip>
@@ -347,57 +288,45 @@ export function AnalysisTabs({
           {expectedMove ? (
             <>
               <p className="text-sm text-muted-foreground mb-4">
-                {expectedMove.usedBinaryMethod ? (
+                {expectedMove.usedClassicalMethod ? (
                   <>
-                    Using the <strong>Binary Expected Move</strong> method, <strong>{symbol}</strong> stock is expected to move{" "}
-                    <strong>±${expectedMove.move1SD.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
+                    Using the <strong>Classical Expected Move</strong> (ATM Straddle), <strong>{symbol}</strong> stock is expected to move{" "}
+                    <strong>±${expectedMove.expectedMove.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
                     by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
                     with a projected price range of{" "}
-                    <strong>${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}</strong>.
+                    <strong>${expectedMove.lowerBound.toFixed(2)} - ${expectedMove.upperBound.toFixed(2)}</strong>.
                   </>
                 ) : (
                   <>
                     Based on current implied volatility, <strong>{symbol}</strong> stock is expected to move{" "}
-                    <strong>±${expectedMove.move1SD.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
+                    <strong>±${expectedMove.expectedMove.toFixed(2)} ({expectedMove.movePercent.toFixed(2)}%)</strong>{" "}
                     by <strong>{formatDate(expirationDate)}</strong> ({expectedMove.daysToExpiration} days),{" "}
                     with a projected price range of{" "}
-                    <strong>${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}</strong>.
+                    <strong>${expectedMove.lowerBound.toFixed(2)} - ${expectedMove.upperBound.toFixed(2)}</strong>.
                   </>
                 )}
               </p>
 
-              {/* Binary Expected Move Breakdown */}
-              {expectedMove.usedBinaryMethod && expectedMove.atmStraddle !== null && (
+              {/* Classical Expected Move Breakdown */}
+              {expectedMove.usedClassicalMethod && expectedMove.atmCall !== null && expectedMove.atmPut !== null && (
                 <div className="mb-4 p-3 bg-muted/20 rounded-lg border text-xs">
                   <p className="font-medium mb-2">Calculation Breakdown</p>
                   <div className="grid grid-cols-3 gap-2 text-muted-foreground">
                     <div>
-                      <span className="block text-[10px] uppercase">ATM Straddle (60%)</span>
-                      <span className="font-mono text-foreground">${expectedMove.atmStraddle.toFixed(2)}</span>
+                      <span className="block text-[10px] uppercase">ATM Strike</span>
+                      <span className="font-mono text-foreground">${expectedMove.atmStrike?.toFixed(2)}</span>
                     </div>
                     <div>
-                      <span className="block text-[10px] uppercase">1st OTM Strangle (30%)</span>
-                      <span className="font-mono text-foreground">
-                        {expectedMove.otm1Strangle !== null ? `$${expectedMove.otm1Strangle.toFixed(2)}` : 'N/A'}
-                      </span>
+                      <span className="block text-[10px] uppercase">ATM Call</span>
+                      <span className="font-mono text-foreground">${expectedMove.atmCall.toFixed(2)}</span>
                     </div>
                     <div>
-                      <span className="block text-[10px] uppercase">2nd OTM Strangle (10%)</span>
-                      <span className="font-mono text-foreground">
-                        {expectedMove.otm2Strangle !== null ? `$${expectedMove.otm2Strangle.toFixed(2)}` : 'N/A'}
-                      </span>
+                      <span className="block text-[10px] uppercase">ATM Put</span>
+                      <span className="font-mono text-foreground">${expectedMove.atmPut.toFixed(2)}</span>
                     </div>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-2">
-                    {expectedMove.otm1Strangle !== null && expectedMove.otm2Strangle !== null ? (
-                      <>Formula: 0.6 × ${expectedMove.atmStraddle.toFixed(2)} + 0.3 × ${expectedMove.otm1Strangle.toFixed(2)} + 0.1 × ${expectedMove.otm2Strangle.toFixed(2)} = ${expectedMove.move1SD.toFixed(2)}</>
-                    ) : expectedMove.otm1Strangle !== null ? (
-                      <>Formula: 0.7 × ${expectedMove.atmStraddle.toFixed(2)} + 0.3 × ${expectedMove.otm1Strangle.toFixed(2)} = ${expectedMove.move1SD.toFixed(2)} (2nd OTM unavailable)</>
-                    ) : expectedMove.otm2Strangle !== null ? (
-                      <>Formula: 0.9 × ${expectedMove.atmStraddle.toFixed(2)} + 0.1 × ${expectedMove.otm2Strangle.toFixed(2)} = ${expectedMove.move1SD.toFixed(2)} (1st OTM unavailable)</>
-                    ) : (
-                      <>Using ATM Straddle only: ${expectedMove.atmStraddle.toFixed(2)} = ${expectedMove.move1SD.toFixed(2)} (OTM strangles unavailable)</>
-                    )}
+                    Formula: ${expectedMove.atmCall.toFixed(2)} + ${expectedMove.atmPut.toFixed(2)} = ${expectedMove.expectedMove.toFixed(2)}
                   </p>
                 </div>
               )}
@@ -405,16 +334,16 @@ export function AnalysisTabs({
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="p-3 bg-muted/30 rounded-lg border">
                   <p className="text-xs text-muted-foreground mb-1">Expected Move</p>
-                  <p className="text-xl font-bold font-mono text-primary">±${expectedMove.move1SD.toFixed(2)}</p>
+                  <p className="text-xl font-bold font-mono text-primary">±${expectedMove.expectedMove.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    ${expectedMove.lowerBound1SD.toFixed(2)} - ${expectedMove.upperBound1SD.toFixed(2)}
+                    ${expectedMove.lowerBound.toFixed(2)} - ${expectedMove.upperBound.toFixed(2)}
                   </p>
                 </div>
                 <div className="p-3 bg-muted/30 rounded-lg border">
-                  <p className="text-xs text-muted-foreground mb-1">2x Expected Move</p>
-                  <p className="text-xl font-bold font-mono">±${expectedMove.move2SD.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Current Price</p>
+                  <p className="text-xl font-bold font-mono">${currentPrice.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    ${expectedMove.lowerBound2SD.toFixed(2)} - ${expectedMove.upperBound2SD.toFixed(2)}
+                    {expectedMove.daysToExpiration} days to expiration
                   </p>
                 </div>
               </div>
