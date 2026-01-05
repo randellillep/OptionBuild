@@ -1,12 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, BarChart3, Users, History, Info, Newspaper } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, Users, History, Info, Sparkles } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Greeks, MarketOptionChainSummary, OptionLeg, StrategyMetrics } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
 import { HistoricalPriceTab } from "./HistoricalPriceTab";
-import { NewsTab } from "./NewsTab";
+import { StrategyOptimizer } from "./StrategyOptimizer";
 import { 
   Line, 
   XAxis, 
@@ -175,9 +175,9 @@ export function AnalysisTabs({
             <Users className="h-2.5 w-2.5 mr-0.5" />
             OI
           </TabsTrigger>
-          <TabsTrigger value="news" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-news">
-            <Newspaper className="h-2.5 w-2.5 mr-0.5" />
-            News
+          <TabsTrigger value="ai-optimizer" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-ai-optimizer">
+            <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+            AI Optimizer
           </TabsTrigger>
         </TabsList>
       </div>
@@ -466,9 +466,17 @@ export function AnalysisTabs({
         </Card>
       </TabsContent>
 
-      <TabsContent value="news" className="mt-2">
+      <TabsContent value="ai-optimizer" className="mt-2">
         <Card className="p-3">
-          <NewsTab symbol={symbol} />
+          <StrategyOptimizer 
+            symbol={symbol}
+            currentPrice={currentPrice}
+            volatility={volatility}
+            legs={legs}
+            greeks={greeks}
+            metrics={metrics}
+            expirationDate={expirationDate}
+          />
         </Card>
       </TabsContent>
     </Tabs>
