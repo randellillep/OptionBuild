@@ -99,14 +99,35 @@ export function AnalysisTabs({
       otm2Call = otm2StrikeAbove ? getMidPrice(otm2StrikeAbove, 'call') : null;
       otm2Put = otm2StrikeBelow ? getMidPrice(otm2StrikeBelow, 'put') : null;
       
-      // Calculate Binary Expected Move if we have all required prices
+      // Calculate Binary Expected Move if we have ATM straddle
+      // ATM straddle is required; OTM strangles are optional but must have both call AND put
       if (atmCall !== null && atmPut !== null) {
         const atmStraddle = atmCall + atmPut;
-        const otm1Strangle = (otm1Call ?? 0) + (otm1Put ?? 0);
-        const otm2Strangle = (otm2Call ?? 0) + (otm2Put ?? 0);
         
-        // Weighted formula: 0.6 * ATM + 0.3 * OTM1 + 0.1 * OTM2
-        binaryExpectedMove = 0.6 * atmStraddle + 0.3 * otm1Strangle + 0.1 * otm2Strangle;
+        // OTM1 strangle: only include if both call and put are available
+        const hasOtm1 = otm1Call !== null && otm1Put !== null;
+        const otm1Strangle = hasOtm1 ? otm1Call! + otm1Put! : null;
+        
+        // OTM2 strangle: only include if both call and put are available
+        const hasOtm2 = otm2Call !== null && otm2Put !== null;
+        const otm2Strangle = hasOtm2 ? otm2Call! + otm2Put! : null;
+        
+        // Apply weighted formula based on available components
+        // Full formula: 0.6 * ATM + 0.3 * OTM1 + 0.1 * OTM2
+        // If OTM components are missing, redistribute weights to available components
+        if (hasOtm1 && hasOtm2) {
+          // Full binary expected move
+          binaryExpectedMove = 0.6 * atmStraddle + 0.3 * otm1Strangle! + 0.1 * otm2Strangle!;
+        } else if (hasOtm1) {
+          // OTM2 missing: use 0.7 * ATM + 0.3 * OTM1
+          binaryExpectedMove = 0.7 * atmStraddle + 0.3 * otm1Strangle!;
+        } else if (hasOtm2) {
+          // OTM1 missing: use 0.9 * ATM + 0.1 * OTM2
+          binaryExpectedMove = 0.9 * atmStraddle + 0.1 * otm2Strangle!;
+        } else {
+          // Only ATM available: use just the straddle
+          binaryExpectedMove = atmStraddle;
+        }
       }
     }
     
@@ -133,6 +154,10 @@ export function AnalysisTabs({
     
     const movePercent = (expectedMove1SD / currentPrice) * 100;
     
+    // Calculate actual strangles for display (only if both legs available)
+    const hasOtm1 = otm1Call !== null && otm1Put !== null;
+    const hasOtm2 = otm2Call !== null && otm2Put !== null;
+    
     return {
       move1SD: expectedMove1SD,
       move2SD: expectedMove2SD,
@@ -143,11 +168,11 @@ export function AnalysisTabs({
       movePercent,
       daysToExpiration,
       usedBinaryMethod,
-      // Include component breakdown for display
+      // Include component breakdown for display (null if not available)
       atmStrike,
       atmStraddle: atmCall !== null && atmPut !== null ? atmCall + atmPut : null,
-      otm1Strangle: (otm1Call ?? 0) + (otm1Put ?? 0) || null,
-      otm2Strangle: (otm2Call ?? 0) + (otm2Put ?? 0) || null,
+      otm1Strangle: hasOtm1 ? otm1Call! + otm1Put! : null,
+      otm2Strangle: hasOtm2 ? otm2Call! + otm2Put! : null,
     };
   }, [currentPrice, volatility, expirationDate, optionsChainData]);
 
@@ -352,15 +377,27 @@ export function AnalysisTabs({
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase">1st OTM Strangle (30%)</span>
-                      <span className="font-mono text-foreground">${(expectedMove.otm1Strangle ?? 0).toFixed(2)}</span>
+                      <span className="font-mono text-foreground">
+                        {expectedMove.otm1Strangle !== null ? `$${expectedMove.otm1Strangle.toFixed(2)}` : 'N/A'}
+                      </span>
                     </div>
                     <div>
                       <span className="block text-[10px] uppercase">2nd OTM Strangle (10%)</span>
-                      <span className="font-mono text-foreground">${(expectedMove.otm2Strangle ?? 0).toFixed(2)}</span>
+                      <span className="font-mono text-foreground">
+                        {expectedMove.otm2Strangle !== null ? `$${expectedMove.otm2Strangle.toFixed(2)}` : 'N/A'}
+                      </span>
                     </div>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-2">
-                    Formula: 0.6 × ${expectedMove.atmStraddle.toFixed(2)} + 0.3 × ${(expectedMove.otm1Strangle ?? 0).toFixed(2)} + 0.1 × ${(expectedMove.otm2Strangle ?? 0).toFixed(2)} = ${expectedMove.move1SD.toFixed(2)}
+                    {expectedMove.otm1Strangle !== null && expectedMove.otm2Strangle !== null ? (
+                      <>Formula: 0.6 × ${expectedMove.atmStraddle.toFixed(2)} + 0.3 × ${expectedMove.otm1Strangle.toFixed(2)} + 0.1 × ${expectedMove.otm2Strangle.toFixed(2)} = ${expectedMove.move1SD.toFixed(2)}</>
+                    ) : expectedMove.otm1Strangle !== null ? (
+                      <>Formula: 0.7 × ${expectedMove.atmStraddle.toFixed(2)} + 0.3 × ${expectedMove.otm1Strangle.toFixed(2)} = ${expectedMove.move1SD.toFixed(2)} (2nd OTM unavailable)</>
+                    ) : expectedMove.otm2Strangle !== null ? (
+                      <>Formula: 0.9 × ${expectedMove.atmStraddle.toFixed(2)} + 0.1 × ${expectedMove.otm2Strangle.toFixed(2)} = ${expectedMove.move1SD.toFixed(2)} (1st OTM unavailable)</>
+                    ) : (
+                      <>Using ATM Straddle only: ${expectedMove.atmStraddle.toFixed(2)} = ${expectedMove.move1SD.toFixed(2)} (OTM strangles unavailable)</>
+                    )}
                   </p>
                 </div>
               )}
