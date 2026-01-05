@@ -17,7 +17,7 @@ export interface ScenarioPoint {
 const STRATEGY_STORAGE_KEY = 'currentStrategy';
 
 // Load initial state from localStorage if available
-const loadPersistedState = (): { symbolInfo: SymbolInfo; legs: OptionLeg[]; volatility: number; expirationDays: number | null; expirationDate: string } | null => {
+const loadPersistedState = (): { symbolInfo: SymbolInfo; legs: OptionLeg[]; volatility: number; isManualVolatility: boolean; expirationDays: number | null; expirationDate: string } | null => {
   try {
     const saved = localStorage.getItem(STRATEGY_STORAGE_KEY);
     if (saved) {
@@ -126,9 +126,22 @@ export function useStrategyEngine(rangePercent: number = 14) {
     return () => clearInterval(intervalId);
   }, [symbolInfo.symbol]);
 
-  const [volatility, setVolatility] = useState(persistedState.current?.volatility ?? 0.3);
+  const [volatility, setVolatilityInternal] = useState(persistedState.current?.volatility ?? 0.3);
+  const [isManualVolatility, setIsManualVolatility] = useState(persistedState.current?.isManualVolatility ?? false);
   const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(persistedState.current?.expirationDays ?? null);
   const [selectedExpirationDate, setSelectedExpirationDate] = useState<string>(persistedState.current?.expirationDate ?? "");
+  
+  // Set volatility without triggering manual lock (for internal/system use)
+  const setVolatility = (value: number) => {
+    setVolatilityInternal(value);
+  };
+  
+  // Set volatility with manual lock (for user slider interactions only)
+  const setVolatilityManual = (value: number) => {
+    setVolatilityInternal(value);
+    setIsManualVolatility(true);
+    console.log('[IV-MANUAL] User set manual IV:', value, `(${(value * 100).toFixed(1)}%)`);
+  };
   
   // Persist strategy state to localStorage whenever it changes
   useEffect(() => {
@@ -136,11 +149,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
       symbolInfo,
       legs,
       volatility,
+      isManualVolatility,
       expirationDays: selectedExpirationDays,
       expirationDate: selectedExpirationDate,
     };
     localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [symbolInfo, legs, volatility, selectedExpirationDays, selectedExpirationDate]);
+  }, [symbolInfo, legs, volatility, isManualVolatility, selectedExpirationDays, selectedExpirationDate]);
 
   // Calculate average implied volatility from legs first (needed for auto-sync)
   // Include ALL legs with IV (market, manual, saved) so saved trades use their saved IV
@@ -170,17 +184,30 @@ export function useStrategyEngine(rangePercent: number = 14) {
   }, [legs]);
 
   // Auto-sync volatility to calculated IV when legs with IV exist
-  // This includes saved/manual legs so that saved trades display with correct IV
+  // Skip if user has manually set volatility (isManualVolatility = true)
   useEffect(() => {
+    // Respect manual volatility setting - don't overwrite user's choice
+    if (isManualVolatility) {
+      console.log('[IV-SYNC] Skipping auto-sync - manual volatility is locked');
+      return;
+    }
+    
     const legsWithIV = legs.filter(leg => leg.impliedVolatility && leg.impliedVolatility > 0);
     console.log('[IV-SYNC] Effect triggered. Legs with IV:', legsWithIV.length, 'calculatedIV:', calculatedIV, `(${(calculatedIV * 100).toFixed(1)}%)`);
     if (legsWithIV.length > 0) {
       console.log('[IV-SYNC] Setting volatility to:', calculatedIV);
-      setVolatility(calculatedIV);
+      setVolatilityInternal(calculatedIV);
     } else {
       console.log('[IV-SYNC] No legs with IV, skipping sync');
     }
-  }, [calculatedIV, legs]);
+  }, [calculatedIV, legs, isManualVolatility]);
+  
+  // Reset to market IV (clears manual lock)
+  const resetToMarketIV = () => {
+    setIsManualVolatility(false);
+    setVolatilityInternal(calculatedIV);
+    console.log('[IV-RESET] Reset to market IV:', calculatedIV, `(${(calculatedIV * 100).toFixed(1)}%)`);
+  };
 
   const totalGreeks: Greeks = useMemo(() => {
     return legs.reduce(
@@ -316,6 +343,9 @@ export function useStrategyEngine(rangePercent: number = 14) {
     setLegs,
     volatility,
     setVolatility,
+    setVolatilityManual,
+    isManualVolatility,
+    resetToMarketIV,
     calculatedIV,
     totalGreeks,
     metrics,

@@ -34,6 +34,7 @@ interface PLHeatmapProps {
   onVolatilityChange: (value: number) => void;
   calculatedIV: number;
   onResetIV: () => void;
+  isManualVolatility?: boolean;
   metrics?: StrategyMetrics;
   commissionSettings?: CommissionSettings;
   numTrades?: number;
@@ -60,6 +61,7 @@ export function PLHeatmap({
   onVolatilityChange,
   calculatedIV,
   onResetIV,
+  isManualVolatility = false,
   metrics,
   commissionSettings = { perTrade: 0, perContract: 0, roundTrip: false },
   numTrades = 0,
@@ -397,6 +399,11 @@ export function PLHeatmap({
         </div>
         <div className="flex items-center gap-1.5 flex-1">
           <span className="text-muted-foreground whitespace-nowrap w-10 sm:w-auto">IV</span>
+          {isManualVolatility && (
+            <Badge variant="outline" className="h-4 text-[8px] px-1 bg-amber-500/10 text-amber-600 border-amber-500/30">
+              Manual
+            </Badge>
+          )}
           <Slider
             value={[impliedVolatility]}
             onValueChange={(v) => onVolatilityChange(v[0])}
@@ -407,13 +414,13 @@ export function PLHeatmap({
             data-testid="slider-volatility"
           />
           <span className="font-mono w-8 text-right">{impliedVolatility}%</span>
-          {impliedVolatility !== calculatedIV && (
+          {isManualVolatility && (
             <Button
               variant="ghost"
               size="sm"
               className="h-4 w-4 p-0"
               onClick={onResetIV}
-              title="Reset to calculated IV"
+              title="Reset to market IV"
               data-testid="button-reset-iv"
             >
               <RotateCcw className="h-2.5 w-2.5" />

@@ -96,7 +96,9 @@ export default function Builder() {
     legs,
     setLegs,
     volatility,
-    setVolatility,
+    setVolatilityManual,
+    isManualVolatility,
+    resetToMarketIV,
     calculatedIV,
     totalGreeks,
     metrics,
@@ -120,11 +122,11 @@ export default function Builder() {
   }, [legs, symbolInfo.price, volatility]);
   
   const handleVolatilityChange = (percent: number) => {
-    setVolatility(percent / 100);
+    setVolatilityManual(percent / 100);
   };
   
   const handleResetIV = () => {
-    setVolatility(calculatedIV);
+    resetToMarketIV();
   };
 
   // Handle URL params from Option Finder (strategy and symbol)
@@ -1353,6 +1355,7 @@ export default function Builder() {
                   onVolatilityChange={handleVolatilityChange}
                   calculatedIV={calculatedIVPercent}
                   onResetIV={handleResetIV}
+                  isManualVolatility={isManualVolatility}
                   metrics={metrics}
                   commissionSettings={commissionSettings}
                   numTrades={legs.filter(l => !l.isExcluded).length}
@@ -1374,6 +1377,7 @@ export default function Builder() {
                   onVolatilityChange={handleVolatilityChange}
                   calculatedIV={calculatedIVPercent}
                   onResetIV={handleResetIV}
+                  isManualVolatility={isManualVolatility}
                   metrics={metrics}
                 />
               )}
