@@ -1159,7 +1159,7 @@ export default function Builder() {
               onClick={() => setLocation("/")}
             >
               <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-              <span className="text-sm sm:text-lg font-bold">OptionFlow</span>
+              <span className="text-sm sm:text-lg font-bold">OptionBuild</span>
             </div>
 
             {/* Desktop navigation */}

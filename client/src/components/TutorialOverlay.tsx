@@ -29,7 +29,7 @@ interface TutorialStep {
 const tutorialSteps: TutorialStep[] = [
   {
     id: "welcome",
-    title: "Welcome to OptionFlow Builder",
+    title: "Welcome to OptionBuild",
     description: "This quick tour will help you understand the key features of the options strategy builder. You can exit anytime by clicking the X button.",
     icon: <BookOpen className="h-6 w-6" />,
     position: "center",
@@ -345,7 +345,7 @@ export function TutorialOverlay({ onClose, isOpen }: TutorialOverlayProps) {
 export function useTutorial() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [hasSeenTutorial, setHasSeenTutorial] = useState(() => {
-    return localStorage.getItem("optionflow-tutorial-seen") === "true";
+    return localStorage.getItem("optionbuild-tutorial-seen") === "true";
   });
 
   const startTutorial = () => {
@@ -355,11 +355,11 @@ export function useTutorial() {
   const closeTutorial = () => {
     setShowTutorial(false);
     setHasSeenTutorial(true);
-    localStorage.setItem("optionflow-tutorial-seen", "true");
+    localStorage.setItem("optionbuild-tutorial-seen", "true");
   };
 
   const resetTutorial = () => {
-    localStorage.removeItem("optionflow-tutorial-seen");
+    localStorage.removeItem("optionbuild-tutorial-seen");
     setHasSeenTutorial(false);
   };
 

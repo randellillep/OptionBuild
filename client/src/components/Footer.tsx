@@ -25,7 +25,7 @@ export function Footer() {
                 <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-white to-primary/80 bg-clip-text text-transparent">
-                OptionFlow
+                OptionBuild
               </span>
             </Link>
             
@@ -114,12 +114,12 @@ export function Footer() {
 
         <div className="border-t border-white/10 mt-8 pt-6">
           <p className="text-xs text-white/50 text-center leading-relaxed max-w-4xl mx-auto">
-            Options involve a high degree of risk and are not suitable for all investors. OptionFlow is not an investment advisor. 
+            Options involve a high degree of risk and are not suitable for all investors. OptionBuild is not an investment advisor. 
             The calculations, information, and opinions on this site are for educational purposes only and are not investment advice. 
             Calculations are estimates and do not account for all market conditions and events.
           </p>
           <p className="text-xs text-white/40 text-center mt-4">
-            &copy; {new Date().getFullYear()} OptionFlow. All rights reserved.
+            &copy; {new Date().getFullYear()} OptionBuild. All rights reserved.
           </p>
         </div>
       </div>

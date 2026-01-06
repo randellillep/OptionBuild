@@ -344,7 +344,7 @@ export default function OptionFinder() {
               onClick={() => setLocation("/")}
             >
               <TrendingUp className="h-5 w-5 text-primary" />
-              <span className="text-lg font-bold">OptionFlow</span>
+              <span className="text-lg font-bold">OptionBuild</span>
             </div>
             <span className="text-sm text-muted-foreground">Option Finder</span>
           </div>

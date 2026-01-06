@@ -29,7 +29,7 @@ export default function Login() {
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
           <TrendingUp className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold text-white italic">OptionFlow</span>
+          <span className="text-2xl font-bold text-white italic">OptionBuild</span>
         </div>
         
         {/* Welcome Text */}
@@ -73,13 +73,13 @@ export default function Login() {
         {/* Mobile Logo */}
         <div className="flex items-center gap-2 mb-8 lg:hidden">
           <TrendingUp className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold italic">OptionFlow</span>
+          <span className="text-xl font-bold italic">OptionBuild</span>
         </div>
 
         {/* Desktop Logo */}
         <div className="hidden lg:flex items-center gap-2 mb-8 justify-center">
           <TrendingUp className="h-6 w-6 text-primary" />
-          <span className="text-xl font-bold italic">OptionFlow</span>
+          <span className="text-xl font-bold italic">OptionBuild</span>
         </div>
 
         <div className="max-w-sm mx-auto w-full">
@@ -183,12 +183,12 @@ export default function Login() {
           {/* Additional info */}
           <div className="mt-8 text-xs text-muted-foreground text-center space-y-2">
             <p>
-              OptionFlow is not a securities broker-dealer, investment adviser, or any other type of financial professional.
-              No content on the OptionFlow platform should be considered an offer, solicitation or advice to buy or sell securities
+              OptionBuild is not a securities broker-dealer, investment adviser, or any other type of financial professional.
+              No content on the OptionBuild platform should be considered an offer, solicitation or advice to buy or sell securities
               or any other type of investment or financial product.
             </p>
             <p>
-              By using the OptionFlow platform, you understand and agree that OptionFlow does not provide investment advice,
+              By using the OptionBuild platform, you understand and agree that OptionBuild does not provide investment advice,
               recommend any security, transaction, or order, issue securities, produce or provide research.
             </p>
           </div>

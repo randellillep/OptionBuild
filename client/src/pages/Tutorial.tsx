@@ -650,7 +650,7 @@ function SavingShareSection() {
             <p className="text-xs text-muted-foreground mb-2">Shareable Link:</p>
             <div className="flex items-center gap-2">
               <code className="text-xs bg-background px-2 py-1 rounded border flex-1 truncate">
-                optionflow.app/share/xyz123...
+                optionbuild.app/share/xyz123...
               </code>
               <Button size="sm" variant="outline">Copy</Button>
             </div>
@@ -670,7 +670,7 @@ function TutorialHeader() {
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2">
             <TrendingUp className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">OptionFlow</span>
+            <span className="text-xl font-bold">OptionBuild</span>
           </Link>
           <Badge variant="secondary" className="hidden sm:flex">
             <BookOpen className="h-3 w-3 mr-1" />

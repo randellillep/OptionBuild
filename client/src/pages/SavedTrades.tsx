@@ -337,7 +337,7 @@ export default function SavedTrades() {
             <div className="h-4 w-px bg-border hidden sm:block" />
             <div className="flex items-center gap-1 sm:gap-2">
               <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-              <span className="font-bold text-sm sm:text-lg">OptionFlow</span>
+              <span className="font-bold text-sm sm:text-lg">OptionBuild</span>
             </div>
           </div>
 
