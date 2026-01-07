@@ -131,10 +131,13 @@ export function StrategySelector({ onSelectStrategy }: StrategySelectorProps) {
   const categorizedStrategies = useMemo(() => {
     const categories: Record<StrategyCategory, { index: number; strategy: ExtendedStrategy }[]> = {
       basic: [],
-      credit_spreads: [],
-      debit_spreads: [],
-      volatility: [],
+      bullish: [],
+      bearish: [],
       neutral: [],
+      volatility_long: [],
+      volatility_short: [],
+      butterflies: [],
+      advanced: [],
     };
 
     strategyTemplates.forEach((strategy, index) => {
@@ -155,7 +158,7 @@ export function StrategySelector({ onSelectStrategy }: StrategySelectorProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="h-7 px-2 text-sm" data-testid="strategy-selector">
-          Build
+          Strategies
           <ChevronDown className="ml-1 h-3 w-3" />
         </Button>
       </DialogTrigger>

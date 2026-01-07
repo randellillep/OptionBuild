@@ -1,0 +1,70 @@
+CONVENTIONS
+S = underlying price at expiration
+K = strike price
+K1 < K2 < K3 < K4
+C(K) = call premium
+P(K) = put premium
+
+CORE OPTIONS
+Long Call: max(S-K,0) - C(K)
+Short Call: C(K) - max(S-K,0)
+Long Put: max(K-S,0) - P(K)
+Short Put: P(K) - max(K-S,0)
+
+NOVICE / INCOME
+Covered Call: (S-S0) + C(K) - max(S-K,0)
+Cash Secured Put: P(K) - max(K-S,0)
+Protective Put: (S-S0) + max(K-S,0) - P(K)
+
+DEBIT SPREADS
+Bull Call Spread: max(S-K1,0)-max(S-K2,0)-(C(K1)-C(K2))
+Bear Put Spread: max(K2-S,0)-max(K1-S,0)-(P(K2)-P(K1))
+
+CREDIT SPREADS
+Bull Put Spread: (P(K2)-P(K1))-(max(K2-S,0)-max(K1-S,0))
+Bear Call Spread: (C(K1)-C(K2))-(max(S-K1,0)-max(S-K2,0))
+
+STRADDLES / STRANGLES
+Long Straddle: max(S-K,0)+max(K-S,0)-(C(K)+P(K))
+Short Straddle: (C(K)+P(K))-(max(S-K,0)+max(K-S,0))
+Long Strangle: max(S-K2,0)+max(K1-S,0)-(C(K2)+P(K1))
+Short Strangle: (C(K2)+P(K1))-(max(S-K2,0)+max(K1-S,0))
+
+IRON STRUCTURES
+Iron Condor: NetCredit-(max(K2-S,0)-max(K1-S,0)+max(S-K3,0)-max(S-K4,0))
+Iron Butterfly: NetCredit-(max(K-S,0)+max(S-K,0))
+Inverse Iron Condor: (max(K2-S,0)-max(K1-S,0)+max(S-K3,0)-max(S-K4,0))-NetDebit
+Inverse Iron Butterfly: (max(S-K,0)+max(K-S,0))-(max(S-K2,0)+max(K1-S,0))-NetDebit
+
+BUTTERFLIES
+Long Call Butterfly: max(S-K1,0)-2*max(S-K2,0)+max(S-K3,0)-NetDebit
+Long Put Butterfly: max(K3-S,0)-2*max(K2-S,0)+max(K1-S,0)-NetDebit
+Short Call Butterfly: NetCredit-(max(S-K1,0)-2*max(S-K2,0)+max(S-K3,0))
+Short Put Butterfly: NetCredit-(max(K3-S,0)-2*max(K2-S,0)+max(K1-S,0))
+
+RATIO / BROKEN WING
+Call Ratio Spread: max(S-K1,0)-2*max(S-K2,0)-Net
+Put Ratio Spread: max(K2-S,0)-2*max(K1-S,0)-Net
+Broken Wing Butterfly: Asymmetric butterfly payoff
+
+SYNTHETIC
+Long Synthetic Future: S-K-(C(K)-P(K))
+Short Synthetic Future: K-S-(P(K)-C(K))
+Synthetic Put: max(K-S,0)-Psynth
+
+EXOTIC / OTHER
+Strip: 2*max(K-S,0)+max(S-K,0)-Premium
+Strap: 2*max(S-K,0)+max(K-S,0)-Premium
+Guts: max(S-K1,0)+max(K2-S,0)-Premium
+Short Guts: Premium-(max(S-K1,0)+max(K2-S,0))
+
+LADDERS
+Bull Call Ladder: max(S-K1,0)-max(S-K2,0)-max(S-K3,0)-Net
+Bear Call Ladder: -max(S-K1,0)+max(S-K2,0)+max(S-K3,0)+Net
+Bull Put Ladder: max(K3-S,0)-max(K2-S,0)-max(K1-S,0)-Net
+Bear Put Ladder: -max(K3-S,0)+max(K2-S,0)+max(K1-S,0)+Net
+
+CALENDAR / DIAGONAL
+Calendar Spread: payoff modeled numerically (time-dependent)
+Diagonal Spread: payoff modeled numerically (time-dependent)
+Double Diagonal: payoff modeled numerically (time-dependent)

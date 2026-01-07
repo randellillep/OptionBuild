@@ -1,0 +1,187 @@
+CONVENTIONS
+S = underlying price at expiration
+K, K1<K2<K3<K4 = strike prices
+C(K) = call premium
+P(K) = put premium
+Net = net debit or credit
+
+====================
+BASIC / NOVICE
+====================
+
+Long Call
+Bias: Bullish | Vol: Long
+Payoff: max(S-K,0)-C(K)
+
+Long Put
+Bias: Bearish | Vol: Long
+Payoff: max(K-S,0)-P(K)
+
+Covered Call
+Bias: Neutral-Bullish | Vol: Short
+Payoff: (S-S0)+C(K)-max(S-K,0)
+
+Cash-Secured Put
+Bias: Neutral-Bullish | Vol: Short
+Payoff: P(K)-max(K-S,0)
+
+Protective Put
+Bias: Bullish | Vol: Long
+Payoff: (S-S0)+max(K-S,0)-P(K)
+
+====================
+DIRECTIONAL – BULLISH
+====================
+
+Bull Call Spread
+Vol: Neutral
+Payoff: max(S-K1,0)-max(S-K2,0)-(C(K1)-C(K2))
+
+Bull Put Spread
+Vol: Short
+Payoff: (P(K2)-P(K1))-(max(K2-S,0)-max(K1-S,0))
+
+Bull Call Ladder
+Vol: Short
+Payoff: max(S-K1,0)-max(S-K2,0)-max(S-K3,0)-Net
+
+Long Synthetic Future
+Vol: Neutral
+Payoff: S-K-(C(K)-P(K))
+
+====================
+DIRECTIONAL – BEARISH
+====================
+
+Bear Put Spread
+Vol: Neutral
+Payoff: max(K2-S,0)-max(K1-S,0)-(P(K2)-P(K1))
+
+Bear Call Spread
+Vol: Short
+Payoff: (C(K1)-C(K2))-(max(S-K1,0)-max(S-K2,0))
+
+Bear Put Ladder
+Vol: Short
+Payoff: -max(K3-S,0)+max(K2-S,0)+max(K1-S,0)+Net
+
+Short Synthetic Future
+Vol: Neutral
+Payoff: K-S-(P(K)-C(K))
+
+====================
+NEUTRAL – RANGE BOUND
+====================
+
+Iron Condor
+Vol: Short
+Payoff: Net-(max(K2-S,0)-max(K1-S,0)+max(S-K3,0)-max(S-K4,0))
+
+Iron Butterfly
+Vol: Short
+Payoff: Net-(max(S-K,0)+max(K-S,0))
+
+Short Straddle
+Vol: Short
+Payoff: (C(K)+P(K))-(max(S-K,0)+max(K-S,0))
+
+Short Strangle
+Vol: Short
+Payoff: (C(K2)+P(K1))-(max(S-K2,0)+max(K1-S,0))
+
+Jade Lizard
+Vol: Short
+Payoff: P(K2)+C(K3)-max(S-K3,0)
+
+====================
+VOLATILITY – LONG
+====================
+
+Long Straddle
+Bias: None
+Payoff: max(S-K,0)+max(K-S,0)-(C(K)+P(K))
+
+Long Strangle
+Bias: None
+Payoff: max(S-K2,0)+max(K1-S,0)-(C(K2)+P(K1))
+
+Call Ratio Backspread
+Bias: Bullish | Vol: Long
+Payoff: max(S-K1,0)-2*max(S-K2,0)-Net
+
+Put Ratio Backspread
+Bias: Bearish | Vol: Long
+Payoff: max(K2-S,0)-2*max(K1-S,0)-Net
+
+Inverse Iron Condor
+Bias: None | Vol: Long
+Payoff: (max(K2-S,0)-max(K1-S,0)+max(S-K3,0)-max(S-K4,0))-Net
+
+====================
+VOLATILITY – SHORT
+====================
+
+Credit Spreads
+Payoff: Credit - spread intrinsic loss
+
+Covered Call
+Payoff: (S-S0)+C(K)-max(S-K,0)
+
+Cash-Secured Put
+Payoff: P(K)-max(K-S,0)
+
+====================
+INCOME / THETA+
+====================
+
+Iron Condor
+Iron Butterfly
+Covered Call
+Cash-Secured Put
+Short Strangle
+Short Straddle
+
+====================
+BUTTERFLIES
+====================
+
+Long Call Butterfly
+Vol: Short
+Payoff: max(S-K1,0)-2*max(S-K2,0)+max(S-K3,0)-Net
+
+Long Put Butterfly
+Vol: Short
+Payoff: max(K3-S,0)-2*max(K2-S,0)+max(K1-S,0)-Net
+
+Broken Wing Butterfly
+Vol: Short
+Payoff: Asymmetric butterfly payoff
+
+====================
+EXOTIC / ADVANCED
+====================
+
+Strip
+Bias: Bearish | Vol: Long
+Payoff: 2*max(K-S,0)+max(S-K,0)-Premium
+
+Strap
+Bias: Bullish | Vol: Long
+Payoff: 2*max(S-K,0)+max(K-S,0)-Premium
+
+Guts
+Vol: Short
+Payoff: max(S-K1,0)+max(K2-S,0)-Premium
+
+Short Guts
+Vol: Short
+Payoff: Premium-(max(S-K1,0)+max(K2-S,0))
+
+====================
+TIME-DEPENDENT (MODELED)
+====================
+
+Calendar Spread
+Diagonal Spread
+Double Diagonal
+Payoff: modeled numerically (IV + time dependent)

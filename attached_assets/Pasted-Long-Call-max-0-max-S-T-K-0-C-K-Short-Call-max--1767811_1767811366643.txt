@@ -1,0 +1,1718 @@
+Long Call
+
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
+−
+𝐶
+(
+𝐾
+)
+max(S
+T
+	​
+
+−K,0)−C(K)
+
+Short Call
+
+𝐶
+(
+𝐾
+)
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
+C(K)−max(S
+T
+	​
+
+−K,0)
+
+Long Put
+
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+−
+𝑃
+(
+𝐾
+)
+max(K−S
+T
+	​
+
+,0)−P(K)
+
+Short Put
+
+𝑃
+(
+𝐾
+)
+−
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+P(K)−max(K−S
+T
+	​
+
+,0)
+Income / Novice
+Covered Call
+
+(Long stock + Short call)
+
+(
+𝑆
+𝑇
+−
+𝑆
+0
+)
++
+𝐶
+(
+𝐾
+)
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
+(S
+T
+	​
+
+−S
+0
+	​
+
+)+C(K)−max(S
+T
+	​
+
+−K,0)
+Cash-Secured Put
+𝑃
+(
+𝐾
+)
+−
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+P(K)−max(K−S
+T
+	​
+
+,0)
+Protective Put
+
+(Long stock + Long put)
+
+(
+𝑆
+𝑇
+−
+𝑆
+0
+)
++
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+−
+𝑃
+(
+𝐾
+)
+(S
+T
+	​
+
+−S
+0
+	​
+
+)+max(K−S
+T
+	​
+
+,0)−P(K)
+Debit Spreads
+Bull Call Spread
+
+(Long call 
+𝐾
+1
+K
+1
+	​
+
+, short call 
+𝐾
+2
+K
+2
+	​
+
+)
+
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+1
+,
+0
+)
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
+−
+(
+𝐶
+(
+𝐾
+1
+)
+−
+𝐶
+(
+𝐾
+2
+)
+)
+max(S
+T
+	​
+
+−K
+1
+	​
+
+,0)−max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)−(C(K
+1
+	​
+
+)−C(K
+2
+	​
+
+))
+Bear Put Spread
+
+(Long put 
+𝐾
+2
+K
+2
+	​
+
+, short put 
+𝐾
+1
+K
+1
+	​
+
+)
+
+max
+⁡
+(
+𝐾
+2
+−
+𝑆
+𝑇
+,
+0
+)
+−
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
+−
+(
+𝑃
+(
+𝐾
+2
+)
+−
+𝑃
+(
+𝐾
+1
+)
+)
+max(K
+2
+	​
+
+−S
+T
+	​
+
+,0)−max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)−(P(K
+2
+	​
+
+)−P(K
+1
+	​
+
+))
+Credit Spreads
+Bull Put Spread
+
+(Short put 
+𝐾
+2
+K
+2
+	​
+
+, long put 
+𝐾
+1
+K
+1
+	​
+
+)
+
+𝑃
+(
+𝐾
+2
+)
+−
+𝑃
+(
+𝐾
+1
+)
+−
+[
+max
+⁡
+(
+𝐾
+2
+−
+𝑆
+𝑇
+,
+0
+)
+−
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
+]
+P(K
+2
+	​
+
+)−P(K
+1
+	​
+
+)−[max(K
+2
+	​
+
+−S
+T
+	​
+
+,0)−max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)]
+Bear Call Spread
+
+(Short call 
+𝐾
+1
+K
+1
+	​
+
+, long call 
+𝐾
+2
+K
+2
+	​
+
+)
+
+𝐶
+(
+𝐾
+1
+)
+−
+𝐶
+(
+𝐾
+2
+)
+−
+[
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+1
+,
+0
+)
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
+]
+C(K
+1
+	​
+
+)−C(K
+2
+	​
+
+)−[max(S
+T
+	​
+
+−K
+1
+	​
+
+,0)−max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)]
+Neutral Strategies
+Long Straddle
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+−
+[
+𝐶
+(
+𝐾
+)
++
+𝑃
+(
+𝐾
+)
+]
+max(S
+T
+	​
+
+−K,0)+max(K−S
+T
+	​
+
+,0)−[C(K)+P(K)]
+Short Straddle
+𝐶
+(
+𝐾
+)
++
+𝑃
+(
+𝐾
+)
+−
+[
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+]
+C(K)+P(K)−[max(S
+T
+	​
+
+−K,0)+max(K−S
+T
+	​
+
+,0)]
+Long Strangle
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
+−
+[
+𝐶
+(
+𝐾
+2
+)
++
+𝑃
+(
+𝐾
+1
+)
+]
+max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)+max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)−[C(K
+2
+	​
+
+)+P(K
+1
+	​
+
+)]
+Short Strangle
+𝐶
+(
+𝐾
+2
+)
++
+𝑃
+(
+𝐾
+1
+)
+−
+[
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
+]
+C(K
+2
+	​
+
+)+P(K
+1
+	​
+
+)−[max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)+max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)]
+Iron Structures
+Iron Condor
+
+(Short put 
+𝐾
+2
+K
+2
+	​
+
+, long put 
+𝐾
+1
+K
+1
+	​
+
+, short call 
+𝐾
+3
+K
+3
+	​
+
+, long call 
+𝐾
+4
+K
+4
+	​
+
+)
+
+Net Credit
+−
+[
+max
+⁡
+(
+𝐾
+2
+−
+𝑆
+𝑇
+,
+0
+)
+−
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
++
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+3
+,
+0
+)
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+4
+,
+0
+)
+]
+Net Credit−[max(K
+2
+	​
+
+−S
+T
+	​
+
+,0)−max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)+max(S
+T
+	​
+
+−K
+3
+	​
+
+,0)−max(S
+T
+	​
+
+−K
+4
+	​
+
+,0)]
+Iron Butterfly
+Net Credit
+−
+[
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
++
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
+]
+Net Credit−[max(K−S
+T
+	​
+
+,0)+max(S
+T
+	​
+
+−K,0)]
+Inverse Iron Condor
+
+(Long outer options, short inner)
+
+[
+max
+⁡
+(
+𝐾
+2
+−
+𝑆
+𝑇
+,
+0
+)
+−
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
++
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+3
+,
+0
+)
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+4
+,
+0
+)
+]
+−
+Net Debit
+[max(K
+2
+	​
+
+−S
+T
+	​
+
+,0)−max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)+max(S
+T
+	​
+
+−K
+3
+	​
+
+,0)−max(S
+T
+	​
+
+−K
+4
+	​
+
+,0)]−Net Debit
+Inverse Iron Butterfly
+
+(Long straddle − short wings)
+
+[
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+]
+−
+[
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
+]
+−
+Net Debit
+[max(S
+T
+	​
+
+−K,0)+max(K−S
+T
+	​
+
+,0)]−[max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)+max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)]−Net Debit
+Butterflies
+Long Call Butterfly
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+1
+,
+0
+)
+−
+2
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
++
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+3
+,
+0
+)
+−
+Net Debit
+max(S
+T
+	​
+
+−K
+1
+	​
+
+,0)−2max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)+max(S
+T
+	​
+
+−K
+3
+	​
+
+,0)−Net Debit
+Long Put Butterfly
+max
+⁡
+(
+𝐾
+3
+−
+𝑆
+𝑇
+,
+0
+)
+−
+2
+max
+⁡
+(
+𝐾
+2
+−
+𝑆
+𝑇
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
+−
+Net Debit
+max(K
+3
+	​
+
+−S
+T
+	​
+
+,0)−2max(K
+2
+	​
+
+−S
+T
+	​
+
+,0)+max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)−Net Debit
+Short Call Butterfly
+
+(Negative of long)
+
+Net Credit
+−
+(
+Long Call Butterfly payoff
+)
+Net Credit−(Long Call Butterfly payoff)
+Short Put Butterfly
+Net Credit
+−
+(
+Long Put Butterfly payoff
+)
+Net Credit−(Long Put Butterfly payoff)
+Calendar & Diagonal (Expiration dependent)
+Calendar Spread (Call or Put)
+Payoff depends on IV and remaining time; no closed-form expiration payoff
+Payoff depends on IV and remaining time; no closed-form expiration payoff
+Diagonal Spread
+Hybrid of vertical + calendar; modeled numerically
+Hybrid of vertical + calendar; modeled numerically
+
+(For Replit: treat as multi-leg option valuation, not closed-form payoff.)
+
+Ratio / Broken Wing
+Call Ratio Spread
+
+(Long 1 call 
+𝐾
+1
+K
+1
+	​
+
+, short 2 calls 
+𝐾
+2
+K
+2
+	​
+
+)
+
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+1
+,
+0
+)
+−
+2
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
+−
+Net Credit/Debit
+max(S
+T
+	​
+
+−K
+1
+	​
+
+,0)−2max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)−Net Credit/Debit
+Put Ratio Spread
+max
+⁡
+(
+𝐾
+2
+−
+𝑆
+𝑇
+,
+0
+)
+−
+2
+max
+⁡
+(
+𝐾
+1
+−
+𝑆
+𝑇
+,
+0
+)
+−
+Net Credit/Debit
+max(K
+2
+	​
+
+−S
+T
+	​
+
+,0)−2max(K
+1
+	​
+
+−S
+T
+	​
+
+,0)−Net Credit/Debit
+Broken Wing Butterfly
+
+(Asymmetric butterfly)
+
+Butterfly payoff with unequal strike spacing
+Butterfly payoff with unequal strike spacing
+Synthetic Positions
+Long Synthetic Future
+
+(Long call + short put)
+
+𝑆
+𝑇
+−
+𝐾
+−
+(
+𝐶
+(
+𝐾
+)
+−
+𝑃
+(
+𝐾
+)
+)
+S
+T
+	​
+
+−K−(C(K)−P(K))
+Short Synthetic Future
+𝐾
+−
+𝑆
+𝑇
+−
+(
+𝑃
+(
+𝐾
+)
+−
+𝐶
+(
+𝐾
+)
+)
+K−S
+T
+	​
+
+−(P(K)−C(K))
+Synthetic Put
+
+(Long call + short stock)
+
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+−
+𝑃
+𝑠
+𝑦
+𝑛
+𝑡
+ℎ
+𝑒
+𝑡
+𝑖
+𝑐
+max(K−S
+T
+	​
+
+,0)−P
+synthetic
+	​
+
+Arbitrage / Exotic
+Long Combo
+
+(Long call + short put)
+
+𝑆
+𝑇
+−
+𝐾
+−
+Net Debit
+S
+T
+	​
+
+−K−Net Debit
+Short Combo
+𝐾
+−
+𝑆
+𝑇
++
+Net Credit
+K−S
+T
+	​
+
++Net Credit
+Strip
+
+(2 puts + 1 call)
+
+2
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
++
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
+−
+Premium
+2max(K−S
+T
+	​
+
+,0)+max(S
+T
+	​
+
+−K,0)−Premium
+Strap
+
+(2 calls + 1 put)
+
+2
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+−
+𝑆
+𝑇
+,
+0
+)
+−
+Premium
+2max(S
+T
+	​
+
+−K,0)+max(K−S
+T
+	​
+
+,0)−Premium
+Guts
+
+(In-the-money straddle)
+
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+1
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+2
+−
+𝑆
+𝑇
+,
+0
+)
+−
+Premium
+max(S
+T
+	​
+
+−K
+1
+	​
+
+,0)+max(K
+2
+	​
+
+−S
+T
+	​
+
+,0)−Premium
+Short Guts
+Premium
+−
+[
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+1
+,
+0
+)
++
+max
+⁡
+(
+𝐾
+2
+−
+𝑆
+𝑇
+,
+0
+)
+]
+Premium−[max(S
+T
+	​
+
+−K
+1
+	​
+
+,0)+max(K
+2
+	​
+
+−S
+T
+	​
+
+,0)]
+Ladders
+Bull Call Ladder
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+1
+,
+0
+)
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+3
+,
+0
+)
+−
+Net Debit
+max(S
+T
+	​
+
+−K
+1
+	​
+
+,0)−max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)−max(S
+T
+	​
+
+−K
+3
+	​
+
+,0)−Net Debit
+Bear Call Ladder
+−
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+1
+,
+0
+)
++
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+2
+,
+0
+)
++
+max
+⁡
+(
+𝑆
+𝑇
+−
+𝐾
+3
+,
+0
+)
++
+Net Credit
+−max(S
+T
+	​
+
+−K
+1
+	​
+
+,0)+max(S
+T
+	​
+
+−K
+2
+	​
+
+,0)+max(S
+T
+	​
+
+−K
+3
+	​
+
+,0)+Net Credit
