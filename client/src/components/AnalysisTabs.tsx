@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, TrendingUp, BarChart3, Users, History, Info, Zap } from "lucide-react";
+import { Activity, TrendingUp, BarChart3, Users, History, Info } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Greeks, MarketOptionChainSummary, OptionLeg, StrategyMetrics } from "@shared/schema";
 import { GreeksDashboard } from "./GreeksDashboard";
@@ -154,7 +154,7 @@ export function AnalysisTabs({
     <Tabs defaultValue="greeks" className="w-full">
       {/* Scrollable tabs on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
-        <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-6 h-7">
+        <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-5 h-7">
           <TabsTrigger value="greeks" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-greeks">
             <Activity className="h-2.5 w-2.5 mr-0.5" />
             Greeks
@@ -175,21 +175,26 @@ export function AnalysisTabs({
             <Users className="h-2.5 w-2.5 mr-0.5" />
             OI
           </TabsTrigger>
-          <TabsTrigger value="what-if" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-what-if">
-            <Zap className="h-2.5 w-2.5 mr-0.5" />
-            What-If
-          </TabsTrigger>
         </TabsList>
       </div>
 
       <TabsContent value="greeks" className="mt-2">
-        <GreeksDashboard 
-          greeks={greeks} 
-          legs={legs}
-          metrics={metrics}
-          currentPrice={currentPrice}
-          volatility={volatility}
-        />
+        <div className="space-y-4">
+          <GreeksDashboard 
+            greeks={greeks} 
+            legs={legs}
+            metrics={metrics}
+            currentPrice={currentPrice}
+            volatility={volatility}
+          />
+          <WhatIfScenario
+            legs={legs}
+            currentPrice={currentPrice}
+            volatility={volatility}
+            greeks={greeks}
+            metrics={metrics ?? null}
+          />
+        </div>
       </TabsContent>
 
       <TabsContent value="backtest" className="mt-2">
@@ -464,16 +469,6 @@ export function AnalysisTabs({
             <p className="text-xs text-muted-foreground">Open interest chart</p>
           </div>
         </Card>
-      </TabsContent>
-
-      <TabsContent value="what-if" className="mt-2">
-        <WhatIfScenario
-          legs={legs}
-          currentPrice={currentPrice}
-          volatility={volatility}
-          greeks={greeks}
-          metrics={metrics ?? null}
-        />
       </TabsContent>
 
     </Tabs>

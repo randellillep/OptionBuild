@@ -203,78 +203,59 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
           </h3>
 
           <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-3">
+            <div className="space-y-3 md:col-span-2">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Risk Metrics</h4>
               
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
-                    <span className="text-sm">Price Risk (Delta):</span>
-                  </div>
-                  {getRiskBadge(riskAnalysis.deltaRisk)}
-                </div>
-
-                <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-orange-500" />
-                    <span className="text-sm">Time Risk (Theta):</span>
-                  </div>
-                  {getRiskBadge(riskAnalysis.thetaRisk)}
-                </div>
-
-                <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                  <div className="flex items-center gap-2">
-                    <BarChart2 className="h-3.5 w-3.5 text-green-500" />
-                    <span className="text-sm">Volatility Risk (Vega):</span>
-                  </div>
-                  {getRiskBadge(riskAnalysis.vegaRisk)}
-                </div>
-
-                <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-3.5 w-3.5 text-purple-500" />
-                    <span className="text-sm">Gamma Risk:</span>
-                  </div>
-                  {getRiskBadge(riskAnalysis.gammaRisk)}
-                </div>
-              </div>
-
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Trading Insights</h4>
-              
-              <div className="space-y-3 text-xs">
-                <div className="flex items-start gap-2">
-                  <TrendingUp className="h-3.5 w-3.5 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-blue-600 dark:text-blue-400">Delta:</span>{' '}
-                    <span className="text-muted-foreground">{getDeltaInsight()}</span>
+              <div className="space-y-3">
+                <div className="p-3 bg-muted/30 rounded-md">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2 flex-1">
+                      <TrendingUp className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Price Risk (Delta):</span>
+                        <p className="text-xs text-muted-foreground mt-1">{getDeltaInsight()}</p>
+                      </div>
+                    </div>
+                    {getRiskBadge(riskAnalysis.deltaRisk)}
                   </div>
                 </div>
 
-                <div className="flex items-start gap-2">
-                  <Clock className="h-3.5 w-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-orange-600 dark:text-orange-400">Theta:</span>{' '}
-                    <span className="text-muted-foreground">{getThetaInsight()}</span>
+                <div className="p-3 bg-muted/30 rounded-md">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2 flex-1">
+                      <Clock className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">Time Risk (Theta):</span>
+                        <p className="text-xs text-muted-foreground mt-1">{getThetaInsight()}</p>
+                      </div>
+                    </div>
+                    {getRiskBadge(riskAnalysis.thetaRisk)}
                   </div>
                 </div>
 
-                <div className="flex items-start gap-2">
-                  <BarChart2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-green-600 dark:text-green-400">Vega:</span>{' '}
-                    <span className="text-muted-foreground">{getVegaInsight()}</span>
+                <div className="p-3 bg-muted/30 rounded-md">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2 flex-1">
+                      <BarChart2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-sm font-semibold text-green-600 dark:text-green-400">Volatility Risk (Vega):</span>
+                        <p className="text-xs text-muted-foreground mt-1">{getVegaInsight()}</p>
+                      </div>
+                    </div>
+                    {getRiskBadge(riskAnalysis.vegaRisk)}
                   </div>
                 </div>
 
-                <div className="flex items-start gap-2">
-                  <Activity className="h-3.5 w-3.5 text-purple-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-purple-600 dark:text-purple-400">Gamma:</span>{' '}
-                    <span className="text-muted-foreground">{getGammaInsight()}</span>
+                <div className="p-3 bg-muted/30 rounded-md">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2 flex-1">
+                      <Activity className="h-4 w-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">Gamma Risk:</span>
+                        <p className="text-xs text-muted-foreground mt-1">{getGammaInsight()}</p>
+                      </div>
+                    </div>
+                    {getRiskBadge(riskAnalysis.gammaRisk)}
                   </div>
                 </div>
               </div>
