@@ -82,10 +82,11 @@ export function WhatIfScenario({
   }, [legs, scenarioPrice, scenarioIV, daysForward, hasLegs]);
 
   const plChange = scenarioPL - currentPL;
-  const deltaChange = scenarioGreeks.delta - greeks.delta;
-  const thetaChange = scenarioGreeks.theta - greeks.theta;
-  const vegaChange = scenarioGreeks.vega - greeks.vega;
-  const gammaChange = scenarioGreeks.gamma - greeks.gamma;
+  // Multiply Greeks by 100 for display (industry standard for per-contract values)
+  const deltaChange = (scenarioGreeks.delta - greeks.delta) * 100;
+  const thetaChange = (scenarioGreeks.theta - greeks.theta) * 100;
+  const vegaChange = (scenarioGreeks.vega - greeks.vega) * 100;
+  const gammaChange = (scenarioGreeks.gamma - greeks.gamma) * 100;
 
   const resetScenario = () => {
     setPriceChange(0);
@@ -257,25 +258,25 @@ export function WhatIfScenario({
 
             <div className="text-center p-2 bg-muted/30 rounded-md">
               <p className="text-[10px] text-muted-foreground mb-1">Delta</p>
-              <div className="text-sm font-semibold">{scenarioGreeks.delta.toFixed(2)}</div>
+              <div className="text-sm font-semibold">{(scenarioGreeks.delta * 100).toFixed(2)}</div>
               <div className="text-[10px]">{formatChange(deltaChange)}</div>
             </div>
 
             <div className="text-center p-2 bg-muted/30 rounded-md">
               <p className="text-[10px] text-muted-foreground mb-1">Theta</p>
-              <div className="text-sm font-semibold">${scenarioGreeks.theta.toFixed(2)}</div>
+              <div className="text-sm font-semibold">${(scenarioGreeks.theta * 100).toFixed(2)}</div>
               <div className="text-[10px]">{formatChange(thetaChange, "$")}</div>
             </div>
 
             <div className="text-center p-2 bg-muted/30 rounded-md">
               <p className="text-[10px] text-muted-foreground mb-1">Vega</p>
-              <div className="text-sm font-semibold">{scenarioGreeks.vega.toFixed(2)}</div>
+              <div className="text-sm font-semibold">{(scenarioGreeks.vega * 100).toFixed(2)}</div>
               <div className="text-[10px]">{formatChange(vegaChange)}</div>
             </div>
 
             <div className="text-center p-2 bg-muted/30 rounded-md">
               <p className="text-[10px] text-muted-foreground mb-1">Gamma</p>
-              <div className="text-sm font-semibold">{scenarioGreeks.gamma.toFixed(4)}</div>
+              <div className="text-sm font-semibold">{(scenarioGreeks.gamma * 100).toFixed(2)}</div>
               <div className="text-[10px]">{formatChange(gammaChange)}</div>
             </div>
           </div>

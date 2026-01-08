@@ -15,38 +15,39 @@ interface GreeksDashboardProps {
 type RiskLevel = 'Low' | 'Medium' | 'High';
 
 export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, volatility = 0.3 }: GreeksDashboardProps) {
+  // Multiply all Greeks by 100 for display (industry standard for per-contract values)
   const greekCards = [
     {
       name: "Delta",
-      value: greeks.delta,
+      value: greeks.delta * 100,
       icon: TrendingUp,
       description: "Price sensitivity",
       color: "text-blue-600 dark:text-blue-500",
     },
     {
       name: "Gamma",
-      value: greeks.gamma,
+      value: greeks.gamma * 100,
       icon: Activity,
       description: "Delta change rate",
       color: "text-purple-600 dark:text-purple-500",
     },
     {
       name: "Theta",
-      value: greeks.theta,
+      value: greeks.theta * 100,
       icon: Clock,
       description: "Time decay",
       color: "text-orange-600 dark:text-orange-500",
     },
     {
       name: "Vega",
-      value: greeks.vega,
+      value: greeks.vega * 100,
       icon: BarChart2,
       description: "Volatility sensitivity",
       color: "text-green-600 dark:text-green-500",
     },
     {
       name: "Rho",
-      value: greeks.rho,
+      value: greeks.rho * 100,
       icon: DollarSign,
       description: "Interest rate sensitivity",
       color: "text-red-600 dark:text-red-500",
@@ -59,6 +60,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
     const hasShortPositions = activeLegs.some(l => l.position === 'short');
     const contractCount = activeLegs.reduce((sum, l) => sum + l.quantity, 0);
 
+    // Risk thresholds are based on raw values (before 100x multiplier)
     const getDeltaRisk = (): RiskLevel => {
       const absDelta = Math.abs(greeks.delta);
       if (absDelta > 0.7) return 'High';
@@ -82,7 +84,6 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
 
     const getGammaRisk = (): RiskLevel => {
       const absGamma = Math.abs(greeks.gamma);
-      // Short positions with high gamma (positive or negative magnitude) are dangerous
       if (hasShortPositions && absGamma > 0.03) return 'High';
       if (absGamma > 0.05) return 'Medium';
       return 'Low';
@@ -125,14 +126,14 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
   };
 
   const getDeltaInsight = () => {
-    const delta = greeks.delta;
+    const delta = greeks.delta * 100;
     const direction = delta >= 0 ? 'gain' : 'lose';
     const opposite = delta >= 0 ? 'lose' : 'gain';
     return `For every $1 move in the underlying, this position will ${direction} approximately $${Math.abs(delta).toFixed(2)} (or ${opposite} $${Math.abs(delta).toFixed(2)} if price moves against you).`;
   };
 
   const getThetaInsight = () => {
-    const theta = greeks.theta;
+    const theta = greeks.theta * 100;
     if (theta >= 0) {
       return `This position gains approximately $${theta.toFixed(2)} each day from time decay. Time is on your side.`;
     }
@@ -140,17 +141,17 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
   };
 
   const getVegaInsight = () => {
-    const vega = greeks.vega;
+    const vega = greeks.vega * 100;
     const direction = vega >= 0 ? 'increase' : 'decrease';
     return `A 1% increase in implied volatility will ${direction} the position value by approximately $${Math.abs(vega).toFixed(2)}.`;
   };
 
   const getGammaInsight = () => {
-    const gamma = greeks.gamma;
-    if (Math.abs(gamma) < 0.01) {
+    const gamma = greeks.gamma * 100;
+    if (Math.abs(gamma) < 1) {
       return `Delta is relatively stable. Small price moves won't significantly change your directional exposure.`;
     }
-    return `For every $1 move in the underlying, delta will change by ${gamma.toFixed(3)}. ${riskAnalysis.hasShortPositions && gamma > 0.03 ? 'High gamma with short positions can lead to rapid losses.' : ''}`;
+    return `For every $1 move in the underlying, delta will change by ${gamma.toFixed(2)}. ${riskAnalysis.hasShortPositions && gamma > 3 ? 'High gamma with short positions can lead to rapid losses.' : ''}`;
   };
 
   const getOverallRiskSummary = () => {
