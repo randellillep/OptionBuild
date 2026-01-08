@@ -244,13 +244,26 @@ function calculateBlackScholesGreeks(
   r: number,
   sigma: number
 ): Greeks {
-  if (T <= 0 || S <= 0 || K <= 0 || sigma <= 0) {
+  // Guard against invalid inputs
+  if (T <= 0 || S <= 0 || K <= 0 || sigma <= 1e-6) {
     return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
   }
 
   const sqrtT = Math.sqrt(T);
   const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * sqrtT);
   const d2 = d1 - sigma * sqrtT;
+  
+  // Guard against extreme d1/d2 values that cause numerical instability
+  if (!isFinite(d1) || !isFinite(d2) || Math.abs(d1) > 50 || Math.abs(d2) > 50) {
+    // At extreme S/K ratios, use boundary values
+    if (type === "call") {
+      const delta = S > K ? 1 : 0;
+      return { delta, gamma: 0, theta: 0, vega: 0, rho: 0 };
+    } else {
+      const delta = S < K ? -1 : 0;
+      return { delta, gamma: 0, theta: 0, vega: 0, rho: 0 };
+    }
+  }
   
   const Nd1 = cumulativeNormalDistribution(d1);
   const Nd2 = cumulativeNormalDistribution(d2);
@@ -290,7 +303,16 @@ function calculateBlackScholesGreeks(
   // Vega per 1% vol change (same for calls and puts)
   const vega = S * sqrtT * nprime_d1 / 100;
   
-  return { delta, gamma, theta, vega, rho };
+  // Final guard: ensure all values are finite
+  const safeValue = (v: number) => isFinite(v) ? v : 0;
+  
+  return { 
+    delta: safeValue(delta), 
+    gamma: safeValue(gamma), 
+    theta: safeValue(theta), 
+    vega: safeValue(vega), 
+    rho: safeValue(rho) 
+  };
 }
 
 export function calculateOptionPrice(

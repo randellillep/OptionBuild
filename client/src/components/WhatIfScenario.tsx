@@ -50,8 +50,11 @@ export function WhatIfScenario({
     return Math.max(1, maxExp);
   }, [legs, hasLegs]);
 
-  const scenarioPrice = currentPrice * (1 + priceChange / 100);
-  const scenarioIV = Math.max(0.01, volatility * (1 + ivChange / 100));
+  // Clamp scenario price to reasonable bounds (prevent extreme S/K ratios)
+  const rawScenarioPrice = currentPrice * (1 + priceChange / 100);
+  const scenarioPrice = Math.max(1, rawScenarioPrice);
+  // Clamp IV to minimum 1% and maximum 500% to prevent numerical instability
+  const scenarioIV = Math.max(0.01, Math.min(5.0, volatility * (1 + ivChange / 100)));
 
   const currentPL = useMemo(() => {
     if (!hasLegs) return 0;

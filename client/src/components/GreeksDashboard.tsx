@@ -187,7 +187,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
             </div>
             <div className="space-y-0.5">
               <p className="text-xl font-bold font-mono tabular-nums">
-                {greek.value.toFixed(3)}
+                {greek.value.toFixed(2)}
               </p>
               <p className="text-xs font-semibold">{greek.name}</p>
               <p className="text-[10px] text-muted-foreground">{greek.description}</p>
