@@ -199,8 +199,13 @@ function bjerksundStensland2002Put(S: number, K: number, T: number, r: number, b
   return bjerksundStensland2002Call(K, S, T, r - b, -b, sigma);
 }
 
-// Wrapper functions to maintain backward compatibility with existing code
-// These use cost of carry b = r (no dividends) which is standard for most US equities
+// ============================================================================
+// PRICING FUNCTIONS
+// For American options: Use Bjerksund-Stensland 2002 model
+// For European options: Use Black-Scholes model
+// These functions return ONLY the option price, never Greeks
+// ============================================================================
+
 export function blackScholesCall(
   S: number,
   K: number,
@@ -208,7 +213,7 @@ export function blackScholesCall(
   r: number,
   sigma: number
 ): number {
-  // Use Bjerksund-Stensland 2002 for American-style options
+  // Use Bjerksund-Stensland 2002 for American-style options (most US equity options)
   // b = r assumes no dividends (standard for most equity options)
   return bjerksundStensland2002Call(S, K, T, r, r, sigma);
 }
@@ -220,9 +225,72 @@ export function blackScholesPut(
   r: number,
   sigma: number
 ): number {
-  // Use Bjerksund-Stensland 2002 for American-style options
+  // Use Bjerksund-Stensland 2002 for American-style options (most US equity options)
   // b = r assumes no dividends (standard for most equity options)
   return bjerksundStensland2002Put(S, K, T, r, r, sigma);
+}
+
+// ============================================================================
+// GREEKS CALCULATION - ALWAYS USE BLACK-SCHOLES CLOSED-FORM FORMULAS
+// Never use Bjerksund-Stensland for Greeks as the early exercise boundary
+// creates discontinuities where derivatives are not stable.
+// ============================================================================
+
+function calculateBlackScholesGreeks(
+  type: "call" | "put",
+  S: number,
+  K: number,
+  T: number,
+  r: number,
+  sigma: number
+): Greeks {
+  if (T <= 0 || S <= 0 || K <= 0 || sigma <= 0) {
+    return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
+  }
+
+  const sqrtT = Math.sqrt(T);
+  const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * sqrtT);
+  const d2 = d1 - sigma * sqrtT;
+  
+  const Nd1 = cumulativeNormalDistribution(d1);
+  const Nd2 = cumulativeNormalDistribution(d2);
+  const Nnd1 = cumulativeNormalDistribution(-d1);
+  const Nnd2 = cumulativeNormalDistribution(-d2);
+  
+  // Standard normal PDF at d1
+  const nprime_d1 = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-d1 * d1 / 2);
+  
+  let delta: number;
+  let theta: number;
+  let rho: number;
+  
+  if (type === "call") {
+    // Call option Greeks
+    delta = Nd1;
+    
+    // Theta per day (divide by 365)
+    theta = ((-S * nprime_d1 * sigma) / (2 * sqrtT) - r * K * Math.exp(-r * T) * Nd2) / 365;
+    
+    // Rho per 1% change
+    rho = K * T * Math.exp(-r * T) * Nd2 / 100;
+  } else {
+    // Put option Greeks
+    delta = Nd1 - 1; // Or equivalently: -N(-d1)
+    
+    // Theta per day (divide by 365)
+    theta = ((-S * nprime_d1 * sigma) / (2 * sqrtT) + r * K * Math.exp(-r * T) * Nnd2) / 365;
+    
+    // Rho per 1% change
+    rho = -K * T * Math.exp(-r * T) * Nnd2 / 100;
+  }
+  
+  // Gamma (same for calls and puts)
+  const gamma = nprime_d1 / (S * sigma * sqrtT);
+  
+  // Vega per 1% vol change (same for calls and puts)
+  const vega = S * sqrtT * nprime_d1 / 100;
+  
+  return { delta, gamma, theta, vega, rho };
 }
 
 export function calculateOptionPrice(
@@ -318,38 +386,10 @@ export function calculateGreeks(
     return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
   }
   
-  // Use numerical differentiation for Bjerksund-Stensland model
-  // This provides accurate Greeks for American-style options
-  const priceFunc = leg.type === "call" ? blackScholesCall : blackScholesPut;
-  const basePrice = priceFunc(S, K, T, r, sigma);
-  
-  // Delta: dV/dS (central difference)
-  const dS = S * 0.01; // 1% of spot price
-  const priceUp = priceFunc(S + dS, K, T, r, sigma);
-  const priceDown = priceFunc(S - dS, K, T, r, sigma);
-  const delta = (priceUp - priceDown) / (2 * dS);
-  
-  // Gamma: d²V/dS² (central second derivative)
-  const gamma = (priceUp - 2 * basePrice + priceDown) / (dS * dS);
-  
-  // Theta: -dV/dT (forward difference, per day)
-  const dT = 1 / 365; // One day
-  // Use proper intrinsic value for each option type at expiration
-  const intrinsicValue = leg.type === "call" ? Math.max(S - K, 0) : Math.max(K - S, 0);
-  const priceTimeDecay = T > dT ? priceFunc(S, K, T - dT, r, sigma) : intrinsicValue;
-  const theta = (priceTimeDecay - basePrice); // Already per day
-  
-  // Vega: dV/dσ (central difference, per 1% vol change)
-  const dSigma = 0.01; // 1% change
-  const priceVolUp = priceFunc(S, K, T, r, sigma + dSigma);
-  const priceVolDown = priceFunc(S, K, T, r, Math.max(0.01, sigma - dSigma));
-  const vega = (priceVolUp - priceVolDown) / (2 * dSigma) / 100; // Per 1% vol
-  
-  // Rho: dV/dr (central difference, per 1% rate change)
-  const dR = 0.01; // 1% change
-  const priceRateUp = priceFunc(S, K, T, r + dR, sigma);
-  const priceRateDown = priceFunc(S, K, T, Math.max(0.001, r - dR), sigma);
-  const rho = (priceRateUp - priceRateDown) / (2 * dR) / 100; // Per 1% rate
+  // ALWAYS use Black-Scholes closed-form formulas for Greeks
+  // This ensures stable, mathematically correct Greeks regardless of option style
+  // Bjerksund-Stensland is only used for PRICING, not Greeks
+  const baseGreeks = calculateBlackScholesGreeks(leg.type, S, K, T, r, sigma);
   
   const multiplier = leg.position === "long" ? 1 : -1;
   
@@ -362,11 +402,11 @@ export function calculateGreeks(
   const effectiveQuantity = Math.max(0, leg.quantity - closedQty);
   
   return {
-    delta: delta * multiplier * effectiveQuantity,
-    gamma: gamma * multiplier * effectiveQuantity,
-    theta: theta * multiplier * effectiveQuantity,
-    vega: vega * multiplier * effectiveQuantity,
-    rho: rho * multiplier * effectiveQuantity,
+    delta: baseGreeks.delta * multiplier * effectiveQuantity,
+    gamma: baseGreeks.gamma * multiplier * effectiveQuantity,
+    theta: baseGreeks.theta * multiplier * effectiveQuantity,
+    vega: baseGreeks.vega * multiplier * effectiveQuantity,
+    rho: baseGreeks.rho * multiplier * effectiveQuantity,
   };
 }
 

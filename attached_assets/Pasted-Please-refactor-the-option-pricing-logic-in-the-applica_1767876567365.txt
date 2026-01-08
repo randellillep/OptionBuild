@@ -1,0 +1,17 @@
+Please refactor the option pricing logic in the application as follows.
+
+Currently, the problem is that the Bjerksund-Stensland model is being used together with Greeks calculations, which produces unstable and incorrect Greeks. The Bjerksund-Stensland model should be used only for calculating the option price (premium). Greeks calculation must be completely separated from it.
+
+The application must have two clearly separated logics: one calculates the option price and the other calculates the Greeks. These two must not depend on each other.
+
+For option price calculation, the logic should be as follows: if the option is American, use the Bjerksund-Stensland model to calculate the price. If the option is European, use the Black-Scholes model. This function must return only the option price and never return Greeks.
+
+For Greeks calculation, always use the Black-Scholes formulas, regardless of whether the option is American or European. The Greeks function should take as input the spot price, strike, time to expiration, risk-free rate, dividend yield, volatility, and call/put type, and return Delta, Gamma, Vega, Theta, and Rho. Under no circumstances should Greeks calculation use the Bjerksund-Stensland model or derive Greeks from the option price.
+
+If your current logic calculates Greeks numerically from price changes (for example, Delta as price change divided by spot change), this logic must be removed or disabled for American options. For American options, Greeks cannot be derived from the price, because the early exercise boundary creates a discontinuity where derivatives are not stable. In this case, always use Black-Scholes-based Greeks.
+
+In the application’s main logic, this should look like calling two separate functions based on user inputs. One function returns the option price depending on the option type (American or European). The other function returns the Greeks, always using Black-Scholes. In the user interface, these results are displayed together, but in the calculation logic they are fully separated.
+
+The purpose of this change is to ensure that the user interface, P/L calculations, and graphs remain the same, but Greeks become stable and mathematically correct. For American options, the option price will be more accurate, while Greeks remain predictable and usable.
+
+Make sure that no Greeks calculation function imports or uses the Bjerksund-Stensland model, and that the Bjerksund-Stensland code does not contain any Greeks calculation or derivatives.
