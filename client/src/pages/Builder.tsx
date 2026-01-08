@@ -658,7 +658,10 @@ export default function Builder() {
       return Math.max(1, diffDays);
     };
 
-    const daysToExpiration = calculateDTE();
+    // Use ACTUAL DTE for IV calculation (critical for accuracy)
+    const actualDTE = calculateDTE();
+    // Use minimum 14 days for THEORETICAL pricing only
+    const theoreticalDTE = Math.max(14, actualDTE);
 
     // Update legs with market prices and populate market fields
     setLegs(currentLegs => {
@@ -686,7 +689,7 @@ export default function Builder() {
                 marketAsk: matchingQuote.ask,
                 marketMark: matchingQuote.mid,
                 marketLast: matchingQuote.last,
-                expirationDays: daysToExpiration,
+                expirationDays: actualDTE,
               });
             }
           }
@@ -708,14 +711,16 @@ export default function Builder() {
           if (needsUpdate) {
             updated = true;
             
-            // Calculate IV from market price if not provided by API
+            // ALWAYS prefer API-provided IV (most accurate)
+            // Only calculate IV if API doesn't provide it
             let calculatedIV = matchingQuote.iv;
             if (!calculatedIV && matchingQuote.mid > 0 && symbolInfo?.price) {
+              // Use ACTUAL DTE for IV calculation - critical for accuracy
               calculatedIV = calculateImpliedVolatility(
                 matchingQuote.side as 'call' | 'put',
                 symbolInfo.price,
                 matchingQuote.strike,
-                daysToExpiration,
+                actualDTE,  // Use actual DTE, not inflated theoretical DTE
                 matchingQuote.mid
               );
             }
@@ -725,7 +730,7 @@ export default function Builder() {
               marketQuoteId: matchingQuote.optionSymbol,
               premiumSource: 'market' as const,
               impliedVolatility: calculatedIV,
-              expirationDays: daysToExpiration,
+              expirationDays: actualDTE,
               entryUnderlyingPrice: symbolInfo.price,
               marketBid: matchingQuote.bid,
               marketAsk: matchingQuote.ask,
@@ -735,13 +740,14 @@ export default function Builder() {
           }
         } else if (!isFinite(leg.premium) || leg.premium <= 0) {
           // Fallback to theoretical pricing if leg has no valid premium
+          // Use minimum 14 days for theoretical pricing to show realistic premiums
           if (symbolInfo?.price && symbolInfo.price > 0 && leg.strike > 0) {
             const currentVol = volatility || 0.3;
             const theoreticalPremium = calculateOptionPrice(
               leg.type,
               symbolInfo.price,
               leg.strike,
-              daysToExpiration,
+              theoreticalDTE,  // Use inflated DTE for theoretical pricing only
               currentVol
             );
             
@@ -750,7 +756,7 @@ export default function Builder() {
               return deepCopyLeg(leg, {
                 premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
                 premiumSource: 'theoretical' as const,
-                expirationDays: daysToExpiration,
+                expirationDays: actualDTE,  // Store actual DTE even for theoretical
                 entryUnderlyingPrice: symbolInfo.price,
               });
             }
@@ -761,7 +767,7 @@ export default function Builder() {
           return deepCopyLeg(leg, {
             premium: 0.01,
             premiumSource: 'theoretical' as const,
-            expirationDays: daysToExpiration,
+            expirationDays: actualDTE,
             entryUnderlyingPrice: symbolInfo.price,
           });
         }
@@ -934,9 +940,11 @@ export default function Builder() {
     };
 
     const rawDTE = calculateDTE();
-    // Use minimum 14 days for theoretical pricing to show realistic premiums
-    // (very short DTE causes near-zero prices for OTM options)
-    const daysToExpiration = Math.max(14, rawDTE);
+    // Use ACTUAL DTE for IV calculation (critical for accuracy)
+    const actualDTE = rawDTE;
+    // Use minimum 14 days for THEORETICAL pricing only
+    // (very short DTE causes near-zero prices for OTM options in theoretical mode)
+    const theoreticalDTE = Math.max(14, rawDTE);
     const currentVol = volatility || 0.3; // Default IV if not set
 
     return legsToUpdate.map(leg => {
@@ -954,14 +962,16 @@ export default function Builder() {
       if (matchingQuote && matchingQuote.mid > 0) {
         const newPremium = Number(matchingQuote.mid.toFixed(2));
         
-        // Calculate IV from market price if not provided by API
+        // ALWAYS prefer API-provided IV (most accurate)
+        // Only calculate IV if API doesn't provide it
         let calculatedIV = matchingQuote.iv;
         if (!calculatedIV && matchingQuote.mid > 0 && symbolInfo?.price) {
+          // Use ACTUAL DTE for IV calculation - critical for accuracy
           calculatedIV = calculateImpliedVolatility(
             matchingQuote.side as 'call' | 'put',
             symbolInfo.price,
             matchingQuote.strike,
-            daysToExpiration,
+            actualDTE,  // Use actual DTE, not inflated theoretical DTE
             matchingQuote.mid
           );
         }
@@ -972,19 +982,20 @@ export default function Builder() {
           marketQuoteId: matchingQuote.optionSymbol,
           premiumSource: 'market' as const,
           impliedVolatility: calculatedIV,
-          expirationDays: daysToExpiration,
+          expirationDays: actualDTE,  // Use actual DTE for market-priced legs
           entryUnderlyingPrice: symbolInfo.price,
           closingTransaction: preservedClosingTransaction,
         };
       }
       
       // Fallback: Calculate theoretical price using Black-Scholes
+      // Use minimum 14 days for theoretical pricing to show realistic premiums
       if (symbolInfo?.price && symbolInfo.price > 0 && leg.strike > 0) {
         const theoreticalPremium = calculateOptionPrice(
           leg.type,
           symbolInfo.price,
           leg.strike,
-          daysToExpiration,
+          theoreticalDTE,  // Use inflated DTE for theoretical pricing only
           currentVol
         );
         
@@ -994,7 +1005,7 @@ export default function Builder() {
             ...leg,
             premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
             premiumSource: 'theoretical' as const,
-            expirationDays: daysToExpiration,
+            expirationDays: actualDTE,  // Store actual DTE even for theoretical
             entryUnderlyingPrice: symbolInfo.price,
             closingTransaction: preservedClosingTransaction,
           };
@@ -1006,7 +1017,7 @@ export default function Builder() {
         ...leg,
         premium: leg.premium ?? 0.01,
         premiumSource: 'theoretical' as const,
-        expirationDays: daysToExpiration,
+        expirationDays: actualDTE,
         entryUnderlyingPrice: symbolInfo?.price,
         closingTransaction: preservedClosingTransaction,
       };
