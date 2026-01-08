@@ -29,6 +29,178 @@ function cumulativeNormalDistribution(x: number): number {
   return x > 0 ? 1 - p : p;
 }
 
+/**
+ * Bjerksund-Stensland 2002 American Options Pricing Model
+ * More accurate than Black-Scholes for American-style options (most US equity options)
+ * Uses a closed-form approximation with early exercise boundary
+ */
+
+function phi(S: number, T: number, gamma: number, H: number, I: number, b: number, r: number, sigma: number): number {
+  if (T <= 0) return 0;
+  
+  const kappa = 2 * b / (sigma * sigma) + (2 * gamma - 1);
+  const lambda = (-r + gamma * b + 0.5 * gamma * (gamma - 1) * sigma * sigma) * T;
+  
+  const sqrtT = Math.sqrt(T);
+  const d = (Math.log(S / H) + (b + (gamma - 0.5) * sigma * sigma) * T) / (sigma * sqrtT);
+  const d2 = d - 2 * Math.log(I / S) / (sigma * sqrtT);
+  
+  const result = Math.exp(lambda) * Math.pow(S, gamma) * 
+                 (cumulativeNormalDistribution(d) - Math.pow(I / S, kappa) * cumulativeNormalDistribution(d2));
+  
+  return isFinite(result) ? result : 0;
+}
+
+function bjerksundStensland2002Call(S: number, K: number, T: number, r: number, b: number, sigma: number): number {
+  if (T <= 0) return Math.max(S - K, 0);
+  if (S <= 0 || K <= 0 || sigma <= 0) return Math.max(S - K, 0);
+  
+  // If b >= r, American call equals European call (no early exercise benefit for calls on non-dividend stocks)
+  if (b >= r) {
+    return europeanCall(S, K, T, r, b, sigma);
+  }
+  
+  const sigmaSq = sigma * sigma;
+  const beta = (0.5 - b / sigmaSq) + Math.sqrt(Math.pow(b / sigmaSq - 0.5, 2) + 2 * r / sigmaSq);
+  
+  const BInfinity = (beta / (beta - 1)) * K;
+  const B0 = Math.max(K, (r / (r - b)) * K);
+  
+  // Correct h(T) formula per Bjerksund-Stensland 2002 paper
+  const sqrtT = Math.sqrt(T);
+  const hT = -(b * T + 2 * sigma * sqrtT) * (B0 / (BInfinity - B0));
+  const I = B0 + (BInfinity - B0) * (1 - Math.exp(hT));
+  
+  // Bjerksund-Stensland 2002: two-period approximation for better accuracy
+  const t1 = 0.5 * (Math.sqrt(5) - 1) * T; // Optimal split point (golden ratio)
+  
+  // First period trigger with correct h(t1) formula
+  const hT1 = -(b * t1 + 2 * sigma * Math.sqrt(t1)) * (B0 / (BInfinity - B0));
+  const I1 = B0 + (BInfinity - B0) * (1 - Math.exp(hT1));
+  
+  // If S >= I, exercise immediately
+  if (S >= I) {
+    return S - K;
+  }
+  
+  const alpha1 = (I1 - K) * Math.pow(I1, -beta);
+  const alpha2 = (I - K) * Math.pow(I, -beta);
+  
+  // 2002 two-period formula per Bjerksund & Stensland paper
+  // Second period terms (involving I, I2) use full maturity T
+  // First period correction terms use t1
+  const callValue = alpha2 * Math.pow(S, beta)
+                  - alpha2 * phi(S, T, beta, I, I, b, r, sigma)
+                  + phi(S, T, 1, I, I, b, r, sigma)
+                  - phi(S, T, 1, K, I, b, r, sigma)
+                  - K * phi(S, T, 0, I, I, b, r, sigma)
+                  + K * phi(S, T, 0, K, I, b, r, sigma)
+                  // First period corrections - use t1 for φ terms per equation (21)
+                  + alpha1 * phi(S, t1, beta, I1, I1, b, r, sigma)
+                  - alpha1 * psi(S, T, beta, I1, I, I1, t1, b, r, sigma)
+                  + psi(S, T, 1, I1, I, I1, t1, b, r, sigma)
+                  - psi(S, T, 1, K, I, I1, t1, b, r, sigma)
+                  - K * psi(S, T, 0, I1, I, I1, t1, b, r, sigma)
+                  + K * psi(S, T, 0, K, I, I1, t1, b, r, sigma);
+  
+  return Math.max(0, callValue);
+}
+
+function psi(S: number, T: number, gamma: number, H: number, I2: number, I1: number, t1: number, b: number, r: number, sigma: number): number {
+  if (T <= 0 || t1 <= 0) return 0;
+  
+  const sigmaSq = sigma * sigma;
+  const sqrtT = Math.sqrt(T);
+  const sqrt_t1 = Math.sqrt(t1);
+  
+  const e1 = (Math.log(S / I1) + (b + (gamma - 0.5) * sigmaSq) * t1) / (sigma * sqrt_t1);
+  const e2 = (Math.log(I2 * I2 / (S * I1)) + (b + (gamma - 0.5) * sigmaSq) * t1) / (sigma * sqrt_t1);
+  const e3 = (Math.log(S / I1) - (b + (gamma - 0.5) * sigmaSq) * t1) / (sigma * sqrt_t1);
+  const e4 = (Math.log(I2 * I2 / (S * I1)) - (b + (gamma - 0.5) * sigmaSq) * t1) / (sigma * sqrt_t1);
+  
+  const f1 = (Math.log(S / H) + (b + (gamma - 0.5) * sigmaSq) * T) / (sigma * sqrtT);
+  const f2 = (Math.log(I2 * I2 / (S * H)) + (b + (gamma - 0.5) * sigmaSq) * T) / (sigma * sqrtT);
+  const f3 = (Math.log(I1 * I1 / (S * H)) + (b + (gamma - 0.5) * sigmaSq) * T) / (sigma * sqrtT);
+  const f4 = (Math.log(S * I1 * I1 / (H * I2 * I2)) + (b + (gamma - 0.5) * sigmaSq) * T) / (sigma * sqrtT);
+  
+  const kappa = 2 * b / sigmaSq + (2 * gamma - 1);
+  const lambda = -r + gamma * b + 0.5 * gamma * (gamma - 1) * sigmaSq;
+  
+  const rho = Math.sqrt(t1 / T);
+  
+  const result = Math.exp(lambda * T) * Math.pow(S, gamma) * (
+    bivariateNormal(-e1, -f1, rho)
+    - Math.pow(I2 / S, kappa) * bivariateNormal(-e2, -f2, rho)
+    - Math.pow(I1 / S, kappa) * bivariateNormal(-e3, -f3, -rho)
+    + Math.pow(I1 / I2, kappa) * bivariateNormal(-e4, -f4, -rho)
+  );
+  
+  return isFinite(result) ? result : 0;
+}
+
+function bivariateNormal(a: number, b: number, rho: number): number {
+  // Drezner-Wesolowsky approximation for bivariate normal CDF
+  const x = [0.24840615, 0.39233107, 0.21141819, 0.03324666, 0.00082485];
+  const y = [0.10024215, 0.48281397, 1.0609498, 1.7797294, 2.6697604];
+  
+  let sum = 0;
+  const detSign = a * b >= 0 ? 1 : -1;
+  
+  if (Math.abs(rho) < 0.925) {
+    const aSq = a * a;
+    const bSq = b * b;
+    const ab = a * b;
+    
+    for (let i = 0; i < 5; i++) {
+      for (let j = 0; j < 5; j++) {
+        sum += x[i] * x[j] * Math.exp(
+          ((2 * y[i] * y[j] * rho - aSq - bSq) / (2 * (1 - rho * rho)))
+        );
+      }
+    }
+    sum *= Math.sqrt(1 - rho * rho) / Math.PI;
+    return sum + cumulativeNormalDistribution(a) * cumulativeNormalDistribution(b);
+  }
+  
+  // High correlation case
+  const rhoSign = rho >= 0 ? 1 : -1;
+  const bPrime = rhoSign * b;
+  
+  if (rho * detSign >= 0) {
+    return cumulativeNormalDistribution(Math.min(a, bPrime));
+  } else {
+    return Math.max(0, cumulativeNormalDistribution(a) + cumulativeNormalDistribution(bPrime) - 1);
+  }
+}
+
+function europeanCall(S: number, K: number, T: number, r: number, b: number, sigma: number): number {
+  if (T <= 0) return Math.max(S - K, 0);
+  
+  const d1 = (Math.log(S / K) + (b + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  
+  return S * Math.exp((b - r) * T) * cumulativeNormalDistribution(d1) - K * Math.exp(-r * T) * cumulativeNormalDistribution(d2);
+}
+
+function europeanPut(S: number, K: number, T: number, r: number, b: number, sigma: number): number {
+  if (T <= 0) return Math.max(K - S, 0);
+  
+  const d1 = (Math.log(S / K) + (b + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  
+  return K * Math.exp(-r * T) * cumulativeNormalDistribution(-d2) - S * Math.exp((b - r) * T) * cumulativeNormalDistribution(-d1);
+}
+
+function bjerksundStensland2002Put(S: number, K: number, T: number, r: number, b: number, sigma: number): number {
+  if (T <= 0) return Math.max(K - S, 0);
+  if (S <= 0 || K <= 0 || sigma <= 0) return Math.max(K - S, 0);
+  
+  // Use put-call transformation: Put(S, X, T, r, b, σ) = Call(X, S, T, r-b, -b, σ)
+  return bjerksundStensland2002Call(K, S, T, r - b, -b, sigma);
+}
+
+// Wrapper functions to maintain backward compatibility with existing code
+// These use cost of carry b = r (no dividends) which is standard for most US equities
 export function blackScholesCall(
   S: number,
   K: number,
@@ -36,12 +208,9 @@ export function blackScholesCall(
   r: number,
   sigma: number
 ): number {
-  if (T <= 0) return Math.max(S - K, 0);
-  
-  const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
-  const d2 = d1 - sigma * Math.sqrt(T);
-  
-  return S * cumulativeNormalDistribution(d1) - K * Math.exp(-r * T) * cumulativeNormalDistribution(d2);
+  // Use Bjerksund-Stensland 2002 for American-style options
+  // b = r assumes no dividends (standard for most equity options)
+  return bjerksundStensland2002Call(S, K, T, r, r, sigma);
 }
 
 export function blackScholesPut(
@@ -51,12 +220,9 @@ export function blackScholesPut(
   r: number,
   sigma: number
 ): number {
-  if (T <= 0) return Math.max(K - S, 0);
-  
-  const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
-  const d2 = d1 - sigma * Math.sqrt(T);
-  
-  return K * Math.exp(-r * T) * cumulativeNormalDistribution(-d2) - S * cumulativeNormalDistribution(-d1);
+  // Use Bjerksund-Stensland 2002 for American-style options
+  // b = r assumes no dividends (standard for most equity options)
+  return bjerksundStensland2002Put(S, K, T, r, r, sigma);
 }
 
 export function calculateOptionPrice(
@@ -98,16 +264,17 @@ export function calculateImpliedVolatility(
   const maxIterations = 100;
   const tolerance = 0.0001;
   
+  const priceFunc = type === "call" ? blackScholesCall : blackScholesPut;
+  
   for (let i = 0; i < maxIterations; i++) {
-    // Calculate option price with current sigma
-    const theoreticalPrice = type === "call" 
-      ? blackScholesCall(underlyingPrice, strike, T, riskFreeRate, sigma)
-      : blackScholesPut(underlyingPrice, strike, T, riskFreeRate, sigma);
+    // Calculate option price with current sigma using Bjerksund-Stensland
+    const theoreticalPrice = priceFunc(underlyingPrice, strike, T, riskFreeRate, sigma);
     
-    // Calculate vega (derivative of price w.r.t. volatility)
-    const d1 = (Math.log(underlyingPrice / strike) + (riskFreeRate + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
-    const nprime_d1 = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-d1 * d1 / 2);
-    const vega = underlyingPrice * nprime_d1 * Math.sqrt(T);
+    // Calculate vega numerically (derivative of price w.r.t. volatility)
+    const dSigma = 0.001;
+    const priceUp = priceFunc(underlyingPrice, strike, T, riskFreeRate, sigma + dSigma);
+    const priceDown = priceFunc(underlyingPrice, strike, T, riskFreeRate, Math.max(0.01, sigma - dSigma));
+    const vega = (priceUp - priceDown) / (2 * dSigma);
     
     // Price difference
     const priceDiff = theoreticalPrice - marketPrice;
@@ -151,29 +318,38 @@ export function calculateGreeks(
     return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
   }
   
-  const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
-  const d2 = d1 - sigma * Math.sqrt(T);
+  // Use numerical differentiation for Bjerksund-Stensland model
+  // This provides accurate Greeks for American-style options
+  const priceFunc = leg.type === "call" ? blackScholesCall : blackScholesPut;
+  const basePrice = priceFunc(S, K, T, r, sigma);
   
-  const nd1 = cumulativeNormalDistribution(d1);
-  const nd2 = cumulativeNormalDistribution(d2);
-  const nprime_d1 = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-d1 * d1 / 2);
+  // Delta: dV/dS (central difference)
+  const dS = S * 0.01; // 1% of spot price
+  const priceUp = priceFunc(S + dS, K, T, r, sigma);
+  const priceDown = priceFunc(S - dS, K, T, r, sigma);
+  const delta = (priceUp - priceDown) / (2 * dS);
   
-  let delta: number;
-  let theta: number;
-  let rho: number;
+  // Gamma: d²V/dS² (central second derivative)
+  const gamma = (priceUp - 2 * basePrice + priceDown) / (dS * dS);
   
-  if (leg.type === "call") {
-    delta = nd1;
-    theta = (-S * nprime_d1 * sigma / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * nd2) / 365;
-    rho = K * T * Math.exp(-r * T) * nd2 / 100;
-  } else {
-    delta = nd1 - 1;
-    theta = (-S * nprime_d1 * sigma / (2 * Math.sqrt(T)) + r * K * Math.exp(-r * T) * cumulativeNormalDistribution(-d2)) / 365;
-    rho = -K * T * Math.exp(-r * T) * cumulativeNormalDistribution(-d2) / 100;
-  }
+  // Theta: -dV/dT (forward difference, per day)
+  const dT = 1 / 365; // One day
+  // Use proper intrinsic value for each option type at expiration
+  const intrinsicValue = leg.type === "call" ? Math.max(S - K, 0) : Math.max(K - S, 0);
+  const priceTimeDecay = T > dT ? priceFunc(S, K, T - dT, r, sigma) : intrinsicValue;
+  const theta = (priceTimeDecay - basePrice); // Already per day
   
-  const gamma = nprime_d1 / (S * sigma * Math.sqrt(T));
-  const vega = S * nprime_d1 * Math.sqrt(T) / 100;
+  // Vega: dV/dσ (central difference, per 1% vol change)
+  const dSigma = 0.01; // 1% change
+  const priceVolUp = priceFunc(S, K, T, r, sigma + dSigma);
+  const priceVolDown = priceFunc(S, K, T, r, Math.max(0.01, sigma - dSigma));
+  const vega = (priceVolUp - priceVolDown) / (2 * dSigma) / 100; // Per 1% vol
+  
+  // Rho: dV/dr (central difference, per 1% rate change)
+  const dR = 0.01; // 1% change
+  const priceRateUp = priceFunc(S, K, T, r + dR, sigma);
+  const priceRateDown = priceFunc(S, K, T, Math.max(0.001, r - dR), sigma);
+  const rho = (priceRateUp - priceRateDown) / (2 * dR) / 100; // Per 1% rate
   
   const multiplier = leg.position === "long" ? 1 : -1;
   
