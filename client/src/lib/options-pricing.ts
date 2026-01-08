@@ -311,7 +311,34 @@ export function calculateOptionPrice(
   }
 }
 
+// ============================================================================
+// PURE EUROPEAN BLACK-SCHOLES PRICING FOR IV CALCULATION
+// Used exclusively for implied volatility calculation to match industry standards
+// ============================================================================
+
+function pureEuropeanCall(S: number, K: number, T: number, r: number, sigma: number): number {
+  if (T <= 0) return Math.max(S - K, 0);
+  if (S <= 0 || K <= 0 || sigma <= 0) return Math.max(S - K, 0);
+  
+  const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  
+  return S * cumulativeNormalDistribution(d1) - K * Math.exp(-r * T) * cumulativeNormalDistribution(d2);
+}
+
+function pureEuropeanPut(S: number, K: number, T: number, r: number, sigma: number): number {
+  if (T <= 0) return Math.max(K - S, 0);
+  if (S <= 0 || K <= 0 || sigma <= 0) return Math.max(K - S, 0);
+  
+  const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  
+  return K * Math.exp(-r * T) * cumulativeNormalDistribution(-d2) - S * cumulativeNormalDistribution(-d1);
+}
+
 // Calculate implied volatility using Newton-Raphson method
+// IMPORTANT: Uses EUROPEAN Black-Scholes pricing (not American BS2002)
+// This matches industry standard IV calculation and ensures Greeks are consistent
 export function calculateImpliedVolatility(
   type: "call" | "put",
   underlyingPrice: number,
@@ -332,17 +359,19 @@ export function calculateImpliedVolatility(
   const maxIterations = 100;
   const tolerance = 0.0001;
   
-  const priceFunc = type === "call" ? blackScholesCall : blackScholesPut;
+  // Use PURE EUROPEAN Black-Scholes for IV calculation (industry standard)
+  // This ensures Greeks calculated with Black-Scholes match the IV
+  const priceFunc = type === "call" ? pureEuropeanCall : pureEuropeanPut;
   
   for (let i = 0; i < maxIterations; i++) {
-    // Calculate option price with current sigma using Bjerksund-Stensland
+    // Calculate option price with current sigma using European Black-Scholes
     const theoreticalPrice = priceFunc(underlyingPrice, strike, T, riskFreeRate, sigma);
     
-    // Calculate vega numerically (derivative of price w.r.t. volatility)
-    const dSigma = 0.001;
-    const priceUp = priceFunc(underlyingPrice, strike, T, riskFreeRate, sigma + dSigma);
-    const priceDown = priceFunc(underlyingPrice, strike, T, riskFreeRate, Math.max(0.01, sigma - dSigma));
-    const vega = (priceUp - priceDown) / (2 * dSigma);
+    // Calculate vega analytically (closed-form Black-Scholes vega)
+    const sqrtT = Math.sqrt(T);
+    const d1 = (Math.log(underlyingPrice / strike) + (riskFreeRate + sigma * sigma / 2) * T) / (sigma * sqrtT);
+    const nprime_d1 = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-d1 * d1 / 2);
+    const vega = underlyingPrice * sqrtT * nprime_d1;
     
     // Price difference
     const priceDiff = theoreticalPrice - marketPrice;
