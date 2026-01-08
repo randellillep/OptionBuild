@@ -549,13 +549,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const ask = quote.ap || 0;
         const mid = (bid + ask) / 2;
         
-        // Log MSFT 480 Call specifically for debugging
-        if (optionSymbol.includes('MSFT') && parsed.strike === 480 && parsed.side === 'call') {
-          console.log(`[PRICE-DEBUG-MSFT480C] Symbol: ${optionSymbol}`);
-          console.log(`[PRICE-DEBUG-MSFT480C] Raw quote object:`, JSON.stringify(quote, null, 2));
-          console.log(`[PRICE-DEBUG-MSFT480C] Extracted: bid=${bid}, ask=${ask}, mid=${mid}`);
-        }
-        
         // Calculate DTE first
         const dte = Math.max(0, Math.floor((parsed.expiration * 1000 - Date.now()) / (1000 * 60 * 60 * 24)));
         

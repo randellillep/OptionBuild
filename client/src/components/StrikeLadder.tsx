@@ -236,12 +236,14 @@ export function StrikeLadder({
             }
             // ALWAYS calculate IV from market price to match industry standards (OptionStrat)
             // API-provided IV is often unreliable
-            if (marketPrice !== undefined && marketPrice > 0 && leg.expirationDays > 0) {
+            // Use at least 0.5 DTE for very short-dated options to avoid solver issues
+            const effectiveDTE = Math.max(0.5, leg.expirationDays || 1);
+            if (marketPrice !== undefined && marketPrice > 0) {
               marketIV = calculateImpliedVolatility(
                 leg.type,
                 currentPrice,
                 newStrike,
-                leg.expirationDays,
+                effectiveDTE,
                 marketPrice
               );
             } else if (matchingQuote.iv !== undefined && matchingQuote.iv > 0) {

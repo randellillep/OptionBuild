@@ -126,16 +126,24 @@ export function OptionDetailsPanel({
     // This ensures consistent, stable Greeks that match industry standards
     // API-provided Greeks may vary based on vendor methodology
     
+    // Calculate mid from bid/ask if mid is missing or zero
+    const optionMid = option.mid > 0 ? option.mid 
+      : (option.bid > 0 && option.ask > 0) ? (option.bid + option.ask) / 2 
+      : 0;
+    
     // ALWAYS calculate IV from market price to match industry standards (OptionStrat)
     // Don't trust leg.impliedVolatility as it may contain inflated vendor IV
+    // Use at least 0.5 DTE (half a trading day) for very short-dated options
+    const effectiveDTE = Math.max(0.5, leg.expirationDays || 1);
+    
     let effectiveIV: number;
-    if (option.mid > 0 && underlyingPrice > 0 && leg.expirationDays > 0) {
+    if (optionMid > 0 && underlyingPrice > 0) {
       effectiveIV = calculateImpliedVolatility(
         leg.type,
         underlyingPrice,
         leg.strike,
-        leg.expirationDays,
-        option.mid
+        effectiveDTE,
+        optionMid
       );
     } else if (leg.impliedVolatility) {
       // Fallback to stored IV only if we can't calculate from market

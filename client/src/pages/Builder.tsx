@@ -713,14 +713,16 @@ export default function Builder() {
             
             // ALWAYS calculate IV from market price using European Black-Scholes
             // API-provided IV is often unreliable and doesn't match industry standards (OptionStrat)
+            // Use at least 0.5 DTE for very short-dated options to avoid solver issues
+            const effectiveDTE = Math.max(0.5, actualDTE);
             let calculatedIV = 0.3; // Default fallback
             
-            if (matchingQuote.mid > 0 && symbolInfo?.price && actualDTE > 0) {
+            if (matchingQuote.mid > 0 && symbolInfo?.price) {
               calculatedIV = calculateImpliedVolatility(
                 matchingQuote.side as 'call' | 'put',
                 symbolInfo.price,
                 matchingQuote.strike,
-                actualDTE,
+                effectiveDTE,
                 matchingQuote.mid
               );
             } else if (matchingQuote.iv) {
@@ -967,37 +969,19 @@ export default function Builder() {
         
         // ALWAYS calculate IV from market price using European Black-Scholes
         // API-provided IV is often unreliable and doesn't match industry standards (OptionStrat)
+        // Use at least 0.5 DTE for very short-dated options to avoid solver issues
+        const effectiveDTE = Math.max(0.5, actualDTE);
         let calculatedIV = 0.3; // Default fallback
         
-        if (matchingQuote.mid > 0 && symbolInfo?.price && actualDTE > 0) {
+        if (matchingQuote.mid > 0 && symbolInfo?.price) {
           calculatedIV = calculateImpliedVolatility(
             matchingQuote.side as 'call' | 'put',
             symbolInfo.price,
             matchingQuote.strike,
-            actualDTE,
+            effectiveDTE,
             matchingQuote.mid
           );
           
-          // Debug: Log IV calculation inputs for 250 strike
-          if (Math.abs(matchingQuote.strike - 250) < 1) {
-            console.log('[IV-DEBUG] 250 Strike IV Calculation:', {
-              type: matchingQuote.side,
-              underlyingPrice: symbolInfo?.price,
-              strike: matchingQuote.strike,
-              dte: actualDTE,
-              bid: matchingQuote.bid,
-              ask: matchingQuote.ask,
-              mid: matchingQuote.mid,
-              intrinsic: matchingQuote.side === 'call' 
-                ? Math.max(0, (symbolInfo?.price || 0) - matchingQuote.strike)
-                : Math.max(0, matchingQuote.strike - (symbolInfo?.price || 0)),
-              timeValue: matchingQuote.mid - (matchingQuote.side === 'call' 
-                ? Math.max(0, (symbolInfo?.price || 0) - matchingQuote.strike)
-                : Math.max(0, matchingQuote.strike - (symbolInfo?.price || 0))),
-              calculatedIV: calculatedIV,
-              apiIV: matchingQuote.iv,
-            });
-          }
         } else if (matchingQuote.iv) {
           // Fallback to API IV only if we can't calculate
           calculatedIV = matchingQuote.iv;

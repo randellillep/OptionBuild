@@ -347,6 +347,7 @@ export function calculateImpliedVolatility(
   marketPrice: number,
   riskFreeRate: number = 0.05
 ): number {
+  // Use ACT/365 calendar-day convention for consistency
   const T = daysToExpiration / 365;
   const S = underlyingPrice;
   const K = strike;
