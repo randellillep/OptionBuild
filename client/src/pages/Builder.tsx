@@ -711,16 +711,25 @@ export default function Builder() {
           if (needsUpdate) {
             updated = true;
             
-            // ALWAYS prefer API-provided IV (most accurate)
-            // Only calculate IV if API doesn't provide it
+            // Calculate moneyness to detect deep ITM options
+            const moneyness = matchingQuote.side === 'call' 
+              ? symbolInfo.price / matchingQuote.strike 
+              : matchingQuote.strike / symbolInfo.price;
+            const isDeepITM = moneyness > 1.03; // >3% ITM
+            const isShortDated = actualDTE < 7;
+            
+            // For deep ITM short-dated options, API IV is often unreliable (inflated)
+            // Calculate IV from market price using European Black-Scholes instead
             let calculatedIV = matchingQuote.iv;
-            if (!calculatedIV && matchingQuote.mid > 0 && symbolInfo?.price) {
-              // Use ACTUAL DTE for IV calculation - critical for accuracy
+            const shouldOverrideApiIV = isDeepITM && isShortDated && calculatedIV && calculatedIV > 0.80;
+            
+            if ((!calculatedIV || shouldOverrideApiIV) && matchingQuote.mid > 0 && symbolInfo?.price) {
+              // Calculate IV from market price using European Black-Scholes
               calculatedIV = calculateImpliedVolatility(
                 matchingQuote.side as 'call' | 'put',
                 symbolInfo.price,
                 matchingQuote.strike,
-                actualDTE,  // Use actual DTE, not inflated theoretical DTE
+                actualDTE,
                 matchingQuote.mid
               );
             }
@@ -962,16 +971,25 @@ export default function Builder() {
       if (matchingQuote && matchingQuote.mid > 0) {
         const newPremium = Number(matchingQuote.mid.toFixed(2));
         
-        // ALWAYS prefer API-provided IV (most accurate)
-        // Only calculate IV if API doesn't provide it
+        // Calculate moneyness to detect deep ITM options
+        const moneyness = matchingQuote.side === 'call' 
+          ? (symbolInfo?.price || 0) / matchingQuote.strike 
+          : matchingQuote.strike / (symbolInfo?.price || 1);
+        const isDeepITM = moneyness > 1.03; // >3% ITM
+        const isShortDated = actualDTE < 7;
+        
+        // For deep ITM short-dated options, API IV is often unreliable (inflated)
+        // Calculate IV from market price using European Black-Scholes instead
         let calculatedIV = matchingQuote.iv;
-        if (!calculatedIV && matchingQuote.mid > 0 && symbolInfo?.price) {
-          // Use ACTUAL DTE for IV calculation - critical for accuracy
+        const shouldOverrideApiIV = isDeepITM && isShortDated && calculatedIV && calculatedIV > 0.80;
+        
+        if ((!calculatedIV || shouldOverrideApiIV) && matchingQuote.mid > 0 && symbolInfo?.price) {
+          // Calculate IV from market price using European Black-Scholes
           calculatedIV = calculateImpliedVolatility(
             matchingQuote.side as 'call' | 'put',
             symbolInfo.price,
             matchingQuote.strike,
-            actualDTE,  // Use actual DTE, not inflated theoretical DTE
+            actualDTE,
             matchingQuote.mid
           );
         }
@@ -982,7 +1000,7 @@ export default function Builder() {
           marketQuoteId: matchingQuote.optionSymbol,
           premiumSource: 'market' as const,
           impliedVolatility: calculatedIV,
-          expirationDays: actualDTE,  // Use actual DTE for market-priced legs
+          expirationDays: actualDTE,
           entryUnderlyingPrice: symbolInfo.price,
           closingTransaction: preservedClosingTransaction,
         };
