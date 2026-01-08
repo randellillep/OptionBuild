@@ -336,7 +336,7 @@ function pureEuropeanPut(S: number, K: number, T: number, r: number, sigma: numb
   return K * Math.exp(-r * T) * cumulativeNormalDistribution(-d2) - S * cumulativeNormalDistribution(-d1);
 }
 
-// Calculate implied volatility using Newton-Raphson method
+// Calculate implied volatility using hybrid Newton-Raphson with bisection fallback
 // IMPORTANT: Uses EUROPEAN Black-Scholes pricing (not American BS2002)
 // This matches industry standard IV calculation and ensures Greeks are consistent
 export function calculateImpliedVolatility(
@@ -348,32 +348,79 @@ export function calculateImpliedVolatility(
   riskFreeRate: number = 0.05
 ): number {
   const T = daysToExpiration / 365;
+  const S = underlyingPrice;
+  const K = strike;
+  const r = riskFreeRate;
   
   // Handle edge cases
-  if (T <= 0 || marketPrice <= 0) return 0.3; // Default 30%
+  if (T <= 0 || marketPrice <= 0 || S <= 0 || K <= 0) return 0.3; // Default 30%
   
-  // Initial guess based on at-the-moneyness
-  let sigma = 0.3;
+  // Calculate intrinsic value and moneyness
+  const intrinsic = type === "call" ? Math.max(S - K, 0) : Math.max(K - S, 0);
+  const moneyness = type === "call" ? S / K : K / S; // >1 = ITM
+  const timeValue = marketPrice - intrinsic;
   
-  // Newton-Raphson iteration
-  const maxIterations = 100;
-  const tolerance = 0.0001;
+  // For deep ITM options (moneyness > 1.03), IV becomes less meaningful
+  // because most premium is intrinsic value and time value is tiny
+  const isDeepITM = moneyness > 1.03;
   
-  // Use PURE EUROPEAN Black-Scholes for IV calculation (industry standard)
-  // This ensures Greeks calculated with Black-Scholes match the IV
+  // If market price is at or below intrinsic, can't calculate meaningful IV
+  if (timeValue <= 0.01) {
+    // For options trading at intrinsic, use a reasonable estimate
+    return Math.max(0.1, Math.min(1.0, 0.3)); // Default to 30%
+  }
+  
+  // For deep ITM options with very short DTE, time value is tiny
+  // The standard Newton-Raphson can overshoot because vega is very small
+  // Use a more robust estimate based on the relationship:
+  // timeValue ≈ S * sqrt(T) * sigma * N'(d1)
+  // For deep ITM calls, d1 ≈ ln(S/K) / (sigma * sqrt(T)), and N'(d1) is small
+  if (isDeepITM && T < 7/365) { // Less than 7 days
+    // Use bisection directly for deep ITM short-dated options
+    // This avoids Newton-Raphson instability when vega is very small
+    let sigmaLow = 0.10;
+    let sigmaHigh = 1.50;
+    const tolerance = 0.0001;
+    
+    for (let i = 0; i < 50; i++) {
+      const sigmaMid = (sigmaLow + sigmaHigh) / 2;
+      const priceMid = type === "call" 
+        ? pureEuropeanCall(S, K, T, r, sigmaMid)
+        : pureEuropeanPut(S, K, T, r, sigmaMid);
+      
+      if (Math.abs(priceMid - marketPrice) < tolerance) {
+        return sigmaMid;
+      }
+      
+      if (priceMid > marketPrice) {
+        sigmaHigh = sigmaMid;
+      } else {
+        sigmaLow = sigmaMid;
+      }
+      
+      if (sigmaHigh - sigmaLow < 0.001) {
+        return sigmaMid;
+      }
+    }
+    
+    // Return bisection result, capped at reasonable range
+    return Math.max(0.15, Math.min(1.20, (sigmaLow + sigmaHigh) / 2));
+  }
+  
   const priceFunc = type === "call" ? pureEuropeanCall : pureEuropeanPut;
   
-  for (let i = 0; i < maxIterations; i++) {
-    // Calculate option price with current sigma using European Black-Scholes
-    const theoreticalPrice = priceFunc(underlyingPrice, strike, T, riskFreeRate, sigma);
-    
-    // Calculate vega analytically (closed-form Black-Scholes vega)
-    const sqrtT = Math.sqrt(T);
-    const d1 = (Math.log(underlyingPrice / strike) + (riskFreeRate + sigma * sigma / 2) * T) / (sigma * sqrtT);
-    const nprime_d1 = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-d1 * d1 / 2);
-    const vega = underlyingPrice * sqrtT * nprime_d1;
-    
-    // Price difference
+  // Use bisection method for robustness (especially for deep ITM/OTM options)
+  // This is slower but more reliable than Newton-Raphson for edge cases
+  let sigmaLow = 0.01;
+  let sigmaHigh = 3.0;
+  let sigma = 0.3; // Initial guess
+  
+  // First, use Newton-Raphson for speed (most cases converge quickly)
+  const maxNRIterations = 20;
+  const tolerance = 0.0001;
+  
+  for (let i = 0; i < maxNRIterations; i++) {
+    const theoreticalPrice = priceFunc(S, K, T, r, sigma);
     const priceDiff = theoreticalPrice - marketPrice;
     
     // Check convergence
@@ -381,17 +428,59 @@ export function calculateImpliedVolatility(
       return sigma;
     }
     
-    // Avoid division by zero
-    if (Math.abs(vega) < 1e-10) break;
+    // Calculate vega analytically
+    const sqrtT = Math.sqrt(T);
+    const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * sqrtT);
+    const nprime_d1 = (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-d1 * d1 / 2);
+    const vega = S * sqrtT * nprime_d1;
     
-    // Newton-Raphson update: sigma_new = sigma_old - f(sigma)/f'(sigma)
-    sigma = sigma - priceDiff / vega;
+    // If vega is too small, switch to bisection
+    if (Math.abs(vega) < 1e-8) break;
     
-    // Constrain sigma to reasonable range (1% to 300%)
+    // Newton-Raphson update with damping for stability
+    const step = priceDiff / vega;
+    const dampingFactor = 0.8; // Dampen to prevent overshooting
+    sigma = sigma - dampingFactor * step;
+    
+    // Stay in reasonable range
     sigma = Math.max(0.01, Math.min(3.0, sigma));
+    
+    // If sigma is changing too wildly, break and use bisection
+    if (i > 5 && (sigma < 0.05 || sigma > 2.5)) break;
   }
   
-  return sigma;
+  // If Newton-Raphson didn't converge well, use bisection
+  // This is more robust for deep ITM/OTM options with very short DTE
+  const priceLow = priceFunc(S, K, T, r, sigmaLow);
+  const priceHigh = priceFunc(S, K, T, r, sigmaHigh);
+  
+  // Check if market price is within bounds
+  if (marketPrice < priceLow) return sigmaLow;
+  if (marketPrice > priceHigh) return sigmaHigh;
+  
+  // Bisection method - guaranteed to converge
+  const maxBisectionIterations = 50;
+  for (let i = 0; i < maxBisectionIterations; i++) {
+    const sigmaMid = (sigmaLow + sigmaHigh) / 2;
+    const priceMid = priceFunc(S, K, T, r, sigmaMid);
+    
+    if (Math.abs(priceMid - marketPrice) < tolerance) {
+      return sigmaMid;
+    }
+    
+    if (priceMid > marketPrice) {
+      sigmaHigh = sigmaMid;
+    } else {
+      sigmaLow = sigmaMid;
+    }
+    
+    // Check for convergence
+    if (sigmaHigh - sigmaLow < 0.0001) {
+      return sigmaMid;
+    }
+  }
+  
+  return (sigmaLow + sigmaHigh) / 2;
 }
 
 export function calculateGreeks(
