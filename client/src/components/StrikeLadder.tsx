@@ -255,6 +255,7 @@ export function StrikeLadder({
 
         // Always update strike and reset premium (market or theoretical)
         // Also update entryUnderlyingPrice to current price for proper P/L anchoring
+        // When dragging to new strike, lock new cost basis immediately
         if (marketPrice !== undefined && marketPrice > 0) {
           // Market data available - reset to market price and IV
           onUpdateLeg(draggedLeg, { 
@@ -262,7 +263,8 @@ export function StrikeLadder({
             premium: marketPrice,
             premiumSource: "market",
             impliedVolatility: marketIV,
-            entryUnderlyingPrice: currentPrice
+            entryUnderlyingPrice: currentPrice,
+            costBasisLocked: true,  // Lock the new cost basis at new strike
           });
         } else {
           // No market data - calculate theoretical premium using Black-Scholes
@@ -279,7 +281,8 @@ export function StrikeLadder({
             premium: theoreticalPremium,
             premiumSource: "theoretical",
             impliedVolatility: undefined,
-            entryUnderlyingPrice: currentPrice
+            entryUnderlyingPrice: currentPrice,
+            costBasisLocked: true,  // Lock the new cost basis at new strike
           });
         }
       }

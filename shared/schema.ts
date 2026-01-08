@@ -82,12 +82,13 @@ export interface OptionLeg {
   position: PositionType;
   strike: number;
   quantity: number;
-  premium: number;                  // Entry premium (cost basis) - preserved for P/L calculation
+  premium: number;                  // Entry premium (cost basis) - IMMUTABLE after entry
   expirationDays: number;
   marketQuoteId?: string;
   premiumSource?: PremiumSource;
   impliedVolatility?: number;
   entryUnderlyingPrice?: number;   // Stock price when position was opened (for P/L anchoring)
+  costBasisLocked?: boolean;       // When true, premium never updates (locked at entry time)
   // Live market price fields - refreshed on each price poll
   marketBid?: number;              // Current bid price from options chain
   marketAsk?: number;              // Current ask price from options chain

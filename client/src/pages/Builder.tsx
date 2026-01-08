@@ -176,6 +176,7 @@ export default function Builder() {
             // Mark as 'saved' to preserve the original cost basis from when trade was saved
             // Preserve all leg properties including isExcluded, closingTransaction, market data, etc.
             // IMPORTANT: Preserve marketBid/Ask/Mark/Last from SavedTrades for immediate P/L consistency
+            // Lock cost basis so premium never updates - only market fields will update
             const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `saved-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -185,6 +186,7 @@ export default function Builder() {
               premium: leg.premium || 0,
               expirationDays: recalculateExpirationDays(leg.expirationDate, leg.expirationDays),
               premiumSource: 'saved' as const,  // Preserve original cost basis
+              costBasisLocked: true,            // Lock so premium never updates
               impliedVolatility: leg.impliedVolatility,
               entryUnderlyingPrice: leg.entryUnderlyingPrice ?? trade.price,
               expirationDate: leg.expirationDate,
@@ -301,6 +303,7 @@ export default function Builder() {
               premium: leg.premium || 0,
               expirationDays: recalculateSharedExpirationDays(leg.expirationDate, leg.expirationDays),
               premiumSource: 'saved' as const,  // Preserve original cost basis
+              costBasisLocked: true,            // Lock so premium never updates
               impliedVolatility: leg.impliedVolatility,
               entryUnderlyingPrice: leg.entryUnderlyingPrice ?? strategy.price,
               expirationDate: leg.expirationDate,
@@ -672,8 +675,9 @@ export default function Builder() {
           q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
         );
 
-        // For saved/manual legs, ONLY update market fields (preserve entry premium)
-        if (leg.premiumSource === 'manual' || leg.premiumSource === 'saved') {
+        // For legs with locked cost basis, ONLY update market fields (never touch premium)
+        // Cost basis is locked after initial entry to preserve P/L accuracy
+        if (leg.costBasisLocked || leg.premiumSource === 'manual' || leg.premiumSource === 'saved') {
           if (matchingQuote) {
             // Check if market fields need updating
             const marketNeedsUpdate = 
@@ -682,7 +686,20 @@ export default function Builder() {
               leg.marketMark !== matchingQuote.mid ||
               leg.marketLast !== matchingQuote.last;
             
-            if (marketNeedsUpdate) {
+            // Calculate fresh IV from current market price for display purposes
+            const effectiveDTE = Math.max(0.5, actualDTE);
+            let currentIV = leg.impliedVolatility || 0.3;
+            if (matchingQuote.mid > 0 && symbolInfo?.price) {
+              currentIV = calculateImpliedVolatility(
+                matchingQuote.side as 'call' | 'put',
+                symbolInfo.price,
+                matchingQuote.strike,
+                effectiveDTE,
+                matchingQuote.mid
+              );
+            }
+            
+            if (marketNeedsUpdate || leg.impliedVolatility !== currentIV) {
               updated = true;
               return deepCopyLeg(leg, {
                 marketBid: matchingQuote.bid,
@@ -690,6 +707,7 @@ export default function Builder() {
                 marketMark: matchingQuote.mid,
                 marketLast: matchingQuote.last,
                 expirationDays: actualDTE,
+                impliedVolatility: currentIV,
               });
             }
           }
@@ -1042,7 +1060,12 @@ export default function Builder() {
     };
     // Apply market prices immediately to get accurate pricing
     const [legWithPrice] = applyMarketPrices([newLeg]);
-    setLegs(prevLegs => [...prevLegs, legWithPrice]);
+    // Lock the cost basis so premium never updates after entry
+    const legWithLockedCostBasis: OptionLeg = {
+      ...legWithPrice,
+      costBasisLocked: true,
+    };
+    setLegs(prevLegs => [...prevLegs, legWithLockedCostBasis]);
     // Clear frozen P/L values so live calculations take over
     setInitialPLFromSavedTrade(null);
   };
