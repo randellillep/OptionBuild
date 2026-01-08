@@ -69,15 +69,19 @@ export function OptionDetailsPanel({
   // Extract market data from optionsChainData if available
   const getMarketData = (): OptionMarketData | undefined => {
     if (legacyMarketData) {
-      // Legacy market data - apply position multiplier for Greeks
+      // Legacy market data - ALWAYS recalculate Greeks using Black-Scholes
+      // This ensures consistent Greeks regardless of data source
+      const effectiveIV = leg.impliedVolatility || legacyMarketData.iv || volatility;
+      const greeks = calculateGreeks(leg, underlyingPrice, effectiveIV);
       const multiplier = leg.position === "long" ? 1 : -1;
       return {
         ...legacyMarketData,
-        delta: legacyMarketData.delta !== undefined ? legacyMarketData.delta * multiplier : undefined,
-        gamma: legacyMarketData.gamma !== undefined ? legacyMarketData.gamma * multiplier : undefined,
-        theta: legacyMarketData.theta !== undefined ? legacyMarketData.theta * multiplier : undefined,
-        vega: legacyMarketData.vega !== undefined ? legacyMarketData.vega * multiplier : undefined,
-        rho: legacyMarketData.rho !== undefined ? legacyMarketData.rho * multiplier : undefined,
+        iv: leg.impliedVolatility || legacyMarketData.iv,
+        delta: (greeks.delta / leg.quantity) * multiplier,
+        gamma: (greeks.gamma / leg.quantity) * multiplier,
+        theta: (greeks.theta / leg.quantity) * multiplier,
+        vega: (greeks.vega / leg.quantity) * multiplier,
+        rho: (greeks.rho / leg.quantity) * multiplier,
       };
     }
     if (!optionsChainData || !optionsChainData.quotes) {
@@ -118,41 +122,23 @@ export function OptionDetailsPanel({
       };
     }
     
-    // Check if API provided Greeks
-    const hasApiGreeks = option.delta !== undefined && option.delta !== 0;
-    
-    if (!hasApiGreeks) {
-      // API didn't provide Greeks - calculate using Black-Scholes
-      // Prefer leg.impliedVolatility (corrected for deep ITM) over option.iv (may be inflated)
-      const effectiveIV = leg.impliedVolatility || option.iv || volatility;
-      const greeks = calculateGreeks(leg, underlyingPrice, effectiveIV);
-      const multiplier = leg.position === "long" ? 1 : -1;
-      return {
-        bid: option.bid || 0,
-        ask: option.ask || 0,
-        iv: leg.impliedVolatility || option.iv, // Prefer corrected leg IV
-        delta: (greeks.delta / leg.quantity) * multiplier,
-        gamma: (greeks.gamma / leg.quantity) * multiplier,
-        theta: (greeks.theta / leg.quantity) * multiplier,
-        vega: (greeks.vega / leg.quantity) * multiplier,
-        rho: (greeks.rho / leg.quantity) * multiplier,
-        volume: option.volume || 0,
-      };
-    }
-    
-    // Market data Greeks are always for long positions
-    // Invert them for short positions
+    // ALWAYS calculate Greeks using Black-Scholes closed-form formulas
+    // This ensures consistent, stable Greeks that match industry standards
+    // API-provided Greeks may vary based on vendor methodology
+    // Prefer leg.impliedVolatility (corrected for deep ITM) over option.iv (may be inflated)
+    const effectiveIV = leg.impliedVolatility || option.iv || volatility;
+    const greeks = calculateGreeks(leg, underlyingPrice, effectiveIV);
     const multiplier = leg.position === "long" ? 1 : -1;
     
     return {
       bid: option.bid || 0,
       ask: option.ask || 0,
-      iv: leg.impliedVolatility || option.iv, // Prefer corrected leg IV over potentially inflated API IV
-      delta: (option.delta || 0) * multiplier,
-      gamma: (option.gamma || 0) * multiplier,
-      theta: (option.theta || 0) * multiplier,
-      vega: (option.vega || 0) * multiplier,
-      rho: (option.rho || 0) * multiplier,
+      iv: leg.impliedVolatility || option.iv, // Prefer corrected leg IV
+      delta: (greeks.delta / leg.quantity) * multiplier,
+      gamma: (greeks.gamma / leg.quantity) * multiplier,
+      theta: (greeks.theta / leg.quantity) * multiplier,
+      vega: (greeks.vega / leg.quantity) * multiplier,
+      rho: (greeks.rho / leg.quantity) * multiplier,
       volume: option.volume || 0,
     };
   };
@@ -1015,7 +1001,7 @@ export function OptionDetailsPanel({
         </div>
       </div>
 
-      {/* Bid/Ask and Volume */}
+      {/* Bid/Ask */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Bid</span>
@@ -1025,14 +1011,12 @@ export function OptionDetailsPanel({
           <span className="text-muted-foreground">Ask</span>
           <span className="font-mono font-semibold text-red-600 dark:text-red-400">{formatPrice(marketData?.ask)}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Volume</span>
-          <span className="font-mono font-semibold">{marketData?.volume?.toLocaleString() || "—"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">OI</span>
-          <span className="font-mono font-semibold">—</span>
-        </div>
+        {marketData?.volume !== undefined && marketData?.volume > 0 && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Volume</span>
+            <span className="font-mono font-semibold">{marketData.volume.toLocaleString()}</span>
+          </div>
+        )}
       </div>
 
       {/* Greeks Section */}
