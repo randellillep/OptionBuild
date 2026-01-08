@@ -977,6 +977,27 @@ export default function Builder() {
             actualDTE,
             matchingQuote.mid
           );
+          
+          // Debug: Log IV calculation inputs for 250 strike
+          if (Math.abs(matchingQuote.strike - 250) < 1) {
+            console.log('[IV-DEBUG] 250 Strike IV Calculation:', {
+              type: matchingQuote.side,
+              underlyingPrice: symbolInfo?.price,
+              strike: matchingQuote.strike,
+              dte: actualDTE,
+              bid: matchingQuote.bid,
+              ask: matchingQuote.ask,
+              mid: matchingQuote.mid,
+              intrinsic: matchingQuote.side === 'call' 
+                ? Math.max(0, (symbolInfo?.price || 0) - matchingQuote.strike)
+                : Math.max(0, matchingQuote.strike - (symbolInfo?.price || 0)),
+              timeValue: matchingQuote.mid - (matchingQuote.side === 'call' 
+                ? Math.max(0, (symbolInfo?.price || 0) - matchingQuote.strike)
+                : Math.max(0, matchingQuote.strike - (symbolInfo?.price || 0))),
+              calculatedIV: calculatedIV,
+              apiIV: matchingQuote.iv,
+            });
+          }
         } else if (matchingQuote.iv) {
           // Fallback to API IV only if we can't calculate
           calculatedIV = matchingQuote.iv;
