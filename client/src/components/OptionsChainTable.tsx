@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { calculateGreeks } from "@/lib/options-pricing";
+import { calculateGreeks, calculateImpliedVolatility } from "@/lib/options-pricing";
 
 interface OptionsChainTableProps {
   quotes: MarketOptionQuote[];
@@ -54,12 +54,25 @@ export function OptionsChainTable({
     const spread = quote.ask - quote.bid;
     const spreadPercent = quote.mid > 0 ? (spread / quote.mid) * 100 : 0;
     
-    // Calculate Greeks using Black-Scholes for consistency
+    // Calculate IV from market price using Black-Scholes solver for consistency with industry standards
     const underlyingPrice = quote.underlyingPrice || quotes[0]?.underlyingPrice || 0;
-    const iv = quote.iv || 0.3;
     const dte = quote.dte || 30;
     
-    // Create a minimal OptionLeg for Greeks calculation
+    // ALWAYS calculate IV from market price (mid) for consistency with OptionStrat
+    let calculatedIV = 0.3; // Default fallback
+    if (quote.mid > 0 && underlyingPrice > 0 && dte > 0) {
+      calculatedIV = calculateImpliedVolatility(
+        quote.side.toLowerCase() as 'call' | 'put',
+        underlyingPrice,
+        quote.strike,
+        dte,
+        quote.mid
+      );
+    } else if (quote.iv) {
+      calculatedIV = quote.iv;
+    }
+    
+    // Create a minimal OptionLeg for Greeks calculation using calculated IV
     const tempLeg = {
       id: quote.optionSymbol,
       type: quote.side.toLowerCase() as 'call' | 'put',
@@ -71,7 +84,7 @@ export function OptionsChainTable({
       premium: quote.mid,
     };
     
-    const calculatedGreeks = calculateGreeks(tempLeg, underlyingPrice, iv);
+    const calculatedGreeks = calculateGreeks(tempLeg, underlyingPrice, calculatedIV);
 
     return (
       <TableRow 
@@ -96,7 +109,7 @@ export function OptionsChainTable({
           ${spread.toFixed(2)} ({spreadPercent.toFixed(1)}%)
         </TableCell>
         <TableCell className="text-right font-mono">
-          {((quote.iv || 0) * 100).toFixed(1)}%
+          {(calculatedIV * 100).toFixed(1)}%
         </TableCell>
         <TableCell className="text-right font-mono text-sm" data-testid={`delta-${quote.strike}`}>
           {calculatedGreeks.delta.toFixed(3)}

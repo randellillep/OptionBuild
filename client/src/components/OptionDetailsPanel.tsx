@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Minus, Plus, X, RotateCcw, Check, EyeOff, Undo2, Trash2 } from "lucide-react";
 import type { OptionLeg, MarketOptionChainSummary, ClosingTransaction } from "@shared/schema";
-import { calculateGreeks } from "@/lib/options-pricing";
+import { calculateGreeks, calculateImpliedVolatility } from "@/lib/options-pricing";
 
 interface OptionMarketData {
   bid?: number;
@@ -125,15 +125,29 @@ export function OptionDetailsPanel({
     // ALWAYS calculate Greeks using Black-Scholes closed-form formulas
     // This ensures consistent, stable Greeks that match industry standards
     // API-provided Greeks may vary based on vendor methodology
-    // Prefer leg.impliedVolatility (corrected for deep ITM) over option.iv (may be inflated)
-    const effectiveIV = leg.impliedVolatility || option.iv || volatility;
+    
+    // Calculate IV from market price if leg.impliedVolatility is not set
+    // This ensures consistency with OptionStrat and other industry standards
+    let effectiveIV = leg.impliedVolatility;
+    if (!effectiveIV && option.mid > 0 && underlyingPrice > 0 && leg.expirationDays > 0) {
+      effectiveIV = calculateImpliedVolatility(
+        leg.type,
+        underlyingPrice,
+        leg.strike,
+        leg.expirationDays,
+        option.mid
+      );
+    } else if (!effectiveIV) {
+      effectiveIV = option.iv || volatility;
+    }
+    
     const greeks = calculateGreeks(leg, underlyingPrice, effectiveIV);
     const multiplier = leg.position === "long" ? 1 : -1;
     
     return {
       bid: option.bid || 0,
       ask: option.ask || 0,
-      iv: leg.impliedVolatility || option.iv, // Prefer corrected leg IV
+      iv: effectiveIV, // Use calculated IV
       delta: (greeks.delta / leg.quantity) * multiplier,
       gamma: (greeks.gamma / leg.quantity) * multiplier,
       theta: (greeks.theta / leg.quantity) * multiplier,
