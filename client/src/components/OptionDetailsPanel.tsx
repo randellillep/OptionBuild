@@ -123,13 +123,15 @@ export function OptionDetailsPanel({
     
     if (!hasApiGreeks) {
       // API didn't provide Greeks - calculate using Black-Scholes
-      const greeks = calculateGreeks(leg, underlyingPrice, option.iv || volatility);
+      // Prefer leg.impliedVolatility (corrected for deep ITM) over option.iv (may be inflated)
+      const effectiveIV = leg.impliedVolatility || option.iv || volatility;
+      const greeks = calculateGreeks(leg, underlyingPrice, effectiveIV);
       const multiplier = leg.position === "long" ? 1 : -1;
       return {
         bid: option.bid || 0,
         ask: option.ask || 0,
-        iv: option.iv,
-        delta: (greeks.delta / leg.quantity) * multiplier, // Normalize to per-contract and apply position
+        iv: leg.impliedVolatility || option.iv, // Prefer corrected leg IV
+        delta: (greeks.delta / leg.quantity) * multiplier,
         gamma: (greeks.gamma / leg.quantity) * multiplier,
         theta: (greeks.theta / leg.quantity) * multiplier,
         vega: (greeks.vega / leg.quantity) * multiplier,
@@ -145,7 +147,7 @@ export function OptionDetailsPanel({
     return {
       bid: option.bid || 0,
       ask: option.ask || 0,
-      iv: option.iv, // Keep undefined if not available
+      iv: leg.impliedVolatility || option.iv, // Prefer corrected leg IV over potentially inflated API IV
       delta: (option.delta || 0) * multiplier,
       gamma: (option.gamma || 0) * multiplier,
       theta: (option.theta || 0) * multiplier,
