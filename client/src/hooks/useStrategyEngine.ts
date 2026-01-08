@@ -212,7 +212,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
   const totalGreeks: Greeks = useMemo(() => {
     return legs.reduce(
       (acc, leg) => {
-        const legGreeks = calculateGreeks(leg, symbolInfo.price, volatility);
+        // Use each leg's own implied volatility for accurate per-leg Greeks
+        // This ensures Greeks tab matches the strike ladder display
+        const legIV = leg.impliedVolatility && leg.impliedVolatility > 0 
+          ? leg.impliedVolatility 
+          : volatility;
+        const legGreeks = calculateGreeks(leg, symbolInfo.price, legIV);
         return {
           delta: acc.delta + legGreeks.delta,
           gamma: acc.gamma + legGreeks.gamma,
