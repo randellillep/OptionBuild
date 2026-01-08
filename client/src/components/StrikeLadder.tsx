@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
 import type { OptionLeg, ClosingEntry } from "@shared/schema";
-import { calculateOptionPrice } from "@/lib/options-pricing";
+import { calculateOptionPrice, calculateImpliedVolatility } from "@/lib/options-pricing";
 import { Check, DollarSign } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -220,7 +220,7 @@ export function StrikeLadder({
         // Only update if strike actually changed
         if (leg.strike === newStrike) return;
 
-        // Look up market price and IV for the new strike
+        // Look up market price and calculate IV from market price
         let marketPrice: number | undefined;
         let marketIV: number | undefined;
         if (optionsChainData?.quotes) {
@@ -234,8 +234,18 @@ export function StrikeLadder({
             } else if (matchingQuote.bid !== undefined && matchingQuote.ask !== undefined) {
               marketPrice = (matchingQuote.bid + matchingQuote.ask) / 2;
             }
-            // Get IV from the quote if available
-            if (matchingQuote.iv !== undefined && matchingQuote.iv > 0) {
+            // ALWAYS calculate IV from market price to match industry standards (OptionStrat)
+            // API-provided IV is often unreliable
+            if (marketPrice !== undefined && marketPrice > 0 && leg.expirationDays > 0) {
+              marketIV = calculateImpliedVolatility(
+                leg.type,
+                currentPrice,
+                newStrike,
+                leg.expirationDays,
+                marketPrice
+              );
+            } else if (matchingQuote.iv !== undefined && matchingQuote.iv > 0) {
+              // Fallback to API IV only if we can't calculate
               marketIV = matchingQuote.iv;
             }
           }

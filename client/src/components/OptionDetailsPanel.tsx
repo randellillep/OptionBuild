@@ -126,10 +126,10 @@ export function OptionDetailsPanel({
     // This ensures consistent, stable Greeks that match industry standards
     // API-provided Greeks may vary based on vendor methodology
     
-    // Calculate IV from market price if leg.impliedVolatility is not set
-    // This ensures consistency with OptionStrat and other industry standards
-    let effectiveIV = leg.impliedVolatility;
-    if (!effectiveIV && option.mid > 0 && underlyingPrice > 0 && leg.expirationDays > 0) {
+    // ALWAYS calculate IV from market price to match industry standards (OptionStrat)
+    // Don't trust leg.impliedVolatility as it may contain inflated vendor IV
+    let effectiveIV: number;
+    if (option.mid > 0 && underlyingPrice > 0 && leg.expirationDays > 0) {
       effectiveIV = calculateImpliedVolatility(
         leg.type,
         underlyingPrice,
@@ -137,7 +137,10 @@ export function OptionDetailsPanel({
         leg.expirationDays,
         option.mid
       );
-    } else if (!effectiveIV) {
+    } else if (leg.impliedVolatility) {
+      // Fallback to stored IV only if we can't calculate from market
+      effectiveIV = leg.impliedVolatility;
+    } else {
       effectiveIV = option.iv || volatility;
     }
     
