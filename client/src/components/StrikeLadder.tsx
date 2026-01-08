@@ -145,28 +145,6 @@ export function StrikeLadder({
 
   const labeledStrikes = generateLabeledStrikes();
 
-  const getMarketDataForLeg = (leg: OptionLeg) => {
-    if (!optionsChainData || !optionsChainData.quotes) return undefined;
-    
-    const option = optionsChainData.quotes.find((opt: any) => 
-      Math.abs(opt.strike - leg.strike) < 0.01 && opt.side.toLowerCase() === leg.type
-    );
-    
-    if (!option) return undefined;
-    
-    return {
-      bid: option.bid || 0,
-      ask: option.ask || 0,
-      iv: option.iv || 0,
-      delta: option.delta || 0,
-      gamma: option.gamma || 0,
-      theta: option.theta || 0,
-      vega: option.vega || 0,
-      rho: option.rho || 0,
-      volume: option.volume || 0,
-    };
-  };
-
   // Calculate position percentage for a given strike (relative to adjusted range)
   const getStrikePosition = (strike: number) => {
     return ((strike - adjustedMin) / range) * 100;

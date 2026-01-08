@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { calculateGreeks } from "@/lib/options-pricing";
 
 interface OptionsChainTableProps {
   quotes: MarketOptionQuote[];
@@ -52,6 +53,25 @@ export function OptionsChainTable({
     const isAtm = Math.abs(quote.strike - atmStrike) < 0.01;
     const spread = quote.ask - quote.bid;
     const spreadPercent = quote.mid > 0 ? (spread / quote.mid) * 100 : 0;
+    
+    // Calculate Greeks using Black-Scholes for consistency
+    const underlyingPrice = quote.underlyingPrice || quotes[0]?.underlyingPrice || 0;
+    const iv = quote.iv || 0.3;
+    const dte = quote.dte || 30;
+    
+    // Create a minimal OptionLeg for Greeks calculation
+    const tempLeg = {
+      id: quote.optionSymbol,
+      type: quote.side.toLowerCase() as 'call' | 'put',
+      strike: quote.strike,
+      expiration: new Date(quote.expiration).toISOString().split('T')[0],
+      expirationDays: dte,
+      quantity: 1,
+      position: 'long' as const,
+      premium: quote.mid,
+    };
+    
+    const calculatedGreeks = calculateGreeks(tempLeg, underlyingPrice, iv);
 
     return (
       <TableRow 
@@ -79,16 +99,16 @@ export function OptionsChainTable({
           {((quote.iv || 0) * 100).toFixed(1)}%
         </TableCell>
         <TableCell className="text-right font-mono text-sm" data-testid={`delta-${quote.strike}`}>
-          {quote.delta.toFixed(3)}
+          {calculatedGreeks.delta.toFixed(3)}
         </TableCell>
         <TableCell className="text-right font-mono text-sm">
-          {quote.gamma.toFixed(4)}
+          {calculatedGreeks.gamma.toFixed(4)}
         </TableCell>
         <TableCell className="text-right font-mono text-sm">
-          {quote.theta.toFixed(3)}
+          {calculatedGreeks.theta.toFixed(3)}
         </TableCell>
         <TableCell className="text-right font-mono text-sm">
-          {quote.vega.toFixed(3)}
+          {calculatedGreeks.vega.toFixed(3)}
         </TableCell>
         {onSelectOption && (
           <TableCell>
