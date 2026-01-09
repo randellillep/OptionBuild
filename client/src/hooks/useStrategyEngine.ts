@@ -267,12 +267,17 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const timeSteps: number[] = [];
     
     if (useHours) {
-      // Generate hourly intervals up to expiration
-      const totalHours = targetDays * 24;
+      // For same-day or very short-dated options, ensure we have meaningful time intervals
+      // Use at least 8 hours of trading time to show theta decay
+      // This represents a trading day's worth of time value decay
+      const minHoursToShow = 7; // ~1 trading day
+      const actualHours = targetDays * 24;
+      const totalHours = Math.max(minHoursToShow, actualHours);
       const hourStep = totalHours / (dateCount - 1);
+      
       for (let i = 0; i < dateCount; i++) {
-        const hours = Math.round(i * hourStep);
-        timeSteps.push(hours / 24); // Convert back to fractional days for calculations
+        const hours = i * hourStep;
+        timeSteps.push(hours / 24); // Convert to fractional days for calculations
       }
     } else {
       // Generate day intervals
@@ -317,11 +322,14 @@ export function useStrategyEngine(rangePercent: number = 14) {
       });
     }
 
+    // Build the P/L grid for heatmap visualization
+    // Time steps represent "days from now" - how much time will pass
+    // With fractional DTE from leg.expirationDays, this shows proper theta decay
     const grid: ScenarioPoint[][] = strikes.map(strike => 
-      timeSteps.map(daysLeft => ({
+      timeSteps.map(daysFromNow => ({
         strike,
-        daysToExpiration: daysLeft,
-        pnl: calculateProfitLossAtDate(legs, symbolInfo.price, strike, daysLeft, volatility),
+        daysToExpiration: daysFromNow,
+        pnl: calculateProfitLossAtDate(legs, symbolInfo.price, strike, daysFromNow, volatility),
       }))
     );
 

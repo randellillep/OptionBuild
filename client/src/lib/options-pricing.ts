@@ -648,8 +648,12 @@ export function calculateProfitLossAtDate(
   for (const leg of legs) {
     // Calculate remaining days to expiration from the given point in time
     // daysFromNow = 0 means today, so we have leg.expirationDays remaining
-    // daysFromNow = 5 means 5 days from now, so we have leg.expirationDays - 5 remaining
+    // daysFromNow = 0.125 means 3 hours from now (0.125 days)
+    // 
+    // Use leg's actual expirationDays - the grid generation handles ensuring
+    // meaningful time intervals for visualization. This keeps current P/L accurate.
     const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
+    
     // Use slider volatility for scenario valuation (what-if analysis)
     // This applies to ALL cells including "current" - the heatmap is a what-if tool
     const scenarioVolatility = volatility;

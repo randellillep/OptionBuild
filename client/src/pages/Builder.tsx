@@ -157,13 +157,28 @@ export default function Builder() {
             // The 10-second price poll will update it later if needed
             
             // Helper to recalculate expirationDays from expirationDate
+            // Uses fractional days for same-day options to enable time decay visualization
+            // Expiration is set to 4pm ET (NYSE market close) for accuracy
             const recalculateExpirationDays = (legExpDate?: string, fallback?: number): number => {
               if (legExpDate) {
                 try {
-                  const expDate = new Date(legExpDate);
-                  const today = new Date();
-                  const diffTime = expDate.getTime() - today.getTime();
-                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
+                  const dateOnly = legExpDate.split('T')[0]; // Extract date part
+                  const [year, month, day] = dateOnly.split('-').map(Number);
+                  
+                  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+                    return fallback || 30;
+                  }
+                  
+                  // Set expiration to 4pm ET (21:00 UTC during EST, 20:00 UTC during EDT)
+                  // Use 21:00 UTC as approximation (accurate during EST, 1hr off during EDT)
+                  const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
+                  
+                  const now = new Date();
+                  const diffMs = expDateUTC.getTime() - now.getTime();
+                  
+                  // Use fractional days for intraday precision
+                  const diffDays = diffMs / (1000 * 60 * 60 * 24);
                   return Math.max(0, diffDays);
                 } catch {
                   return fallback || 30;
@@ -275,13 +290,27 @@ export default function Builder() {
               .catch(() => { /* Use saved price as fallback */ });
             
             // Helper to recalculate expirationDays from expirationDate
+            // Uses fractional days for same-day options to enable time decay visualization
+            // Expiration is set to 4pm ET (NYSE market close) for accuracy
             const recalculateSharedExpirationDays = (legExpDate?: string, fallback?: number): number => {
               if (legExpDate) {
                 try {
-                  const expDate = new Date(legExpDate);
-                  const today = new Date();
-                  const diffTime = expDate.getTime() - today.getTime();
-                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
+                  const dateOnly = legExpDate.split('T')[0]; // Extract date part
+                  const [year, month, day] = dateOnly.split('-').map(Number);
+                  
+                  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+                    return fallback || 30;
+                  }
+                  
+                  // Set expiration to 4pm ET (21:00 UTC during EST, 20:00 UTC during EDT)
+                  const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
+                  
+                  const now = new Date();
+                  const diffMs = expDateUTC.getTime() - now.getTime();
+                  
+                  // Use fractional days for intraday precision
+                  const diffDays = diffMs / (1000 * 60 * 60 * 24);
                   return Math.max(0, diffDays);
                 } catch {
                   return fallback || 30;

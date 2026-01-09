@@ -150,14 +150,27 @@ export default function SavedTrades() {
 
   // Helper to recalculate expirationDays from expirationDate
   // Uses leg's expirationDate first, then falls back to trade's expirationDate
+  // Uses fractional days for same-day options to enable time decay visualization
   const recalculateExpirationDays = (leg: OptionLeg, tradeExpirationDate?: string | null): number => {
     const expDateStr = leg.expirationDate || tradeExpirationDate;
     if (expDateStr) {
       try {
-        const expDate = new Date(expDateStr);
-        const today = new Date();
-        const diffTime = expDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
+        const dateOnly = expDateStr.split('T')[0]; // Extract date part
+        const [year, month, day] = dateOnly.split('-').map(Number);
+        
+        if (isNaN(year) || isNaN(month) || isNaN(day)) {
+          return leg.expirationDays || 30;
+        }
+        
+        // Set expiration to 4pm ET (21:00 UTC during EST, 20:00 UTC during EDT)
+        const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
+        
+        const now = new Date();
+        const diffMs = expDateUTC.getTime() - now.getTime();
+        
+        // Use fractional days for intraday precision
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
         return Math.max(0, diffDays);
       } catch {
         return leg.expirationDays || 30;
