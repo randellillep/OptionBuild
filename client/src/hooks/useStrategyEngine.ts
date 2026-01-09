@@ -267,17 +267,24 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const timeSteps: number[] = [];
     
     if (useHours) {
-      // For same-day or very short-dated options, ensure we have meaningful time intervals
-      // Use at least 8 hours of trading time to show theta decay
-      // This represents a trading day's worth of time value decay
-      const minHoursToShow = 7; // ~1 trading day
-      const actualHours = targetDays * 24;
-      const totalHours = Math.max(minHoursToShow, actualHours);
-      const hourStep = totalHours / (dateCount - 1);
+      // For same-day or very short-dated options, show hourly intervals
+      // Use actual remaining hours - show progression from now to expiration
+      const actualHours = Math.max(0, targetDays * 24);
       
-      for (let i = 0; i < dateCount; i++) {
-        const hours = i * hourStep;
-        timeSteps.push(hours / 24); // Convert to fractional days for calculations
+      if (actualHours <= 0) {
+        // Option is expired - all columns show intrinsic value at expiration
+        // Use exactly 0 for all time steps so P/L shows pure intrinsic value
+        for (let i = 0; i < dateCount; i++) {
+          timeSteps.push(0); // All at expiration - intrinsic value only
+        }
+      } else {
+        // Normal case: show time decay from now (0) to expiration (actualHours)
+        // Each column represents a step closer to expiration
+        const hourStep = actualHours / (dateCount - 1);
+        for (let i = 0; i < dateCount; i++) {
+          const hoursFromNow = i * hourStep;
+          timeSteps.push(hoursFromNow / 24); // Convert to fractional days for calculations
+        }
       }
     } else {
       // Generate day intervals

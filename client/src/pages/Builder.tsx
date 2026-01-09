@@ -216,33 +216,43 @@ export default function Builder() {
             
             setLegs(normalizedLegs);
             
-            // Set expiration - always set one to ensure chain/heatmap recalculates
+            // Set expiration - use FRACTIONAL days for accurate time decay visualization
             let expirationDays = 30; // Default fallback
             let expirationDateStr = '';
             
             if (trade.expirationDate) {
-              const expDate = new Date(trade.expirationDate);
-              const today = new Date();
-              const diffTime = expDate.getTime() - today.getTime();
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
+              const dateOnly = trade.expirationDate.split('T')[0];
+              const [year, month, day] = dateOnly.split('-').map(Number);
               
-              if (diffDays > 0) {
-                // Valid future expiration
-                expirationDays = diffDays;
-                expirationDateStr = trade.expirationDate;
+              if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                // Set expiration to 4pm ET (21:00 UTC as approximation)
+                const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
+                const now = new Date();
+                const diffMs = expDateUTC.getTime() - now.getTime();
+                const diffDaysFractional = diffMs / (1000 * 60 * 60 * 24);
+                
+                if (diffDaysFractional > 0) {
+                  // Valid future expiration - use fractional days
+                  expirationDays = diffDaysFractional;
+                  expirationDateStr = dateOnly;
+                } else {
+                  // Expired - use 7-day forward as default
+                  expirationDays = 7;
+                  const futureDate = new Date();
+                  futureDate.setDate(futureDate.getDate() + 7);
+                  expirationDateStr = futureDate.toISOString().split('T')[0];
+                }
               } else {
-                // Expired - use 7-day forward as default
-                expirationDays = 7;
-                const futureDate = new Date();
-                futureDate.setDate(futureDate.getDate() + 7);
-                expirationDateStr = futureDate.toISOString().split('T')[0];
+                expirationDays = 30;
+                expirationDateStr = trade.expirationDate;
               }
             } else {
-              // No expiration stored - derive from legs or use default
+              // No expiration stored - derive from legs (which have fractional days) or use default
               const legDays = normalizedLegs.map(l => l.expirationDays).filter(d => d > 0);
               expirationDays = legDays.length > 0 ? Math.max(...legDays) : 30;
               const futureDate = new Date();
-              futureDate.setDate(futureDate.getDate() + expirationDays);
+              futureDate.setDate(futureDate.getDate() + Math.ceil(expirationDays));
               expirationDateStr = futureDate.toISOString().split('T')[0];
             }
             
@@ -342,30 +352,41 @@ export default function Builder() {
             
             setLegs(normalizedLegs);
             
-            // Set expiration
+            // Set expiration - use FRACTIONAL days for accurate time decay visualization
             let expirationDays = 30;
             let expirationDateStr = '';
             
             if (strategy.expirationDate) {
-              const expDate = new Date(strategy.expirationDate);
-              const today = new Date();
-              const diffTime = expDate.getTime() - today.getTime();
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
+              const dateOnly = strategy.expirationDate.split('T')[0];
+              const [year, month, day] = dateOnly.split('-').map(Number);
               
-              if (diffDays > 0) {
-                expirationDays = diffDays;
-                expirationDateStr = strategy.expirationDate;
+              if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                // Set expiration to 4pm ET (21:00 UTC as approximation)
+                const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
+                const now = new Date();
+                const diffMs = expDateUTC.getTime() - now.getTime();
+                const diffDaysFractional = diffMs / (1000 * 60 * 60 * 24);
+                
+                if (diffDaysFractional > 0) {
+                  expirationDays = diffDaysFractional;
+                  expirationDateStr = dateOnly;
+                } else {
+                  expirationDays = 7;
+                  const futureDate = new Date();
+                  futureDate.setDate(futureDate.getDate() + 7);
+                  expirationDateStr = futureDate.toISOString().split('T')[0];
+                }
               } else {
-                expirationDays = 7;
-                const futureDate = new Date();
-                futureDate.setDate(futureDate.getDate() + 7);
-                expirationDateStr = futureDate.toISOString().split('T')[0];
+                expirationDays = 30;
+                expirationDateStr = strategy.expirationDate;
               }
             } else {
+              // Use fractional days from legs
               const legDays = normalizedLegs.map(l => l.expirationDays).filter(d => d > 0);
               expirationDays = legDays.length > 0 ? Math.max(...legDays) : 30;
               const futureDate = new Date();
-              futureDate.setDate(futureDate.getDate() + expirationDays);
+              futureDate.setDate(futureDate.getDate() + Math.ceil(expirationDays));
               expirationDateStr = futureDate.toISOString().split('T')[0];
             }
             
@@ -1005,6 +1026,42 @@ export default function Builder() {
         ...leg.closingTransaction,
         entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
       } : undefined;
+      
+      // For legs with locked cost basis, ONLY update market fields (never touch premium)
+      // This preserves the original entry price for accurate P/L calculation
+      if (leg.costBasisLocked || leg.premiumSource === 'saved') {
+        const matchingQuote = optionsChainData?.quotes?.find(
+          (q: any) => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
+        );
+        
+        if (matchingQuote) {
+          // Update market fields but NOT premium
+          const effectiveDTE = Math.max(0.5, actualDTE);
+          let currentIV = leg.impliedVolatility || 0.3;
+          if (matchingQuote.mid > 0 && symbolInfo?.price) {
+            currentIV = calculateImpliedVolatility(
+              matchingQuote.side as 'call' | 'put',
+              symbolInfo.price,
+              matchingQuote.strike,
+              effectiveDTE,
+              matchingQuote.mid
+            );
+          }
+          
+          return {
+            ...leg,
+            marketBid: matchingQuote.bid,
+            marketAsk: matchingQuote.ask,
+            marketMark: matchingQuote.mid,
+            marketLast: matchingQuote.last,
+            impliedVolatility: currentIV,
+            expirationDays: actualDTE,
+            closingTransaction: preservedClosingTransaction,
+          };
+        }
+        // No matching quote - return leg unchanged
+        return { ...leg, closingTransaction: preservedClosingTransaction };
+      }
       
       // Try to find matching market quote (same strike and type)
       const matchingQuote = optionsChainData?.quotes?.find(
