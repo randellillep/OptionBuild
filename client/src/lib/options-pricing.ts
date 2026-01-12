@@ -1017,6 +1017,47 @@ export function calculateRealizedUnrealizedPL(
   let hasOpenPositionsWithSavedBasis = false;
   
   for (const leg of legs) {
+    // Handle stock legs separately - no option pricing needed
+    if (leg.type === "stock") {
+      if (leg.isExcluded) continue;
+      
+      const entryPrice = leg.premium; // Entry price per share
+      const closing = leg.closingTransaction;
+      
+      if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
+        const allClosedQty = closing.entries.reduce((sum, e) => sum + e.quantity, 0);
+        
+        for (const entry of closing.entries) {
+          if (entry.isExcluded) continue;
+          hasClosingTransactions = true;
+          // Stock realized P/L: (closing - entry) × qty for long, opposite for short
+          const entryBasis = entry.openingPrice ?? entryPrice;
+          const entryPnl = leg.position === "long"
+            ? (entry.closingPrice - entryBasis) * entry.quantity
+            : (entryBasis - entry.closingPrice) * entry.quantity;
+          realizedPL += entryPnl;
+        }
+        
+        const remainingQty = leg.quantity - allClosedQty;
+        if (remainingQty > 0) {
+          // Unrealized P/L for remaining shares
+          hasOpenPositionsWithSavedBasis = true;
+          const remainingPnl = leg.position === "long"
+            ? (underlyingPrice - entryPrice) * remainingQty
+            : (entryPrice - underlyingPrice) * remainingQty;
+          unrealizedPL += remainingPnl;
+        }
+      } else {
+        // No closing transactions - all shares are open
+        hasOpenPositionsWithSavedBasis = true;
+        const stockPnl = leg.position === "long"
+          ? (underlyingPrice - entryPrice) * leg.quantity
+          : (entryPrice - underlyingPrice) * leg.quantity;
+        unrealizedPL += stockPnl;
+      }
+      continue;
+    }
+    
     // For unrealized P/L, we need to compare cost basis to current option price
     // For saved trades: cost basis = leg.premium, current price = market price (or Black-Scholes fallback)
     // For live trades: cost basis = current price (both are leg.premium), so unrealized = 0
