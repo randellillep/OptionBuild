@@ -216,16 +216,22 @@ export function StrikeLadder({
         // Find the dragged leg to get its type
         const leg = legs.find(l => l.id === draggedLeg);
         if (!leg) return;
+        
+        // Stock legs shouldn't be dragged on the strike ladder
+        if (leg.type === "stock") return;
 
         // Only update if strike actually changed
         if (leg.strike === newStrike) return;
+
+        // Narrow type to "call" | "put" for option-specific functions
+        const optionType = leg.type as "call" | "put";
 
         // Look up market price and calculate IV from market price
         let marketPrice: number | undefined;
         let marketIV: number | undefined;
         if (optionsChainData?.quotes) {
           const matchingQuote = optionsChainData.quotes.find(
-            (q: any) => q.strike === newStrike && q.side.toLowerCase() === leg.type
+            (q: any) => q.strike === newStrike && q.side.toLowerCase() === optionType
           );
           if (matchingQuote) {
             // Use mid if available, otherwise calculate from bid/ask
@@ -240,7 +246,7 @@ export function StrikeLadder({
             const effectiveDTE = Math.max(0.5, leg.expirationDays || 1);
             if (marketPrice !== undefined && marketPrice > 0) {
               marketIV = calculateImpliedVolatility(
-                leg.type,
+                optionType,
                 currentPrice,
                 newStrike,
                 effectiveDTE,
@@ -269,7 +275,7 @@ export function StrikeLadder({
         } else {
           // No market data - calculate theoretical premium using Black-Scholes
           const theoreticalPremium = calculateOptionPrice(
-            leg.type,
+            optionType,
             currentPrice,
             newStrike,
             leg.expirationDays,

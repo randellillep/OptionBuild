@@ -517,6 +517,18 @@ export function calculateGreeks(
     return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
   }
   
+  // Handle stock legs - delta = shares, no other Greeks
+  if (leg.type === "stock") {
+    const deltaPerShare = leg.position === "long" ? 1 : -1;
+    return {
+      delta: deltaPerShare * leg.quantity / 100, // Normalize to per-contract equivalent
+      gamma: 0,
+      theta: 0,
+      vega: 0,
+      rho: 0,
+    };
+  }
+  
   const T = leg.expirationDays / 365;
   const S = underlyingPrice;
   const K = leg.strike;
@@ -530,7 +542,9 @@ export function calculateGreeks(
   // ALWAYS use Black-Scholes closed-form formulas for Greeks
   // This ensures stable, mathematically correct Greeks regardless of option style
   // Bjerksund-Stensland is only used for PRICING, not Greeks
-  const baseGreeks = calculateBlackScholesGreeks(leg.type, S, K, T, r, sigma);
+  // Type is narrowed to "call" | "put" after the stock check above
+  const optionType = leg.type as "call" | "put";
+  const baseGreeks = calculateBlackScholesGreeks(optionType, S, K, T, r, sigma);
   
   const multiplier = leg.position === "long" ? 1 : -1;
   
@@ -559,6 +573,18 @@ export function calculateProfitLoss(
   let pnl = 0;
   
   for (const leg of legs) {
+    // Handle stock legs - simple P/L based on price change
+    if (leg.type === "stock") {
+      if (leg.isExcluded) continue;
+      // For stock: premium = entry price per share, quantity = number of shares
+      const entryPrice = leg.premium;
+      const stockPnl = leg.position === "long"
+        ? (atPrice - entryPrice) * leg.quantity
+        : (entryPrice - atPrice) * leg.quantity;
+      pnl += stockPnl;
+      continue;
+    }
+    
     const intrinsicValue = leg.type === "call" 
       ? Math.max(atPrice - leg.strike, 0)
       : Math.max(leg.strike - atPrice, 0);
@@ -646,6 +672,18 @@ export function calculateProfitLossAtDate(
   let pnl = 0;
   
   for (const leg of legs) {
+    // Handle stock legs - simple P/L based on price change (no time decay)
+    if (leg.type === "stock") {
+      if (leg.isExcluded) continue;
+      // For stock: premium = entry price per share, quantity = number of shares
+      const entryPrice = leg.premium;
+      const stockPnl = leg.position === "long"
+        ? (atPrice - entryPrice) * leg.quantity
+        : (entryPrice - atPrice) * leg.quantity;
+      pnl += stockPnl;
+      continue;
+    }
+    
     // Calculate remaining days to expiration from the given point in time
     // daysFromNow = 0 means today, so we have leg.expirationDays remaining
     // daysFromNow = 0.125 means 3 hours from now (0.125 days)
@@ -666,8 +704,10 @@ export function calculateProfitLossAtDate(
         ? Math.max(atPrice - leg.strike, 0)
         : Math.max(leg.strike - atPrice, 0);
     } else {
+      // Type narrowed to "call" | "put" after stock check above
+      const optionType = leg.type as "call" | "put";
       optionValue = calculateOptionPrice(
-        leg.type,
+        optionType,
         atPrice,
         leg.strike,
         daysRemaining,

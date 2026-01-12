@@ -111,6 +111,9 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
     }
   };
 
+  const [saveSuccessful, setSaveSuccessful] = useState(false);
+  const [savedTradeName, setSavedTradeName] = useState("");
+
   const saveMutation = useMutation({
     mutationFn: async (tradeData: {
       name: string;
@@ -126,14 +129,11 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trades'] });
-      toast({
-        title: "Trade saved",
-        description: `"${variables.name}" has been saved to your trades.`,
-      });
-      setTradeName("");
-      setDescription("");
-      setGroup("all");
-      onClose();
+      // Generate share link and show success state
+      const link = generateShareLink();
+      setShareLink(link);
+      setSavedTradeName(variables.name);
+      setSaveSuccessful(true);
     },
     onError: () => {
       toast({
@@ -162,8 +162,22 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
     if (!open) {
       setShareLink(null);
       setCopied(false);
+      setSaveSuccessful(false);
+      setSavedTradeName("");
+      setTradeName("");
+      setDescription("");
+      setGroup("all");
       onClose();
     }
+  };
+
+  const handleBackToEditor = () => {
+    handleOpenChange(false);
+  };
+
+  const handleViewSavedTrades = () => {
+    handleOpenChange(false);
+    window.location.href = '/saved-trades';
   };
 
   if (!isAuthenticated) {
@@ -238,6 +252,73 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
                 {isSaving ? "Creating link..." : "Save trade"}
               </Button>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Show success state after saving
+  if (saveSuccessful && shareLink) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-md" data-testid="modal-save-trade-success">
+          <DialogHeader>
+            <DialogTitle>Save & Share this Trade</DialogTitle>
+          </DialogHeader>
+
+          <Alert className="border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/30">
+            <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <AlertDescription className="text-sm text-emerald-700 dark:text-emerald-300">
+              <strong>Your trade was saved successfully!</strong> You can share a link to it with others or track its performance from the saved trades page.
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm">Link:</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={shareLink} 
+                  readOnly 
+                  className="font-mono text-xs"
+                  data-testid="input-share-link"
+                />
+                <Button 
+                  size="icon" 
+                  variant="outline" 
+                  onClick={handleCopyLink}
+                  data-testid="button-copy-link"
+                >
+                  {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                onClick={handleCopyLink}
+                variant="default"
+                data-testid="button-copy-link-main"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Link
+              </Button>
+              <Button 
+                onClick={handleViewSavedTrades}
+                variant="outline"
+                data-testid="button-view-saved-trades"
+              >
+                View Saved Trades
+              </Button>
+              <Button 
+                onClick={handleBackToEditor}
+                variant="outline"
+                data-testid="button-back-to-editor"
+              >
+                Back to Editor
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

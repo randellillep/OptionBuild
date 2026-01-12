@@ -12,6 +12,7 @@ import { TradingViewSearch } from "@/components/TradingViewSearch";
 import { ExpirationTimeline } from "@/components/ExpirationTimeline";
 import { StrikeLadder } from "@/components/StrikeLadder";
 import { PLHeatmap } from "@/components/PLHeatmap";
+import { EquityPanel } from "@/components/EquityPanel";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
 import { Footer } from "@/components/Footer";
@@ -813,11 +814,14 @@ export default function Builder() {
           }
         } else if (!isFinite(leg.premium) || leg.premium <= 0) {
           // Fallback to theoretical pricing if leg has no valid premium
+          // Stock legs don't need theoretical pricing - they use entry price
+          if (leg.type === "stock") return leg;
+          
           // Use minimum 14 days for theoretical pricing to show realistic premiums
           if (symbolInfo?.price && symbolInfo.price > 0 && leg.strike > 0) {
             const currentVol = volatility || 0.3;
             const theoreticalPremium = calculateOptionPrice(
-              leg.type,
+              leg.type as "call" | "put",
               symbolInfo.price,
               leg.strike,
               theoreticalDTE,  // Use inflated DTE for theoretical pricing only
@@ -877,11 +881,13 @@ export default function Builder() {
         const newLegs = currentLegs.map(leg => {
           if (leg.premiumSource === 'manual') return leg;
           if (isFinite(leg.premium) && leg.premium > 0) return leg;
+          // Stock legs don't need theoretical pricing
+          if (leg.type === "stock") return leg;
 
           // Calculate theoretical price
           if (leg.strike > 0) {
             const theoreticalPremium = calculateOptionPrice(
-              leg.type,
+              leg.type as "call" | "put",
               symbolInfo.price,
               leg.strike,
               daysToExpiration,
@@ -1104,10 +1110,18 @@ export default function Builder() {
       }
       
       // Fallback: Calculate theoretical price using Black-Scholes
+      // Stock legs don't need theoretical pricing - they use entry price
+      if (leg.type === "stock") {
+        return {
+          ...leg,
+          closingTransaction: preservedClosingTransaction,
+        };
+      }
+      
       // Use minimum 14 days for theoretical pricing to show realistic premiums
       if (symbolInfo?.price && symbolInfo.price > 0 && leg.strike > 0) {
         const theoreticalPremium = calculateOptionPrice(
-          leg.type,
+          leg.type as "call" | "put",
           symbolInfo.price,
           leg.strike,
           theoreticalDTE,  // Use inflated DTE for theoretical pricing only
@@ -1467,8 +1481,28 @@ export default function Builder() {
                 symbol={symbolInfo.symbol}
               />
 
-              <StrikeLadder
+              <EquityPanel
                 legs={legs}
+                currentPrice={symbolInfo.price}
+                symbol={symbolInfo.symbol}
+                onUpdateLeg={updateLeg}
+                onRemoveLeg={removeLeg}
+                onAddStockLeg={() => {
+                  addLeg({
+                    type: "stock",
+                    strike: 0,
+                    position: "long",
+                    quantity: 100,
+                    premium: symbolInfo.price,
+                    expirationDays: 0,
+                    entryUnderlyingPrice: symbolInfo.price,
+                    costBasisLocked: true,
+                  });
+                }}
+              />
+
+              <StrikeLadder
+                legs={legs.filter(l => l.type !== "stock")}
                 currentPrice={symbolInfo.price}
                 strikeRange={displayStrikeRange}
                 symbol={symbolInfo.symbol}

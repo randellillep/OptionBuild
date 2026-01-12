@@ -52,7 +52,7 @@ export const insertSavedTradeSchema = createInsertSchema(savedTrades).omit({
 export type InsertSavedTrade = z.infer<typeof insertSavedTradeSchema>;
 export type SavedTrade = typeof savedTrades.$inferSelect;
 
-export type OptionType = "call" | "put";
+export type OptionType = "call" | "put" | "stock";
 export type PositionType = "long" | "short";
 export type PremiumSource = "market" | "theoretical" | "manual" | "saved";
 
