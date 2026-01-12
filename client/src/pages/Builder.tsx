@@ -419,6 +419,17 @@ export default function Builder() {
           const atmStrike = Math.round(basePrice / 5) * 5;
           
           const adjustedLegs: OptionLeg[] = template.legs.map((leg, index) => {
+            // For stock legs, set entry price to current price
+            if (leg.type === "stock") {
+              return deepCopyLeg(leg, {
+                strike: 0,
+                premium: basePrice,
+                entryUnderlyingPrice: basePrice,
+                costBasisLocked: true,
+                id: Date.now().toString() + leg.id + index,
+              });
+            }
+            
             const strikeOffset = leg.strike - 100;
             const newStrike = atmStrike + strikeOffset;
             
@@ -1281,6 +1292,17 @@ export default function Builder() {
           else if (index === 1) newStrike = atmStrike; // ATM
           else if (index === 2) newStrike = roundStrike(currentPrice * 1.05, 'up'); // +5%
           break;
+      }
+      
+      // For stock legs, set entry price to current price and strike to 0
+      if (leg.type === "stock") {
+        return deepCopyLeg(leg, {
+          strike: 0,
+          premium: currentPrice,
+          entryUnderlyingPrice: currentPrice,
+          costBasisLocked: true,
+          id: Date.now().toString() + leg.id + index,
+        });
       }
       
       return deepCopyLeg(leg, {
