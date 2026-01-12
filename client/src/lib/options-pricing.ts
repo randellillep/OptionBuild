@@ -907,8 +907,52 @@ export function calculateStrategyMetrics(
     }
   }
   
-  const maxProfit = Math.max(...allPnlValues);
-  const maxLoss = Math.min(...allPnlValues);
+  const maxProfitValue = Math.max(...allPnlValues);
+  const maxLossValue = Math.min(...allPnlValues);
+  
+  // Determine unlimited profit/loss using net delta at extreme high price (spot → ∞)
+  // This is a deterministic approach based on position analysis
+  // 
+  // Note: Only upward direction (spot → ∞) can have truly unlimited profit/loss
+  // Downward direction is always bounded since stock can't go below 0
+  // (Puts have max intrinsic = strike × 100, short stock max loss = entry × shares)
+  //
+  // At extreme high price:
+  // - Long call: +1 delta per contract (unlimited profit as price rises)
+  // - Short call: -1 delta per contract (unlimited loss as price rises)
+  // - Long stock: +1 delta per 100 shares (unlimited profit as price rises)
+  // - Short stock: -1 delta per 100 shares (unlimited loss as price rises)
+  // - Puts: 0 delta (expire worthless at high price)
+  
+  let netDeltaAtHighPrice = 0;
+  
+  for (const leg of legsWithActivity) {
+    const qty = leg.quantity;
+    const isLong = leg.position === "long";
+    const signedQty = isLong ? qty : -qty;
+    
+    if (leg.type === "stock") {
+      // Stock has delta of 1 per share at all prices
+      // Normalize to per-contract equivalent (100 shares = 1 contract)
+      netDeltaAtHighPrice += signedQty / 100;
+    } else if (leg.type === "call") {
+      // Call has delta of 1 at high price (ITM)
+      netDeltaAtHighPrice += signedQty;
+    }
+    // Puts contribute nothing at high price (expire worthless)
+  }
+  
+  // Unlimited profit: net positive delta at high price (profit increases as price rises)
+  // e.g., long call, long stock, or combinations with net long call exposure
+  const hasUnlimitedProfit = netDeltaAtHighPrice > 0;
+  
+  // Unlimited loss: net negative delta at high price (loss increases as price rises)
+  // e.g., short call, short stock, or combinations with net short call exposure
+  const hasUnlimitedLoss = netDeltaAtHighPrice < 0;
+  
+  // Determine final max profit/loss values
+  const maxProfit = hasUnlimitedProfit ? null : (maxProfitValue > 0 ? maxProfitValue : null);
+  const maxLoss = hasUnlimitedLoss ? null : (maxLossValue < 0 ? maxLossValue : null);
   
   // For breakeven, use expiration values (intrinsic-based)
   const pnlValues = priceRange.map(price => calculateProfitLoss(legs, underlyingPrice, price));
@@ -923,13 +967,13 @@ export function calculateStrategyMetrics(
     }
   }
   
-  const riskRewardRatio = maxLoss < 0 && maxProfit > 0 
+  const riskRewardRatio = maxLoss !== null && maxLoss < 0 && maxProfit !== null && maxProfit > 0 
     ? maxProfit / Math.abs(maxLoss)
     : null;
   
   return {
-    maxProfit: maxProfit > 0 ? maxProfit : null,
-    maxLoss: maxLoss < 0 ? maxLoss : null,
+    maxProfit,
+    maxLoss,
     breakeven,
     netPremium,
     riskRewardRatio,
