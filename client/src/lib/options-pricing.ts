@@ -882,14 +882,18 @@ export function calculateStrategyMetrics(
   const minStrike = allStrikes.length > 0 ? Math.min(...allStrikes) : underlyingPrice;
   const maxStrike = allStrikes.length > 0 ? Math.max(...allStrikes) : underlyingPrice;
   
-  // Check if there are any put legs (long or short) - if so, extend range to near $0
-  // This ensures max profit for long puts and max loss for short puts are correctly calculated
+  // Check if there are any put legs (long or short) or stock legs - if so, extend range to near $0
+  // This ensures max profit for long puts, max loss for short puts, and max loss for long stock are correctly calculated
   const hasPuts = legsWithActivity.some(leg => leg.type === "put");
+  const hasStock = legsWithActivity.some(leg => leg.type === "stock");
   
   // Expand range to include strikes and appropriate buffer
-  // For puts: extend down to $0.01 (stock can't go below 0) to capture full put profit/loss
-  // For calls/stock: extend up to 1.5x or more to capture upward potential
-  const minPrice = hasPuts ? 0.01 : Math.min(underlyingPrice * 0.5, minStrike * 0.8);
+  // For puts/stock: extend down to $0.01 (stock can't go below 0) to capture full downside
+  // - Long stock max loss = entry price × quantity (at $0)
+  // - Long puts max profit = strike × quantity (at $0)
+  // - Short puts max loss = strike × quantity (at $0)
+  // For calls only: extend up to 1.5x or more to capture upward potential
+  const minPrice = (hasPuts || hasStock) ? 0.01 : Math.min(underlyingPrice * 0.5, minStrike * 0.8);
   const maxPrice = Math.max(underlyingPrice * 1.5, maxStrike * 1.2);
   
   const priceRange = Array.from({ length: 200 }, (_, i) => {
