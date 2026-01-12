@@ -340,34 +340,57 @@ export function EquityPanel({
               </button>
             </PopoverTrigger>
             
-            <PopoverContent className="w-72 p-3" align="start">
+            <PopoverContent className="w-64 p-3" align="start">
               <div className="space-y-3">
-                <div className="text-center font-medium text-sm text-muted-foreground">
-                  Closed Position
+                <div className="text-center font-medium text-sm">
+                  {segment.quantity}× {symbol}
                 </div>
-                <div className="text-center text-sm text-muted-foreground">
-                  Sold {segment.quantity} shares at ${segment.closingPrice?.toFixed(2)}
+                
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Open Price</div>
+                    <div className="font-mono font-medium">${segment.entryPrice.toFixed(2)}</div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Close Price</div>
+                    <div className="font-mono font-medium">${segment.closingPrice?.toFixed(2)}</div>
+                    <div className={`text-xs font-medium ${pl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                      {pl >= 0 ? "+" : ""}${pl.toFixed(2)} ({pl >= 0 ? "+" : ""}{segment.entryPrice > 0 ? ((pl / (segment.entryPrice * segment.quantity)) * 100).toFixed(1) : "0"}%)
+                    </div>
+                  </div>
                 </div>
-                <div className={`text-center text-lg font-bold ${pl >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                  {pl >= 0 ? "+" : ""}${pl.toFixed(2)}
+                
+                <div className="border-t pt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id={`exclude-closed-${segment.legId}-${idx}`}
+                      checked={false}
+                      onCheckedChange={() => {}}
+                      data-testid="checkbox-exclude-closed"
+                    />
+                    <label htmlFor={`exclude-closed-${segment.legId}-${idx}`} className="text-sm cursor-pointer">
+                      Exclude
+                    </label>
+                  </div>
+                  
+                  <button
+                    onClick={handleUndoClose}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-full"
+                    data-testid="button-reopen"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Re-Open
+                  </button>
+                  
+                  <button
+                    onClick={handleRemove}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full pt-2 border-t"
+                    data-testid="button-remove-equity"
+                  >
+                    <X className="h-4 w-4" />
+                    Remove
+                  </button>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleUndoClose}
-                  data-testid="button-undo-close"
-                >
-                  Undo All Closes
-                </Button>
-                <button
-                  onClick={handleRemove}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full pt-2 border-t"
-                  data-testid="button-remove-equity"
-                >
-                  <X className="h-4 w-4" />
-                  Remove
-                </button>
               </div>
             </PopoverContent>
           </Popover>
