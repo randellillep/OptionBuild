@@ -129,7 +129,7 @@ export function EquityPanel({
 
   // Handlers for OPEN segment popover
   const handleOpenSegmentClick = (segment: StockSegment & { leg: OptionLeg }) => {
-    setEditQuantity(segment.leg.quantity.toString());
+    setEditQuantity(segment.quantity.toString()); // Use remaining open shares, not total
     setEditEntryPrice(segment.leg.premium.toFixed(2));
     setIsExcluded(segment.leg.isExcluded || false);
     setShowSellToClose(false);
