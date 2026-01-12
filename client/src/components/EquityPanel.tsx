@@ -39,16 +39,21 @@ export function EquityPanel({
   const stockLegs = legs.filter((leg) => leg.type === "stock");
   const selectedLeg = stockLegs.find(l => l.id === selectedLegId) || null;
 
+  // Only sync state when the selected leg changes, NOT when price updates
+  // This prevents the sell-to-close form from disappearing on price updates
   useEffect(() => {
     if (selectedLeg) {
       setEditQuantity(selectedLeg.quantity.toString());
       setEditEntryPrice(selectedLeg.premium.toFixed(2));
       setIsExcluded(selectedLeg.isExcluded || false);
-      setShowSellToClose(selectedLeg.closingTransaction?.isEnabled || false);
-      setClosingPrice(selectedLeg.closingTransaction?.closingPrice?.toFixed(2) || currentPrice.toFixed(2));
+      // Only set showSellToClose based on existing closing transaction when opening popover
+      // Don't reset it on every render
+      if (selectedLeg.closingTransaction?.isEnabled) {
+        setShowSellToClose(true);
+      }
       setClosingQuantity((selectedLeg.closingTransaction?.quantity || selectedLeg.quantity).toString());
     }
-  }, [selectedLeg, currentPrice]);
+  }, [selectedLeg?.id, selectedLeg?.quantity, selectedLeg?.premium, selectedLeg?.isExcluded, selectedLeg?.closingTransaction?.isEnabled]);
 
   if (stockLegs.length === 0) {
     return null;
