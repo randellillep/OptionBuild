@@ -20,6 +20,61 @@ interface EquityPanelProps {
   onAddStockLeg: () => void;
 }
 
+// Segment types for displaying stock positions
+interface StockSegment {
+  type: 'closed' | 'open';
+  legId: string;
+  position: 'long' | 'short';
+  quantity: number;
+  entryPrice: number;
+  closingPrice?: number;
+  realizedPL?: number;
+}
+
+// Helper to derive display segments from a stock leg
+function getStockSegments(leg: OptionLeg, currentPrice: number): StockSegment[] {
+  const segments: StockSegment[] = [];
+  const entryPrice = leg.premium;
+  const position = leg.position as 'long' | 'short';
+  
+  // Get closed portions from closing transactions
+  const closing = leg.closingTransaction;
+  if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
+    for (const entry of closing.entries) {
+      const entryBasis = entry.openingPrice ?? entryPrice;
+      const realizedPL = position === 'long'
+        ? (entry.closingPrice - entryBasis) * entry.quantity
+        : (entryBasis - entry.closingPrice) * entry.quantity;
+      
+      segments.push({
+        type: 'closed',
+        legId: leg.id,
+        position,
+        quantity: entry.quantity,
+        entryPrice: entryBasis,
+        closingPrice: entry.closingPrice,
+        realizedPL,
+      });
+    }
+  }
+  
+  // Calculate remaining open shares
+  const closedQty = closing?.entries?.reduce((sum, e) => sum + e.quantity, 0) || 0;
+  const remainingQty = leg.quantity - closedQty;
+  
+  if (remainingQty > 0 && !leg.isExcluded) {
+    segments.push({
+      type: 'open',
+      legId: leg.id,
+      position,
+      quantity: remainingQty,
+      entryPrice,
+    });
+  }
+  
+  return segments;
+}
+
 export function EquityPanel({
   legs,
   currentPrice,
@@ -40,14 +95,11 @@ export function EquityPanel({
   const selectedLeg = stockLegs.find(l => l.id === selectedLegId) || null;
 
   // Only sync state when the selected leg changes, NOT when price updates
-  // This prevents the sell-to-close form from disappearing on price updates
   useEffect(() => {
     if (selectedLeg) {
       setEditQuantity(selectedLeg.quantity.toString());
       setEditEntryPrice(selectedLeg.premium.toFixed(2));
       setIsExcluded(selectedLeg.isExcluded || false);
-      // Only set showSellToClose based on existing closing transaction when opening popover
-      // Don't reset it on every render
       if (selectedLeg.closingTransaction?.isEnabled) {
         setShowSellToClose(true);
       }
@@ -59,15 +111,7 @@ export function EquityPanel({
     return null;
   }
 
-  // Helper to check if all shares are sold
-  const isFullyClosed = (leg: OptionLeg) => {
-    if (!leg.closingTransaction?.isEnabled) return false;
-    const closedQty = leg.closingTransaction.entries?.reduce((sum, e) => sum + e.quantity, 0) 
-      || leg.closingTransaction.quantity || 0;
-    return closedQty >= leg.quantity;
-  };
-
-  // Get remaining shares after closing
+  // Get remaining shares for a leg
   const getRemainingShares = (leg: OptionLeg) => {
     if (!leg.closingTransaction?.isEnabled) return leg.quantity;
     const closedQty = leg.closingTransaction.entries?.reduce((sum, e) => sum + e.quantity, 0) 
@@ -80,8 +124,8 @@ export function EquityPanel({
     setEditQuantity(leg.quantity.toString());
     setEditEntryPrice(leg.premium.toFixed(2));
     setIsExcluded(leg.isExcluded || false);
-    setShowSellToClose(leg.closingTransaction?.isEnabled || false);
-    setClosingPrice(leg.closingTransaction?.closingPrice?.toFixed(2) || currentPrice.toFixed(2));
+    setShowSellToClose(false);
+    setClosingPrice(currentPrice.toFixed(2));
     const remainingQty = getRemainingShares(leg);
     setClosingQuantity(remainingQty.toString());
     setPopoverOpen(true);
@@ -246,314 +290,380 @@ export function EquityPanel({
 
   const showUpdateButton = hasQuantityChanged() || hasEntryPriceChanged();
 
+  // Generate all segments from all stock legs
+  const allSegments: Array<StockSegment & { leg: OptionLeg }> = [];
+  for (const leg of stockLegs) {
+    const segments = getStockSegments(leg, currentPrice);
+    for (const segment of segments) {
+      allSegments.push({ ...segment, leg });
+    }
+  }
+
+  // If a leg is excluded and has no closed entries, show it dimmed
+  const excludedLegs = stockLegs.filter(leg => 
+    leg.isExcluded && 
+    (!leg.closingTransaction?.entries || leg.closingTransaction.entries.length === 0)
+  );
+
   return (
-    <div className="flex items-center gap-2 px-2 py-1.5 text-sm">
+    <div className="flex items-center gap-2 px-2 py-1.5 text-sm flex-wrap">
       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         EQUITY:
       </span>
       
-      {stockLegs.map((leg) => {
-        const entryPrice = leg.premium;
-        const positionLabel = leg.position === "long" ? "Long" : "Short";
-        const fullyClosed = isFullyClosed(leg);
-        const remainingShares = getRemainingShares(leg);
-        const closedShares = leg.quantity - remainingShares;
-        
-        // Calculate P/L for closed shares
-        const closingTx = leg.closingTransaction;
-        const closedPL = closingTx?.entries?.reduce((sum, entry) => {
-          const entryBasis = entry.openingPrice ?? entryPrice;
-          return sum + (leg.position === "long" 
-            ? (entry.closingPrice - entryBasis) * entry.quantity
-            : (entryBasis - entry.closingPrice) * entry.quantity);
-        }, 0) || 0;
+      {/* Render closed segments first (with checkmark) */}
+      {allSegments.filter(s => s.type === 'closed').map((segment, idx) => {
+        const positionLabel = segment.position === "long" ? "Long" : "Short";
+        const pl = segment.realizedPL || 0;
         
         return (
           <Popover
-            key={leg.id}
-            open={popoverOpen && selectedLegId === leg.id}
+            key={`closed-${segment.legId}-${idx}`}
+            open={popoverOpen && selectedLegId === segment.legId}
             onOpenChange={(open) => {
-              if (!open) {
-                handleClosePopover();
-              }
+              if (!open) handleClosePopover();
             }}
           >
             <PopoverTrigger asChild>
               <button
-                onClick={() => handleOpenPopover(leg)}
-                className={`px-2 py-0.5 rounded border transition-colors cursor-pointer ${
-                  fullyClosed
-                    ? "border-muted-foreground/30 bg-muted/50 text-muted-foreground"
-                    : leg.isExcluded
-                    ? "opacity-50 border-dashed border-muted-foreground/50 text-muted-foreground line-through"
-                    : "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-950/50"
-                }`}
-                data-testid={`equity-leg-${leg.id}`}
+                onClick={() => handleOpenPopover(segment.leg)}
+                className="px-2 py-0.5 rounded border border-muted-foreground/30 bg-muted/50 text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors"
+                data-testid={`equity-closed-${segment.legId}-${idx}`}
               >
-                {fullyClosed ? (
-                  <span className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" />
-                    <span className="line-through">{positionLabel} {leg.quantity} shares</span>
-                    <span className={closedPL >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                      {closedPL >= 0 ? "+" : ""}${closedPL.toFixed(0)}
-                    </span>
+                <span className="flex items-center gap-1">
+                  <span className="line-through">{positionLabel} {segment.quantity} shares at ${segment.entryPrice.toFixed(2)}</span>
+                  <CheckCircle className="h-3 w-3 text-emerald-500" />
+                  <span className={pl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                    {pl >= 0 ? "+" : ""}${pl.toFixed(0)}
                   </span>
-                ) : closedShares > 0 ? (
-                  <span>
-                    {positionLabel} {remainingShares} shares at ${entryPrice.toFixed(2)}
-                    <span className="text-muted-foreground ml-1">({closedShares} sold)</span>
-                  </span>
-                ) : (
-                  <span>{positionLabel} {leg.quantity} shares at ${entryPrice.toFixed(2)}</span>
-                )}
+                </span>
+              </button>
+            </PopoverTrigger>
+            
+            <PopoverContent className="w-72 p-3" align="start">
+              <div className="space-y-3">
+                <div className="text-center font-medium text-sm text-muted-foreground">
+                  Closed Position
+                </div>
+                <div className="text-center text-sm text-muted-foreground">
+                  Sold {segment.quantity} shares at ${segment.closingPrice?.toFixed(2)}
+                </div>
+                <div className={`text-center text-lg font-bold ${pl >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                  {pl >= 0 ? "+" : ""}${pl.toFixed(2)}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleUndoClose}
+                  data-testid="button-undo-close"
+                >
+                  Undo All Closes
+                </Button>
+                <button
+                  onClick={handleRemove}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full pt-2 border-t"
+                  data-testid="button-remove-equity"
+                >
+                  <X className="h-4 w-4" />
+                  Remove
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        );
+      })}
+      
+      {/* Render open segments (active positions) */}
+      {allSegments.filter(s => s.type === 'open').map((segment, idx) => {
+        const positionLabel = segment.position === "long" ? "Long" : "Short";
+        const remainingShares = getRemainingShares(segment.leg);
+        
+        return (
+          <Popover
+            key={`open-${segment.legId}-${idx}`}
+            open={popoverOpen && selectedLegId === segment.legId}
+            onOpenChange={(open) => {
+              if (!open) handleClosePopover();
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                onClick={() => handleOpenPopover(segment.leg)}
+                className="px-2 py-0.5 rounded border border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-950/50 cursor-pointer transition-colors"
+                data-testid={`equity-open-${segment.legId}`}
+              >
+                {positionLabel} {segment.quantity} shares at ${segment.entryPrice.toFixed(2)}
               </button>
             </PopoverTrigger>
             
             <PopoverContent className="w-72 p-3" align="start">
               <div className="space-y-3">
                 <div className="text-center font-medium text-sm">
-                  {fullyClosed ? (
-                    <span className="text-muted-foreground">Closed Position</span>
-                  ) : (
-                    <span>{editQuantity || "0"}x {symbol}</span>
-                  )}
+                  {editQuantity || "0"}x {symbol}
                 </div>
                 
-                {fullyClosed ? (
-                  <div className="space-y-2">
-                    <div className="text-center text-sm text-muted-foreground">
-                      Sold {leg.quantity} shares at ${closingTx?.closingPrice?.toFixed(2)}
-                    </div>
-                    <div className={`text-center text-lg font-bold ${closedPL >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      {closedPL >= 0 ? "+" : ""}${closedPL.toFixed(2)}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={handleUndoClose}
-                      data-testid="button-undo-close"
-                    >
-                      Undo Close
-                    </Button>
-                    <button
-                      onClick={handleRemove}
-                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full pt-2 border-t"
-                      data-testid="button-remove-equity"
-                    >
-                      <X className="h-4 w-4" />
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs block">Quantity</Label>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 shrink-0"
-                            onClick={() => handleQuantityStep(-100)}
-                            data-testid="button-qty-decrease"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Input
-                            value={editQuantity}
-                            onChange={(e) => handleQuantityInputChange(e.target.value)}
-                            className="h-8 text-sm text-center font-mono"
-                            type="text"
-                            inputMode="numeric"
-                            data-testid="input-equity-quantity"
-                          />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 shrink-0"
-                            onClick={() => handleQuantityStep(100)}
-                            data-testid="button-qty-increase"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <Label className="text-xs block">Entry Price</Label>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm">$</span>
-                          <Input
-                            value={editEntryPrice}
-                            onChange={(e) => handleEntryPriceChange(e.target.value)}
-                            className="h-8 text-sm font-mono"
-                            type="text"
-                            inputMode="decimal"
-                            data-testid="input-equity-entry-price"
-                          />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 shrink-0"
-                            onClick={handleRefreshEntryPrice}
-                            title="Set to current market price"
-                            data-testid="button-refresh-entry-price"
-                          >
-                            <RefreshCw className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {showUpdateButton && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs block">Quantity</Label>
+                    <div className="flex items-center gap-1">
                       <Button
-                        size="sm"
-                        variant="default"
-                        className="w-full"
-                        onClick={handleSaveChanges}
-                        data-testid="button-save-equity-changes"
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => handleQuantityStep(-100)}
+                        data-testid="button-qty-decrease"
                       >
-                        Update
+                        <ChevronLeft className="h-4 w-4" />
                       </Button>
-                    )}
-                    
-                    <div className="border-t pt-2 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Checkbox 
-                          id={`exclude-equity-${leg.id}`}
-                          checked={isExcluded}
-                          onCheckedChange={(checked) => handleExcludeChange(checked === true)}
-                          data-testid="checkbox-exclude-equity"
-                        />
-                        <label htmlFor={`exclude-equity-${leg.id}`} className="text-sm cursor-pointer">
-                          Exclude
-                        </label>
+                      <Input
+                        value={editQuantity}
+                        onChange={(e) => handleQuantityInputChange(e.target.value)}
+                        className="h-8 text-sm text-center font-mono"
+                        type="text"
+                        inputMode="numeric"
+                        data-testid="input-equity-quantity"
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => handleQuantityStep(100)}
+                        data-testid="button-qty-increase"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs block">Entry Price</Label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">$</span>
+                      <Input
+                        value={editEntryPrice}
+                        onChange={(e) => handleEntryPriceChange(e.target.value)}
+                        className="h-8 text-sm font-mono"
+                        type="text"
+                        inputMode="decimal"
+                        data-testid="input-equity-entry-price"
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0"
+                        onClick={handleRefreshEntryPrice}
+                        title="Set to current market price"
+                        data-testid="button-refresh-entry-price"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                {showUpdateButton && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="w-full"
+                    onClick={handleSaveChanges}
+                    data-testid="button-save-equity-changes"
+                  >
+                    Update
+                  </Button>
+                )}
+                
+                <div className="border-t pt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id={`exclude-equity-${segment.legId}`}
+                      checked={isExcluded}
+                      onCheckedChange={(checked) => handleExcludeChange(checked === true)}
+                      data-testid="checkbox-exclude-equity"
+                    />
+                    <label htmlFor={`exclude-equity-${segment.legId}`} className="text-sm cursor-pointer">
+                      Exclude
+                    </label>
+                  </div>
+                  
+                  {!showSellToClose ? (
+                    <>
+                      <button
+                        onClick={handleSellToCloseToggle}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-full"
+                        data-testid="button-sell-to-close-toggle"
+                      >
+                        <span className="text-muted-foreground">$</span>
+                        Sell to Close
+                      </button>
+                      
+                      <button
+                        onClick={handleRemove}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full"
+                        data-testid="button-remove-equity"
+                      >
+                        <X className="h-4 w-4" />
+                        Remove
+                      </button>
+                    </>
+                  ) : (
+                    <div className="space-y-3 pt-2 border-t">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Closing Price</Label>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm">$</span>
+                            <Input
+                              value={closingPrice}
+                              onChange={(e) => setClosingPrice(e.target.value)}
+                              className="h-8 text-sm"
+                              type="number"
+                              step="0.01"
+                              data-testid="input-closing-price"
+                            />
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => setClosingPrice(currentPrice.toFixed(2))}
+                              title="Set to current market price"
+                              data-testid="button-refresh-closing-price"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <Label className="text-xs">Closing Qty</Label>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => handleClosingQtyStep(-100)}
+                              data-testid="button-closing-qty-decrease"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Input
+                              value={closingQuantity}
+                              onChange={(e) => handleClosingQtyInputChange(e.target.value)}
+                              className="h-8 text-sm text-center font-mono"
+                              type="text"
+                              inputMode="numeric"
+                              data-testid="input-closing-quantity"
+                            />
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => handleClosingQtyStep(100)}
+                              data-testid="button-closing-qty-increase"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="text-xs text-center text-muted-foreground">
+                            <button 
+                              onClick={handleSetAllClosingQty}
+                              className="hover:underline"
+                              data-testid="button-closing-qty-all"
+                            >
+                              All ({remainingShares})
+                            </button>
+                          </div>
+                        </div>
                       </div>
                       
-                      {!showSellToClose ? (
-                        <>
-                          <button
-                            onClick={handleSellToCloseToggle}
-                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-full"
-                            data-testid="button-sell-to-close-toggle"
-                          >
-                            <span className="text-muted-foreground">$</span>
-                            Sell to Close
-                          </button>
-                          
-                          <button
-                            onClick={handleRemove}
-                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full"
-                            data-testid="button-remove-equity"
-                          >
-                            <X className="h-4 w-4" />
-                            Remove
-                          </button>
-                        </>
-                      ) : (
-                        <div className="space-y-3 pt-2 border-t">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Closing Price</Label>
-                              <div className="flex items-center gap-1">
-                                <span className="text-sm">$</span>
-                                <Input
-                                  value={closingPrice}
-                                  onChange={(e) => setClosingPrice(e.target.value)}
-                                  className="h-8 text-sm"
-                                  type="number"
-                                  step="0.01"
-                                  data-testid="input-closing-price"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8 shrink-0"
-                                  onClick={() => setClosingPrice(currentPrice.toFixed(2))}
-                                  title="Set to current market price"
-                                  data-testid="button-refresh-closing-price"
-                                >
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-1">
-                              <Label className="text-xs">Closing Qty</Label>
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8 shrink-0"
-                                  onClick={() => handleClosingQtyStep(-100)}
-                                  data-testid="button-closing-qty-decrease"
-                                >
-                                  <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <Input
-                                  value={closingQuantity}
-                                  onChange={(e) => handleClosingQtyInputChange(e.target.value)}
-                                  className="h-8 text-sm text-center font-mono"
-                                  type="text"
-                                  inputMode="numeric"
-                                  data-testid="input-closing-quantity"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8 shrink-0"
-                                  onClick={() => handleClosingQtyStep(100)}
-                                  data-testid="button-closing-qty-increase"
-                                >
-                                  <ChevronRight className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <div className="text-xs text-center text-muted-foreground">
-                                <button 
-                                  onClick={handleSetAllClosingQty}
-                                  className="hover:underline"
-                                  data-testid="button-closing-qty-all"
-                                >
-                                  All ({remainingShares})
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              className="flex-1"
-                              onClick={handleSellToClose}
-                              data-testid="button-confirm-sell-to-close"
-                            >
-                              Sell to Close
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1"
-                              onClick={handleCancelSellToClose}
-                              data-testid="button-cancel-sell-to-close"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                          
-                          <button
-                            onClick={handleRemove}
-                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full pt-2 border-t"
-                            data-testid="button-remove-equity"
-                          >
-                            <X className="h-4 w-4" />
-                            Remove
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={handleSellToClose}
+                          data-testid="button-confirm-sell-to-close"
+                        >
+                          Sell to Close
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={handleCancelSellToClose}
+                          data-testid="button-cancel-sell-to-close"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      
+                      <button
+                        onClick={handleRemove}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full pt-2 border-t"
+                        data-testid="button-remove-equity"
+                      >
+                        <X className="h-4 w-4" />
+                        Remove
+                      </button>
                     </div>
-                  </>
-                )}
+                  )}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        );
+      })}
+      
+      {/* Render excluded legs (no segments, just dimmed) */}
+      {excludedLegs.map((leg) => {
+        const positionLabel = leg.position === "long" ? "Long" : "Short";
+        
+        return (
+          <Popover
+            key={`excluded-${leg.id}`}
+            open={popoverOpen && selectedLegId === leg.id}
+            onOpenChange={(open) => {
+              if (!open) handleClosePopover();
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                onClick={() => handleOpenPopover(leg)}
+                className="px-2 py-0.5 rounded border opacity-50 border-dashed border-muted-foreground/50 text-muted-foreground line-through cursor-pointer"
+                data-testid={`equity-excluded-${leg.id}`}
+              >
+                {positionLabel} {leg.quantity} shares at ${leg.premium.toFixed(2)}
+              </button>
+            </PopoverTrigger>
+            
+            <PopoverContent className="w-72 p-3" align="start">
+              <div className="space-y-3">
+                <div className="text-center font-medium text-sm text-muted-foreground">
+                  Excluded Position
+                </div>
+                
+                <div className="border-t pt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id={`exclude-equity-${leg.id}`}
+                      checked={true}
+                      onCheckedChange={(checked) => handleExcludeChange(checked === true)}
+                      data-testid="checkbox-exclude-equity"
+                    />
+                    <label htmlFor={`exclude-equity-${leg.id}`} className="text-sm cursor-pointer">
+                      Exclude
+                    </label>
+                  </div>
+                  
+                  <button
+                    onClick={handleRemove}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full"
+                    data-testid="button-remove-equity"
+                  >
+                    <X className="h-4 w-4" />
+                    Remove
+                  </button>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
