@@ -819,7 +819,11 @@ export function calculateStrategyMetrics(
   
   // Net premium: normalize premium to positive, then apply position multiplier
   // Also account for closing transactions
+  // NOTE: Net premium accounts for OPTIONS ONLY, not stock/equity positions
   const netPremium = legs.reduce((sum, leg) => {
+    // Skip stock legs - Net Premium is for options only
+    if (leg.type === "stock") return sum;
+    
     const premium = Math.abs(leg.premium);
     const closing = leg.closingTransaction;
     

@@ -29,10 +29,11 @@ export function EquityPanel({
 }: EquityPanelProps) {
   const [selectedLegId, setSelectedLegId] = useState<string | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [editQuantity, setEditQuantity] = useState(100);
+  const [editQuantity, setEditQuantity] = useState("100");
+  const [editEntryPrice, setEditEntryPrice] = useState("");
   const [showSellToClose, setShowSellToClose] = useState(false);
   const [closingPrice, setClosingPrice] = useState("");
-  const [closingQuantity, setClosingQuantity] = useState(0);
+  const [closingQuantity, setClosingQuantity] = useState("0");
   const [isExcluded, setIsExcluded] = useState(false);
 
   const stockLegs = legs.filter((leg) => leg.type === "stock");
@@ -40,11 +41,12 @@ export function EquityPanel({
 
   useEffect(() => {
     if (selectedLeg) {
-      setEditQuantity(selectedLeg.quantity);
+      setEditQuantity(selectedLeg.quantity.toString());
+      setEditEntryPrice(selectedLeg.premium.toFixed(2));
       setIsExcluded(selectedLeg.isExcluded || false);
       setShowSellToClose(selectedLeg.closingTransaction?.isEnabled || false);
       setClosingPrice(selectedLeg.closingTransaction?.closingPrice?.toFixed(2) || currentPrice.toFixed(2));
-      setClosingQuantity(selectedLeg.closingTransaction?.quantity || selectedLeg.quantity);
+      setClosingQuantity((selectedLeg.closingTransaction?.quantity || selectedLeg.quantity).toString());
     }
   }, [selectedLeg, currentPrice]);
 
@@ -54,11 +56,12 @@ export function EquityPanel({
 
   const handleOpenPopover = (leg: OptionLeg) => {
     setSelectedLegId(leg.id);
-    setEditQuantity(leg.quantity);
+    setEditQuantity(leg.quantity.toString());
+    setEditEntryPrice(leg.premium.toFixed(2));
     setIsExcluded(leg.isExcluded || false);
     setShowSellToClose(leg.closingTransaction?.isEnabled || false);
     setClosingPrice(leg.closingTransaction?.closingPrice?.toFixed(2) || currentPrice.toFixed(2));
-    setClosingQuantity(leg.closingTransaction?.quantity || leg.quantity);
+    setClosingQuantity((leg.closingTransaction?.quantity || leg.quantity).toString());
     setPopoverOpen(true);
   };
 
@@ -68,14 +71,54 @@ export function EquityPanel({
     setShowSellToClose(false);
   };
 
-  const handleQuantityChange = (delta: number) => {
-    const newQty = Math.max(1, editQuantity + delta);
-    setEditQuantity(newQty);
+  const handleQuantityStep = (delta: number) => {
+    const currentQty = parseInt(editQuantity) || 0;
+    const newQty = Math.max(1, currentQty + delta);
+    setEditQuantity(newQty.toString());
   };
 
-  const handleSaveQuantity = () => {
+  const handleQuantityInputChange = (value: string) => {
+    if (value === "" || /^\d+$/.test(value)) {
+      setEditQuantity(value);
+    }
+  };
+
+  const handleEntryPriceChange = (value: string) => {
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+      setEditEntryPrice(value);
+    }
+  };
+
+  const hasQuantityChanged = () => {
+    if (!selectedLeg) return false;
+    const qty = parseInt(editQuantity);
+    return !isNaN(qty) && qty >= 1 && qty !== selectedLeg.quantity;
+  };
+
+  const hasEntryPriceChanged = () => {
+    if (!selectedLeg) return false;
+    const price = parseFloat(editEntryPrice);
+    return !isNaN(price) && price > 0 && Math.abs(price - selectedLeg.premium) > 0.001;
+  };
+
+  const handleSaveChanges = () => {
     if (!selectedLeg) return;
-    onUpdateLeg(selectedLeg.id, { quantity: editQuantity });
+    
+    const updates: Partial<OptionLeg> = {};
+    
+    const qty = parseInt(editQuantity);
+    if (!isNaN(qty) && qty >= 1 && qty !== selectedLeg.quantity) {
+      updates.quantity = qty;
+    }
+    
+    const price = parseFloat(editEntryPrice);
+    if (!isNaN(price) && price > 0 && Math.abs(price - selectedLeg.premium) > 0.001) {
+      updates.premium = price;
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      onUpdateLeg(selectedLeg.id, updates);
+    }
   };
 
   const handleExcludeChange = (checked: boolean) => {
@@ -92,19 +135,20 @@ export function EquityPanel({
     if (!selectedLeg) return;
     
     const price = parseFloat(closingPrice);
-    if (isNaN(price) || price <= 0) return;
+    const qty = parseInt(closingQuantity);
+    if (isNaN(price) || price <= 0 || isNaN(qty) || qty <= 0) return;
     
     onUpdateLeg(selectedLeg.id, {
       closingTransaction: {
         isEnabled: true,
         closingPrice: price,
-        quantity: closingQuantity,
+        quantity: qty,
         entries: [{
           id: Date.now().toString(),
-          quantity: closingQuantity,
+          quantity: qty,
           closingPrice: price,
           openingPrice: selectedLeg.premium,
-          strike: 0, // Stock legs have no strike
+          strike: 0,
           closedAt: new Date().toISOString(),
         }],
       },
@@ -123,17 +167,30 @@ export function EquityPanel({
     handleClosePopover();
   };
 
-  const handleClosingQtyChange = (delta: number) => {
+  const handleClosingQtyStep = (delta: number) => {
     if (!selectedLeg) return;
+    const currentQty = parseInt(closingQuantity) || 0;
     const maxQty = selectedLeg.quantity;
-    const newQty = Math.max(1, Math.min(maxQty, closingQuantity + delta));
-    setClosingQuantity(newQty);
+    const newQty = Math.max(1, Math.min(maxQty, currentQty + delta));
+    setClosingQuantity(newQty.toString());
+  };
+
+  const handleClosingQtyInputChange = (value: string) => {
+    if (!selectedLeg) return;
+    if (value === "" || /^\d+$/.test(value)) {
+      const num = parseInt(value) || 0;
+      if (num <= selectedLeg.quantity) {
+        setClosingQuantity(value);
+      }
+    }
   };
 
   const handleSetAllClosingQty = () => {
     if (!selectedLeg) return;
-    setClosingQuantity(selectedLeg.quantity);
+    setClosingQuantity(selectedLeg.quantity.toString());
   };
+
+  const showUpdateButton = hasQuantityChanged() || hasEntryPriceChanged();
 
   return (
     <div className="flex items-center gap-2 px-2 py-1.5 text-sm">
@@ -169,56 +226,72 @@ export function EquityPanel({
               </button>
             </PopoverTrigger>
             
-            <PopoverContent className="w-64 p-3" align="start">
+            <PopoverContent className="w-72 p-3" align="start">
               <div className="space-y-3">
                 <div className="text-center font-medium text-sm">
-                  {editQuantity}x {symbol}
+                  {editQuantity || "0"}x {symbol}
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-center block">Quantity</Label>
-                    <div className="flex items-center justify-center gap-1">
+                    <Label className="text-xs block">Quantity</Label>
+                    <div className="flex items-center gap-1">
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-7 w-7"
-                        onClick={() => handleQuantityChange(-100)}
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => handleQuantityStep(-100)}
                         data-testid="button-qty-decrease"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
-                      <span className="font-mono text-sm min-w-[40px] text-center">{editQuantity}</span>
+                      <Input
+                        value={editQuantity}
+                        onChange={(e) => handleQuantityInputChange(e.target.value)}
+                        className="h-8 text-sm text-center font-mono"
+                        type="text"
+                        inputMode="numeric"
+                        data-testid="input-equity-quantity"
+                      />
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-7 w-7"
-                        onClick={() => handleQuantityChange(100)}
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => handleQuantityStep(100)}
                         data-testid="button-qty-increase"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
-                    {editQuantity !== selectedLeg?.quantity && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full h-6 text-xs"
-                        onClick={handleSaveQuantity}
-                        data-testid="button-save-qty"
-                      >
-                        Update
-                      </Button>
-                    )}
                   </div>
                   
                   <div className="space-y-1">
-                    <Label className="text-xs text-center block">Price</Label>
-                    <div className="text-center font-mono text-sm py-1">
-                      ${currentPrice.toFixed(2)}
+                    <Label className="text-xs block">Entry Price</Label>
+                    <div className="flex items-center">
+                      <span className="text-sm mr-1">$</span>
+                      <Input
+                        value={editEntryPrice}
+                        onChange={(e) => handleEntryPriceChange(e.target.value)}
+                        className="h-8 text-sm font-mono"
+                        type="text"
+                        inputMode="decimal"
+                        data-testid="input-equity-entry-price"
+                      />
                     </div>
                   </div>
                 </div>
+                
+                {showUpdateButton && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="w-full"
+                    onClick={handleSaveChanges}
+                    data-testid="button-save-equity-changes"
+                  >
+                    Update
+                  </Button>
+                )}
                 
                 <div className="border-t pt-2 space-y-2">
                   <div className="flex items-center gap-2">
@@ -240,7 +313,7 @@ export function EquityPanel({
                         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-full"
                         data-testid="button-sell-to-close-toggle"
                       >
-                        <span className="text-muted-foreground">✓</span>
+                        <span className="text-muted-foreground">$</span>
                         Sell to Close
                       </button>
                       
@@ -257,50 +330,58 @@ export function EquityPanel({
                     <div className="space-y-3 pt-2 border-t">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <Label className="text-xs">Closing Price:</Label>
-                          <Input
-                            value={closingPrice}
-                            onChange={(e) => setClosingPrice(e.target.value)}
-                            className="h-8 text-sm"
-                            type="number"
-                            step="0.01"
-                            data-testid="input-closing-price"
-                          />
+                          <Label className="text-xs">Closing Price</Label>
+                          <div className="flex items-center">
+                            <span className="text-sm mr-1">$</span>
+                            <Input
+                              value={closingPrice}
+                              onChange={(e) => setClosingPrice(e.target.value)}
+                              className="h-8 text-sm"
+                              type="number"
+                              step="0.01"
+                              data-testid="input-closing-price"
+                            />
+                          </div>
                         </div>
                         
                         <div className="space-y-1">
-                          <Label className="text-xs">Closing Quantity:</Label>
+                          <Label className="text-xs">Closing Qty</Label>
                           <div className="flex items-center gap-1">
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => handleClosingQtyChange(-100)}
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => handleClosingQtyStep(-100)}
                               data-testid="button-closing-qty-decrease"
                             >
                               <ChevronLeft className="h-4 w-4" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 px-2 text-xs"
-                              onClick={handleSetAllClosingQty}
-                              data-testid="button-closing-qty-all"
-                            >
-                              All
-                            </Button>
+                            <Input
+                              value={closingQuantity}
+                              onChange={(e) => handleClosingQtyInputChange(e.target.value)}
+                              className="h-8 text-sm text-center font-mono"
+                              type="text"
+                              inputMode="numeric"
+                              data-testid="input-closing-quantity"
+                            />
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => handleClosingQtyChange(100)}
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => handleClosingQtyStep(100)}
                               data-testid="button-closing-qty-increase"
                             >
                               <ChevronRight className="h-4 w-4" />
                             </Button>
                           </div>
                           <div className="text-xs text-center text-muted-foreground">
-                            {closingQuantity} of {selectedLeg?.quantity || 0}
+                            <button 
+                              onClick={handleSetAllClosingQty}
+                              className="hover:underline"
+                              data-testid="button-closing-qty-all"
+                            >
+                              All ({selectedLeg?.quantity || 0})
+                            </button>
                           </div>
                         </div>
                       </div>
