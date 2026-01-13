@@ -575,9 +575,38 @@ export function calculateProfitLoss(
   for (const leg of legs) {
     // Handle stock legs - simple P/L based on price change
     if (leg.type === "stock") {
-      if (leg.isExcluded) continue;
-      // For stock: premium = entry price per share, quantity = number of shares
       const entryPrice = leg.premium;
+      
+      // Handle closing transaction for stocks (sold shares)
+      const closing = leg.closingTransaction;
+      if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
+        // Calculate realized P/L from closed/sold shares (FIXED)
+        let totalRealizedPnl = 0;
+        const allClosedQty = closing.entries.reduce((sum, e) => sum + e.quantity, 0);
+        
+        for (const entry of closing.entries) {
+          if (entry.isExcluded) continue;
+          const entryCostBasis = entry.openingPrice ?? entryPrice;
+          const entryPnl = leg.position === "long"
+            ? (entry.closingPrice - entryCostBasis) * entry.quantity
+            : (entryCostBasis - entry.closingPrice) * entry.quantity;
+          totalRealizedPnl += entryPnl;
+        }
+        
+        // Calculate unrealized P/L for remaining open shares
+        const remainingQty = leg.quantity - allClosedQty;
+        const unrealizedPnl = (remainingQty > 0 && !leg.isExcluded)
+          ? (leg.position === "long"
+              ? (atPrice - entryPrice) * remainingQty
+              : (entryPrice - atPrice) * remainingQty)
+          : 0;
+        
+        pnl += totalRealizedPnl + unrealizedPnl;
+        continue;
+      }
+      
+      // No closing transaction - calculate unrealized P/L for full quantity
+      if (leg.isExcluded) continue;
       const stockPnl = leg.position === "long"
         ? (atPrice - entryPrice) * leg.quantity
         : (entryPrice - atPrice) * leg.quantity;
@@ -674,9 +703,45 @@ export function calculateProfitLossAtDate(
   for (const leg of legs) {
     // Handle stock legs - simple P/L based on price change (no time decay)
     if (leg.type === "stock") {
-      if (leg.isExcluded) continue;
       // For stock: premium = entry price per share, quantity = number of shares
       const entryPrice = leg.premium;
+      
+      // Handle closing transaction for stocks (sold shares)
+      const closing = leg.closingTransaction;
+      if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
+        // Calculate realized P/L from closed/sold shares (FIXED - doesn't change with price)
+        let totalRealizedPnl = 0;
+        const allClosedQty = closing.entries.reduce((sum, e) => sum + e.quantity, 0);
+        
+        for (const entry of closing.entries) {
+          // Skip excluded entries for P/L calculation
+          if (entry.isExcluded) continue;
+          
+          // Use entry's stored opening price or fall back to leg's entry price
+          const entryCostBasis = entry.openingPrice ?? entryPrice;
+          
+          // Stock P/L is simple: (sell price - buy price) * shares for long
+          const entryPnl = leg.position === "long"
+            ? (entry.closingPrice - entryCostBasis) * entry.quantity
+            : (entryCostBasis - entry.closingPrice) * entry.quantity;
+          
+          totalRealizedPnl += entryPnl;
+        }
+        
+        // Calculate unrealized P/L for remaining open shares
+        const remainingQty = leg.quantity - allClosedQty;
+        const unrealizedPnl = (remainingQty > 0 && !leg.isExcluded)
+          ? (leg.position === "long"
+              ? (atPrice - entryPrice) * remainingQty
+              : (entryPrice - atPrice) * remainingQty)
+          : 0;
+        
+        pnl += totalRealizedPnl + unrealizedPnl;
+        continue;
+      }
+      
+      // No closing transaction - calculate unrealized P/L for full quantity
+      if (leg.isExcluded) continue;
       const stockPnl = leg.position === "long"
         ? (atPrice - entryPrice) * leg.quantity
         : (entryPrice - atPrice) * leg.quantity;
