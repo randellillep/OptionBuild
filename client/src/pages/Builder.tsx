@@ -1526,7 +1526,7 @@ export default function Builder() {
                     costBasisLocked: true,
                   });
                 }}
-                onAddStockLegWithDetails={(quantity, entryPrice, position) => {
+                onAddStockLegWithDetails={(quantity, entryPrice, position, closingTransaction) => {
                   addLeg({
                     type: "stock",
                     strike: 0,
@@ -1536,6 +1536,7 @@ export default function Builder() {
                     expirationDays: 0,
                     entryUnderlyingPrice: entryPrice,
                     costBasisLocked: true,
+                    closingTransaction: closingTransaction,
                   });
                 }}
               />

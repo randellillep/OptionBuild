@@ -18,7 +18,7 @@ interface EquityPanelProps {
   onUpdateLeg: (legId: string, updates: Partial<OptionLeg>) => void;
   onRemoveLeg: (legId: string) => void;
   onAddStockLeg: () => void;
-  onAddStockLegWithDetails?: (quantity: number, entryPrice: number, position: 'long' | 'short') => void;
+  onAddStockLegWithDetails?: (quantity: number, entryPrice: number, position: 'long' | 'short', closingTransaction?: OptionLeg['closingTransaction']) => void;
 }
 
 interface StockSegment {
@@ -243,30 +243,47 @@ export function EquityPanel({
     const qty = parseInt(closingQuantity);
     if (isNaN(price) || price <= 0 || isNaN(qty) || qty <= 0) return;
     
-    const existingEntries = leg.closingTransaction?.entries || [];
-    const existingClosedQty = existingEntries.reduce((sum, e) => sum + e.quantity, 0);
+    // Split the leg: reduce original leg quantity, create NEW leg for sold shares
+    const remainingQty = leg.quantity - qty;
     
-    const newEntry = {
-      id: Date.now().toString(),
-      quantity: qty,
-      closingPrice: price,
-      openingPrice: leg.premium,
-      strike: 0,
-      closedAt: new Date().toISOString(),
-    };
+    // Update original leg to have remaining quantity only
+    if (remainingQty > 0) {
+      onUpdateLeg(leg.id, {
+        quantity: remainingQty,
+      });
+    } else {
+      // If all shares sold, remove the original leg
+      onRemoveLeg(leg.id);
+    }
     
-    const allEntries = [...existingEntries, newEntry];
-    const totalClosedQty = existingClosedQty + qty;
-    const weightedAvgPrice = allEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
-    
-    onUpdateLeg(leg.id, {
-      closingTransaction: {
-        isEnabled: true,
-        closingPrice: weightedAvgPrice,
-        quantity: totalClosedQty,
-        entries: allEntries,
-      },
-    });
+    // Create a NEW separate leg for the sold shares with closingTransaction
+    if (onAddStockLegWithDetails) {
+      // First create the leg, then we need to add closing transaction to it
+      // We'll use a special approach: create via callback that returns the new leg
+      const closingEntry = {
+        id: Date.now().toString(),
+        quantity: qty,
+        closingPrice: price,
+        openingPrice: leg.premium,
+        strike: 0,
+        closedAt: new Date().toISOString(),
+      };
+      
+      // Create new stock leg with the sold shares - it will be created as active
+      // Then immediately close it
+      onAddStockLegWithDetails(
+        qty,
+        leg.premium, // Use original entry price
+        leg.position as "long" | "short",
+        // Pass closing transaction data to create it as already closed
+        {
+          isEnabled: true,
+          closingPrice: price,
+          quantity: qty,
+          entries: [closingEntry],
+        }
+      );
+    }
     
     handleClosePopover();
   };
@@ -280,66 +297,20 @@ export function EquityPanel({
     handleClosePopover();
   };
 
-  // Remove a specific closed entry completely - reduces total quantity so shares are truly deleted
-  const handleRemoveClosedEntry = (leg: OptionLeg, entryId: string) => {
-    const existingEntries = leg.closingTransaction?.entries || [];
-    const entryToRemove = existingEntries.find(e => e.id === entryId);
-    const updatedEntries = existingEntries.filter(e => e.id !== entryId);
-    
-    // Reduce the total leg quantity by the removed entry's quantity
-    // This means the sold shares are truly deleted, not returned to open position
-    const newQuantity = leg.quantity - (entryToRemove?.quantity || 0);
-    
-    if (updatedEntries.length === 0) {
-      // No more closed entries, clear the closing transaction
-      onUpdateLeg(leg.id, {
-        quantity: Math.max(0, newQuantity),
-        closingTransaction: undefined,
-      });
-    } else {
-      // Recalculate totals for remaining closed entries
-      const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
-      const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
-      
-      onUpdateLeg(leg.id, {
-        quantity: Math.max(0, newQuantity),
-        closingTransaction: {
-          isEnabled: true,
-          closingPrice: weightedAvgPrice,
-          quantity: totalClosedQty,
-          entries: updatedEntries,
-        },
-      });
-    }
-    
+  // Remove a closed leg completely - since each sold entry is now its own leg, just delete it
+  const handleRemoveClosedEntry = (leg: OptionLeg, _entryId: string) => {
+    // Each sold entry is now a separate leg, so just delete the entire leg
+    onRemoveLeg(leg.id);
     handleClosePopover();
   };
 
-  // Re-open a specific closed entry - just removes the closing entry so shares return to active in same leg
-  const handleReOpenEntry = (leg: OptionLeg, entryId: string) => {
-    const existingEntries = leg.closingTransaction?.entries || [];
-    const updatedEntries = existingEntries.filter(e => e.id !== entryId);
-    
-    // Remove the entry from closing transaction - shares return to active portion of same leg
-    // Total quantity stays the same, only the closed portion decreases
-    if (updatedEntries.length === 0) {
-      onUpdateLeg(leg.id, {
-        closingTransaction: undefined,
-      });
-    } else {
-      const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
-      const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
-      
-      onUpdateLeg(leg.id, {
-        closingTransaction: {
-          isEnabled: true,
-          closingPrice: weightedAvgPrice,
-          quantity: totalClosedQty,
-          entries: updatedEntries,
-        },
-      });
-    }
-    
+  // Re-open a closed leg - just clear the closingTransaction so it becomes active again
+  const handleReOpenEntry = (leg: OptionLeg, _entryId: string) => {
+    // Each sold entry is now a separate leg, just clear the closing transaction
+    // The leg stays as-is with its quantity, but becomes active
+    onUpdateLeg(leg.id, {
+      closingTransaction: undefined,
+    });
     handleClosePopover();
   };
 
