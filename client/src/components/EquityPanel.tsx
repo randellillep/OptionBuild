@@ -280,18 +280,53 @@ export function EquityPanel({
     handleClosePopover();
   };
 
-  // Remove only a specific closed entry, not the whole leg
+  // Remove a specific closed entry completely - reduces total quantity so shares are truly deleted
   const handleRemoveClosedEntry = (leg: OptionLeg, entryId: string) => {
     const existingEntries = leg.closingTransaction?.entries || [];
+    const entryToRemove = existingEntries.find(e => e.id === entryId);
     const updatedEntries = existingEntries.filter(e => e.id !== entryId);
+    
+    // Reduce the total leg quantity by the removed entry's quantity
+    // This means the sold shares are truly deleted, not returned to open position
+    const newQuantity = leg.quantity - (entryToRemove?.quantity || 0);
     
     if (updatedEntries.length === 0) {
       // No more closed entries, clear the closing transaction
       onUpdateLeg(leg.id, {
+        quantity: Math.max(0, newQuantity),
         closingTransaction: undefined,
       });
     } else {
-      // Recalculate totals
+      // Recalculate totals for remaining closed entries
+      const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
+      const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
+      
+      onUpdateLeg(leg.id, {
+        quantity: Math.max(0, newQuantity),
+        closingTransaction: {
+          isEnabled: true,
+          closingPrice: weightedAvgPrice,
+          quantity: totalClosedQty,
+          entries: updatedEntries,
+        },
+      });
+    }
+    
+    handleClosePopover();
+  };
+
+  // Re-open a specific closed entry - just removes the closing entry so shares return to active in same leg
+  const handleReOpenEntry = (leg: OptionLeg, entryId: string) => {
+    const existingEntries = leg.closingTransaction?.entries || [];
+    const updatedEntries = existingEntries.filter(e => e.id !== entryId);
+    
+    // Remove the entry from closing transaction - shares return to active portion of same leg
+    // Total quantity stays the same, only the closed portion decreases
+    if (updatedEntries.length === 0) {
+      onUpdateLeg(leg.id, {
+        closingTransaction: undefined,
+      });
+    } else {
       const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
       const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
       
@@ -306,13 +341,6 @@ export function EquityPanel({
     }
     
     handleClosePopover();
-  };
-
-  // Re-open a specific closed entry - removes the closing entry so shares return to active
-  const handleReOpenEntry = (leg: OptionLeg, entryId: string) => {
-    // Re-open is the same as remove - just delete the closing entry
-    // This makes those shares "active" again as part of the original leg
-    handleRemoveClosedEntry(leg, entryId);
   };
 
   // Update a specific closed entry's prices
