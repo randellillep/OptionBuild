@@ -363,9 +363,7 @@ export function EquityPanel({
     setClosingQuantity(remainingShares.toString());
   };
 
-  const closedSegments = allSegments.filter(s => s.type === 'closed');
-  const openSegments = allSegments.filter(s => s.type === 'open');
-
+  // Render all segments in order - no longer splitting by type to preserve order
   // Calculate P/L for closed segment display
   const calculateClosedPL = (segment: StockSegment) => {
     const openPrice = parseFloat(editClosedOpenPrice) || segment.entryPrice;
@@ -383,34 +381,35 @@ export function EquityPanel({
         EQUITY:
       </span>
       
-      {/* Render closed segments first - NO strikethrough */}
-      {closedSegments.map((segment) => {
+      {/* Render all segments in order - preserves position when re-opening */}
+      {allSegments.map((segment) => {
         const positionLabel = segment.position === "long" ? "Long" : "Short";
-        const pl = segment.realizedPL || 0;
         
-        return (
-          <Popover
-            key={segment.segmentId}
-            open={openPopoverId === segment.segmentId}
-            onOpenChange={(open) => {
-              if (open) {
-                handleClosedSegmentClick(segment);
-              } else {
-                handleClosePopover();
-              }
-            }}
-          >
-            <PopoverTrigger asChild>
-              <button
-                className={`px-2 py-0.5 rounded border border-muted-foreground/30 bg-muted/50 text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors ${segment.isExcluded ? 'line-through opacity-60' : ''}`}
-                data-testid={`equity-closed-${segment.entryId}`}
-              >
-                <span className="flex items-center gap-1">
-                  <span>{positionLabel} {segment.quantity} shares at ${segment.entryPrice.toFixed(2)}</span>
-                  <CheckCircle className="h-3 w-3 text-emerald-500" />
-                </span>
-              </button>
-            </PopoverTrigger>
+        if (segment.type === 'closed') {
+          // Closed segment rendering
+          return (
+            <Popover
+              key={segment.segmentId}
+              open={openPopoverId === segment.segmentId}
+              onOpenChange={(open) => {
+                if (open) {
+                  handleClosedSegmentClick(segment);
+                } else {
+                  handleClosePopover();
+                }
+              }}
+            >
+              <PopoverTrigger asChild>
+                <button
+                  className={`px-2 py-0.5 rounded border border-muted-foreground/30 bg-muted/50 text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors ${segment.isExcluded ? 'line-through opacity-60' : ''}`}
+                  data-testid={`equity-closed-${segment.entryId}`}
+                >
+                  <span className="flex items-center gap-1">
+                    <span>{positionLabel} {segment.quantity} shares at ${segment.entryPrice.toFixed(2)}</span>
+                    <CheckCircle className="h-3 w-3 text-emerald-500" />
+                  </span>
+                </button>
+              </PopoverTrigger>
             
             <PopoverContent className="w-72 p-3" align="start">
               <div className="space-y-3">
@@ -519,11 +518,9 @@ export function EquityPanel({
             </PopoverContent>
           </Popover>
         );
-      })}
-      
-      {/* Render open segments */}
-      {openSegments.map((segment) => {
-        const positionLabel = segment.position === "long" ? "Long" : "Short";
+        }
+        
+        // Open segment rendering
         const remainingShares = getRemainingShares(segment.leg);
         const showUpdate = hasQuantityChanged(segment.leg) || hasEntryPriceChanged(segment.leg);
         

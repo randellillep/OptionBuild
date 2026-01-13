@@ -1211,26 +1211,34 @@ export default function Builder() {
   };
 
   const removeLeg = (id: string) => {
-    setLegs(prevLegs => prevLegs.map((leg) => {
-      if (leg.id !== id) return leg;
+    setLegs(prevLegs => prevLegs.filter((leg) => {
+      if (leg.id !== id) return true; // Keep other legs
       
       // Check if this leg has closed entries
       const closedEntries = leg.closingTransaction?.entries || [];
       const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
+      const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
       
-      if (hasClosedEntries) {
-        // Don't delete - just set quantity to match closed quantity so open position is 0
-        const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
-        return deepCopyLeg(leg, { quantity: closedQty });
+      // For stock legs that are FULLY closed (sold), allow complete deletion
+      if (leg.type === "stock" && hasClosedEntries && closedQty >= leg.quantity) {
+        return false; // Remove completely
       }
       
-      // No closed entries - mark for removal by setting quantity to 0
-      return deepCopyLeg(leg, { quantity: 0 });
-    }).filter(leg => {
-      // Remove legs with 0 quantity that have no closed entries
+      // For options with closed entries, don't remove - just zero out open position
+      if (hasClosedEntries) {
+        // This case shouldn't happen with new architecture but keep for safety
+        return true;
+      }
+      
+      // No closed entries - remove completely
+      return false;
+    }).map((leg) => {
+      if (leg.id !== id) return leg;
+      
+      // If we're here, it's an option with partial close - set quantity to closed qty
       const closedEntries = leg.closingTransaction?.entries || [];
-      const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
-      return leg.quantity > 0 || hasClosedEntries;
+      const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
+      return deepCopyLeg(leg, { quantity: closedQty });
     }));
     // Clear frozen P/L values so live calculations take over
     setInitialPLFromSavedTrade(null);
