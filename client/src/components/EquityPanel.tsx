@@ -308,41 +308,11 @@ export function EquityPanel({
     handleClosePopover();
   };
 
-  // Re-open a specific closed entry as a NEW separate stock leg
-  const handleReOpenEntry = (leg: OptionLeg, entryId: string, segment: StockSegment) => {
-    const existingEntries = leg.closingTransaction?.entries || [];
-    const entryToReopen = existingEntries.find(e => e.id === entryId);
-    const updatedEntries = existingEntries.filter(e => e.id !== entryId);
-    
-    // First, remove the entry from the closing transaction
-    if (updatedEntries.length === 0) {
-      onUpdateLeg(leg.id, {
-        closingTransaction: undefined,
-      });
-    } else {
-      const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
-      const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
-      
-      onUpdateLeg(leg.id, {
-        closingTransaction: {
-          isEnabled: true,
-          closingPrice: weightedAvgPrice,
-          quantity: totalClosedQty,
-          entries: updatedEntries,
-        },
-      });
-    }
-    
-    // Then, create a NEW separate stock leg with the reopened position
-    if (entryToReopen && onAddStockLegWithDetails) {
-      onAddStockLegWithDetails(
-        entryToReopen.quantity,
-        entryToReopen.openingPrice ?? segment.entryPrice,
-        segment.position
-      );
-    }
-    
-    handleClosePopover();
+  // Re-open a specific closed entry - removes the closing entry so shares return to active
+  const handleReOpenEntry = (leg: OptionLeg, entryId: string) => {
+    // Re-open is the same as remove - just delete the closing entry
+    // This makes those shares "active" again as part of the original leg
+    handleRemoveClosedEntry(leg, entryId);
   };
 
   // Update a specific closed entry's prices
@@ -433,7 +403,7 @@ export function EquityPanel({
           >
             <PopoverTrigger asChild>
               <button
-                className="px-2 py-0.5 rounded border border-muted-foreground/30 bg-muted/50 text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors"
+                className={`px-2 py-0.5 rounded border border-muted-foreground/30 bg-muted/50 text-muted-foreground cursor-pointer hover:bg-muted/70 transition-colors ${segment.isExcluded ? 'line-through opacity-60' : ''}`}
                 data-testid={`equity-closed-${segment.entryId}`}
               >
                 <span className="flex items-center gap-1">
@@ -529,7 +499,7 @@ export function EquityPanel({
                   </div>
                   
                   <button
-                    onClick={() => segment.entryId && handleReOpenEntry(segment.leg, segment.entryId, segment)}
+                    onClick={() => segment.entryId && handleReOpenEntry(segment.leg, segment.entryId)}
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-full"
                     data-testid="button-reopen"
                   >
