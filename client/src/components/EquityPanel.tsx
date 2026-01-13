@@ -20,7 +20,6 @@ interface EquityPanelProps {
   onAddStockLeg: () => void;
 }
 
-// Segment types for displaying stock positions
 interface StockSegment {
   segmentId: string;
   type: 'closed' | 'open';
@@ -33,13 +32,11 @@ interface StockSegment {
   entryId?: string;
 }
 
-// Helper to derive display segments from a stock leg
 function getStockSegments(leg: OptionLeg): StockSegment[] {
   const segments: StockSegment[] = [];
   const entryPrice = leg.premium;
   const position = leg.position as 'long' | 'short';
   
-  // Get closed portions from closing transactions
   const closing = leg.closingTransaction;
   if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
     for (const entry of closing.entries) {
@@ -62,7 +59,6 @@ function getStockSegments(leg: OptionLeg): StockSegment[] {
     }
   }
   
-  // Calculate remaining open shares
   const closedQty = closing?.entries?.reduce((sum, e) => sum + e.quantity, 0) || 0;
   const remainingQty = leg.quantity - closedQty;
   
@@ -87,7 +83,6 @@ export function EquityPanel({
   onUpdateLeg,
   onRemoveLeg,
 }: EquityPanelProps) {
-  // Track which segment's popover is open by segmentId
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   
   // Edit state for open segments
@@ -97,6 +92,10 @@ export function EquityPanel({
   const [closingPrice, setClosingPrice] = useState("");
   const [closingQuantity, setClosingQuantity] = useState("0");
   const [isExcluded, setIsExcluded] = useState(false);
+  
+  // Edit state for closed segments
+  const [editClosedOpenPrice, setEditClosedOpenPrice] = useState("");
+  const [editClosedClosePrice, setEditClosedClosePrice] = useState("");
 
   const stockLegs = legs.filter((leg) => leg.type === "stock");
 
@@ -104,7 +103,6 @@ export function EquityPanel({
     return null;
   }
 
-  // Get remaining shares for a leg
   const getRemainingShares = (leg: OptionLeg) => {
     if (!leg.closingTransaction?.isEnabled) return leg.quantity;
     const closedQty = leg.closingTransaction.entries?.reduce((sum, e) => sum + e.quantity, 0) 
@@ -112,7 +110,6 @@ export function EquityPanel({
     return Math.max(0, leg.quantity - closedQty);
   };
 
-  // Generate all segments from all stock legs
   const allSegments: Array<StockSegment & { leg: OptionLeg }> = [];
   for (const leg of stockLegs) {
     const segments = getStockSegments(leg);
@@ -121,7 +118,6 @@ export function EquityPanel({
     }
   }
 
-  // Excluded legs that have no segments
   const excludedLegs = stockLegs.filter(leg => 
     leg.isExcluded && 
     (!leg.closingTransaction?.entries || leg.closingTransaction.entries.length === 0)
@@ -129,7 +125,7 @@ export function EquityPanel({
 
   // Handlers for OPEN segment popover
   const handleOpenSegmentClick = (segment: StockSegment & { leg: OptionLeg }) => {
-    setEditQuantity(segment.quantity.toString()); // Use remaining open shares, not total
+    setEditQuantity(segment.quantity.toString());
     setEditEntryPrice(segment.leg.premium.toFixed(2));
     setIsExcluded(segment.leg.isExcluded || false);
     setShowSellToClose(false);
@@ -138,12 +134,19 @@ export function EquityPanel({
     setOpenPopoverId(segment.segmentId);
   };
 
+  // Handlers for CLOSED segment popover
+  const handleClosedSegmentClick = (segment: StockSegment & { leg: OptionLeg }) => {
+    setEditClosedOpenPrice(segment.entryPrice.toFixed(2));
+    setEditClosedClosePrice((segment.closingPrice || 0).toFixed(2));
+    setOpenPopoverId(segment.segmentId);
+  };
+
   const handleClosePopover = () => {
     setOpenPopoverId(null);
     setShowSellToClose(false);
   };
 
-  const handleQuantityStep = (leg: OptionLeg, delta: number) => {
+  const handleQuantityStep = (delta: number) => {
     const currentQty = parseInt(editQuantity) || 0;
     const newQty = Math.max(1, currentQty + delta);
     setEditQuantity(newQty.toString());
@@ -247,11 +250,85 @@ export function EquityPanel({
     handleClosePopover();
   };
 
-  const handleReOpen = (leg: OptionLeg) => {
-    onUpdateLeg(leg.id, {
-      closingTransaction: undefined,
-    });
+  // Remove only a specific closed entry, not the whole leg
+  const handleRemoveClosedEntry = (leg: OptionLeg, entryId: string) => {
+    const existingEntries = leg.closingTransaction?.entries || [];
+    const updatedEntries = existingEntries.filter(e => e.id !== entryId);
+    
+    if (updatedEntries.length === 0) {
+      // No more closed entries, clear the closing transaction
+      onUpdateLeg(leg.id, {
+        closingTransaction: undefined,
+      });
+    } else {
+      // Recalculate totals
+      const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
+      const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
+      
+      onUpdateLeg(leg.id, {
+        closingTransaction: {
+          isEnabled: true,
+          closingPrice: weightedAvgPrice,
+          quantity: totalClosedQty,
+          entries: updatedEntries,
+        },
+      });
+    }
+    
     handleClosePopover();
+  };
+
+  // Re-open only a specific closed entry
+  const handleReOpenEntry = (leg: OptionLeg, entryId: string) => {
+    const existingEntries = leg.closingTransaction?.entries || [];
+    const updatedEntries = existingEntries.filter(e => e.id !== entryId);
+    
+    if (updatedEntries.length === 0) {
+      onUpdateLeg(leg.id, {
+        closingTransaction: undefined,
+      });
+    } else {
+      const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
+      const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
+      
+      onUpdateLeg(leg.id, {
+        closingTransaction: {
+          isEnabled: true,
+          closingPrice: weightedAvgPrice,
+          quantity: totalClosedQty,
+          entries: updatedEntries,
+        },
+      });
+    }
+    
+    handleClosePopover();
+  };
+
+  // Update a specific closed entry's prices
+  const handleUpdateClosedEntry = (leg: OptionLeg, entryId: string, newOpenPrice: number, newClosePrice: number) => {
+    const existingEntries = leg.closingTransaction?.entries || [];
+    const updatedEntries = existingEntries.map(e => {
+      if (e.id === entryId) {
+        return {
+          ...e,
+          openingPrice: newOpenPrice,
+          closingPrice: newClosePrice,
+        };
+      }
+      return e;
+    });
+    
+    const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
+    const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
+    
+    onUpdateLeg(leg.id, {
+      closingTransaction: {
+        isEnabled: true,
+        closingPrice: weightedAvgPrice,
+        quantity: totalClosedQty,
+        entries: updatedEntries,
+      },
+    });
   };
 
   const handleClosingQtyStep = (leg: OptionLeg, delta: number) => {
@@ -276,9 +353,19 @@ export function EquityPanel({
     setClosingQuantity(remainingShares.toString());
   };
 
-  // Separate closed and open segments
   const closedSegments = allSegments.filter(s => s.type === 'closed');
   const openSegments = allSegments.filter(s => s.type === 'open');
+
+  // Calculate P/L for closed segment display
+  const calculateClosedPL = (segment: StockSegment) => {
+    const openPrice = parseFloat(editClosedOpenPrice) || segment.entryPrice;
+    const closePrice = parseFloat(editClosedClosePrice) || segment.closingPrice || 0;
+    const pl = segment.position === 'long'
+      ? (closePrice - openPrice) * segment.quantity
+      : (openPrice - closePrice) * segment.quantity;
+    const plPercent = openPrice > 0 ? (pl / (openPrice * segment.quantity)) * 100 : 0;
+    return { pl, plPercent };
+  };
 
   return (
     <div className="flex items-center gap-2 px-2 py-1.5 text-sm flex-wrap">
@@ -286,13 +373,10 @@ export function EquityPanel({
         EQUITY:
       </span>
       
-      {/* Render closed segments first */}
+      {/* Render closed segments first - NO strikethrough */}
       {closedSegments.map((segment) => {
         const positionLabel = segment.position === "long" ? "Long" : "Short";
         const pl = segment.realizedPL || 0;
-        const plPercent = segment.entryPrice > 0 
-          ? ((pl / (segment.entryPrice * segment.quantity)) * 100)
-          : 0;
         
         return (
           <Popover
@@ -300,7 +384,7 @@ export function EquityPanel({
             open={openPopoverId === segment.segmentId}
             onOpenChange={(open) => {
               if (open) {
-                setOpenPopoverId(segment.segmentId);
+                handleClosedSegmentClick(segment);
               } else {
                 handleClosePopover();
               }
@@ -312,29 +396,77 @@ export function EquityPanel({
                 data-testid={`equity-closed-${segment.entryId}`}
               >
                 <span className="flex items-center gap-1">
-                  <span className="line-through">{positionLabel} {segment.quantity} shares at ${segment.entryPrice.toFixed(2)}</span>
+                  <span>{positionLabel} {segment.quantity} shares at ${segment.entryPrice.toFixed(2)}</span>
                   <CheckCircle className="h-3 w-3 text-emerald-500" />
                 </span>
               </button>
             </PopoverTrigger>
             
-            <PopoverContent className="w-64 p-3" align="start">
+            <PopoverContent className="w-72 p-3" align="start">
               <div className="space-y-3">
                 <div className="text-center font-medium text-sm">
                   {symbol}
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Open Price</div>
-                    <div className="font-mono font-medium">${segment.entryPrice.toFixed(2)}</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Close Price</div>
-                    <div className="font-mono font-medium">${segment.closingPrice?.toFixed(2)}</div>
-                    <div className={`text-xs font-medium ${pl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                      {pl >= 0 ? "+" : ""}${pl.toFixed(2)} ({pl >= 0 ? "+" : ""}{plPercent.toFixed(0)}%)
+                    <Label className="text-xs block text-center">Open Price</Label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">$</span>
+                      <Input
+                        value={editClosedOpenPrice}
+                        onChange={(e) => {
+                          if (e.target.value === "" || /^\d*\.?\d*$/.test(e.target.value)) {
+                            setEditClosedOpenPrice(e.target.value);
+                          }
+                        }}
+                        onBlur={() => {
+                          const newOpenPrice = parseFloat(editClosedOpenPrice);
+                          const newClosePrice = parseFloat(editClosedClosePrice);
+                          if (!isNaN(newOpenPrice) && !isNaN(newClosePrice) && segment.entryId) {
+                            handleUpdateClosedEntry(segment.leg, segment.entryId, newOpenPrice, newClosePrice);
+                          }
+                        }}
+                        className="h-8 text-sm font-mono"
+                        type="text"
+                        inputMode="decimal"
+                        data-testid="input-closed-open-price"
+                      />
                     </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs block text-center">Close Price</Label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm">$</span>
+                      <Input
+                        value={editClosedClosePrice}
+                        onChange={(e) => {
+                          if (e.target.value === "" || /^\d*\.?\d*$/.test(e.target.value)) {
+                            setEditClosedClosePrice(e.target.value);
+                          }
+                        }}
+                        onBlur={() => {
+                          const newOpenPrice = parseFloat(editClosedOpenPrice);
+                          const newClosePrice = parseFloat(editClosedClosePrice);
+                          if (!isNaN(newOpenPrice) && !isNaN(newClosePrice) && segment.entryId) {
+                            handleUpdateClosedEntry(segment.leg, segment.entryId, newOpenPrice, newClosePrice);
+                          }
+                        }}
+                        className="h-8 text-sm font-mono"
+                        type="text"
+                        inputMode="decimal"
+                        data-testid="input-closed-close-price"
+                      />
+                    </div>
+                    {(() => {
+                      const { pl, plPercent } = calculateClosedPL(segment);
+                      return (
+                        <div className={`text-xs font-medium text-center ${pl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                          {pl >= 0 ? "+" : ""}${pl.toFixed(2)} ({pl >= 0 ? "+" : ""}{plPercent.toFixed(0)}%)
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 
@@ -352,7 +484,7 @@ export function EquityPanel({
                   </div>
                   
                   <button
-                    onClick={() => handleReOpen(segment.leg)}
+                    onClick={() => segment.entryId && handleReOpenEntry(segment.leg, segment.entryId)}
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-full"
                     data-testid="button-reopen"
                   >
@@ -361,9 +493,9 @@ export function EquityPanel({
                   </button>
                   
                   <button
-                    onClick={() => handleRemove(segment.leg)}
+                    onClick={() => segment.entryId && handleRemoveClosedEntry(segment.leg, segment.entryId)}
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-destructive w-full"
-                    data-testid="button-remove-equity"
+                    data-testid="button-remove-closed"
                   >
                     <X className="h-4 w-4" />
                     Remove
@@ -416,7 +548,7 @@ export function EquityPanel({
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 shrink-0"
-                        onClick={() => handleQuantityStep(segment.leg, -100)}
+                        onClick={() => handleQuantityStep(-100)}
                         data-testid="button-qty-decrease"
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -433,7 +565,7 @@ export function EquityPanel({
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 shrink-0"
-                        onClick={() => handleQuantityStep(segment.leg, 100)}
+                        onClick={() => handleQuantityStep(100)}
                         data-testid="button-qty-increase"
                       >
                         <ChevronRight className="h-4 w-4" />
