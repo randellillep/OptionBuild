@@ -1521,6 +1521,18 @@ export default function Builder() {
                     costBasisLocked: true,
                   });
                 }}
+                onAddStockLegWithDetails={(quantity, entryPrice, position) => {
+                  addLeg({
+                    type: "stock",
+                    strike: 0,
+                    position: position,
+                    quantity: quantity,
+                    premium: entryPrice,
+                    expirationDays: 0,
+                    entryUnderlyingPrice: entryPrice,
+                    costBasisLocked: true,
+                  });
+                }}
               />
 
               <StrikeLadder

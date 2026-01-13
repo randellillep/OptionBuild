@@ -18,6 +18,7 @@ interface EquityPanelProps {
   onUpdateLeg: (legId: string, updates: Partial<OptionLeg>) => void;
   onRemoveLeg: (legId: string) => void;
   onAddStockLeg: () => void;
+  onAddStockLegWithDetails?: (quantity: number, entryPrice: number, position: 'long' | 'short') => void;
 }
 
 interface StockSegment {
@@ -30,6 +31,7 @@ interface StockSegment {
   closingPrice?: number;
   realizedPL?: number;
   entryId?: string;
+  isExcluded?: boolean;
 }
 
 function getStockSegments(leg: OptionLeg): StockSegment[] {
@@ -55,6 +57,7 @@ function getStockSegments(leg: OptionLeg): StockSegment[] {
         closingPrice: entry.closingPrice,
         realizedPL,
         entryId: entry.id,
+        isExcluded: entry.isExcluded,
       });
     }
   }
@@ -82,6 +85,7 @@ export function EquityPanel({
   symbol,
   onUpdateLeg,
   onRemoveLeg,
+  onAddStockLegWithDetails,
 }: EquityPanelProps) {
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   
@@ -96,6 +100,7 @@ export function EquityPanel({
   // Edit state for closed segments
   const [editClosedOpenPrice, setEditClosedOpenPrice] = useState("");
   const [editClosedClosePrice, setEditClosedClosePrice] = useState("");
+  const [closedEntryExcluded, setClosedEntryExcluded] = useState(false);
 
   const stockLegs = legs.filter((leg) => leg.type === "stock");
 
@@ -138,7 +143,32 @@ export function EquityPanel({
   const handleClosedSegmentClick = (segment: StockSegment & { leg: OptionLeg }) => {
     setEditClosedOpenPrice(segment.entryPrice.toFixed(2));
     setEditClosedClosePrice((segment.closingPrice || 0).toFixed(2));
+    setClosedEntryExcluded(segment.isExcluded || false);
     setOpenPopoverId(segment.segmentId);
+  };
+
+  // Handle exclude toggle for a closed entry
+  const handleExcludeClosedEntry = (leg: OptionLeg, entryId: string, excluded: boolean) => {
+    const existingEntries = leg.closingTransaction?.entries || [];
+    const updatedEntries = existingEntries.map(e => {
+      if (e.id === entryId) {
+        return { ...e, isExcluded: excluded };
+      }
+      return e;
+    });
+    
+    const totalClosedQty = updatedEntries.reduce((sum, e) => sum + e.quantity, 0);
+    const weightedAvgPrice = updatedEntries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalClosedQty;
+    
+    setClosedEntryExcluded(excluded);
+    onUpdateLeg(leg.id, {
+      closingTransaction: {
+        isEnabled: true,
+        closingPrice: weightedAvgPrice,
+        quantity: totalClosedQty,
+        entries: updatedEntries,
+      },
+    });
   };
 
   const handleClosePopover = () => {
@@ -278,11 +308,13 @@ export function EquityPanel({
     handleClosePopover();
   };
 
-  // Re-open only a specific closed entry
-  const handleReOpenEntry = (leg: OptionLeg, entryId: string) => {
+  // Re-open a specific closed entry as a NEW separate stock leg
+  const handleReOpenEntry = (leg: OptionLeg, entryId: string, segment: StockSegment) => {
     const existingEntries = leg.closingTransaction?.entries || [];
+    const entryToReopen = existingEntries.find(e => e.id === entryId);
     const updatedEntries = existingEntries.filter(e => e.id !== entryId);
     
+    // First, remove the entry from the closing transaction
     if (updatedEntries.length === 0) {
       onUpdateLeg(leg.id, {
         closingTransaction: undefined,
@@ -299,6 +331,15 @@ export function EquityPanel({
           entries: updatedEntries,
         },
       });
+    }
+    
+    // Then, create a NEW separate stock leg with the reopened position
+    if (entryToReopen && onAddStockLegWithDetails) {
+      onAddStockLegWithDetails(
+        entryToReopen.quantity,
+        entryToReopen.openingPrice ?? segment.entryPrice,
+        segment.position
+      );
     }
     
     handleClosePopover();
@@ -474,8 +515,12 @@ export function EquityPanel({
                   <div className="flex items-center gap-2">
                     <Checkbox 
                       id={`exclude-closed-${segment.segmentId}`}
-                      checked={false}
-                      onCheckedChange={() => {}}
+                      checked={closedEntryExcluded}
+                      onCheckedChange={(checked) => {
+                        if (segment.entryId) {
+                          handleExcludeClosedEntry(segment.leg, segment.entryId, checked === true);
+                        }
+                      }}
                       data-testid="checkbox-exclude-closed"
                     />
                     <label htmlFor={`exclude-closed-${segment.segmentId}`} className="text-sm cursor-pointer">
@@ -484,7 +529,7 @@ export function EquityPanel({
                   </div>
                   
                   <button
-                    onClick={() => segment.entryId && handleReOpenEntry(segment.leg, segment.entryId)}
+                    onClick={() => segment.entryId && handleReOpenEntry(segment.leg, segment.entryId, segment)}
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-full"
                     data-testid="button-reopen"
                   >
