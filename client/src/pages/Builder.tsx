@@ -1185,6 +1185,9 @@ export default function Builder() {
     setLegs(prevLegs => prevLegs.map((leg) => {
       if (leg.id !== id) return leg;
       
+      // Check if closingTransaction is explicitly being updated (even to undefined)
+      const hasClosingTransactionUpdate = 'closingTransaction' in updates;
+      
       // Deep copy the closing transaction to preserve immutable entry data
       // This prevents mutations from affecting stored openingPrice/strike values
       const preservedClosingTransaction = leg.closingTransaction ? {
@@ -1196,9 +1199,11 @@ export default function Builder() {
       return { 
         ...leg, 
         ...updates,
-        // Always preserve the existing closing transaction (with deep-copied entries)
-        // unless the update explicitly includes closing transaction changes
-        closingTransaction: updates.closingTransaction ?? preservedClosingTransaction
+        // Use the update's closingTransaction if explicitly provided (even if undefined),
+        // otherwise preserve the existing one
+        closingTransaction: hasClosingTransactionUpdate 
+          ? updates.closingTransaction 
+          : preservedClosingTransaction
       };
     }));
     // Clear frozen P/L values so live calculations take over
