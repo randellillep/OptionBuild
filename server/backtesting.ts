@@ -496,7 +496,7 @@ export async function runTastyworksBacktest(
     
     if (priceHistory.length === 0) {
       await storage.updateBacktestRun(backtestId, {
-        status: "failed",
+        status: "error",
         errorMessage: `No historical price data found for ${config.symbol} between ${config.startDate} and ${config.endDate}`,
       });
       return;
@@ -689,7 +689,7 @@ export async function runTastyworksBacktest(
   } catch (error) {
     console.error('Backtest error:', error);
     await storage.updateBacktestRun(backtestId, {
-      status: "failed",
+      status: "error",
       errorMessage: error instanceof Error ? error.message : 'Unknown error occurred',
     });
   }

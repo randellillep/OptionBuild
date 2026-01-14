@@ -81,14 +81,12 @@ function getDefaultLeg(): BacktestLegConfig {
 }
 
 function getDefaultConfig(): BacktestConfigData {
-  const now = new Date();
-  const oneYearAgo = new Date(now);
-  oneYearAgo.setFullYear(now.getFullYear() - 1);
-  
+  // Use a reliable historical date range with known data availability
+  // Default to 2023-2024 period which should have complete data
   return {
     symbol: "SPY",
-    startDate: oneYearAgo.toISOString().split("T")[0],
-    endDate: now.toISOString().split("T")[0],
+    startDate: "2023-01-01",
+    endDate: "2024-01-01",
     legs: [getDefaultLeg()],
     entryConditions: {
       frequency: "everyDay",
@@ -630,11 +628,11 @@ function BacktestResults({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-xs text-muted-foreground">Total P/L</p>
-                <p className={`text-2xl font-bold ${summary.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(summary.totalPnL)}
+                <p className={`text-2xl font-bold ${summary.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(summary.totalProfitLoss)}
                 </p>
               </div>
-              {summary.totalPnL >= 0 ? (
+              {summary.totalProfitLoss >= 0 ? (
                 <TrendingUp className="h-8 w-8 text-green-500 opacity-50 shrink-0" />
               ) : (
                 <TrendingDown className="h-8 w-8 text-red-500 opacity-50 shrink-0" />
@@ -648,7 +646,7 @@ function BacktestResults({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-xs text-muted-foreground">Win Rate</p>
-                <p className="text-2xl font-bold">{summary.winRate.toFixed(1)}%</p>
+                <p className="text-2xl font-bold">{details.profitRate.toFixed(1)}%</p>
               </div>
               <Target className="h-8 w-8 text-primary opacity-50 shrink-0" />
             </div>
@@ -661,7 +659,7 @@ function BacktestResults({
               <div>
                 <p className="text-xs text-muted-foreground">Max Drawdown</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {formatPercent(-Math.abs(summary.maxDrawdownPercent))}
+                  {formatPercent(-Math.abs(summary.maxDrawdown))}
                 </p>
               </div>
               <TrendingDown className="h-8 w-8 text-red-500 opacity-50 shrink-0" />
@@ -674,7 +672,7 @@ function BacktestResults({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-xs text-muted-foreground">Total Trades</p>
-                <p className="text-2xl font-bold">{summary.totalTrades}</p>
+                <p className="text-2xl font-bold">{details.numberOfTrades}</p>
               </div>
               <BarChart3 className="h-8 w-8 text-primary opacity-50 shrink-0" />
             </div>
@@ -777,7 +775,7 @@ function BacktestResults({
               <CardContent className="pt-4 space-y-1">
                 <p className="text-xs text-muted-foreground">Avg Win</p>
                 <p className="text-lg font-semibold text-green-600">
-                  {formatCurrency(details.averageWin)}
+                  {formatCurrency(details.avgWinSize)}
                 </p>
               </CardContent>
             </Card>
@@ -785,23 +783,23 @@ function BacktestResults({
               <CardContent className="pt-4 space-y-1">
                 <p className="text-xs text-muted-foreground">Avg Loss</p>
                 <p className="text-lg font-semibold text-red-600">
-                  {formatCurrency(details.averageLoss)}
+                  {formatCurrency(details.avgLossSize)}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 space-y-1">
-                <p className="text-xs text-muted-foreground">Profit Factor</p>
-                <p className="text-lg font-semibold">
-                  {details.profitFactor.toFixed(2)}
+                <p className="text-xs text-muted-foreground">Largest Profit</p>
+                <p className="text-lg font-semibold text-green-600">
+                  {formatCurrency(details.largestProfit)}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 space-y-1">
-                <p className="text-xs text-muted-foreground">Expectancy</p>
-                <p className="text-lg font-semibold">
-                  {formatCurrency(details.expectancy)}
+                <p className="text-xs text-muted-foreground">Largest Loss</p>
+                <p className="text-lg font-semibold text-red-600">
+                  {formatCurrency(details.largestLoss)}
                 </p>
               </CardContent>
             </Card>
@@ -824,7 +822,7 @@ function BacktestResults({
                     >
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-2">
-                          {trade.pnl >= 0 ? (
+                          {trade.profitLoss >= 0 ? (
                             <CheckCircle2 className="h-4 w-4 text-green-500" />
                           ) : (
                             <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -835,23 +833,23 @@ function BacktestResults({
                         </div>
                         <div className="text-xs">
                           <span className="text-muted-foreground">Entry: </span>
-                          <span>{new Date(trade.entryDate).toLocaleDateString()}</span>
+                          <span>{new Date(trade.openedDate).toLocaleDateString()}</span>
                         </div>
                         <div className="text-xs">
                           <span className="text-muted-foreground">Exit: </span>
-                          <span>{new Date(trade.exitDate).toLocaleDateString()}</span>
+                          <span>{new Date(trade.closedDate).toLocaleDateString()}</span>
                         </div>
                         <Badge variant="outline" className="text-xs">
-                          {trade.exitReason}
+                          {trade.closeReason}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right text-xs">
-                          <span className="text-muted-foreground">Entry: </span>
-                          <span className="font-mono">{formatCurrency(trade.entryValue)}</span>
+                          <span className="text-muted-foreground">Premium: </span>
+                          <span className="font-mono">{formatCurrency(trade.premium)}</span>
                         </div>
-                        <span className={`font-mono font-semibold ${trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {trade.pnl >= 0 ? '+' : ''}{formatCurrency(trade.pnl)}
+                        <span className={`font-mono font-semibold ${trade.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {trade.profitLoss >= 0 ? '+' : ''}{formatCurrency(trade.profitLoss)}
                         </span>
                       </div>
                     </div>
@@ -878,25 +876,25 @@ function BacktestResults({
                   {dailyLogs.length > 0 ? dailyLogs.map((log, i) => (
                     <div 
                       key={i}
-                      className={`p-2 rounded ${
-                        log.action === 'entry' ? 'bg-blue-500/10' :
-                        log.action === 'exit' ? 'bg-green-500/10' :
-                        'bg-muted/30'
-                      }`}
+                      className="p-2 rounded bg-muted/30 flex flex-wrap gap-2 items-center"
                     >
                       <span className="text-muted-foreground">
                         {new Date(log.date).toLocaleDateString()}
                       </span>
-                      <span className="mx-2">|</span>
-                      <span className={`uppercase font-semibold ${
-                        log.action === 'entry' ? 'text-blue-600' :
-                        log.action === 'exit' ? 'text-green-600' :
-                        'text-muted-foreground'
-                      }`}>
-                        {log.action}
+                      <span className="mx-1">|</span>
+                      <span>Price: ${log.underlyingPrice.toFixed(2)}</span>
+                      <span className="mx-1">|</span>
+                      <span className={log.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        P/L: {log.totalProfitLoss >= 0 ? '+' : ''}${log.totalProfitLoss.toFixed(2)}
                       </span>
-                      <span className="mx-2">|</span>
-                      <span>{log.details}</span>
+                      <span className="mx-1">|</span>
+                      <span>Active: {log.activeTrades}</span>
+                      {log.drawdown > 0 && (
+                        <>
+                          <span className="mx-1">|</span>
+                          <span className="text-red-500">DD: -{log.drawdown.toFixed(1)}%</span>
+                        </>
+                      )}
                     </div>
                   )) : (
                     <div className="text-center py-8 text-muted-foreground">
@@ -971,15 +969,16 @@ export default function Backtest() {
       if (!response.ok) throw new Error("Failed to fetch backtest");
       return response.json();
     },
-    enabled: !!currentRunId && (view === "running" || view === "results"),
+    enabled: !!currentRunId && view !== "setup",
     refetchInterval: view === "running" ? 2000 : false,
   });
 
   useEffect(() => {
     if (currentRun) {
-      if (currentRun.status === "completed") {
+      const status = currentRun.status as string;
+      if (status === "completed") {
         setView("results");
-      } else if (currentRun.status === "error") {
+      } else if (status === "error") {
         setView("error");
       }
     }
