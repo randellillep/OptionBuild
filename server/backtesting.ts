@@ -14,7 +14,8 @@ import type {
   BacktestMetrics,
 } from "@shared/schema";
 
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+const ALPACA_API_KEY = process.env.ALPACA_API_KEY;
+const ALPACA_API_SECRET = process.env.ALPACA_API_SECRET;
 const RISK_FREE_RATE = 0.05;
 const DEFAULT_FEE_PER_CONTRACT = 0.65;
 
@@ -173,32 +174,52 @@ async function fetchHistoricalPrices(
     }
   }
   
-  if (missingDates.length > 0 && FINNHUB_API_KEY) {
+  console.log(`[BACKTEST] Cache check for ${symbol}: ${cachedPrices.length} cached, ${missingDates.length} missing dates`);
+  
+  if (missingDates.length > 0 && (!ALPACA_API_KEY || !ALPACA_API_SECRET)) {
+    console.log(`[BACKTEST] WARNING: Alpaca API keys not configured, cannot fetch missing historical data`);
+  }
+  
+  if (missingDates.length > 0 && ALPACA_API_KEY && ALPACA_API_SECRET) {
     try {
-      const fromTimestamp = Math.floor(start.getTime() / 1000);
-      const toTimestamp = Math.floor(end.getTime() / 1000);
+      const alpacaUrl = `https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/bars?timeframe=1Day&start=${startDate}&end=${endDate}&limit=10000&adjustment=split&feed=iex`;
       
-      const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${fromTimestamp}&to=${toTimestamp}&token=${FINNHUB_API_KEY}`;
+      console.log(`[BACKTEST] Fetching historical prices for ${symbol} from ${startDate} to ${endDate}`);
       
-      const response = await fetch(url);
+      const response = await fetch(alpacaUrl, {
+        headers: {
+          'APCA-API-KEY-ID': ALPACA_API_KEY,
+          'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[BACKTEST] Alpaca API error: ${response.status}`, errorText);
+        throw new Error(`Alpaca API error: ${response.status}`);
+      }
+      
       const data = await response.json();
       
-      if (data.s === 'ok' && data.t && data.o && data.h && data.l && data.c) {
+      console.log(`[BACKTEST] Alpaca response: ${data.bars?.length || 0} bars received`);
+      
+      if (data.bars && data.bars.length > 0) {
         const newPrices: { symbol: string; date: string; open: number; high: number; low: number; close: number; volume?: number }[] = [];
         
-        for (let i = 0; i < data.t.length; i++) {
-          const date = new Date(data.t[i] * 1000).toISOString().split('T')[0];
+        for (const bar of data.bars) {
+          const date = bar.t.split('T')[0];
           newPrices.push({
             symbol: symbol.toUpperCase(),
             date,
-            open: data.o[i],
-            high: data.h[i],
-            low: data.l[i],
-            close: data.c[i],
-            volume: data.v?.[i],
+            open: bar.o,
+            high: bar.h,
+            low: bar.l,
+            close: bar.c,
+            volume: bar.v,
           });
         }
         
+        console.log(`[BACKTEST] Saving ${newPrices.length} price bars for ${symbol}`);
         await storage.saveHistoricalPrices(newPrices);
         
         for (const p of newPrices) {
@@ -214,9 +235,11 @@ async function fetchHistoricalPrices(
             cachedAt: new Date(),
           });
         }
+      } else {
+        console.log(`[BACKTEST] Alpaca returned no bars for ${symbol}`);
       }
     } catch (error) {
-      console.error('Error fetching historical prices from Finnhub:', error);
+      console.error('[BACKTEST] Error fetching historical prices from Alpaca:', error);
     }
   }
   
@@ -239,6 +262,7 @@ async function fetchHistoricalPrices(
     }
   }
   
+  console.log(`[BACKTEST] Final result for ${symbol}: ${result.length} price bars`);
   return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -819,8 +843,6 @@ function calculateDetailMetrics(trades: BacktestTradeData[]): BacktestDetailMetr
 // LEGACY SIMPLE BACKTEST (kept for backwards compatibility)
 // ============================================================================
 
-const ALPACA_API_KEY = process.env.ALPACA_API_KEY;
-const ALPACA_API_SECRET = process.env.ALPACA_API_SECRET;
 const ALPACA_DATA_URL = "https://data.alpaca.markets/v2";
 
 interface AlpacaBar {
