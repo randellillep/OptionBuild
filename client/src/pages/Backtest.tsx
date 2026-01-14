@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +31,9 @@ import {
   RefreshCw,
   Settings,
   Info,
-  X
+  X,
+  Search,
+  Loader2
 } from "lucide-react";
 import { 
   LineChart, 
@@ -84,7 +86,7 @@ function getDefaultConfig(): BacktestConfigData {
   // Use a reliable historical date range with known data availability
   // Default to 2023-2024 period which should have complete data
   return {
-    symbol: "SPY",
+    symbol: "AAPL",
     startDate: "2023-01-01",
     endDate: "2024-01-01",
     legs: [getDefaultLeg()],
@@ -100,6 +102,125 @@ function getDefaultConfig(): BacktestConfigData {
     capitalMethod: "auto",
     feePerContract: 0.65,
   };
+}
+
+interface SearchResult {
+  symbol: string;
+  name: string;
+  displaySymbol: string;
+}
+
+function StockSearchInput({ 
+  value, 
+  onChange 
+}: { 
+  value: string; 
+  onChange: (symbol: string) => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const { data: searchResults, isLoading: isSearching } = useQuery<{ results: SearchResult[] }>({
+    queryKey: ["/api/stock/search", debouncedSearch],
+    queryFn: async () => {
+      if (!debouncedSearch) return { results: [] };
+      const response = await fetch(`/api/stock/search?q=${encodeURIComponent(debouncedSearch)}`);
+      if (!response.ok) return { results: [] };
+      return await response.json();
+    },
+    enabled: debouncedSearch.length > 0,
+    staleTime: 60000,
+  });
+
+  const handleSymbolSelect = (symbol: string) => {
+    onChange(symbol);
+    setSearchTerm("");
+    setShowSuggestions(false);
+  };
+
+  return (
+    <div className="relative" ref={searchRef}>
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder={value || "Search stock..."}
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value.toUpperCase());
+            setShowSuggestions(true);
+          }}
+          onFocus={() => setShowSuggestions(true)}
+          className="pl-8 h-9 text-sm"
+          data-testid="input-backtest-symbol"
+        />
+        {isSearching && (
+          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+        )}
+      </div>
+
+      {showSuggestions && searchTerm && (
+        <Card className="absolute top-full mt-1 left-0 w-72 z-[100] max-h-64 overflow-y-auto shadow-lg">
+          {isSearching ? (
+            <div className="p-3 text-center text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1" />
+              Searching...
+            </div>
+          ) : searchResults?.results && searchResults.results.length > 0 ? (
+            <div className="p-1.5">
+              {searchResults.results.slice(0, 8).map((result) => (
+                <button
+                  key={result.symbol}
+                  onClick={() => handleSymbolSelect(result.symbol)}
+                  className="w-full text-left p-2.5 hover:bg-muted rounded-md transition-colors"
+                  data-testid={`button-symbol-${result.symbol.toLowerCase()}`}
+                >
+                  <div className="font-semibold font-mono text-sm">{result.displaySymbol || result.symbol}</div>
+                  <div className="text-xs text-muted-foreground truncate">{result.name}</div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="p-3 text-center text-sm text-muted-foreground">
+              No stocks found
+            </div>
+          )}
+        </Card>
+      )}
+
+      {value && !searchTerm && (
+        <div className="absolute inset-0 flex items-center pl-8 pointer-events-none">
+          <span className="font-mono font-semibold text-sm">{value}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function LegConfig({ 
@@ -280,13 +401,10 @@ function BacktestSetup({
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs font-medium">Symbol</Label>
-              <Input
+              <Label className="text-xs font-medium">Stock Symbol</Label>
+              <StockSearchInput
                 value={config.symbol}
-                onChange={(e) => setConfig({ ...config, symbol: e.target.value.toUpperCase() })}
-                placeholder="SPY"
-                className="h-9"
-                data-testid="input-backtest-symbol"
+                onChange={(symbol) => setConfig({ ...config, symbol })}
               />
             </div>
             <div className="space-y-2">
