@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation, Link } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   ArrowLeft, 
   Play, 
-  Calendar, 
+  Plus,
+  Trash2,
   TrendingUp, 
   TrendingDown,
   BarChart3,
@@ -19,7 +24,14 @@ import {
   DollarSign,
   Target,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  ListChecks,
+  FileText,
+  History,
+  RefreshCw,
+  Settings,
+  Info,
+  X
 } from "lucide-react";
 import { 
   LineChart, 
@@ -29,65 +41,968 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  ReferenceLine,
   Area,
-  AreaChart
+  AreaChart,
+  Legend,
+  ComposedChart,
+  Bar
 } from "recharts";
+import { apiRequest } from "@/lib/queryClient";
+import type { 
+  BacktestConfigData, 
+  BacktestLegConfig,
+  BacktestRunResult 
+} from "@shared/schema";
 
-// Sample backtest results data
-const sampleEquityCurve = [
-  { date: "Jan 1", equity: 10000, benchmark: 10000 },
-  { date: "Jan 8", equity: 10250, benchmark: 10100 },
-  { date: "Jan 15", equity: 10180, benchmark: 10050 },
-  { date: "Jan 22", equity: 10500, benchmark: 10200 },
-  { date: "Jan 29", equity: 10800, benchmark: 10150 },
-  { date: "Feb 5", equity: 10650, benchmark: 10300 },
-  { date: "Feb 12", equity: 11200, benchmark: 10400 },
-  { date: "Feb 19", equity: 11500, benchmark: 10350 },
-  { date: "Feb 26", equity: 11300, benchmark: 10500 },
-  { date: "Mar 5", equity: 11800, benchmark: 10600 },
-  { date: "Mar 12", equity: 12200, benchmark: 10550 },
-  { date: "Mar 19", equity: 12500, benchmark: 10700 },
-];
+type BacktestRunWithMeta = BacktestRunResult & {
+  id: string;
+  status: "pending" | "running" | "completed" | "error";
+  progress: number;
+  config: BacktestConfigData;
+  errorMessage?: string;
+  createdAt: string;
+  completedAt?: string;
+};
 
-const sampleTrades = [
-  { id: 1, date: "2024-01-05", symbol: "AAPL", strategy: "Long Call", entry: 2.50, exit: 3.80, pnl: 130, status: "win" },
-  { id: 2, date: "2024-01-12", symbol: "TSLA", strategy: "Bull Call Spread", entry: 1.20, exit: 2.10, pnl: 90, status: "win" },
-  { id: 3, date: "2024-01-18", symbol: "NVDA", strategy: "Long Call", entry: 3.40, exit: 2.80, pnl: -60, status: "loss" },
-  { id: 4, date: "2024-01-25", symbol: "SPY", strategy: "Iron Condor", entry: 0.80, exit: 0.40, pnl: 40, status: "win" },
-  { id: 5, date: "2024-02-01", symbol: "AAPL", strategy: "Long Put", entry: 1.90, exit: 3.20, pnl: 130, status: "win" },
-  { id: 6, date: "2024-02-08", symbol: "MSFT", strategy: "Bear Put Spread", entry: 1.50, exit: 2.20, pnl: 70, status: "win" },
-];
+function generateId() {
+  return Math.random().toString(36).substring(2, 15);
+}
+
+function getDefaultLeg(): BacktestLegConfig {
+  return {
+    id: generateId(),
+    direction: "sell",
+    optionType: "put",
+    quantity: 1,
+    strikeSelection: "delta",
+    strikeValue: 0.30,
+    dte: 45,
+  };
+}
+
+function getDefaultConfig(): BacktestConfigData {
+  const now = new Date();
+  const oneYearAgo = new Date(now);
+  oneYearAgo.setFullYear(now.getFullYear() - 1);
+  
+  return {
+    symbol: "SPY",
+    startDate: oneYearAgo.toISOString().split("T")[0],
+    endDate: now.toISOString().split("T")[0],
+    legs: [getDefaultLeg()],
+    entryConditions: {
+      frequency: "everyDay",
+      maxActiveTrades: 1,
+    },
+    exitConditions: {
+      exitAtDTE: 21,
+      stopLossPercent: 200,
+      takeProfitPercent: 50,
+    },
+    capitalMethod: "auto",
+    feePerContract: 0.65,
+  };
+}
+
+function LegConfig({ 
+  leg, 
+  index, 
+  onChange, 
+  onRemove, 
+  canRemove,
+  allLegs 
+}: { 
+  leg: BacktestLegConfig; 
+  index: number; 
+  onChange: (leg: BacktestLegConfig) => void; 
+  onRemove: () => void;
+  canRemove: boolean;
+  allLegs: BacktestLegConfig[];
+}) {
+  return (
+    <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium">Leg {index + 1}</h4>
+        {canRemove && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onRemove}
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            data-testid={`button-remove-leg-${index}`}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs">Direction</Label>
+          <Select 
+            value={leg.direction} 
+            onValueChange={(v) => onChange({ ...leg, direction: v as "buy" | "sell" })}
+          >
+            <SelectTrigger className="h-9" data-testid={`select-leg-${index}-direction`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sell">Sell</SelectItem>
+              <SelectItem value="buy">Buy</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label className="text-xs">Type</Label>
+          <Select 
+            value={leg.optionType} 
+            onValueChange={(v) => onChange({ ...leg, optionType: v as "call" | "put" })}
+          >
+            <SelectTrigger className="h-9" data-testid={`select-leg-${index}-type`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="put">Put</SelectItem>
+              <SelectItem value="call">Call</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs">Quantity</Label>
+          <Input
+            type="number"
+            min={1}
+            max={100}
+            value={leg.quantity}
+            onChange={(e) => onChange({ ...leg, quantity: parseInt(e.target.value) || 1 })}
+            className="h-9"
+            data-testid={`input-leg-${index}-quantity`}
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label className="text-xs">DTE (Days to Exp)</Label>
+          <Input
+            type="number"
+            min={1}
+            max={365}
+            value={leg.dte}
+            onChange={(e) => onChange({ ...leg, dte: parseInt(e.target.value) || 45 })}
+            className="h-9"
+            data-testid={`input-leg-${index}-dte`}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs">Strike Selection</Label>
+          <Select 
+            value={leg.strikeSelection} 
+            onValueChange={(v) => onChange({ ...leg, strikeSelection: v as any })}
+          >
+            <SelectTrigger className="h-9" data-testid={`select-leg-${index}-strike`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="delta">Delta</SelectItem>
+              <SelectItem value="percentOTM">% OTM</SelectItem>
+              <SelectItem value="priceOffset">Price Offset</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label className="text-xs">
+            {leg.strikeSelection === "delta" ? "Delta Value" : 
+             leg.strikeSelection === "percentOTM" ? "% OTM" : "$ Offset"}
+          </Label>
+          <Input
+            type="number"
+            step={leg.strikeSelection === "delta" ? 0.01 : 1}
+            value={leg.strikeValue}
+            onChange={(e) => onChange({ ...leg, strikeValue: parseFloat(e.target.value) || 0 })}
+            className="h-9"
+            data-testid={`input-leg-${index}-strike-value`}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BacktestSetup({ 
+  onSubmit, 
+  isLoading 
+}: { 
+  onSubmit: (config: BacktestConfigData) => void; 
+  isLoading: boolean;
+}) {
+  const [config, setConfig] = useState<BacktestConfigData>(getDefaultConfig());
+
+  const updateLeg = (index: number, leg: BacktestLegConfig) => {
+    const newLegs = [...config.legs];
+    newLegs[index] = leg;
+    setConfig({ ...config, legs: newLegs });
+  };
+
+  const addLeg = () => {
+    if (config.legs.length < 4) {
+      setConfig({ ...config, legs: [...config.legs, getDefaultLeg()] });
+    }
+  };
+
+  const removeLeg = (index: number) => {
+    if (config.legs.length > 1) {
+      setConfig({ ...config, legs: config.legs.filter((_, i) => i !== index) });
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(config);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Strategy Configuration
+          </CardTitle>
+          <CardDescription>
+            Define your options strategy legs and parameters
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Symbol</Label>
+              <Input
+                value={config.symbol}
+                onChange={(e) => setConfig({ ...config, symbol: e.target.value.toUpperCase() })}
+                placeholder="SPY"
+                className="h-9"
+                data-testid="input-backtest-symbol"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Start Date</Label>
+              <Input
+                type="date"
+                value={config.startDate}
+                onChange={(e) => setConfig({ ...config, startDate: e.target.value })}
+                className="h-9"
+                data-testid="input-start-date"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">End Date</Label>
+              <Input
+                type="date"
+                value={config.endDate}
+                onChange={(e) => setConfig({ ...config, endDate: e.target.value })}
+                className="h-9"
+                data-testid="input-end-date"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Strategy Legs</CardTitle>
+              <CardDescription>Configure up to 4 option legs</CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addLeg}
+              disabled={config.legs.length >= 4}
+              className="gap-1"
+              data-testid="button-add-leg"
+            >
+              <Plus className="h-4 w-4" />
+              Add Leg
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {config.legs.map((leg, index) => (
+            <LegConfig
+              key={leg.id}
+              leg={leg}
+              index={index}
+              onChange={(updatedLeg) => updateLeg(index, updatedLeg)}
+              onRemove={() => removeLeg(index)}
+              canRemove={config.legs.length > 1}
+              allLegs={config.legs}
+            />
+          ))}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Entry Conditions</CardTitle>
+            <CardDescription>When to enter new trades</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Entry Frequency</Label>
+              <Select 
+                value={config.entryConditions.frequency} 
+                onValueChange={(v) => setConfig({ 
+                  ...config, 
+                  entryConditions: { ...config.entryConditions, frequency: v as any } 
+                })}
+              >
+                <SelectTrigger className="h-9" data-testid="select-entry-frequency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="everyDay">Every Trading Day</SelectItem>
+                  <SelectItem value="specificDays">Specific Days of Week</SelectItem>
+                  <SelectItem value="exactDTE">Only at Exact DTE</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Max Active Trades</Label>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={config.entryConditions.maxActiveTrades || 1}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  entryConditions: { 
+                    ...config.entryConditions, 
+                    maxActiveTrades: parseInt(e.target.value) || 1 
+                  } 
+                })}
+                className="h-9"
+                data-testid="input-max-trades"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Exit Conditions</CardTitle>
+            <CardDescription>When to close positions</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Exit at DTE</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={config.exitConditions.exitAtDTE ?? ""}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  exitConditions: { 
+                    ...config.exitConditions, 
+                    exitAtDTE: e.target.value ? parseInt(e.target.value) : undefined 
+                  } 
+                })}
+                placeholder="e.g., 21"
+                className="h-9"
+                data-testid="input-exit-dte"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Stop Loss %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={500}
+                  value={config.exitConditions.stopLossPercent ?? ""}
+                  onChange={(e) => setConfig({ 
+                    ...config, 
+                    exitConditions: { 
+                      ...config.exitConditions, 
+                      stopLossPercent: e.target.value ? parseFloat(e.target.value) : undefined 
+                    } 
+                  })}
+                  placeholder="200"
+                  className="h-9"
+                  data-testid="input-stop-loss"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Take Profit %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={config.exitConditions.takeProfitPercent ?? ""}
+                  onChange={(e) => setConfig({ 
+                    ...config, 
+                    exitConditions: { 
+                      ...config.exitConditions, 
+                      takeProfitPercent: e.target.value ? parseFloat(e.target.value) : undefined 
+                    } 
+                  })}
+                  placeholder="50"
+                  className="h-9"
+                  data-testid="input-take-profit"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Capital & Fees</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Capital Method</Label>
+              <Select 
+                value={config.capitalMethod} 
+                onValueChange={(v) => setConfig({ ...config, capitalMethod: v as "auto" | "manual" })}
+              >
+                <SelectTrigger className="h-9" data-testid="select-capital-method">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto-calculate</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {config.capitalMethod === "manual" && (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Starting Capital</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    min={1000}
+                    value={config.manualCapital || 10000}
+                    onChange={(e) => setConfig({ ...config, manualCapital: parseFloat(e.target.value) })}
+                    className="h-9 pl-8"
+                    data-testid="input-capital"
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Fee per Contract</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="number"
+                  step={0.01}
+                  min={0}
+                  value={config.feePerContract || 0.65}
+                  onChange={(e) => setConfig({ ...config, feePerContract: parseFloat(e.target.value) })}
+                  className="h-9 pl-8"
+                  data-testid="input-fee"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground flex items-center gap-1">
+          <Info className="h-3 w-3" />
+          Uses historical stock prices from Finnhub + Black-Scholes option simulation
+        </div>
+        <Button 
+          type="submit" 
+          size="lg" 
+          className="gap-2 px-8"
+          disabled={isLoading}
+          data-testid="button-run-backtest"
+        >
+          {isLoading ? (
+            <>
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              Starting...
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4" />
+              Run Backtest
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function BacktestProgress({ 
+  progress, 
+  status 
+}: { 
+  progress: number; 
+  status: string;
+}) {
+  return (
+    <Card className="max-w-xl mx-auto">
+      <CardContent className="py-12">
+        <div className="text-center space-y-6">
+          <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
+            <RefreshCw className="h-8 w-8 text-primary animate-spin" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold">Running Backtest</h3>
+            <p className="text-sm text-muted-foreground">
+              {status === "pending" ? "Initializing..." : "Processing historical data..."}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Progress value={progress} className="h-3" />
+            <p className="text-sm font-mono text-muted-foreground">{progress}%</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BacktestResults({ 
+  result 
+}: { 
+  result: BacktestRunWithMeta;
+}) {
+  const summary = result.summary;
+  const details = result.details;
+  const trades = result.trades || [];
+  const dailyLogs = result.dailyLogs || [];
+  const pnlHistory = result.pnlHistory || [];
+
+  if (!summary || !details) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p>No results available</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatPercent = (value: number) => {
+    const sign = value >= 0 ? "+" : "";
+    return `${sign}${value.toFixed(1)}%`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Total P/L</p>
+                <p className={`text-2xl font-bold ${summary.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(summary.totalPnL)}
+                </p>
+              </div>
+              {summary.totalPnL >= 0 ? (
+                <TrendingUp className="h-8 w-8 text-green-500 opacity-50 shrink-0" />
+              ) : (
+                <TrendingDown className="h-8 w-8 text-red-500 opacity-50 shrink-0" />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Win Rate</p>
+                <p className="text-2xl font-bold">{summary.winRate.toFixed(1)}%</p>
+              </div>
+              <Target className="h-8 w-8 text-primary opacity-50 shrink-0" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Max Drawdown</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {formatPercent(-Math.abs(summary.maxDrawdownPercent))}
+                </p>
+              </div>
+              <TrendingDown className="h-8 w-8 text-red-500 opacity-50 shrink-0" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Trades</p>
+                <p className="text-2xl font-bold">{summary.totalTrades}</p>
+              </div>
+              <BarChart3 className="h-8 w-8 text-primary opacity-50 shrink-0" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="summary" className="w-full">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
+          <TabsTrigger value="summary" className="gap-1" data-testid="tab-summary">
+            <BarChart3 className="h-4 w-4" />
+            Summary
+          </TabsTrigger>
+          <TabsTrigger value="details" className="gap-1" data-testid="tab-details">
+            <ListChecks className="h-4 w-4" />
+            Details
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="gap-1" data-testid="tab-logs">
+            <FileText className="h-4 w-4" />
+            Logs
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="summary" className="mt-4 space-y-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">P/L Over Time</CardTitle>
+              <CardDescription>Strategy performance vs underlying</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                {pnlHistory.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={pnlHistory}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="date" 
+                        className="text-xs" 
+                        tickFormatter={(d) => {
+                          const date = new Date(d);
+                          return `${date.getMonth() + 1}/${date.getDate()}`;
+                        }}
+                      />
+                      <YAxis 
+                        yAxisId="left"
+                        className="text-xs" 
+                        tickFormatter={(v) => `$${(v/1000).toFixed(1)}k`}
+                      />
+                      <YAxis 
+                        yAxisId="right"
+                        orientation="right"
+                        className="text-xs" 
+                        tickFormatter={(v) => `$${v.toFixed(0)}`}
+                      />
+                      <Tooltip 
+                        formatter={(value: number, name: string) => [
+                          `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                          name
+                        ]}
+                        labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Legend />
+                      <Area 
+                        yAxisId="left"
+                        type="monotone" 
+                        dataKey="cumulativePnL" 
+                        stroke="hsl(var(--primary))" 
+                        fill="hsl(var(--primary) / 0.2)"
+                        strokeWidth={2}
+                        name="Strategy P/L"
+                      />
+                      <Line 
+                        yAxisId="right"
+                        type="monotone" 
+                        dataKey="underlyingPrice" 
+                        stroke="hsl(var(--muted-foreground))" 
+                        strokeDasharray="5 5"
+                        strokeWidth={1}
+                        dot={false}
+                        name="Underlying Price"
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground">
+                    No chart data available
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Avg Win</p>
+                <p className="text-lg font-semibold text-green-600">
+                  {formatCurrency(details.averageWin)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Avg Loss</p>
+                <p className="text-lg font-semibold text-red-600">
+                  {formatCurrency(details.averageLoss)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Profit Factor</p>
+                <p className="text-lg font-semibold">
+                  {details.profitFactor.toFixed(2)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Expectancy</p>
+                <p className="text-lg font-semibold">
+                  {formatCurrency(details.expectancy)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="details" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Trade Details</CardTitle>
+              <CardDescription>Individual trade performance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-96">
+                <div className="space-y-2">
+                  {trades.length > 0 ? trades.map((trade, i) => (
+                    <div 
+                      key={i}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          {trade.pnl >= 0 ? (
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            #{trade.tradeNumber}
+                          </span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-muted-foreground">Entry: </span>
+                          <span>{new Date(trade.entryDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="text-xs">
+                          <span className="text-muted-foreground">Exit: </span>
+                          <span>{new Date(trade.exitDate).toLocaleDateString()}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs">
+                          {trade.exitReason}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right text-xs">
+                          <span className="text-muted-foreground">Entry: </span>
+                          <span className="font-mono">{formatCurrency(trade.entryValue)}</span>
+                        </div>
+                        <span className={`font-mono font-semibold ${trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {trade.pnl >= 0 ? '+' : ''}{formatCurrency(trade.pnl)}
+                        </span>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No trade data available
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="logs" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Daily Logs</CardTitle>
+              <CardDescription>Day-by-day activity log</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-96">
+                <div className="space-y-1 font-mono text-xs">
+                  {dailyLogs.length > 0 ? dailyLogs.map((log, i) => (
+                    <div 
+                      key={i}
+                      className={`p-2 rounded ${
+                        log.action === 'entry' ? 'bg-blue-500/10' :
+                        log.action === 'exit' ? 'bg-green-500/10' :
+                        'bg-muted/30'
+                      }`}
+                    >
+                      <span className="text-muted-foreground">
+                        {new Date(log.date).toLocaleDateString()}
+                      </span>
+                      <span className="mx-2">|</span>
+                      <span className={`uppercase font-semibold ${
+                        log.action === 'entry' ? 'text-blue-600' :
+                        log.action === 'exit' ? 'text-green-600' :
+                        'text-muted-foreground'
+                      }`}>
+                        {log.action}
+                      </span>
+                      <span className="mx-2">|</span>
+                      <span>{log.details}</span>
+                    </div>
+                  )) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No log data available
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function BacktestError({ 
+  message, 
+  onRetry 
+}: { 
+  message: string; 
+  onRetry: () => void;
+}) {
+  return (
+    <Card className="max-w-xl mx-auto">
+      <CardContent className="py-12">
+        <div className="text-center space-y-6">
+          <div className="w-16 h-16 mx-auto bg-destructive/10 rounded-full flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-destructive" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold">Backtest Failed</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              {message || "An unexpected error occurred while running the backtest."}
+            </p>
+          </div>
+          <Button onClick={onRetry} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Backtest() {
   const [, setLocation] = useLocation();
-  const [symbol, setSymbol] = useState("AAPL");
-  const [strategy, setStrategy] = useState("long_call");
-  const [startDate, setStartDate] = useState("2024-01-01");
-  const [endDate, setEndDate] = useState("2024-12-31");
-  const [capital, setCapital] = useState("10000");
-  const [isRunning, setIsRunning] = useState(false);
-  const [hasResults, setHasResults] = useState(true); // Show sample results
+  const queryClient = useQueryClient();
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [view, setView] = useState<"setup" | "running" | "results" | "error">("setup");
 
-  const handleRunBacktest = () => {
-    setIsRunning(true);
-    // Simulate backtest running
-    setTimeout(() => {
-      setIsRunning(false);
-      setHasResults(true);
-    }, 2000);
+  const createBacktestMutation = useMutation({
+    mutationFn: async (config: BacktestConfigData) => {
+      const response = await apiRequest("POST", "/api/backtest/tastyworks", config);
+      return response.json();
+    },
+    onSuccess: (data: { id: string }) => {
+      setCurrentRunId(data.id);
+      setView("running");
+    },
+    onError: (error: any) => {
+      console.error("Failed to create backtest:", error);
+      setView("error");
+    },
+  });
+
+  const { data: currentRun, refetch: refetchRun } = useQuery<BacktestRunWithMeta>({
+    queryKey: ["/api/backtest/tastyworks", currentRunId],
+    queryFn: async () => {
+      const response = await fetch(`/api/backtest/tastyworks/${currentRunId}`);
+      if (!response.ok) throw new Error("Failed to fetch backtest");
+      return response.json();
+    },
+    enabled: !!currentRunId && (view === "running" || view === "results"),
+    refetchInterval: view === "running" ? 2000 : false,
+  });
+
+  useEffect(() => {
+    if (currentRun) {
+      if (currentRun.status === "completed") {
+        setView("results");
+      } else if (currentRun.status === "error") {
+        setView("error");
+      }
+    }
+  }, [currentRun]);
+
+  const handleRunBacktest = (config: BacktestConfigData) => {
+    createBacktestMutation.mutate(config);
+  };
+
+  const handleRetry = () => {
+    setCurrentRunId(null);
+    setView("setup");
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-14 flex items-center justify-between gap-2">
           <div className="flex items-center gap-4">
             <Link href="/builder">
               <Button variant="ghost" size="sm" className="gap-2" data-testid="button-back-builder">
                 <ArrowLeft className="h-4 w-4" />
-                Back to Builder
+                <span className="hidden sm:inline">Back to Builder</span>
               </Button>
             </Link>
             <Separator orientation="vertical" className="h-6" />
@@ -96,342 +1011,50 @@ export default function Backtest() {
               <span className="font-semibold">Options Backtester</span>
             </div>
           </div>
-          <Badge variant="outline" className="text-xs">
-            Powered by Alpaca
-          </Badge>
+          {view === "results" && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRetry}
+              className="gap-2"
+              data-testid="button-new-backtest"
+            >
+              <Plus className="h-4 w-4" />
+              New Backtest
+            </Button>
+          )}
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Configuration Panel */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Backtest Configuration</CardTitle>
-              <CardDescription>Configure your options strategy backtest</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Symbol */}
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Symbol</Label>
-                <Input
-                  value={symbol}
-                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                  placeholder="AAPL"
-                  className="h-9"
-                  data-testid="input-backtest-symbol"
-                />
-              </div>
+        {view === "setup" && (
+          <BacktestSetup 
+            onSubmit={handleRunBacktest} 
+            isLoading={createBacktestMutation.isPending} 
+          />
+        )}
 
-              {/* Strategy */}
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Strategy</Label>
-                <Select value={strategy} onValueChange={setStrategy}>
-                  <SelectTrigger className="h-9" data-testid="select-strategy">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="long_call">Long Call</SelectItem>
-                    <SelectItem value="long_put">Long Put</SelectItem>
-                    <SelectItem value="covered_call">Covered Call</SelectItem>
-                    <SelectItem value="cash_secured_put">Cash Secured Put</SelectItem>
-                    <SelectItem value="bull_call_spread">Bull Call Spread</SelectItem>
-                    <SelectItem value="bear_put_spread">Bear Put Spread</SelectItem>
-                    <SelectItem value="iron_condor">Iron Condor</SelectItem>
-                    <SelectItem value="straddle">Straddle</SelectItem>
-                    <SelectItem value="strangle">Strangle</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        {view === "running" && currentRun && (
+          <BacktestProgress 
+            progress={currentRun.progress} 
+            status={currentRun.status} 
+          />
+        )}
 
-              {/* Date Range */}
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Start Date</Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="h-9"
-                  data-testid="input-start-date"
-                />
-              </div>
+        {view === "running" && !currentRun && (
+          <BacktestProgress progress={0} status="pending" />
+        )}
 
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">End Date</Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-9"
-                  data-testid="input-end-date"
-                />
-              </div>
+        {view === "results" && currentRun && (
+          <BacktestResults result={currentRun} />
+        )}
 
-              {/* Starting Capital */}
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Starting Capital</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="number"
-                    value={capital}
-                    onChange={(e) => setCapital(e.target.value)}
-                    className="h-9 pl-8"
-                    data-testid="input-capital"
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Run Button */}
-              <Button
-                className="w-full gap-2"
-                onClick={handleRunBacktest}
-                disabled={isRunning}
-                data-testid="button-run-backtest"
-              >
-                {isRunning ? (
-                  <>
-                    <Clock className="h-4 w-4 animate-spin" />
-                    Running...
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4" />
-                    Run Backtest
-                  </>
-                )}
-              </Button>
-
-              {/* Info */}
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p className="flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  Historical data from Alpaca
-                </p>
-                <p>Results are simulated and may not reflect actual trading conditions.</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Results Panel */}
-          <div className="lg:col-span-3 space-y-6">
-            {hasResults ? (
-              <>
-                {/* Summary Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Total Return</p>
-                          <p className="text-2xl font-bold text-green-600">+25.0%</p>
-                        </div>
-                        <TrendingUp className="h-8 w-8 text-green-500 opacity-50" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Win Rate</p>
-                          <p className="text-2xl font-bold">83.3%</p>
-                        </div>
-                        <Target className="h-8 w-8 text-primary opacity-50" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Max Drawdown</p>
-                          <p className="text-2xl font-bold text-red-600">-8.2%</p>
-                        </div>
-                        <TrendingDown className="h-8 w-8 text-red-500 opacity-50" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="pt-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Sharpe Ratio</p>
-                          <p className="text-2xl font-bold">1.85</p>
-                        </div>
-                        <BarChart3 className="h-8 w-8 text-primary opacity-50" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Charts and Trade History */}
-                <Tabs defaultValue="equity" className="w-full">
-                  <TabsList className="grid w-full max-w-md grid-cols-3">
-                    <TabsTrigger value="equity" data-testid="tab-equity">Equity Curve</TabsTrigger>
-                    <TabsTrigger value="trades" data-testid="tab-trades">Trade History</TabsTrigger>
-                    <TabsTrigger value="stats" data-testid="tab-stats">Statistics</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="equity" className="mt-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Equity Curve</CardTitle>
-                        <CardDescription>Portfolio value over time vs benchmark</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-80">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={sampleEquityCurve}>
-                              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                              <XAxis dataKey="date" className="text-xs" />
-                              <YAxis className="text-xs" tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
-                              <Tooltip 
-                                formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
-                                contentStyle={{ 
-                                  backgroundColor: 'hsl(var(--card))',
-                                  border: '1px solid hsl(var(--border))',
-                                  borderRadius: '8px'
-                                }}
-                              />
-                              <Area 
-                                type="monotone" 
-                                dataKey="equity" 
-                                stroke="hsl(var(--primary))" 
-                                fill="hsl(var(--primary) / 0.2)"
-                                strokeWidth={2}
-                                name="Strategy"
-                              />
-                              <Line 
-                                type="monotone" 
-                                dataKey="benchmark" 
-                                stroke="hsl(var(--muted-foreground))" 
-                                strokeDasharray="5 5"
-                                strokeWidth={1}
-                                dot={false}
-                                name="Benchmark"
-                              />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="trades" className="mt-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Trade History</CardTitle>
-                        <CardDescription>Individual trades executed during backtest</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          {sampleTrades.map((trade) => (
-                            <div 
-                              key={trade.id}
-                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                  {trade.status === "win" ? (
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                  ) : (
-                                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                                  )}
-                                  <span className="font-mono font-semibold">{trade.symbol}</span>
-                                </div>
-                                <Badge variant="outline" className="text-xs">
-                                  {trade.strategy}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">{trade.date}</span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className="text-right text-xs">
-                                  <span className="text-muted-foreground">Entry: </span>
-                                  <span className="font-mono">${trade.entry.toFixed(2)}</span>
-                                  <span className="mx-1">→</span>
-                                  <span className="font-mono">${trade.exit.toFixed(2)}</span>
-                                </div>
-                                <span className={`font-mono font-semibold ${trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(0)}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="stats" className="mt-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Detailed Statistics</CardTitle>
-                        <CardDescription>Performance metrics and risk analysis</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Total Trades</p>
-                            <p className="text-lg font-semibold">6</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Winning Trades</p>
-                            <p className="text-lg font-semibold text-green-600">5</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Losing Trades</p>
-                            <p className="text-lg font-semibold text-red-600">1</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Avg Win</p>
-                            <p className="text-lg font-semibold text-green-600">+$92.00</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Avg Loss</p>
-                            <p className="text-lg font-semibold text-red-600">-$60.00</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Profit Factor</p>
-                            <p className="text-lg font-semibold">7.67</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Expectancy</p>
-                            <p className="text-lg font-semibold">$66.67</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Avg Hold Time</p>
-                            <p className="text-lg font-semibold">5.2 days</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Max Consecutive Wins</p>
-                            <p className="text-lg font-semibold">4</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
-              </>
-            ) : (
-              <Card className="lg:col-span-3">
-                <CardContent className="flex flex-col items-center justify-center py-20">
-                  <BarChart3 className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                  <h3 className="text-lg font-semibold text-muted-foreground">No Results Yet</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Configure your backtest parameters and click "Run Backtest" to see results.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
+        {view === "error" && (
+          <BacktestError 
+            message={currentRun?.errorMessage || "An error occurred"} 
+            onRetry={handleRetry} 
+          />
+        )}
       </main>
     </div>
   );

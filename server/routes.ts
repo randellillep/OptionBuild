@@ -2,9 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import type { MarketOptionQuote, MarketOptionChainSummary, OptionType, BacktestRequest } from "@shared/schema";
+import type { MarketOptionQuote, MarketOptionChainSummary, OptionType, BacktestRequest, BacktestConfigData } from "@shared/schema";
 import { setupGoogleAuth, isAuthenticated } from "./googleAuth";
-import { runBacktest } from "./backtesting";
+import { runBacktest, runTastyworksBacktest } from "./backtesting";
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
@@ -804,6 +804,212 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch logo" });
     }
   });
+
+  // ============================================================================
+  // TASTYWORKS-STYLE BACKTESTING API
+  // ============================================================================
+
+  const backtestLegConfigSchema = z.object({
+    id: z.string(),
+    direction: z.enum(["buy", "sell"]),
+    optionType: z.enum(["call", "put"]),
+    quantity: z.number().int().positive(),
+    strikeSelection: z.enum(["delta", "percentOTM", "priceOffset", "premium"]),
+    strikeValue: z.number(),
+    dte: z.number().int().positive(),
+    linkedToLegId: z.string().optional(),
+  });
+
+  const backtestConfigSchema = z.object({
+    symbol: z.string().min(1).max(10),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    legs: z.array(backtestLegConfigSchema).min(1),
+    entryConditions: z.object({
+      frequency: z.enum(["everyDay", "specificDays", "exactDTE"]),
+      specificDays: z.array(z.number().int().min(0).max(6)).optional(),
+      exactDTEMatch: z.boolean().optional(),
+      maxActiveTrades: z.number().int().positive().optional(),
+      useVix: z.boolean().optional(),
+      vixMin: z.number().optional(),
+      vixMax: z.number().optional(),
+    }),
+    exitConditions: z.object({
+      exitAtDTE: z.number().int().min(0).optional(),
+      exitAfterDays: z.number().int().positive().optional(),
+      stopLossPercent: z.number().min(0).max(500).optional(),
+      takeProfitPercent: z.number().min(0).max(500).optional(),
+      useVix: z.boolean().optional(),
+      vixExitAbove: z.number().optional(),
+    }),
+    capitalMethod: z.enum(["auto", "manual"]),
+    manualCapital: z.number().positive().optional(),
+    feePerContract: z.number().min(0).optional(),
+  });
+
+  // Create a new backtest run
+  app.post("/api/backtest/tastyworks", async (req, res) => {
+    try {
+      const validation = backtestConfigSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid backtest configuration", 
+          details: validation.error.errors 
+        });
+      }
+
+      const config: BacktestConfigData = validation.data as BacktestConfigData;
+      
+      // Validate strike values based on selection method
+      for (const leg of config.legs) {
+        if (leg.strikeSelection === "delta") {
+          // Delta can be 0-1 (fractional) or 1-100 (percentage)
+          // After normalization in backend, must be <= 1 (100%)
+          const normalizedDelta = leg.strikeValue > 1 ? leg.strikeValue / 100 : leg.strikeValue;
+          if (normalizedDelta < 0.01 || normalizedDelta > 1) {
+            return res.status(400).json({ 
+              error: `Invalid delta value ${leg.strikeValue}. Use 0.01-1.0 (fractional) or 1-100 (percentage).` 
+            });
+          }
+        }
+      }
+      
+      // Validate date range
+      const start = new Date(config.startDate);
+      const end = new Date(config.endDate);
+      const now = new Date();
+      
+      if (start >= end) {
+        return res.status(400).json({ error: "Start date must be before end date" });
+      }
+      
+      if (end > now) {
+        return res.status(400).json({ error: "End date cannot be in the future" });
+      }
+      
+      // Limit to 5 years of data
+      const maxDays = 1825;
+      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff > maxDays) {
+        return res.status(400).json({ error: `Date range cannot exceed ${maxDays} days (5 years)` });
+      }
+
+      // Get user ID if authenticated
+      const userId = (req as any).user?.id || null;
+
+      // Create backtest run in database
+      const backtestRun = await storage.createBacktestRun({
+        userId,
+        status: "pending",
+        progress: 0,
+        config: config as any,
+      });
+
+      console.log(`[BACKTEST] Created backtest run ${backtestRun.id} for ${config.symbol}`);
+
+      // Start backtest asynchronously
+      runTastyworksBacktest(backtestRun.id, config).catch(error => {
+        console.error(`[BACKTEST] Async error for ${backtestRun.id}:`, error);
+      });
+
+      res.status(201).json({
+        id: backtestRun.id,
+        status: "pending",
+        message: "Backtest started",
+      });
+    } catch (error: any) {
+      console.error("[BACKTEST] Error creating backtest:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to create backtest" 
+      });
+    }
+  });
+
+  // Get backtest run status and results
+  app.get("/api/backtest/tastyworks/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const backtestRun = await storage.getBacktestRun(id);
+      
+      if (!backtestRun) {
+        return res.status(404).json({ error: "Backtest not found" });
+      }
+
+      res.json({
+        id: backtestRun.id,
+        status: backtestRun.status,
+        progress: backtestRun.progress,
+        config: backtestRun.config,
+        summary: backtestRun.summary,
+        details: backtestRun.details,
+        trades: backtestRun.trades,
+        dailyLogs: backtestRun.dailyLogs,
+        priceHistory: backtestRun.priceHistory,
+        pnlHistory: backtestRun.pnlHistory,
+        errorMessage: backtestRun.errorMessage,
+        createdAt: backtestRun.createdAt,
+        completedAt: backtestRun.completedAt,
+      });
+    } catch (error: any) {
+      console.error("[BACKTEST] Error fetching backtest:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to fetch backtest" 
+      });
+    }
+  });
+
+  // List user's backtest runs
+  app.get("/api/backtest/tastyworks", async (req, res) => {
+    try {
+      const userId = (req as any).user?.id || undefined;
+      
+      const backtestRuns = await storage.getBacktestRuns(userId);
+      
+      // Return summary info only (not full results)
+      const runs = backtestRuns.map(run => ({
+        id: run.id,
+        status: run.status,
+        progress: run.progress,
+        config: run.config,
+        summary: run.summary,
+        createdAt: run.createdAt,
+        completedAt: run.completedAt,
+      }));
+
+      res.json(runs);
+    } catch (error: any) {
+      console.error("[BACKTEST] Error listing backtests:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to list backtests" 
+      });
+    }
+  });
+
+  // Delete a backtest run
+  app.delete("/api/backtest/tastyworks/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const deleted = await storage.deleteBacktestRun(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Backtest not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[BACKTEST] Error deleting backtest:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to delete backtest" 
+      });
+    }
+  });
+
+  // ============================================================================
+  // LEGACY SIMPLE BACKTEST (kept for backwards compatibility)
+  // ============================================================================
 
   // Backtesting endpoint - runs strategy backtest against historical data
   const backtestRequestSchema = z.object({

@@ -1,22 +1,22 @@
-import type { OptionLeg, BacktestRequest, BacktestResult, BacktestDataPoint, BacktestMetrics } from "@shared/schema";
+import { storage } from "./storage";
+import type {
+  BacktestConfigData,
+  BacktestTradeData,
+  BacktestDailyLog,
+  BacktestSummaryMetrics,
+  BacktestDetailMetrics,
+  BacktestLegConfig,
+  TradeCloseReason,
+  OptionLeg,
+  BacktestRequest,
+  BacktestResult,
+  BacktestDataPoint,
+  BacktestMetrics,
+} from "@shared/schema";
 
-const ALPACA_API_KEY = process.env.ALPACA_API_KEY;
-const ALPACA_API_SECRET = process.env.ALPACA_API_SECRET;
-const ALPACA_DATA_URL = "https://data.alpaca.markets/v2";
-
-interface HistoricalBar {
-  t: string;
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-  v: number;
-}
-
-interface AlpacaBarsResponse {
-  bars: { [symbol: string]: HistoricalBar[] };
-  next_page_token?: string;
-}
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
+const RISK_FREE_RATE = 0.05;
+const DEFAULT_FEE_PER_CONTRACT = 0.65;
 
 function cumulativeNormalDistribution(x: number): number {
   const t = 1 / (1 + 0.2316419 * Math.abs(x));
@@ -27,15 +27,21 @@ function cumulativeNormalDistribution(x: number): number {
 
 function blackScholesCall(S: number, K: number, T: number, r: number, sigma: number): number {
   if (T <= 0) return Math.max(S - K, 0);
+  if (S <= 0 || K <= 0 || sigma <= 0) return Math.max(S - K, 0);
+  
   const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
   const d2 = d1 - sigma * Math.sqrt(T);
+  
   return S * cumulativeNormalDistribution(d1) - K * Math.exp(-r * T) * cumulativeNormalDistribution(d2);
 }
 
 function blackScholesPut(S: number, K: number, T: number, r: number, sigma: number): number {
   if (T <= 0) return Math.max(K - S, 0);
+  if (S <= 0 || K <= 0 || sigma <= 0) return Math.max(K - S, 0);
+  
   const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
   const d2 = d1 - sigma * Math.sqrt(T);
+  
   return K * Math.exp(-r * T) * cumulativeNormalDistribution(-d2) - S * cumulativeNormalDistribution(-d1);
 }
 
@@ -44,27 +50,803 @@ function calculateOptionPrice(
   underlyingPrice: number,
   strike: number,
   daysToExpiration: number,
-  volatility: number = 0.3,
-  riskFreeRate: number = 0.05
+  volatility: number = 0.3
 ): number {
   const T = daysToExpiration / 365;
   if (type === "call") {
-    return blackScholesCall(underlyingPrice, strike, T, riskFreeRate, volatility);
+    return blackScholesCall(underlyingPrice, strike, T, RISK_FREE_RATE, volatility);
   } else {
-    return blackScholesPut(underlyingPrice, strike, T, riskFreeRate, volatility);
+    return blackScholesPut(underlyingPrice, strike, T, RISK_FREE_RATE, volatility);
   }
+}
+
+function calculateDelta(
+  type: "call" | "put",
+  underlyingPrice: number,
+  strike: number,
+  daysToExpiration: number,
+  volatility: number = 0.3
+): number {
+  const T = daysToExpiration / 365;
+  if (T <= 0 || underlyingPrice <= 0 || strike <= 0 || volatility <= 0) {
+    return type === "call" ? (underlyingPrice > strike ? 1 : 0) : (underlyingPrice < strike ? -1 : 0);
+  }
+  
+  const d1 = (Math.log(underlyingPrice / strike) + (RISK_FREE_RATE + volatility * volatility / 2) * T) / (volatility * Math.sqrt(T));
+  
+  if (type === "call") {
+    return cumulativeNormalDistribution(d1);
+  } else {
+    return cumulativeNormalDistribution(d1) - 1;
+  }
+}
+
+function findStrikeByDelta(
+  underlyingPrice: number,
+  targetDelta: number,
+  type: "call" | "put",
+  daysToExpiration: number,
+  volatility: number = 0.3
+): number {
+  // Normalize delta: accept both fractional (0.30) and whole-number (30) inputs
+  // If > 1, assume it's a percentage (30 means 0.30)
+  // If <= 1, assume it's already fractional
+  const targetDeltaAbs = Math.abs(targetDelta) > 1 
+    ? Math.abs(targetDelta) / 100 
+    : Math.abs(targetDelta);
+  
+  let low = underlyingPrice * 0.5;
+  let high = underlyingPrice * 1.5;
+  
+  for (let i = 0; i < 50; i++) {
+    const mid = (low + high) / 2;
+    const delta = Math.abs(calculateDelta(type, underlyingPrice, mid, daysToExpiration, volatility));
+    
+    if (Math.abs(delta - targetDeltaAbs) < 0.001) {
+      return Math.round(mid * 2) / 2;
+    }
+    
+    if (type === "call") {
+      if (delta > targetDeltaAbs) high = mid;
+      else low = mid;
+    } else {
+      if (delta > targetDeltaAbs) low = mid;
+      else high = mid;
+    }
+  }
+  
+  return Math.round(((low + high) / 2) * 2) / 2;
+}
+
+function findStrikeByPercentOTM(
+  underlyingPrice: number,
+  percentOTM: number,
+  type: "call" | "put"
+): number {
+  const offset = underlyingPrice * (percentOTM / 100);
+  let strike = type === "call" 
+    ? underlyingPrice + offset 
+    : underlyingPrice - offset;
+  return Math.round(strike * 2) / 2;
+}
+
+function findStrikeByPriceOffset(
+  underlyingPrice: number,
+  priceOffset: number,
+  type: "call" | "put"
+): number {
+  let strike = type === "call"
+    ? underlyingPrice + priceOffset
+    : underlyingPrice - priceOffset;
+  return Math.round(strike * 2) / 2;
+}
+
+interface HistoricalBar {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+async function fetchHistoricalPrices(
+  symbol: string,
+  startDate: string,
+  endDate: string
+): Promise<HistoricalBar[]> {
+  const cachedPrices = await storage.getHistoricalPrices(symbol, startDate, endDate);
+  
+  const cachedMap = new Map(cachedPrices.map(p => [p.date, p]));
+  
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const missingDates: string[] = [];
+  
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+    
+    const dateStr = d.toISOString().split('T')[0];
+    if (!cachedMap.has(dateStr)) {
+      missingDates.push(dateStr);
+    }
+  }
+  
+  if (missingDates.length > 0 && FINNHUB_API_KEY) {
+    try {
+      const fromTimestamp = Math.floor(start.getTime() / 1000);
+      const toTimestamp = Math.floor(end.getTime() / 1000);
+      
+      const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${fromTimestamp}&to=${toTimestamp}&token=${FINNHUB_API_KEY}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.s === 'ok' && data.t && data.o && data.h && data.l && data.c) {
+        const newPrices: { symbol: string; date: string; open: number; high: number; low: number; close: number; volume?: number }[] = [];
+        
+        for (let i = 0; i < data.t.length; i++) {
+          const date = new Date(data.t[i] * 1000).toISOString().split('T')[0];
+          newPrices.push({
+            symbol: symbol.toUpperCase(),
+            date,
+            open: data.o[i],
+            high: data.h[i],
+            low: data.l[i],
+            close: data.c[i],
+            volume: data.v?.[i],
+          });
+        }
+        
+        await storage.saveHistoricalPrices(newPrices);
+        
+        for (const p of newPrices) {
+          cachedMap.set(p.date, {
+            id: '',
+            symbol: p.symbol,
+            date: p.date,
+            open: p.open,
+            high: p.high,
+            low: p.low,
+            close: p.close,
+            volume: p.volume ?? null,
+            cachedAt: new Date(),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching historical prices from Finnhub:', error);
+    }
+  }
+  
+  const result: HistoricalBar[] = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+    
+    const dateStr = d.toISOString().split('T')[0];
+    const cached = cachedMap.get(dateStr);
+    if (cached) {
+      result.push({
+        date: cached.date,
+        open: cached.open,
+        high: cached.high,
+        low: cached.low,
+        close: cached.close,
+        volume: cached.volume ?? 0,
+      });
+    }
+  }
+  
+  return result.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function estimateVolatility(priceHistory: HistoricalBar[], lookback: number = 20): number {
+  if (priceHistory.length < 2) return 0.3;
+  
+  const returns: number[] = [];
+  const historySlice = priceHistory.slice(-Math.min(lookback + 1, priceHistory.length));
+  
+  for (let i = 1; i < historySlice.length; i++) {
+    const ret = Math.log(historySlice[i].close / historySlice[i - 1].close);
+    returns.push(ret);
+  }
+  
+  if (returns.length < 2) return 0.3;
+  
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / (returns.length - 1);
+  const dailyVol = Math.sqrt(variance);
+  
+  const annualizedVol = dailyVol * Math.sqrt(252);
+  return Math.max(0.1, Math.min(1.5, annualizedVol));
+}
+
+function calculateBuyingPower(
+  legs: BacktestLegConfig[],
+  strikes: number[],
+  premiums: number[],
+  underlyingPrice: number
+): number {
+  let totalPremium = 0;
+  let maxRisk = 0;
+  
+  for (let i = 0; i < legs.length; i++) {
+    const leg = legs[i];
+    const premium = premiums[i] * leg.quantity * 100;
+    
+    if (leg.direction === "sell") {
+      totalPremium += premium;
+      
+      if (leg.optionType === "put") {
+        maxRisk += strikes[i] * leg.quantity * 100;
+      } else {
+        maxRisk += underlyingPrice * 0.2 * leg.quantity * 100;
+      }
+    } else {
+      totalPremium -= premium;
+    }
+  }
+  
+  const widthRisk = calculateSpreadWidth(legs, strikes);
+  
+  return Math.max(widthRisk, maxRisk) - Math.max(0, totalPremium);
+}
+
+function calculateSpreadWidth(legs: BacktestLegConfig[], strikes: number[]): number {
+  const puts = legs.map((l, i) => ({ ...l, strike: strikes[i] })).filter(l => l.optionType === "put");
+  const calls = legs.map((l, i) => ({ ...l, strike: strikes[i] })).filter(l => l.optionType === "call");
+  
+  let width = 0;
+  
+  if (puts.length >= 2) {
+    const putStrikes = puts.map(p => p.strike).sort((a, b) => a - b);
+    width = Math.max(width, putStrikes[putStrikes.length - 1] - putStrikes[0]);
+  }
+  
+  if (calls.length >= 2) {
+    const callStrikes = calls.map(c => c.strike).sort((a, b) => a - b);
+    width = Math.max(width, callStrikes[callStrikes.length - 1] - callStrikes[0]);
+  }
+  
+  return width * 100;
+}
+
+interface ActiveTrade {
+  tradeNumber: number;
+  openedDate: string;
+  expirationDate: string;
+  legs: {
+    leg: BacktestLegConfig;
+    strike: number;
+    entryPrice: number;
+    dte: number;
+  }[];
+  premium: number;
+  buyingPower: number;
+  daysInTrade: number;
+}
+
+function calculateExpirationDate(entryDate: string, dte: number): string {
+  const date = new Date(entryDate);
+  date.setDate(date.getDate() + dte);
+  return date.toISOString().split('T')[0];
+}
+
+function getDTE(currentDate: string, expirationDate: string): number {
+  const current = new Date(currentDate);
+  const expiration = new Date(expirationDate);
+  const diffTime = expiration.getTime() - current.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function shouldEnterTrade(
+  date: string,
+  config: BacktestConfigData,
+  activeTrades: ActiveTrade[]
+): boolean {
+  const { entryConditions } = config;
+  
+  if (entryConditions.maxActiveTrades !== undefined && 
+      activeTrades.length >= entryConditions.maxActiveTrades) {
+    return false;
+  }
+  
+  const dayOfWeek = new Date(date).getDay();
+  
+  if (entryConditions.frequency === "specificDays") {
+    if (!entryConditions.specificDays?.includes(dayOfWeek)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+function shouldExitTrade(
+  trade: ActiveTrade,
+  currentDate: string,
+  currentPrice: number,
+  volatility: number,
+  config: BacktestConfigData
+): { shouldExit: boolean; reason: TradeCloseReason } {
+  const { exitConditions } = config;
+  
+  const dte = getDTE(currentDate, trade.expirationDate);
+  
+  if (dte <= 0) {
+    return { shouldExit: true, reason: "expired" };
+  }
+  
+  if (exitConditions.exitAtDTE !== undefined && dte <= exitConditions.exitAtDTE) {
+    return { shouldExit: true, reason: "exitDTE" };
+  }
+  
+  if (exitConditions.exitAfterDays !== undefined && trade.daysInTrade >= exitConditions.exitAfterDays) {
+    return { shouldExit: true, reason: "daysInTrade" };
+  }
+  
+  let currentValue = 0;
+  for (const legData of trade.legs) {
+    const { leg, strike } = legData;
+    const price = calculateOptionPrice(leg.optionType, currentPrice, strike, dte, volatility);
+    
+    if (leg.direction === "sell") {
+      currentValue += price * leg.quantity * 100;
+    } else {
+      currentValue -= price * leg.quantity * 100;
+    }
+  }
+  
+  const pnl = trade.premium - currentValue;
+  const premiumAbs = Math.abs(trade.premium);
+  
+  if (exitConditions.takeProfitPercent !== undefined && premiumAbs > 0) {
+    const profitPercent = (pnl / premiumAbs) * 100;
+    if (profitPercent >= exitConditions.takeProfitPercent) {
+      return { shouldExit: true, reason: "takeProfit" };
+    }
+  }
+  
+  if (exitConditions.stopLossPercent !== undefined && premiumAbs > 0) {
+    const lossPercent = (-pnl / premiumAbs) * 100;
+    if (lossPercent >= exitConditions.stopLossPercent) {
+      return { shouldExit: true, reason: "stopLoss" };
+    }
+  }
+  
+  return { shouldExit: false, reason: "expired" };
+}
+
+function closeTrade(
+  trade: ActiveTrade,
+  currentDate: string,
+  currentPrice: number,
+  volatility: number,
+  reason: TradeCloseReason,
+  feePerContract: number
+): BacktestTradeData {
+  const dte = Math.max(0, getDTE(currentDate, trade.expirationDate));
+  
+  const closedLegs = trade.legs.map(({ leg, strike, entryPrice, dte: originalDte }) => {
+    let exitPrice: number;
+    
+    if (dte <= 0 || reason === "expired") {
+      if (leg.optionType === "call") {
+        exitPrice = Math.max(0, currentPrice - strike);
+      } else {
+        exitPrice = Math.max(0, strike - currentPrice);
+      }
+    } else {
+      exitPrice = calculateOptionPrice(leg.optionType, currentPrice, strike, dte, volatility);
+    }
+    
+    return {
+      direction: leg.direction,
+      optionType: leg.optionType,
+      strike,
+      quantity: leg.quantity,
+      entryPrice,
+      exitPrice,
+      dte: originalDte,
+    };
+  });
+  
+  let exitValue = 0;
+  let totalContracts = 0;
+  
+  for (const leg of closedLegs) {
+    const legValue = leg.exitPrice * leg.quantity * 100;
+    if (leg.direction === "sell") {
+      exitValue += legValue;
+    } else {
+      exitValue -= legValue;
+    }
+    totalContracts += leg.quantity;
+  }
+  
+  const fees = totalContracts * feePerContract * 2;
+  const profitLoss = trade.premium - exitValue - fees;
+  const roi = trade.buyingPower > 0 ? (profitLoss / trade.buyingPower) * 100 : 0;
+  
+  return {
+    tradeNumber: trade.tradeNumber,
+    openedDate: trade.openedDate,
+    closedDate: currentDate,
+    legs: closedLegs,
+    premium: trade.premium,
+    fees,
+    buyingPower: trade.buyingPower,
+    profitLoss,
+    closeReason: reason,
+    roi,
+    daysInTrade: trade.daysInTrade,
+  };
+}
+
+export async function runTastyworksBacktest(
+  backtestId: string,
+  config: BacktestConfigData
+): Promise<void> {
+  try {
+    await storage.updateBacktestRun(backtestId, { status: "running", progress: 0 });
+    
+    const priceHistory = await fetchHistoricalPrices(config.symbol, config.startDate, config.endDate);
+    
+    if (priceHistory.length === 0) {
+      await storage.updateBacktestRun(backtestId, {
+        status: "failed",
+        errorMessage: `No historical price data found for ${config.symbol} between ${config.startDate} and ${config.endDate}`,
+      });
+      return;
+    }
+    
+    await storage.updateBacktestRun(backtestId, { progress: 10 });
+    
+    const feePerContract = config.feePerContract ?? DEFAULT_FEE_PER_CONTRACT;
+    const trades: BacktestTradeData[] = [];
+    const dailyLogs: BacktestDailyLog[] = [];
+    const pnlHistory: { date: string; pnl: number }[] = [];
+    
+    let activeTrades: ActiveTrade[] = [];
+    let tradeNumber = 0;
+    let cumulativePnL = 0;
+    let peakValue = 0;
+    let maxDrawdown = 0;
+    let maxDrawdownDate = config.startDate;
+    let totalCapitalUsed = 0;
+    
+    for (let i = 0; i < priceHistory.length; i++) {
+      const bar = priceHistory[i];
+      const currentPrice = bar.close;
+      const currentDate = bar.date;
+      
+      const historicalSlice = priceHistory.slice(0, i + 1);
+      const volatility = estimateVolatility(historicalSlice, 20);
+      
+      for (const trade of activeTrades) {
+        trade.daysInTrade++;
+      }
+      
+      const tradesToClose: { trade: ActiveTrade; reason: TradeCloseReason }[] = [];
+      
+      for (const trade of activeTrades) {
+        const { shouldExit, reason } = shouldExitTrade(trade, currentDate, currentPrice, volatility, config);
+        if (shouldExit) {
+          tradesToClose.push({ trade, reason });
+        }
+      }
+      
+      for (const { trade, reason } of tradesToClose) {
+        const closedTrade = closeTrade(trade, currentDate, currentPrice, volatility, reason, feePerContract);
+        trades.push(closedTrade);
+        cumulativePnL += closedTrade.profitLoss;
+        activeTrades = activeTrades.filter(t => t.tradeNumber !== trade.tradeNumber);
+      }
+      
+      if (shouldEnterTrade(currentDate, config, activeTrades)) {
+        tradeNumber++;
+        
+        const strikes: number[] = [];
+        const premiums: number[] = [];
+        
+        for (const leg of config.legs) {
+          let strike: number;
+          
+          switch (leg.strikeSelection) {
+            case "delta":
+              strike = findStrikeByDelta(currentPrice, leg.strikeValue, leg.optionType, leg.dte, volatility);
+              break;
+            case "percentOTM":
+              strike = findStrikeByPercentOTM(currentPrice, leg.strikeValue, leg.optionType);
+              break;
+            case "priceOffset":
+              strike = findStrikeByPriceOffset(currentPrice, leg.strikeValue, leg.optionType);
+              break;
+            case "premium":
+            default:
+              strike = findStrikeByDelta(currentPrice, 30, leg.optionType, leg.dte, volatility);
+              break;
+          }
+          
+          strikes.push(strike);
+          
+          const premium = calculateOptionPrice(leg.optionType, currentPrice, strike, leg.dte, volatility);
+          premiums.push(premium);
+        }
+        
+        let netPremium = 0;
+        for (let j = 0; j < config.legs.length; j++) {
+          const leg = config.legs[j];
+          const legPremium = premiums[j] * leg.quantity * 100;
+          if (leg.direction === "sell") {
+            netPremium += legPremium;
+          } else {
+            netPremium -= legPremium;
+          }
+        }
+        
+        const buyingPower = calculateBuyingPower(config.legs, strikes, premiums, currentPrice);
+        totalCapitalUsed = Math.max(totalCapitalUsed, buyingPower);
+        
+        const expirationDate = calculateExpirationDate(currentDate, config.legs[0].dte);
+        
+        const newTrade: ActiveTrade = {
+          tradeNumber,
+          openedDate: currentDate,
+          expirationDate,
+          legs: config.legs.map((leg, j) => ({
+            leg,
+            strike: strikes[j],
+            entryPrice: premiums[j],
+            dte: leg.dte,
+          })),
+          premium: netPremium,
+          buyingPower,
+          daysInTrade: 0,
+        };
+        
+        activeTrades.push(newTrade);
+      }
+      
+      let openPositionValue = 0;
+      for (const trade of activeTrades) {
+        const dte = getDTE(currentDate, trade.expirationDate);
+        for (const { leg, strike } of trade.legs) {
+          const price = calculateOptionPrice(leg.optionType, currentPrice, strike, Math.max(0, dte), volatility);
+          if (leg.direction === "sell") {
+            openPositionValue += price * leg.quantity * 100;
+          } else {
+            openPositionValue -= price * leg.quantity * 100;
+          }
+        }
+      }
+      
+      let openPnL = 0;
+      for (const trade of activeTrades) {
+        openPnL += trade.premium - openPositionValue / activeTrades.length;
+      }
+      
+      const totalPnL = cumulativePnL + openPnL;
+      
+      if (totalPnL > peakValue) {
+        peakValue = totalPnL;
+      }
+      
+      const currentDrawdown = peakValue > 0 ? ((peakValue - totalPnL) / peakValue) * 100 : 0;
+      if (currentDrawdown > maxDrawdown) {
+        maxDrawdown = currentDrawdown;
+        maxDrawdownDate = currentDate;
+      }
+      
+      const netLiquidity = (config.manualCapital ?? totalCapitalUsed) + totalPnL;
+      const roi = totalCapitalUsed > 0 ? (totalPnL / totalCapitalUsed) * 100 : 0;
+      
+      dailyLogs.push({
+        date: currentDate,
+        underlyingPrice: currentPrice,
+        totalProfitLoss: totalPnL,
+        netLiquidity,
+        drawdown: currentDrawdown,
+        roi,
+        activeTrades: activeTrades.length,
+      });
+      
+      pnlHistory.push({ date: currentDate, pnl: totalPnL });
+      
+      const progress = 10 + Math.floor((i / priceHistory.length) * 80);
+      if (i % 10 === 0) {
+        await storage.updateBacktestRun(backtestId, { progress });
+      }
+    }
+    
+    for (const trade of activeTrades) {
+      const lastBar = priceHistory[priceHistory.length - 1];
+      const volatility = estimateVolatility(priceHistory, 20);
+      const closedTrade = closeTrade(trade, lastBar.date, lastBar.close, volatility, "endOfBacktest", feePerContract);
+      trades.push(closedTrade);
+      cumulativePnL += closedTrade.profitLoss;
+    }
+    
+    const summary = calculateSummaryMetrics(trades, dailyLogs, totalCapitalUsed, config);
+    const details = calculateDetailMetrics(trades);
+    
+    const priceHistoryForChart = priceHistory.map(p => ({ date: p.date, price: p.close }));
+    
+    await storage.updateBacktestRun(backtestId, {
+      status: "completed",
+      progress: 100,
+      summary: summary as any,
+      details: details as any,
+      trades: trades as any,
+      dailyLogs: dailyLogs as any,
+      priceHistory: priceHistoryForChart as any,
+      pnlHistory: pnlHistory as any,
+      completedAt: new Date(),
+    });
+    
+  } catch (error) {
+    console.error('Backtest error:', error);
+    await storage.updateBacktestRun(backtestId, {
+      status: "failed",
+      errorMessage: error instanceof Error ? error.message : 'Unknown error occurred',
+    });
+  }
+}
+
+function calculateSummaryMetrics(
+  trades: BacktestTradeData[],
+  dailyLogs: BacktestDailyLog[],
+  totalCapitalUsed: number,
+  config: BacktestConfigData
+): BacktestSummaryMetrics {
+  const totalProfitLoss = trades.reduce((sum, t) => sum + t.profitLoss, 0);
+  
+  let maxDrawdown = 0;
+  let maxDrawdownDate = config.startDate;
+  for (const log of dailyLogs) {
+    if (log.drawdown > maxDrawdown) {
+      maxDrawdown = log.drawdown;
+      maxDrawdownDate = log.date;
+    }
+  }
+  
+  const usedCapital = config.capitalMethod === "manual" && config.manualCapital 
+    ? config.manualCapital 
+    : totalCapitalUsed;
+  
+  const returnOnCapital = usedCapital > 0 ? (totalProfitLoss / usedCapital) * 100 : 0;
+  
+  const startDate = new Date(config.startDate);
+  const endDate = new Date(config.endDate);
+  const years = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365);
+  
+  const cagr = years > 0 && usedCapital > 0
+    ? (Math.pow((usedCapital + totalProfitLoss) / usedCapital, 1 / years) - 1) * 100
+    : 0;
+  
+  const marRatio = maxDrawdown > 0 ? cagr / maxDrawdown : 0;
+  
+  return {
+    totalProfitLoss,
+    maxDrawdown,
+    maxDrawdownDate,
+    returnOnCapital,
+    marRatio,
+    usedCapital,
+    cagr,
+  };
+}
+
+function calculateDetailMetrics(trades: BacktestTradeData[]): BacktestDetailMetrics {
+  const numberOfTrades = trades.length;
+  
+  if (numberOfTrades === 0) {
+    return {
+      numberOfTrades: 0,
+      tradesWithProfits: 0,
+      tradesWithLosses: 0,
+      profitRate: 0,
+      lossRate: 0,
+      largestProfit: 0,
+      largestLoss: 0,
+      avgReturnPerTrade: 0,
+      avgDaysInTrade: 0,
+      avgBuyingPower: 0,
+      avgPremium: 0,
+      avgProfitLossPerTrade: 0,
+      avgWinSize: 0,
+      avgLossSize: 0,
+      totalPremium: 0,
+      totalFees: 0,
+    };
+  }
+  
+  const profits = trades.filter(t => t.profitLoss > 0);
+  const losses = trades.filter(t => t.profitLoss <= 0);
+  
+  const tradesWithProfits = profits.length;
+  const tradesWithLosses = losses.length;
+  const profitRate = (tradesWithProfits / numberOfTrades) * 100;
+  const lossRate = (tradesWithLosses / numberOfTrades) * 100;
+  
+  const profitAmounts = profits.map(t => t.profitLoss);
+  const lossAmounts = losses.map(t => t.profitLoss);
+  
+  const largestProfit = profitAmounts.length > 0 ? Math.max(...profitAmounts) : 0;
+  const largestLoss = lossAmounts.length > 0 ? Math.min(...lossAmounts) : 0;
+  
+  const totalProfitLoss = trades.reduce((sum, t) => sum + t.profitLoss, 0);
+  const avgProfitLossPerTrade = totalProfitLoss / numberOfTrades;
+  
+  const avgReturnPerTrade = trades.reduce((sum, t) => sum + t.roi, 0) / numberOfTrades;
+  const avgDaysInTrade = trades.reduce((sum, t) => sum + t.daysInTrade, 0) / numberOfTrades;
+  const avgBuyingPower = trades.reduce((sum, t) => sum + t.buyingPower, 0) / numberOfTrades;
+  const avgPremium = trades.reduce((sum, t) => sum + t.premium, 0) / numberOfTrades;
+  
+  const avgWinSize = tradesWithProfits > 0 
+    ? profitAmounts.reduce((a, b) => a + b, 0) / tradesWithProfits 
+    : 0;
+  const avgLossSize = tradesWithLosses > 0 
+    ? lossAmounts.reduce((a, b) => a + b, 0) / tradesWithLosses 
+    : 0;
+  
+  const totalPremium = trades.reduce((sum, t) => sum + t.premium, 0);
+  const totalFees = trades.reduce((sum, t) => sum + t.fees, 0);
+  
+  return {
+    numberOfTrades,
+    tradesWithProfits,
+    tradesWithLosses,
+    profitRate,
+    lossRate,
+    largestProfit,
+    largestLoss,
+    avgReturnPerTrade,
+    avgDaysInTrade,
+    avgBuyingPower,
+    avgPremium,
+    avgProfitLossPerTrade,
+    avgWinSize,
+    avgLossSize,
+    totalPremium,
+    totalFees,
+  };
+}
+
+// ============================================================================
+// LEGACY SIMPLE BACKTEST (kept for backwards compatibility)
+// ============================================================================
+
+const ALPACA_API_KEY = process.env.ALPACA_API_KEY;
+const ALPACA_API_SECRET = process.env.ALPACA_API_SECRET;
+const ALPACA_DATA_URL = "https://data.alpaca.markets/v2";
+
+interface AlpacaBar {
+  t: string;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
+interface AlpacaBarsResponse {
+  bars: { [symbol: string]: AlpacaBar[] };
+  next_page_token?: string;
 }
 
 export async function fetchHistoricalBars(
   symbol: string,
   startDate: string,
   endDate: string
-): Promise<HistoricalBar[]> {
+): Promise<AlpacaBar[]> {
   if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
     throw new Error("Alpaca API credentials not configured");
   }
 
-  const allBars: HistoricalBar[] = [];
+  const allBars: AlpacaBar[] = [];
   let nextPageToken: string | undefined;
 
   do {
