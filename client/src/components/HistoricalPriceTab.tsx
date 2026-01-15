@@ -385,8 +385,11 @@ export function HistoricalPriceTab({
     if (!lows.length || !highs.length) return { min: 0, max: 10 };
     const min = Math.min(...lows);
     const max = Math.max(...highs);
-    const padding = (max - min) * 0.1;
-    return { min: Math.max(0, min - padding), max: max + padding };
+    const padding = Math.abs(max - min) * 0.1;
+    // For short positions (negative values), don't clamp to 0
+    // Short: min is most negative, max is least negative (closer to 0)
+    // Long: min is smallest positive, max is largest positive
+    return { min: min - padding, max: max + padding };
   }, [chartData, isSingleLeg]);
 
   // Calculate percentage change for selected range
