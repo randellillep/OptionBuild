@@ -219,7 +219,8 @@ export function HistoricalPriceTab({
 
         // For single legs: show per-contract price
         // For multi-leg strategies: use actual quantities as-is like OptionStrat
-        // This ensures 1x 260C + 2x 230C shows the correct combined value
+        // Formula: short legs = price × (-1) × qty, long legs = price × (+1) × qty
+        // Example: 2× short 230C at $28 = -56, 1× long 260C at $0.5 = +0.5, total = -55.5
         const quantityMultiplier = isSingleLeg ? 1 : Math.abs(leg.quantity);
         strategyValue += valueAtClose * positionMultiplier * quantityMultiplier;
 
