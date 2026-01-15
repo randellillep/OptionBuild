@@ -352,6 +352,9 @@ export function HistoricalPriceTab({
     return netPremium > 0;
   }, [legs]);
 
+  // Detect if this is a single short position (for Y-axis inversion)
+  const isShortPosition = isSingleLeg && legs.length === 1 && legs[0]?.position === "short";
+
   const strategyLabel = useMemo(() => {
     if (legs.length === 0) return "No positions";
     if (legs.length === 1) {
@@ -564,12 +567,11 @@ export function HistoricalPriceTab({
                 tick={{ fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
+                reversed={isShortPosition}
                 tickFormatter={(v) => {
-                  // Display the actual value (positive or negative)
-                  if (v < 0) {
-                    return `-$${Math.abs(v).toFixed(0)}`;
-                  }
-                  return `$${v.toFixed(0)}`;
+                  // For short positions with reversed axis, show absolute values
+                  // OptionStrat shows $5, $10, $15 (not -$5, -$10, -$15) on Y-axis
+                  return `$${Math.abs(v).toFixed(0)}`;
                 }}
                 width={50}
                 yAxisId="option"
