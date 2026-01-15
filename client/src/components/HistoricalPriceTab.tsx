@@ -481,10 +481,15 @@ export function HistoricalPriceTab({
             {latestData?.strategyValue !== null && latestData?.strategyValue !== undefined && (
               <div className="flex items-center gap-2">
                 <span className="text-lg font-mono font-semibold">
-                  ${Math.abs(latestData.strategyValue).toFixed(2)}
+                  {isNetCredit && !isSingleLeg ? "-" : ""}${Math.abs(latestData.strategyValue).toFixed(2)}
                 </span>
                 <Badge
-                  variant={strategyChange >= 0 ? "default" : "destructive"}
+                  variant={
+                    // For net credit strategies (multi-leg), a decrease in value is profitable
+                    isNetCredit && !isSingleLeg
+                      ? (strategyChange <= 0 ? "default" : "destructive")
+                      : (strategyChange >= 0 ? "default" : "destructive")
+                  }
                   className="text-xs"
                 >
                   {strategyChange >= 0 ? "+" : ""}
