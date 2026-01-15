@@ -522,6 +522,11 @@ export default function Builder() {
     const atmStrike = roundStrike(current.price, 'nearest');
     console.log('[AUTO-ADJUST] Adjusting strikes, ATM:', atmStrike);
     
+    // Mark that symbol just changed BEFORE setLegs - this ensures market update effect
+    // sees the flag even if it runs between now and when setLegs callback executes
+    symbolJustChangedRef.current = true;
+    console.log('[AUTO-ADJUST] Setting symbolJustChangedRef = true');
+    
     // IMPORTANT: Use setLegs with function form to get current legs
     // This avoids stale closure issues when legs is not in dependency array
     setLegs(currentLegs => {
@@ -531,15 +536,12 @@ export default function Builder() {
       const hasSavedLegs = currentLegs.some(leg => leg.premiumSource === 'saved');
       if (hasSavedLegs) {
         console.log('[AUTO-ADJUST] Skipping - saved trade legs should keep original strikes');
+        symbolJustChangedRef.current = false; // Reset flag if skipping
         return currentLegs;
       }
       
       // Check if current strategy matches a known template
       const isKnownTemplate = isKnownStrategyTemplate(currentLegs);
-      
-      // Mark that symbol just changed - market update effect will use this
-      symbolJustChangedRef.current = true;
-      console.log('[AUTO-ADJUST] Setting symbolJustChangedRef = true');
       
       // If strategy doesn't match any template, reset to simple Long Call
       if (!isKnownTemplate && currentLegs.length > 0) {
@@ -576,7 +578,7 @@ export default function Builder() {
       }
       
       // Adjust existing legs for the new symbol
-      // DON'T set entryUnderlyingPrice here - let market update effect detect the change
+      // IMPORTANT: Calculate premium directly here to avoid race conditions
       const adjustedLegs = currentLegs.map((leg) => {
         // Reset all strikes to be close to the new ATM price
         let newStrike: number;
@@ -600,18 +602,35 @@ export default function Builder() {
         // Calculate new theoretical premium using Black-Scholes
         const daysToExp = leg.expirationDays || 30;
         const theoreticalDTE = Math.max(14, daysToExp); // Use min 14 days for realistic premiums
-        const theoreticalPremium = leg.type === 'stock' ? 0 :
+        const newPremium = leg.type === 'stock' ? leg.premium :
           calculateOptionPrice(leg.type as 'call' | 'put', current.price, newStrike, theoreticalDTE, 0.3);
+        const finalPremium = leg.type === 'stock' ? leg.premium : Math.max(0.01, Number(newPremium.toFixed(2)));
         
-        return deepCopyLeg(leg, {
+        console.log(`[AUTO-ADJUST] Leg ${leg.type} ${leg.position}: strike ${leg.strike} -> ${newStrike}, premium ${leg.premium} -> ${finalPremium}`);
+        
+        // Return leg with all fields properly set for new symbol
+        return {
+          ...leg,
+          id: leg.id, // Keep same ID
           strike: newStrike,
-          premium: leg.type === 'stock' ? leg.premium : Math.max(0.01, Number(theoreticalPremium.toFixed(2))),
+          premium: finalPremium,
           premiumSource: 'theoretical' as const,
-          // DON'T update entryUnderlyingPrice - leave old value so market effect detects change
-          costBasisLocked: false, // Unlock cost basis for new symbol
-        });
+          entryUnderlyingPrice: current.price,
+          costBasisLocked: false,
+          marketQuoteId: undefined,
+          impliedVolatility: undefined,
+          // Clear closing transactions and exclusions for new symbol
+          closingTransaction: undefined,
+          isExcluded: false,
+          // Preserve these
+          type: leg.type,
+          position: leg.position,
+          quantity: leg.quantity,
+          expirationDays: leg.expirationDays,
+        };
       });
       
+      console.log('[AUTO-ADJUST] Returning adjusted legs:', adjustedLegs.map(l => ({ strike: l.strike, premium: l.premium })));
       return adjustedLegs;
     });
     
@@ -774,12 +793,19 @@ export default function Builder() {
       return;
     }
 
-    // Check if symbol just changed - force recalculation
+    // Check if symbol just changed - if so, skip this update entirely
+    // AUTO-ADJUST already set correct theoretical prices for the new symbol
+    // We'll wait for the NEW symbol's optionsChainData to arrive
     const symbolJustChanged = symbolJustChangedRef.current;
     if (symbolJustChanged) {
-      console.log('[MARKET-UPDATE] Symbol just changed, will force price recalculation');
-      symbolJustChangedRef.current = false; // Clear the flag
+      console.log('[MARKET-UPDATE] Symbol just changed, skipping to avoid stale data');
+      // Clear the flag so subsequent market data updates can proceed
+      symbolJustChangedRef.current = false;
+      return;
     }
+    
+    // Debug: Log the symbol of the options chain data
+    console.log('[MARKET-UPDATE] Processing options chain data, current symbol:', symbolInfo.symbol, 'quotes count:', optionsChainData.quotes.length);
 
     // Calculate days to expiration from selected date
     const calculateDTE = (): number => {
@@ -809,8 +835,7 @@ export default function Builder() {
 
         // Check if underlying price changed significantly (symbol change indicator)
         // If entryUnderlyingPrice differs by >20% from current price, it's likely a different symbol
-        // OR if symbol just changed (tracked by ref)
-        const underlyingPriceChanged = symbolJustChanged || (leg.entryUnderlyingPrice && symbolInfo?.price &&
+        const underlyingPriceChanged = (leg.entryUnderlyingPrice && symbolInfo?.price &&
           Math.abs(leg.entryUnderlyingPrice - symbolInfo.price) / symbolInfo.price > 0.20);
 
         // For legs with locked cost basis, ONLY update market fields (never touch premium)
@@ -855,6 +880,7 @@ export default function Builder() {
 
         if (matchingQuote && matchingQuote.mid > 0) {
           const newPremium = Number(matchingQuote.mid.toFixed(2));
+          console.log('[MARKET-UPDATE] Found matching quote for', leg.type, leg.strike, 'mid:', matchingQuote.mid, 'newPremium:', newPremium);
           
           // Update if: price changed, source isn't market, or current premium is missing/invalid
           // Also update if underlying price changed significantly (symbol change)
@@ -949,67 +975,68 @@ export default function Builder() {
   }, [optionsChainData, selectedExpirationDate, symbolInfo?.price, volatility]);
 
   // Ensure all legs have valid premiums (fallback to theoretical even when chain data partial)
+  // IMPORTANT: Use callback pattern to get current legs state and avoid race conditions
   useEffect(() => {
-    // Skip if no legs
-    if (legs.length === 0) return;
     // Skip if symbolInfo.price is not valid yet
     if (!symbolInfo?.price || symbolInfo.price <= 0) return;
 
-    // Check if any legs have invalid premiums (regardless of chain data availability)
-    const hasInvalidPremiums = legs.some(
-      leg => leg.premiumSource !== 'manual' && (!isFinite(leg.premium) || leg.premium <= 0)
-    );
+    const rawDTE = selectedExpirationDate 
+      ? Math.max(1, Math.round((new Date(selectedExpirationDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+      : 30;
+    // Use minimum 14 days for theoretical pricing to show realistic premiums
+    const daysToExpiration = Math.max(14, rawDTE);
+    const currentVol = volatility || 0.3;
 
-    if (hasInvalidPremiums) {
-      const rawDTE = selectedExpirationDate 
-        ? Math.max(1, Math.round((new Date(selectedExpirationDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-        : 30;
-      // Use minimum 14 days for theoretical pricing to show realistic premiums
-      const daysToExpiration = Math.max(14, rawDTE);
-      const currentVol = volatility || 0.3;
+    setLegs(currentLegs => {
+      if (currentLegs.length === 0) return currentLegs;
+      
+      // Check if any legs have invalid premiums using CURRENT state
+      const hasInvalidPremiums = currentLegs.some(
+        leg => leg.premiumSource !== 'manual' && (!isFinite(leg.premium) || leg.premium <= 0)
+      );
+      
+      if (!hasInvalidPremiums) return currentLegs;
 
-      setLegs(currentLegs => {
-        let updated = false;
-        const newLegs = currentLegs.map(leg => {
-          if (leg.premiumSource === 'manual') return leg;
-          if (isFinite(leg.premium) && leg.premium > 0) return leg;
-          // Stock legs don't need theoretical pricing
-          if (leg.type === "stock") return leg;
+      let updated = false;
+      const newLegs = currentLegs.map(leg => {
+        if (leg.premiumSource === 'manual') return leg;
+        if (isFinite(leg.premium) && leg.premium > 0) return leg;
+        // Stock legs don't need theoretical pricing
+        if (leg.type === "stock") return leg;
 
-          // Calculate theoretical price
-          if (leg.strike > 0) {
-            const theoreticalPremium = calculateOptionPrice(
-              leg.type as "call" | "put",
-              symbolInfo.price,
-              leg.strike,
-              daysToExpiration,
-              currentVol
-            );
+        // Calculate theoretical price
+        if (leg.strike > 0) {
+          const theoreticalPremium = calculateOptionPrice(
+            leg.type as "call" | "put",
+            symbolInfo.price,
+            leg.strike,
+            daysToExpiration,
+            currentVol
+          );
 
-            if (isFinite(theoreticalPremium) && theoreticalPremium >= 0) {
-              updated = true;
-              return deepCopyLeg(leg, {
-                premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
-                premiumSource: 'theoretical' as const,
-                expirationDays: daysToExpiration,
-                entryUnderlyingPrice: symbolInfo.price,
-              });
-            }
+          if (isFinite(theoreticalPremium) && theoreticalPremium >= 0) {
+            updated = true;
+            return deepCopyLeg(leg, {
+              premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
+              premiumSource: 'theoretical' as const,
+              expirationDays: daysToExpiration,
+              entryUnderlyingPrice: symbolInfo.price,
+            });
           }
+        }
 
-          // Ultimate fallback
-          updated = true;
-          return deepCopyLeg(leg, {
-            premium: 0.01,
-            premiumSource: 'theoretical' as const,
-            expirationDays: daysToExpiration,
-            entryUnderlyingPrice: symbolInfo.price,
-          });
+        // Ultimate fallback
+        updated = true;
+        return deepCopyLeg(leg, {
+          premium: 0.01,
+          premiumSource: 'theoretical' as const,
+          expirationDays: daysToExpiration,
+          entryUnderlyingPrice: symbolInfo.price,
         });
-
-        return updated ? newLegs : currentLegs;
       });
-    }
+
+      return updated ? newLegs : currentLegs;
+    });
   }, [legs.length, symbolInfo?.price, volatility, optionsChainData?.quotes?.length, selectedExpirationDate]);
 
   // Calculate available strikes from market data
@@ -1069,23 +1096,29 @@ export default function Builder() {
   };
   
   // Constrain existing strikes when new options chain data loads
+  // IMPORTANT: Use callback to avoid race condition with AUTO-ADJUST effect
   useEffect(() => {
-    if (!availableStrikes || legs.length === 0) return;
+    if (!availableStrikes) return;
     
-    // Check if any strikes are outside market limits
-    const hasOutOfBoundsStrikes = legs.some(
-      leg => leg.strike < availableStrikes.min || leg.strike > availableStrikes.max
-    );
-    
-    if (hasOutOfBoundsStrikes) {
-      const constrainedLegs = legs.map(leg => deepCopyLeg(leg, {
-        strike: constrainToMarketLimits(leg.strike),
-        // Reset premium source since we changed the strike
-        premiumSource: 'theoretical' as const,
-      }));
-      setLegs(constrainedLegs);
-    }
-  }, [availableStrikes?.min, availableStrikes?.max, legs.length]);
+    setLegs(currentLegs => {
+      if (currentLegs.length === 0) return currentLegs;
+      
+      // Check if any strikes are outside market limits
+      const hasOutOfBoundsStrikes = currentLegs.some(
+        leg => leg.strike < availableStrikes.min || leg.strike > availableStrikes.max
+      );
+      
+      if (hasOutOfBoundsStrikes) {
+        return currentLegs.map(leg => deepCopyLeg(leg, {
+          strike: constrainToMarketLimits(leg.strike),
+          // Reset premium source since we changed the strike
+          premiumSource: 'theoretical' as const,
+        }));
+      }
+      
+      return currentLegs; // No change needed
+    });
+  }, [availableStrikes?.min, availableStrikes?.max]);
 
   // Constrain strike range to available strikes when market data exists
   const displayStrikeRange = availableStrikes

@@ -45,21 +45,15 @@ export function useStrategyEngine(rangePercent: number = 14) {
   const prevSymbolRef = useRef<string>(symbolInfo.symbol);
   const isLoadingSavedTradeRef = useRef<boolean>(false);
   
-  // Clear closing transactions and exclusions when symbol changes via user action (not when loading saved trade)
+  // Track symbol changes but DON'T modify legs here
+  // The AUTO-ADJUST effect in Builder.tsx handles leg adjustments when symbol changes
+  // This effect only tracks the symbol change and manages the isLoadingSavedTradeRef flag
   useEffect(() => {
     if (prevSymbolRef.current !== symbolInfo.symbol) {
-      // Skip clearing if we're loading a saved trade - we want to preserve the saved data
-      if (!isLoadingSavedTradeRef.current) {
-        // Symbol changed via user action - clear all closing transactions and exclusions from legs
-        setLegs(currentLegs => 
-          currentLegs.map(leg => ({
-            ...leg,
-            closingTransaction: undefined,
-            isExcluded: false,
-          }))
-        );
-      }
-      isLoadingSavedTradeRef.current = false; // Reset the flag after the check
+      // Symbol changed - just reset the saved trade flag and update the ref
+      // The AUTO-ADJUST effect in Builder.tsx will handle clearing closingTransaction
+      // and updating premiums for the new symbol
+      isLoadingSavedTradeRef.current = false;
       prevSymbolRef.current = symbolInfo.symbol;
     }
   }, [symbolInfo.symbol]);
