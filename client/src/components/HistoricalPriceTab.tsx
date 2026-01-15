@@ -193,7 +193,9 @@ export function HistoricalPriceTab({
           legVolatility
         );
 
-        strategyValue += valueAtClose * positionMultiplier * leg.quantity;
+        // For multi-leg strategies, multiply by quantity for combined value
+        // For single legs, we show per-contract price in the candlestick chart
+        strategyValue += valueAtClose * positionMultiplier * (isSingleLeg ? 1 : leg.quantity);
 
         if (isSingleLeg) {
           const valueAtOpen = calculateOptionPrice(
@@ -219,10 +221,11 @@ export function HistoricalPriceTab({
           );
 
           const allValues = [valueAtOpen, valueAtClose, valueAtHigh, valueAtLow];
-          optionOpen = valueAtOpen * leg.quantity;
-          optionClose = valueAtClose * leg.quantity;
-          optionHigh = Math.max(...allValues) * leg.quantity;
-          optionLow = Math.min(...allValues) * leg.quantity;
+          // Show per-contract price, not multiplied by quantity
+          optionOpen = valueAtOpen;
+          optionClose = valueAtClose;
+          optionHigh = Math.max(...allValues);
+          optionLow = Math.min(...allValues);
         }
       });
 
