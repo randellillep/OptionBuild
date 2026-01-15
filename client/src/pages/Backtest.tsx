@@ -12,6 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 import { 
   ArrowLeft, 
   Play, 
@@ -33,7 +36,8 @@ import {
   Info,
   X,
   Search,
-  Loader2
+  Loader2,
+  CalendarIcon
 } from "lucide-react";
 import { 
   LineChart, 
@@ -409,23 +413,49 @@ function BacktestSetup({
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium">Start Date</Label>
-              <Input
-                type="date"
-                value={config.startDate}
-                onChange={(e) => setConfig({ ...config, startDate: e.target.value })}
-                className="h-9"
-                data-testid="input-start-date"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full h-9 justify-start text-left font-normal"
+                    data-testid="input-start-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {config.startDate ? format(new Date(config.startDate), "MM/dd/yyyy") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={config.startDate ? new Date(config.startDate) : undefined}
+                    onSelect={(date) => date && setConfig({ ...config, startDate: format(date, "yyyy-MM-dd") })}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium">End Date</Label>
-              <Input
-                type="date"
-                value={config.endDate}
-                onChange={(e) => setConfig({ ...config, endDate: e.target.value })}
-                className="h-9"
-                data-testid="input-end-date"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full h-9 justify-start text-left font-normal"
+                    data-testid="input-end-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {config.endDate ? format(new Date(config.endDate), "MM/dd/yyyy") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={config.endDate ? new Date(config.endDate) : undefined}
+                    onSelect={(date) => date && setConfig({ ...config, endDate: format(date, "yyyy-MM-dd") })}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardContent>
@@ -815,6 +845,71 @@ function BacktestResults({
         </TabsList>
 
         <TabsContent value="summary" className="mt-4 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg border">
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Underlying</p>
+                <p className="text-lg font-bold font-mono">{result.config.symbol}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Dates</p>
+                <p className="text-sm">
+                  From: <span className="font-medium">{format(new Date(result.config.startDate), "M/d/yyyy")}</span>
+                </p>
+                <p className="text-sm">
+                  To: <span className="font-medium">{format(new Date(result.config.endDate), "M/d/yyyy")}</span>
+                </p>
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Legs</p>
+              <div className="space-y-1">
+                {result.config.legs.map((leg, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <Badge variant={leg.direction === "buy" ? "default" : "secondary"} className="text-xs">
+                      {leg.direction}
+                    </Badge>
+                    <span className="font-medium">{leg.quantity}</span>
+                    <span>{leg.optionType}</span>
+                    <span className="text-muted-foreground">
+                      {leg.strikeSelection === "delta" ? `${(leg.strikeValue * 100).toFixed(0)} \u0394` :
+                       leg.strikeSelection === "percentOTM" ? `${leg.strikeValue}% OTM` :
+                       `$${leg.strikeValue}`}
+                    </span>
+                    <span className="font-medium">{leg.dte} DTE</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">Entry Conditions</p>
+              <p className="text-sm">
+                Enter: <span className="font-medium">
+                  {result.config.entryConditions.frequency === "everyDay" ? "Every day" :
+                   result.config.entryConditions.frequency === "specificDays" ? "Specific days" :
+                   "Exact DTE"}
+                </span>
+              </p>
+              {result.config.entryConditions.maxActiveTrades && (
+                <p className="text-sm">
+                  Max trades: <span className="font-medium">{result.config.entryConditions.maxActiveTrades}</span>
+                </p>
+              )}
+              {result.config.exitConditions.takeProfitPercent && (
+                <p className="text-sm text-green-600">
+                  Take profit: <span className="font-medium">{result.config.exitConditions.takeProfitPercent}%</span>
+                </p>
+              )}
+              {result.config.exitConditions.stopLossPercent && (
+                <p className="text-sm text-red-600">
+                  Stop loss: <span className="font-medium">{result.config.exitConditions.stopLossPercent}%</span>
+                </p>
+              )}
+            </div>
+          </div>
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">P/L Over Time</CardTitle>
