@@ -465,6 +465,26 @@ export default function Builder() {
     }
   };
 
+  // Helper to check if current legs match any strategy template
+  const isKnownStrategyTemplate = (currentLegs: OptionLeg[]): boolean => {
+    if (currentLegs.length === 0) return false;
+    
+    // Check if legs match any template by structure (number of legs, types, positions)
+    return strategyTemplates.some(template => {
+      if (template.legs.length !== currentLegs.length) return false;
+      
+      // Sort by type and position for comparison
+      const sortKey = (leg: { type: string; position: string }) => `${leg.type}-${leg.position}`;
+      const templateSorted = [...template.legs].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+      const currentSorted = [...currentLegs].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+      
+      // Check if each leg matches by type and position
+      return templateSorted.every((tLeg, i) => 
+        tLeg.type === currentSorted[i].type && tLeg.position === currentSorted[i].position
+      );
+    });
+  };
+
   // Auto-adjust strategy strikes when symbol changes
   useEffect(() => {
     const prev = prevSymbolRef.current;
@@ -497,7 +517,6 @@ export default function Builder() {
     }
     
     // Now we have: different symbol, valid prices, and legs to adjust
-    // User wants strikes adjusted to be "close to current price" - not proportional
     const atmStrike = roundStrike(current.price, 'nearest');
     console.log('[AUTO-ADJUST] Adjusting strikes, ATM:', atmStrike);
     
@@ -505,11 +524,6 @@ export default function Builder() {
     // This avoids stale closure issues when legs is not in dependency array
     setLegs(currentLegs => {
       console.log('[AUTO-ADJUST] Current legs count:', currentLegs.length);
-      // Skip if no legs to adjust
-      if (currentLegs.length === 0) {
-        console.log('[AUTO-ADJUST] No legs, skipping');
-        return currentLegs;
-      }
       
       // Skip if these are saved/loaded legs - don't adjust their strikes
       const hasSavedLegs = currentLegs.some(leg => leg.premiumSource === 'saved');
@@ -518,9 +532,46 @@ export default function Builder() {
         return currentLegs;
       }
       
-      const adjustedLegs = currentLegs.map((leg, index) => {
+      // Check if current strategy matches a known template
+      const isKnownTemplate = isKnownStrategyTemplate(currentLegs);
+      
+      // If strategy doesn't match any template, reset to simple Long Call
+      if (!isKnownTemplate && currentLegs.length > 0) {
+        console.log('[AUTO-ADJUST] Unknown strategy, resetting to Long Call');
+        const theoreticalPremium = calculateOptionPrice('call', current.price, atmStrike, 30, 0.3);
+        return [{
+          id: Date.now().toString(),
+          type: 'call' as const,
+          position: 'long' as const,
+          strike: atmStrike,
+          quantity: 1,
+          premium: Math.max(0.01, Number(theoreticalPremium.toFixed(2))),
+          expirationDays: 30,
+          premiumSource: 'theoretical' as const,
+          entryUnderlyingPrice: current.price,
+        }];
+      }
+      
+      // Skip if no legs to adjust
+      if (currentLegs.length === 0) {
+        console.log('[AUTO-ADJUST] No legs, creating default Long Call');
+        const theoreticalPremium = calculateOptionPrice('call', current.price, atmStrike, 30, 0.3);
+        return [{
+          id: Date.now().toString(),
+          type: 'call' as const,
+          position: 'long' as const,
+          strike: atmStrike,
+          quantity: 1,
+          premium: Math.max(0.01, Number(theoreticalPremium.toFixed(2))),
+          expirationDays: 30,
+          premiumSource: 'theoretical' as const,
+          entryUnderlyingPrice: current.price,
+        }];
+      }
+      
+      // Adjust existing legs for the new symbol
+      const adjustedLegs = currentLegs.map((leg) => {
         // Reset all strikes to be close to the new ATM price
-        // Spread them slightly based on their relative position in the original strategy
         let newStrike: number;
         
         if (currentLegs.length === 1) {
@@ -528,24 +579,29 @@ export default function Builder() {
           newStrike = atmStrike;
         } else {
           // Multiple legs - maintain relative spacing
-          // Determine if this was a higher or lower strike in the original strategy
           const avgStrike = currentLegs.reduce((sum, l) => sum + l.strike, 0) / currentLegs.length;
-          const relativePosition = (leg.strike - avgStrike) / prev.price; // as percentage
+          const relativePosition = (leg.strike - avgStrike) / prev.price;
           
-          // Apply small offset from ATM
           const offset = relativePosition * current.price;
           const targetStrike = atmStrike + offset;
           
-          // Round based on option type for proper spacing
           const direction = leg.type === 'call' && offset > 0 ? 'up' : 
                            leg.type === 'put' && offset < 0 ? 'down' : 'nearest';
           newStrike = roundStrike(targetStrike, direction);
         }
         
+        // Calculate new theoretical premium using Black-Scholes
+        const daysToExp = leg.expirationDays || 30;
+        const theoreticalDTE = Math.max(14, daysToExp); // Use min 14 days for realistic premiums
+        const theoreticalPremium = leg.type === 'stock' ? 0 :
+          calculateOptionPrice(leg.type as 'call' | 'put', current.price, newStrike, theoreticalDTE, 0.3);
+        
         return deepCopyLeg(leg, {
           strike: newStrike,
-          // Reset premium source to theoretical since we changed the strike
+          premium: leg.type === 'stock' ? leg.premium : Math.max(0.01, Number(theoreticalPremium.toFixed(2))),
           premiumSource: 'theoretical' as const,
+          entryUnderlyingPrice: current.price,
+          costBasisLocked: false, // Unlock cost basis for new symbol
         });
       });
       
