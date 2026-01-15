@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import type { OptionLeg } from "@shared/schema";
-import { calculateOptionPrice } from "@/lib/options-pricing";
+import { calculateOptionPrice, getLegMarketPrice } from "@/lib/options-pricing";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -186,6 +186,7 @@ export function HistoricalPriceTab({
 
     const candles: Candle[] = candleData.candles;
     const today = new Date();
+    const isLatestCandle = (idx: number) => idx === candles.length - 1;
 
     return candles.map((candle, index) => {
       const candleDate = new Date(candle.timestamp);
@@ -207,24 +208,39 @@ export function HistoricalPriceTab({
         if (daysRemainingAtCandle <= 0) return;
         
         hasValidLegs = true;
-        // Cap leg volatility at reasonable bounds to avoid distorted historical prices
-        // Deep ITM options often have unreliable IV (100%+) which would distort the chart
-        const MAX_LEG_IV = 1.0; // 100%
-        const MIN_LEG_IV = 0.05; // 5%
-        let legVolatility = leg.impliedVolatility ?? volatility;
-        if (legVolatility > MAX_LEG_IV || legVolatility < MIN_LEG_IV) {
-          // Use the global volatility if leg IV is unreasonable
-          legVolatility = volatility;
-        }
         const positionMultiplier = leg.position === "long" ? 1 : -1;
-
-        const valueAtClose = calculateOptionPrice(
-          leg.type,
-          candle.close,
-          leg.strike,
-          daysRemainingAtCandle,
-          legVolatility
-        );
+        
+        // For the LATEST candle, use actual market price instead of Black-Scholes simulation
+        // This ensures the Historical tab matches the cost basis shown in the strategy builder
+        let valueAtClose: number;
+        if (isLatestCandle(index)) {
+          const marketPrice = getLegMarketPrice(leg);
+          valueAtClose = marketPrice ?? leg.premium ?? calculateOptionPrice(
+            leg.type,
+            candle.close,
+            leg.strike,
+            daysRemainingAtCandle,
+            volatility
+          );
+        } else {
+          // Cap leg volatility at reasonable bounds to avoid distorted historical prices
+          // Deep ITM options often have unreliable IV (100%+) which would distort the chart
+          const MAX_LEG_IV = 1.0; // 100%
+          const MIN_LEG_IV = 0.05; // 5%
+          let legVolatility = leg.impliedVolatility ?? volatility;
+          if (legVolatility > MAX_LEG_IV || legVolatility < MIN_LEG_IV) {
+            // Use the global volatility if leg IV is unreasonable
+            legVolatility = volatility;
+          }
+          
+          valueAtClose = calculateOptionPrice(
+            leg.type,
+            candle.close,
+            leg.strike,
+            daysRemainingAtCandle,
+            legVolatility
+          );
+        }
 
         // For single legs: show per-contract price
         // For multi-leg strategies: normalize by GCD so proportional scaling doesn't change the value
@@ -233,34 +249,51 @@ export function HistoricalPriceTab({
         strategyValue += valueAtClose * positionMultiplier * normalizedQuantity;
 
         if (isSingleLeg) {
-          const valueAtOpen = calculateOptionPrice(
-            leg.type,
-            candle.open,
-            leg.strike,
-            daysRemainingAtCandle,
-            legVolatility
-          );
-          const valueAtHigh = calculateOptionPrice(
-            leg.type,
-            candle.high,
-            leg.strike,
-            daysRemainingAtCandle,
-            legVolatility
-          );
-          const valueAtLow = calculateOptionPrice(
-            leg.type,
-            candle.low,
-            leg.strike,
-            daysRemainingAtCandle,
-            legVolatility
-          );
+          if (isLatestCandle(index)) {
+            // For the latest candle, use actual market price
+            const marketPrice = getLegMarketPrice(leg) ?? leg.premium;
+            optionOpen = marketPrice ?? valueAtClose;
+            optionClose = marketPrice ?? valueAtClose;
+            optionHigh = marketPrice ?? valueAtClose;
+            optionLow = marketPrice ?? valueAtClose;
+          } else {
+            // Cap leg volatility for historical calculations
+            const MAX_LEG_IV = 1.0;
+            const MIN_LEG_IV = 0.05;
+            let legVolatility = leg.impliedVolatility ?? volatility;
+            if (legVolatility > MAX_LEG_IV || legVolatility < MIN_LEG_IV) {
+              legVolatility = volatility;
+            }
+            
+            const valueAtOpen = calculateOptionPrice(
+              leg.type,
+              candle.open,
+              leg.strike,
+              daysRemainingAtCandle,
+              legVolatility
+            );
+            const valueAtHigh = calculateOptionPrice(
+              leg.type,
+              candle.high,
+              leg.strike,
+              daysRemainingAtCandle,
+              legVolatility
+            );
+            const valueAtLow = calculateOptionPrice(
+              leg.type,
+              candle.low,
+              leg.strike,
+              daysRemainingAtCandle,
+              legVolatility
+            );
 
-          const allValues = [valueAtOpen, valueAtClose, valueAtHigh, valueAtLow];
-          // Show per-contract price, not multiplied by quantity
-          optionOpen = valueAtOpen;
-          optionClose = valueAtClose;
-          optionHigh = Math.max(...allValues);
-          optionLow = Math.min(...allValues);
+            const allValues = [valueAtOpen, valueAtClose, valueAtHigh, valueAtLow];
+            // Show per-contract price, not multiplied by quantity
+            optionOpen = valueAtOpen;
+            optionClose = valueAtClose;
+            optionHigh = Math.max(...allValues);
+            optionLow = Math.min(...allValues);
+          }
         }
       });
 
