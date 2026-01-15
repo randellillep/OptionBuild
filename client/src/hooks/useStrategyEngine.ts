@@ -241,37 +241,9 @@ export function useStrategyEngine(rangePercent: number = 14) {
     );
   }, [legs, symbolInfo.price, volatility]);
 
-  // Calculate normalization factor for "per-spread" display like OptionStrat
-  // Uses the mode (most frequent quantity) among active legs
-  const normalizationFactor = useMemo(() => {
-    const activeLegs = legs.filter(l => !l.isExcluded && l.quantity > 0);
-    const quantities = activeLegs.map(l => Math.abs(l.quantity));
-    
-    if (quantities.length === 0) return 1;
-    
-    // Find the mode (most frequent quantity)
-    const quantityCount = quantities.reduce((acc, q) => {
-      acc[q] = (acc[q] || 0) + 1;
-      return acc;
-    }, {} as Record<number, number>);
-    
-    // Get the quantity that appears most often (default to 1)
-    const modeQuantity = Object.entries(quantityCount)
-      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 1;
-    return Number(modeQuantity) || 1;
-  }, [legs]);
-
   const metrics: StrategyMetrics = useMemo(() => {
-    const rawMetrics = calculateStrategyMetrics(legs, symbolInfo.price, volatility);
-    // Normalize metrics by the normalization factor for "per-spread" display
-    return {
-      ...rawMetrics,
-      maxProfit: rawMetrics.maxProfit !== null ? rawMetrics.maxProfit / normalizationFactor : null,
-      maxLoss: rawMetrics.maxLoss !== null ? rawMetrics.maxLoss / normalizationFactor : null,
-      netPremium: rawMetrics.netPremium / normalizationFactor,
-      // Breakeven prices don't need normalization - they're price levels
-    };
-  }, [legs, symbolInfo.price, volatility, normalizationFactor]);
+    return calculateStrategyMetrics(legs, symbolInfo.price, volatility);
+  }, [legs, symbolInfo.price, volatility]);
 
   const uniqueExpirationDays = useMemo(() => {
     const days = Array.from(new Set(legs.map(leg => leg.expirationDays))).sort((a, b) => a - b);
@@ -371,12 +343,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
     // Build the P/L grid for heatmap visualization
     // Time steps represent "days from now" - how much time will pass
     // With fractional DTE from leg.expirationDays, this shows proper theta decay
-    // Normalize P/L by normalizationFactor for "per-spread" display like OptionStrat
+    // Shows full position P/L values (not normalized) to match OptionStrat
     const grid: ScenarioPoint[][] = strikes.map(strike => 
       timeSteps.map(daysFromNow => ({
         strike,
         daysToExpiration: daysFromNow,
-        pnl: calculateProfitLossAtDate(legs, symbolInfo.price, strike, daysFromNow, volatility) / normalizationFactor,
+        pnl: calculateProfitLossAtDate(legs, symbolInfo.price, strike, daysFromNow, volatility),
       }))
     );
 
@@ -388,7 +360,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       targetDays,
       dateGroups,
     };
-  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, selectedExpirationDays, normalizationFactor]);
+  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, selectedExpirationDays]);
 
   const setSelectedExpiration = (days: number, date: string) => {
     setSelectedExpirationDays(days);
