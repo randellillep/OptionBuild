@@ -531,7 +531,7 @@ export async function runTastyworksBacktest(
     const feePerContract = config.feePerContract ?? DEFAULT_FEE_PER_CONTRACT;
     const trades: BacktestTradeData[] = [];
     const dailyLogs: BacktestDailyLog[] = [];
-    const pnlHistory: { date: string; pnl: number }[] = [];
+    const pnlHistory: { date: string; cumulativePnL: number; underlyingPrice: number }[] = [];
     
     let activeTrades: ActiveTrade[] = [];
     let tradeNumber = 0;
@@ -677,7 +677,7 @@ export async function runTastyworksBacktest(
         activeTrades: activeTrades.length,
       });
       
-      pnlHistory.push({ date: currentDate, pnl: totalPnL });
+      pnlHistory.push({ date: currentDate, cumulativePnL: totalPnL, underlyingPrice: currentPrice });
       
       const progress = 10 + Math.floor((i / priceHistory.length) * 80);
       if (i % 10 === 0) {

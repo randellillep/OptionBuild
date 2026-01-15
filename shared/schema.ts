@@ -346,7 +346,7 @@ export interface BacktestRunResult {
   trades?: BacktestTradeData[];
   dailyLogs?: BacktestDailyLog[];
   priceHistory?: { date: string; price: number }[];  // For chart overlay
-  pnlHistory?: { date: string; pnl: number }[];      // Strategy P/L over time
+  pnlHistory?: { date: string; cumulativePnL: number; underlyingPrice: number }[];  // Strategy P/L and price over time
   errorMessage?: string;
   createdAt: string;
   completedAt?: string;

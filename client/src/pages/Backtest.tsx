@@ -824,26 +824,52 @@ function BacktestResults({
               <div className="h-80">
                 {pnlHistory.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={pnlHistory}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <ComposedChart data={pnlHistory} margin={{ top: 10, right: 60, left: 10, bottom: 10 }}>
+                      <defs>
+                        <linearGradient id="pnlGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#f97316" stopOpacity={0.05} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
                       <XAxis 
                         dataKey="date" 
                         className="text-xs" 
+                        tick={{ fontSize: 10 }}
                         tickFormatter={(d) => {
                           const date = new Date(d);
-                          return `${date.getMonth() + 1}/${date.getDate()}`;
+                          return `${date.getMonth() + 1}/${date.getDate()}/${String(date.getFullYear()).slice(-2)}`;
                         }}
+                        interval="preserveStartEnd"
+                        minTickGap={40}
                       />
                       <YAxis 
                         yAxisId="left"
                         className="text-xs" 
-                        tickFormatter={(v) => `$${(v/1000).toFixed(1)}k`}
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(v) => `$${v.toFixed(0)}`}
+                        label={{ 
+                          value: result.config.symbol, 
+                          angle: -90, 
+                          position: 'insideLeft',
+                          style: { fontSize: 11, fill: 'hsl(var(--muted-foreground))' }
+                        }}
                       />
                       <YAxis 
                         yAxisId="right"
                         orientation="right"
                         className="text-xs" 
-                        tickFormatter={(v) => `$${v.toFixed(0)}`}
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(v) => {
+                          if (Math.abs(v) >= 1000) return `$${(v/1000).toFixed(0)}k`;
+                          return `$${v.toFixed(0)}`;
+                        }}
+                        label={{ 
+                          value: 'Strategy P/L', 
+                          angle: 90, 
+                          position: 'insideRight',
+                          style: { fontSize: 11, fill: '#f97316' }
+                        }}
                       />
                       <Tooltip 
                         formatter={(value: number, name: string) => [
@@ -854,28 +880,32 @@ function BacktestResults({
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
+                          borderRadius: '8px',
+                          fontSize: '12px'
                         }}
                       />
-                      <Legend />
-                      <Area 
-                        yAxisId="left"
-                        type="monotone" 
-                        dataKey="cumulativePnL" 
-                        stroke="hsl(var(--primary))" 
-                        fill="hsl(var(--primary) / 0.2)"
-                        strokeWidth={2}
-                        name="Strategy P/L"
+                      <Legend 
+                        verticalAlign="top"
+                        height={36}
+                        iconType="circle"
                       />
                       <Line 
-                        yAxisId="right"
+                        yAxisId="left"
                         type="monotone" 
                         dataKey="underlyingPrice" 
-                        stroke="hsl(var(--muted-foreground))" 
-                        strokeDasharray="5 5"
-                        strokeWidth={1}
+                        stroke="hsl(var(--foreground))" 
+                        strokeWidth={1.5}
                         dot={false}
-                        name="Underlying Price"
+                        name={`${result.config.symbol} Price`}
+                      />
+                      <Area 
+                        yAxisId="right"
+                        type="monotone" 
+                        dataKey="cumulativePnL" 
+                        stroke="#f97316" 
+                        fill="url(#pnlGradient)"
+                        strokeWidth={2}
+                        name="Strategy P/L"
                       />
                     </ComposedChart>
                   </ResponsiveContainer>
