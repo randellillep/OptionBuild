@@ -481,12 +481,13 @@ export function HistoricalPriceTab({
             {latestData?.strategyValue !== null && latestData?.strategyValue !== undefined && (
               <div className="flex items-center gap-2">
                 <span className="text-lg font-mono font-semibold">
-                  {isNetCredit && !isSingleLeg ? "-" : ""}${Math.abs(latestData.strategyValue).toFixed(2)}
+                  {latestData.strategyValue < 0 ? "-" : ""}${Math.abs(latestData.strategyValue).toFixed(2)}
                 </span>
                 <Badge
                   variant={
-                    // For net credit strategies (multi-leg), a decrease in value is profitable
-                    isNetCredit && !isSingleLeg
+                    // For net credit strategies (negative value), a decrease in absolute value is profitable
+                    // strategyChange shows the direction: negative strategyChange means value became more negative OR less positive
+                    latestData.strategyValue < 0
                       ? (strategyChange <= 0 ? "default" : "destructive")
                       : (strategyChange >= 0 ? "default" : "destructive")
                   }
@@ -516,11 +517,11 @@ export function HistoricalPriceTab({
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(v) => {
-                  // For net credit multi-leg strategies, show as negative
-                  if (isNetCredit && !isSingleLeg) {
+                  // Display the actual value (positive or negative)
+                  if (v < 0) {
                     return `-$${Math.abs(v).toFixed(0)}`;
                   }
-                  return `$${Math.abs(v).toFixed(0)}`;
+                  return `$${v.toFixed(0)}`;
                 }}
                 width={50}
                 yAxisId="option"
@@ -559,9 +560,9 @@ export function HistoricalPriceTab({
                     <div className="bg-card border rounded-md p-2 shadow-lg">
                       <div className="text-xs font-medium mb-1">{label}</div>
                       <div className="text-xs">
-                        <span className="text-muted-foreground">{isNetCredit && !isSingleLeg ? "Cost to Close: " : "Value: "}</span>
+                        <span className="text-muted-foreground">{data.strategyValue < 0 ? "Cost to Close: " : "Value: "}</span>
                         <span className="font-mono">
-                          {isNetCredit && !isSingleLeg ? "-" : ""}${Math.abs(data.strategyValue)?.toFixed(2)}
+                          {data.strategyValue < 0 ? "-" : ""}${Math.abs(data.strategyValue)?.toFixed(2)}
                         </span>
                       </div>
                     </div>
