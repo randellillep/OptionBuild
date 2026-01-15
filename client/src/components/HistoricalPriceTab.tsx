@@ -562,6 +562,7 @@ export function HistoricalPriceTab({
                 tick={{ fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
+                reversed={isShortPosition}
                 tickFormatter={(v) => {
                   // For short positions, show negative values on Y-axis
                   const sign = isShortPosition ? "-" : "";
