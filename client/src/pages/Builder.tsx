@@ -61,6 +61,8 @@ export default function Builder() {
   });
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   const urlParamsProcessed = useRef(false);
+  // Track when symbol just changed - used to force price recalculation
+  const symbolJustChangedRef = useRef<boolean>(false);
   
   // Store initial P/L values from SavedTrades for immediate consistency
   // These values are used for the heatmap's current-scenario cell until user makes changes
@@ -535,6 +537,10 @@ export default function Builder() {
       // Check if current strategy matches a known template
       const isKnownTemplate = isKnownStrategyTemplate(currentLegs);
       
+      // Mark that symbol just changed - market update effect will use this
+      symbolJustChangedRef.current = true;
+      console.log('[AUTO-ADJUST] Setting symbolJustChangedRef = true');
+      
       // If strategy doesn't match any template, reset to simple Long Call
       if (!isKnownTemplate && currentLegs.length > 0) {
         console.log('[AUTO-ADJUST] Unknown strategy, resetting to Long Call');
@@ -570,6 +576,7 @@ export default function Builder() {
       }
       
       // Adjust existing legs for the new symbol
+      // DON'T set entryUnderlyingPrice here - let market update effect detect the change
       const adjustedLegs = currentLegs.map((leg) => {
         // Reset all strikes to be close to the new ATM price
         let newStrike: number;
@@ -600,7 +607,7 @@ export default function Builder() {
           strike: newStrike,
           premium: leg.type === 'stock' ? leg.premium : Math.max(0.01, Number(theoreticalPremium.toFixed(2))),
           premiumSource: 'theoretical' as const,
-          entryUnderlyingPrice: current.price,
+          // DON'T update entryUnderlyingPrice - leave old value so market effect detects change
           costBasisLocked: false, // Unlock cost basis for new symbol
         });
       });
@@ -767,6 +774,13 @@ export default function Builder() {
       return;
     }
 
+    // Check if symbol just changed - force recalculation
+    const symbolJustChanged = symbolJustChangedRef.current;
+    if (symbolJustChanged) {
+      console.log('[MARKET-UPDATE] Symbol just changed, will force price recalculation');
+      symbolJustChangedRef.current = false; // Clear the flag
+    }
+
     // Calculate days to expiration from selected date
     const calculateDTE = (): number => {
       if (!selectedExpirationDate) return 30;
@@ -795,8 +809,9 @@ export default function Builder() {
 
         // Check if underlying price changed significantly (symbol change indicator)
         // If entryUnderlyingPrice differs by >20% from current price, it's likely a different symbol
-        const underlyingPriceChanged = leg.entryUnderlyingPrice && symbolInfo?.price &&
-          Math.abs(leg.entryUnderlyingPrice - symbolInfo.price) / symbolInfo.price > 0.20;
+        // OR if symbol just changed (tracked by ref)
+        const underlyingPriceChanged = symbolJustChanged || (leg.entryUnderlyingPrice && symbolInfo?.price &&
+          Math.abs(leg.entryUnderlyingPrice - symbolInfo.price) / symbolInfo.price > 0.20);
 
         // For legs with locked cost basis, ONLY update market fields (never touch premium)
         // UNLESS the underlying price changed significantly (symbol change) - then recalculate
