@@ -515,8 +515,14 @@ export function HistoricalPriceTab({
                 tick={{ fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v) => `$${Math.abs(v).toFixed(0)}`}
-                width={45}
+                tickFormatter={(v) => {
+                  // For net credit multi-leg strategies, show as negative
+                  if (isNetCredit && !isSingleLeg) {
+                    return `-$${Math.abs(v).toFixed(0)}`;
+                  }
+                  return `$${Math.abs(v).toFixed(0)}`;
+                }}
+                width={50}
                 yAxisId="option"
               />
               <Tooltip
@@ -553,8 +559,10 @@ export function HistoricalPriceTab({
                     <div className="bg-card border rounded-md p-2 shadow-lg">
                       <div className="text-xs font-medium mb-1">{label}</div>
                       <div className="text-xs">
-                        <span className="text-muted-foreground">Value: </span>
-                        <span className="font-mono">${Math.abs(data.strategyValue)?.toFixed(2)}</span>
+                        <span className="text-muted-foreground">{isNetCredit && !isSingleLeg ? "Cost to Close: " : "Value: "}</span>
+                        <span className="font-mono">
+                          {isNetCredit && !isSingleLeg ? "-" : ""}${Math.abs(data.strategyValue)?.toFixed(2)}
+                        </span>
                       </div>
                     </div>
                   );
