@@ -166,19 +166,30 @@ export function useStrategyEngine(rangePercent: number = 14) {
     
     // Average the IV from ALL legs that have impliedVolatility set
     // This includes market, manual, and saved legs
-    const legsWithIV = legs.filter(leg => leg.impliedVolatility && leg.impliedVolatility > 0);
+    // Filter out extreme IV values (>100%) which occur with deep ITM options
+    const MAX_REASONABLE_IV = 1.0; // 100% - higher values are likely calculation errors
+    const MIN_REASONABLE_IV = 0.05; // 5% - lower values are likely calculation errors
     
-    console.log('[IV-CALC] Legs with IV:', legsWithIV.length, 'of', legs.length);
+    const legsWithIV = legs.filter(leg => leg.impliedVolatility && leg.impliedVolatility > 0);
+    const legsWithReasonableIV = legsWithIV.filter(leg => 
+      leg.impliedVolatility! >= MIN_REASONABLE_IV && leg.impliedVolatility! <= MAX_REASONABLE_IV
+    );
+    
+    console.log('[IV-CALC] Legs with IV:', legsWithIV.length, 'of', legs.length, '| Reasonable IV:', legsWithReasonableIV.length);
     legsWithIV.forEach(leg => {
-      console.log(`[IV-CALC] Leg ${leg.type} ${leg.strike}: IV=${leg.impliedVolatility} (${(leg.impliedVolatility || 0) * 100}%) source=${leg.premiumSource}`);
+      const isReasonable = leg.impliedVolatility! >= MIN_REASONABLE_IV && leg.impliedVolatility! <= MAX_REASONABLE_IV;
+      console.log(`[IV-CALC] Leg ${leg.type} ${leg.strike}: IV=${leg.impliedVolatility} (${(leg.impliedVolatility || 0) * 100}%) source=${leg.premiumSource}${!isReasonable ? ' [FILTERED]' : ''}`);
     });
     
-    if (legsWithIV.length === 0) {
+    // Use legs with reasonable IV, fallback to all legs if none are reasonable
+    const legsToUse = legsWithReasonableIV.length > 0 ? legsWithReasonableIV : legsWithIV;
+    
+    if (legsToUse.length === 0) {
       console.log('[IV-CALC] No legs with IV, returning default 0.3');
       return 0.3; // Default fallback
     }
     
-    const avgIV = legsWithIV.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.3), 0) / legsWithIV.length;
+    const avgIV = legsToUse.reduce((sum, leg) => sum + (leg.impliedVolatility || 0.3), 0) / legsToUse.length;
     console.log('[IV-CALC] Calculated average IV:', avgIV, `(${(avgIV * 100).toFixed(1)}%)`);
     return avgIV;
   }, [legs]);
