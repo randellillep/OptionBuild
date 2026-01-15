@@ -156,6 +156,31 @@ export function HistoricalPriceTab({
 
   const isSingleLeg = legs.length === 1;
 
+  // Calculate GCD-based scale factor for normalizing multi-leg strategy quantities
+  // This ensures proportional quantity changes (2+2 -> 20+20) don't change the displayed price
+  const quantityScaleFactor = useMemo(() => {
+    if (isSingleLeg || legs.length === 0) return 1;
+    
+    // Helper function to calculate GCD of two numbers
+    const gcd = (a: number, b: number): number => {
+      a = Math.abs(Math.round(a));
+      b = Math.abs(Math.round(b));
+      while (b > 0) {
+        const temp = b;
+        b = a % b;
+        a = temp;
+      }
+      return a || 1;
+    };
+    
+    // Get absolute quantities from all legs
+    const absQuantities = legs.map(leg => Math.abs(leg.quantity)).filter(q => q > 0);
+    if (absQuantities.length === 0) return 1;
+    
+    // Calculate GCD of all quantities
+    return absQuantities.reduce((acc, qty) => gcd(acc, qty), absQuantities[0]);
+  }, [legs, isSingleLeg]);
+
   const chartData = useMemo(() => {
     if (!candleData?.candles?.length) return [];
 
@@ -193,9 +218,10 @@ export function HistoricalPriceTab({
           legVolatility
         );
 
-        // For multi-leg strategies, multiply by quantity for combined value
-        // For single legs, we show per-contract price in the candlestick chart
-        strategyValue += valueAtClose * positionMultiplier * (isSingleLeg ? 1 : leg.quantity);
+        // For single legs: show per-contract price
+        // For multi-leg strategies: normalize by GCD so proportional scaling doesn't change the value
+        const normalizedQuantity = isSingleLeg ? 1 : leg.quantity / quantityScaleFactor;
+        strategyValue += valueAtClose * positionMultiplier * normalizedQuantity;
 
         if (isSingleLeg) {
           const valueAtOpen = calculateOptionPrice(
@@ -256,7 +282,7 @@ export function HistoricalPriceTab({
         candleBody: [Math.min(candle.open, candle.close), Math.max(candle.open, candle.close)],
       };
     });
-  }, [candleData, legs, volatility, timeRange, isSingleLeg]);
+  }, [candleData, legs, volatility, timeRange, isSingleLeg, quantityScaleFactor]);
 
   const latestData = chartData[chartData.length - 1];
   const firstData = chartData[0];
