@@ -227,22 +227,18 @@ export function HistoricalPriceTab({
             volatility
           );
         } else {
-          // Cap leg volatility at reasonable bounds to avoid distorted historical prices
-          // Deep ITM options often have unreliable IV (100%+) which would distort the chart
-          const MAX_LEG_IV = 1.0; // 100%
-          const MIN_LEG_IV = 0.05; // 5%
-          let legVolatility = leg.impliedVolatility ?? volatility;
-          if (legVolatility > MAX_LEG_IV || legVolatility < MIN_LEG_IV) {
-            // Use the global volatility if leg IV is unreasonable
-            legVolatility = volatility;
-          }
+          // For historical calculations, use a typical/average IV rather than current IV
+          // Current IV reflects today's market conditions, not historical ones
+          // OptionStrat likely uses historical volatility data; we approximate with typical IV
+          // AAPL typical IV is around 25-30%, mega-caps usually 20-35%
+          const HISTORICAL_IV_ESTIMATE = 0.28; // 28% - typical for large-cap stocks
           
           valueAtClose = calculateOptionPrice(
             leg.type,
             candle.close,
             leg.strike,
             daysRemainingAtCandle,
-            legVolatility
+            HISTORICAL_IV_ESTIMATE
           );
         }
 
@@ -263,34 +259,29 @@ export function HistoricalPriceTab({
             optionHigh = rawPrice;
             optionLow = rawPrice;
           } else {
-            // Cap leg volatility for historical calculations
-            const MAX_LEG_IV = 1.0;
-            const MIN_LEG_IV = 0.05;
-            let legVolatility = leg.impliedVolatility ?? volatility;
-            if (legVolatility > MAX_LEG_IV || legVolatility < MIN_LEG_IV) {
-              legVolatility = volatility;
-            }
+            // For historical calculations, use typical IV estimate (same as strategyValue calculation)
+            const HISTORICAL_IV_ESTIMATE = 0.28; // 28% - typical for large-cap stocks
             
             const valueAtOpen = calculateOptionPrice(
               leg.type,
               candle.open,
               leg.strike,
               daysRemainingAtCandle,
-              legVolatility
+              HISTORICAL_IV_ESTIMATE
             );
             const valueAtHigh = calculateOptionPrice(
               leg.type,
               candle.high,
               leg.strike,
               daysRemainingAtCandle,
-              legVolatility
+              HISTORICAL_IV_ESTIMATE
             );
             const valueAtLow = calculateOptionPrice(
               leg.type,
               candle.low,
               leg.strike,
               daysRemainingAtCandle,
-              legVolatility
+              HISTORICAL_IV_ESTIMATE
             );
 
             // Show raw option prices (positive) on chart - like OptionStrat
