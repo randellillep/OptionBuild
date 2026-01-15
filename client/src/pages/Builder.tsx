@@ -737,9 +737,15 @@ export default function Builder() {
           q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
         );
 
+        // Check if underlying price changed significantly (symbol change indicator)
+        // If entryUnderlyingPrice differs by >20% from current price, it's likely a different symbol
+        const underlyingPriceChanged = leg.entryUnderlyingPrice && symbolInfo?.price &&
+          Math.abs(leg.entryUnderlyingPrice - symbolInfo.price) / symbolInfo.price > 0.20;
+
         // For legs with locked cost basis, ONLY update market fields (never touch premium)
+        // UNLESS the underlying price changed significantly (symbol change) - then recalculate
         // Cost basis is locked after initial entry to preserve P/L accuracy
-        if (leg.costBasisLocked || leg.premiumSource === 'manual' || leg.premiumSource === 'saved') {
+        if ((leg.costBasisLocked || leg.premiumSource === 'manual' || leg.premiumSource === 'saved') && !underlyingPriceChanged) {
           if (matchingQuote) {
             // Check if market fields need updating
             const marketNeedsUpdate = 
@@ -780,13 +786,15 @@ export default function Builder() {
           const newPremium = Number(matchingQuote.mid.toFixed(2));
           
           // Update if: price changed, source isn't market, or current premium is missing/invalid
+          // Also update if underlying price changed significantly (symbol change)
           const needsUpdate = leg.premium !== newPremium || 
                               leg.premiumSource !== 'market' || 
                               !isFinite(leg.premium) || 
                               leg.premium <= 0 ||
                               leg.marketBid !== matchingQuote.bid ||
                               leg.marketAsk !== matchingQuote.ask ||
-                              leg.marketMark !== matchingQuote.mid;
+                              leg.marketMark !== matchingQuote.mid ||
+                              underlyingPriceChanged;
           
           if (needsUpdate) {
             updated = true;
@@ -823,8 +831,10 @@ export default function Builder() {
               marketLast: matchingQuote.last,
             });
           }
-        } else if (!isFinite(leg.premium) || leg.premium <= 0) {
-          // Fallback to theoretical pricing if leg has no valid premium
+        } else if (!isFinite(leg.premium) || leg.premium <= 0 || (!matchingQuote && underlyingPriceChanged)) {
+          // Fallback to theoretical pricing if:
+          // 1. Leg has no valid premium, OR
+          // 2. No matching quote found AND underlying price changed significantly (symbol change)
           // Stock legs don't need theoretical pricing - they use entry price
           if (leg.type === "stock") return leg;
           
