@@ -207,7 +207,15 @@ export function HistoricalPriceTab({
         if (daysRemainingAtCandle <= 0) return;
         
         hasValidLegs = true;
-        const legVolatility = leg.impliedVolatility ?? volatility;
+        // Cap leg volatility at reasonable bounds to avoid distorted historical prices
+        // Deep ITM options often have unreliable IV (100%+) which would distort the chart
+        const MAX_LEG_IV = 1.0; // 100%
+        const MIN_LEG_IV = 0.05; // 5%
+        let legVolatility = leg.impliedVolatility ?? volatility;
+        if (legVolatility > MAX_LEG_IV || legVolatility < MIN_LEG_IV) {
+          // Use the global volatility if leg IV is unreasonable
+          legVolatility = volatility;
+        }
         const positionMultiplier = leg.position === "long" ? 1 : -1;
 
         const valueAtClose = calculateOptionPrice(
