@@ -45,18 +45,39 @@ export function useStrategyEngine(rangePercent: number = 14) {
   const prevSymbolRef = useRef<string>(symbolInfo.symbol);
   const isLoadingSavedTradeRef = useRef<boolean>(false);
   
-  // Track symbol changes but DON'T modify legs here
-  // The AUTO-ADJUST effect in Builder.tsx handles leg adjustments when symbol changes
-  // This effect only tracks the symbol change and manages the isLoadingSavedTradeRef flag
+  // Symbol change counter - increments whenever symbol changes
+  // Used to coordinate between useStrategyEngine and Builder effects
+  const [symbolChangeId, setSymbolChangeId] = useState(0);
+  
+  // Track symbol changes and CLEAR pricing flags from legs
+  // This is the key fix: when symbol changes, we must clear costBasisLocked
+  // and premiumSource='saved' so fresh prices can be calculated
   useEffect(() => {
     if (prevSymbolRef.current !== symbolInfo.symbol) {
-      // Symbol changed - just reset the saved trade flag and update the ref
-      // The AUTO-ADJUST effect in Builder.tsx will handle clearing closingTransaction
-      // and updating premiums for the new symbol
+      console.log('[SYMBOL-CHANGE] Detected symbol change:', prevSymbolRef.current, '->', symbolInfo.symbol);
+      
+      // Don't clear flags if loading a saved trade (user wants to keep saved pricing)
+      if (!isLoadingSavedTradeRef.current && legs.length > 0) {
+        console.log('[SYMBOL-CHANGE] Clearing pricing flags from', legs.length, 'legs');
+        
+        // Clear pricing flags so AUTO-ADJUST can set fresh theoretical prices
+        setLegs(currentLegs => currentLegs.map(leg => ({
+          ...leg,
+          costBasisLocked: false,
+          premiumSource: undefined, // Clear 'saved' or 'manual' to allow fresh pricing
+          closingTransaction: undefined,
+          isExcluded: false,
+        })));
+      }
+      
+      // Reset the saved trade flag and update the ref
       isLoadingSavedTradeRef.current = false;
       prevSymbolRef.current = symbolInfo.symbol;
+      
+      // Increment symbol change ID to signal other effects
+      setSymbolChangeId(prev => prev + 1);
     }
-  }, [symbolInfo.symbol]);
+  }, [symbolInfo.symbol, legs.length]);
   
   // Wrapper to set symbol when loading saved trades (skips clearing)
   const setSymbolInfoForSavedTrade = (info: SymbolInfo) => {
@@ -381,5 +402,6 @@ export function useStrategyEngine(rangePercent: number = 14) {
     selectedExpirationDays,
     selectedExpirationDate,
     setSelectedExpiration,
+    symbolChangeId, // Used to coordinate effects after symbol changes
   };
 }

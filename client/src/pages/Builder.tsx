@@ -61,8 +61,6 @@ export default function Builder() {
   });
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   const urlParamsProcessed = useRef(false);
-  // Track when symbol just changed - used to force price recalculation
-  const symbolJustChangedRef = useRef<boolean>(false);
   
   // Store initial P/L values from SavedTrades for immediate consistency
   // These values are used for the heatmap's current-scenario cell until user makes changes
@@ -113,7 +111,11 @@ export default function Builder() {
     selectedExpirationDays,
     selectedExpirationDate,
     setSelectedExpiration,
+    symbolChangeId, // Used to coordinate effects after symbol changes
   } = useStrategyEngine(range);
+  
+  // Track the last processed symbolChangeId to gate effects
+  const lastProcessedSymbolChangeIdRef = useRef(symbolChangeId);
 
   const volatilityPercent = Math.round(volatility * 100);
   const calculatedIVPercent = Math.round(calculatedIV * 100);
@@ -522,10 +524,8 @@ export default function Builder() {
     const atmStrike = roundStrike(current.price, 'nearest');
     console.log('[AUTO-ADJUST] Adjusting strikes, ATM:', atmStrike);
     
-    // Mark that symbol just changed BEFORE setLegs - this ensures market update effect
-    // sees the flag even if it runs between now and when setLegs callback executes
-    symbolJustChangedRef.current = true;
-    console.log('[AUTO-ADJUST] Setting symbolJustChangedRef = true');
+    // Note: useStrategyEngine now handles clearing costBasisLocked/premiumSource
+    // when symbol changes, so we don't need a manual flag here
     
     // IMPORTANT: Use setLegs with function form to get current legs
     // This avoids stale closure issues when legs is not in dependency array
@@ -536,45 +536,24 @@ export default function Builder() {
       const hasSavedLegs = currentLegs.some(leg => leg.premiumSource === 'saved');
       if (hasSavedLegs) {
         console.log('[AUTO-ADJUST] Skipping - saved trade legs should keep original strikes');
-        symbolJustChangedRef.current = false; // Reset flag if skipping
         return currentLegs;
       }
       
       // Check if current strategy matches a known template
       const isKnownTemplate = isKnownStrategyTemplate(currentLegs);
       
-      // If strategy doesn't match any template, reset to simple Long Call
+      // If strategy doesn't match any template, clear legs and let user rebuild
+      // This avoids pricing issues when market data doesn't have matching strikes
       if (!isKnownTemplate && currentLegs.length > 0) {
-        console.log('[AUTO-ADJUST] Unknown strategy, resetting to Long Call');
-        const theoreticalPremium = calculateOptionPrice('call', current.price, atmStrike, 30, 0.3);
-        return [{
-          id: Date.now().toString(),
-          type: 'call' as const,
-          position: 'long' as const,
-          strike: atmStrike,
-          quantity: 1,
-          premium: Math.max(0.01, Number(theoreticalPremium.toFixed(2))),
-          expirationDays: 30,
-          premiumSource: 'theoretical' as const,
-          entryUnderlyingPrice: current.price,
-        }];
+        console.log('[AUTO-ADJUST] Unknown strategy, clearing - user can add via Add button');
+        return [];
       }
       
-      // Skip if no legs to adjust
+      // Skip if no legs - let user add via Add button
+      // This avoids pricing issues when market data doesn't have matching strikes
       if (currentLegs.length === 0) {
-        console.log('[AUTO-ADJUST] No legs, creating default Long Call');
-        const theoreticalPremium = calculateOptionPrice('call', current.price, atmStrike, 30, 0.3);
-        return [{
-          id: Date.now().toString(),
-          type: 'call' as const,
-          position: 'long' as const,
-          strike: atmStrike,
-          quantity: 1,
-          premium: Math.max(0.01, Number(theoreticalPremium.toFixed(2))),
-          expirationDays: 30,
-          premiumSource: 'theoretical' as const,
-          entryUnderlyingPrice: current.price,
-        }];
+        console.log('[AUTO-ADJUST] No legs to adjust, user can add via Add button');
+        return currentLegs;
       }
       
       // Adjust existing legs for the new symbol
@@ -793,15 +772,12 @@ export default function Builder() {
       return;
     }
 
-    // Check if symbol just changed - if so, skip this update entirely
-    // AUTO-ADJUST already set correct theoretical prices for the new symbol
-    // We'll wait for the NEW symbol's optionsChainData to arrive
-    const symbolJustChanged = symbolJustChangedRef.current;
-    if (symbolJustChanged) {
-      console.log('[MARKET-UPDATE] Symbol just changed, skipping to avoid stale data');
-      // Clear the flag so subsequent market data updates can proceed
-      symbolJustChangedRef.current = false;
-      return;
+    // If symbolChangeId changed since last processed, update our tracking ref
+    // This ensures we don't skip legitimate market updates after the first one post-symbol-change
+    if (symbolChangeId !== lastProcessedSymbolChangeIdRef.current) {
+      console.log('[MARKET-UPDATE] New symbolChangeId detected:', symbolChangeId, '- updating tracking ref');
+      lastProcessedSymbolChangeIdRef.current = symbolChangeId;
+      // Continue processing - the legs have been reset by useStrategyEngine
     }
     
     // Debug: Log the symbol of the options chain data
@@ -972,7 +948,7 @@ export default function Builder() {
 
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, selectedExpirationDate, symbolInfo?.price, volatility]);
+  }, [optionsChainData, selectedExpirationDate, symbolInfo?.price, volatility, symbolChangeId]);
 
   // Ensure all legs have valid premiums (fallback to theoretical even when chain data partial)
   // IMPORTANT: Use callback pattern to get current legs state and avoid race conditions
