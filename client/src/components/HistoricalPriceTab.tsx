@@ -217,11 +217,14 @@ export function HistoricalPriceTab({
           );
         }
 
-        // For single legs: show per-contract price
-        // For multi-leg strategies: use actual quantities as-is like OptionStrat
-        // Formula: short legs = price × (-1) × qty, long legs = price × (+1) × qty
-        // Example: 2× short 230C at $28 = -56, 1× long 260C at $0.5 = +0.5, total = -55.5
-        const quantityMultiplier = isSingleLeg ? 1 : Math.abs(leg.quantity);
+        // For multi-leg strategies:
+        // - If all quantities are equal (e.g., 10+10): show per-contract value (same as 1+1)
+        // - If quantities differ (e.g., 1+2): use actual quantities to reflect asymmetric ratio
+        // This matches user expectation: scaling equally shouldn't change displayed price
+        const allQuantitiesEqual = legs.every(l => Math.abs(l.quantity) === Math.abs(legs[0].quantity));
+        const quantityMultiplier = isSingleLeg || allQuantitiesEqual 
+          ? 1 
+          : Math.abs(leg.quantity);
         strategyValue += valueAtClose * positionMultiplier * quantityMultiplier;
 
         if (isSingleLeg) {
