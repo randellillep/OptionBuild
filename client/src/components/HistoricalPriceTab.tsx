@@ -567,7 +567,11 @@ export function HistoricalPriceTab({
                 tick={{ fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(v) => `$${v.toFixed(0)}`}
+                tickFormatter={(v) => {
+                  // For short positions, show negative values on Y-axis
+                  const sign = isShortPosition ? "-" : "";
+                  return `${sign}$${Math.abs(v).toFixed(0)}`;
+                }}
                 width={50}
                 yAxisId="option"
               />
@@ -584,18 +588,20 @@ export function HistoricalPriceTab({
                   if (!data) return null;
                   
                   if (isSingleLeg && chartType === "candlestick" && data.optionOpen !== null) {
+                    // For short positions, show negative values in tooltip to match header
+                    const sign = isShortPosition ? "-" : "";
                     return (
                       <div className="bg-card border rounded-md p-2 shadow-lg">
                         <div className="text-xs font-medium mb-1">{label}</div>
                         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
                           <span className="text-muted-foreground">Open:</span>
-                          <span className="font-mono">${Math.abs(data.optionOpen)?.toFixed(2)}</span>
+                          <span className="font-mono">{sign}${Math.abs(data.optionOpen)?.toFixed(2)}</span>
                           <span className="text-muted-foreground">High:</span>
-                          <span className="font-mono">${Math.abs(data.optionHigh)?.toFixed(2)}</span>
+                          <span className="font-mono">{sign}${Math.abs(data.optionHigh)?.toFixed(2)}</span>
                           <span className="text-muted-foreground">Low:</span>
-                          <span className="font-mono">${Math.abs(data.optionLow)?.toFixed(2)}</span>
+                          <span className="font-mono">{sign}${Math.abs(data.optionLow)?.toFixed(2)}</span>
                           <span className="text-muted-foreground">Close:</span>
-                          <span className="font-mono">${Math.abs(data.optionClose)?.toFixed(2)}</span>
+                          <span className="font-mono">{sign}${Math.abs(data.optionClose)?.toFixed(2)}</span>
                         </div>
                       </div>
                     );
