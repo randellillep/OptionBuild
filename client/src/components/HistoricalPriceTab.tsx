@@ -250,14 +250,14 @@ export function HistoricalPriceTab({
 
         if (isSingleLeg) {
           if (isLatestCandle(index)) {
-            // For the latest candle, use actual market price
-            // Apply position multiplier so shorts show negative values (P/L perspective)
+            // For the latest candle, use actual market price (raw, positive value)
+            // OptionStrat shows raw option price on chart, negative only in header
             const marketPrice = getLegMarketPrice(leg) ?? leg.premium;
             const rawPrice = marketPrice ?? valueAtClose;
-            optionOpen = rawPrice * positionMultiplier;
-            optionClose = rawPrice * positionMultiplier;
-            optionHigh = rawPrice * positionMultiplier;
-            optionLow = rawPrice * positionMultiplier;
+            optionOpen = rawPrice;
+            optionClose = rawPrice;
+            optionHigh = rawPrice;
+            optionLow = rawPrice;
           } else {
             // Cap leg volatility for historical calculations
             const MAX_LEG_IV = 1.0;
@@ -289,12 +289,11 @@ export function HistoricalPriceTab({
               legVolatility
             );
 
-            // Apply position multiplier: shorts get negative values (P/L perspective)
-            // For shorts, "up" on chart = profit (lower option price = higher P/L value)
-            const allValues = [valueAtOpen, valueAtClose, valueAtHigh, valueAtLow].map(v => v * positionMultiplier);
-            optionOpen = valueAtOpen * positionMultiplier;
-            optionClose = valueAtClose * positionMultiplier;
-            // After multiplying by -1 for shorts, max becomes min and vice versa
+            // Show raw option prices (positive) on chart - like OptionStrat
+            // Chart going DOWN = profit for shorts, UP = loss for shorts
+            const allValues = [valueAtOpen, valueAtClose, valueAtHigh, valueAtLow];
+            optionOpen = valueAtOpen;
+            optionClose = valueAtClose;
             optionHigh = Math.max(...allValues);
             optionLow = Math.min(...allValues);
           }
@@ -385,11 +384,9 @@ export function HistoricalPriceTab({
     if (!lows.length || !highs.length) return { min: 0, max: 10 };
     const min = Math.min(...lows);
     const max = Math.max(...highs);
-    const padding = Math.abs(max - min) * 0.1;
-    // For short positions (negative values), don't clamp to 0
-    // Short: min is most negative, max is least negative (closer to 0)
-    // Long: min is smallest positive, max is largest positive
-    return { min: min - padding, max: max + padding };
+    const padding = (max - min) * 0.1;
+    // Option prices are always positive on chart (like OptionStrat)
+    return { min: Math.max(0, min - padding), max: max + padding };
   }, [chartData, isSingleLeg]);
 
   // Calculate percentage change for selected range
@@ -570,12 +567,7 @@ export function HistoricalPriceTab({
                 tick={{ fontSize: 10 }}
                 tickLine={false}
                 axisLine={false}
-                reversed={isShortPosition}
-                tickFormatter={(v) => {
-                  // For short positions with reversed axis, show absolute values
-                  // OptionStrat shows $5, $10, $15 (not -$5, -$10, -$15) on Y-axis
-                  return `$${Math.abs(v).toFixed(0)}`;
-                }}
+                tickFormatter={(v) => `$${v.toFixed(0)}`}
                 width={50}
                 yAxisId="option"
               />
@@ -654,6 +646,15 @@ export function HistoricalPriceTab({
                     ))}
                   </Bar>
                 </>
+              ) : isSingleLeg ? (
+                <Line
+                  type="monotone"
+                  dataKey="optionClose"
+                  stroke="hsl(var(--chart-2))"
+                  strokeWidth={2}
+                  dot={false}
+                  yAxisId="option"
+                />
               ) : (
                 <Line
                   type="monotone"
