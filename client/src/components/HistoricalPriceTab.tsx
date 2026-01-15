@@ -251,11 +251,13 @@ export function HistoricalPriceTab({
         if (isSingleLeg) {
           if (isLatestCandle(index)) {
             // For the latest candle, use actual market price
+            // Apply position multiplier so shorts show negative values (P/L perspective)
             const marketPrice = getLegMarketPrice(leg) ?? leg.premium;
-            optionOpen = marketPrice ?? valueAtClose;
-            optionClose = marketPrice ?? valueAtClose;
-            optionHigh = marketPrice ?? valueAtClose;
-            optionLow = marketPrice ?? valueAtClose;
+            const rawPrice = marketPrice ?? valueAtClose;
+            optionOpen = rawPrice * positionMultiplier;
+            optionClose = rawPrice * positionMultiplier;
+            optionHigh = rawPrice * positionMultiplier;
+            optionLow = rawPrice * positionMultiplier;
           } else {
             // Cap leg volatility for historical calculations
             const MAX_LEG_IV = 1.0;
@@ -287,10 +289,12 @@ export function HistoricalPriceTab({
               legVolatility
             );
 
-            const allValues = [valueAtOpen, valueAtClose, valueAtHigh, valueAtLow];
-            // Show per-contract price, not multiplied by quantity
-            optionOpen = valueAtOpen;
-            optionClose = valueAtClose;
+            // Apply position multiplier: shorts get negative values (P/L perspective)
+            // For shorts, "up" on chart = profit (lower option price = higher P/L value)
+            const allValues = [valueAtOpen, valueAtClose, valueAtHigh, valueAtLow].map(v => v * positionMultiplier);
+            optionOpen = valueAtOpen * positionMultiplier;
+            optionClose = valueAtClose * positionMultiplier;
+            // After multiplying by -1 for shorts, max becomes min and vice versa
             optionHigh = Math.max(...allValues);
             optionLow = Math.min(...allValues);
           }
