@@ -185,12 +185,16 @@ export function HistoricalPriceTab({
     if (!candleData?.candles?.length) return [];
 
     const candles: Candle[] = candleData.candles;
-    const today = new Date();
+    // Use the LAST candle's timestamp as reference date (not new Date())
+    // This prevents the chart from "moving" on every render due to time passing
+    const lastCandle = candles[candles.length - 1];
+    const referenceDate = new Date(lastCandle.timestamp);
     const isLatestCandle = (idx: number) => idx === candles.length - 1;
 
     return candles.map((candle, index) => {
       const candleDate = new Date(candle.timestamp);
-      const daysDiff = Math.ceil((today.getTime() - candleDate.getTime()) / (1000 * 60 * 60 * 24));
+      // Calculate days from this candle to the reference (last) candle
+      const daysDiff = Math.ceil((referenceDate.getTime() - candleDate.getTime()) / (1000 * 60 * 60 * 24));
 
       let strategyValue = 0;
       let hasValidLegs = false;
