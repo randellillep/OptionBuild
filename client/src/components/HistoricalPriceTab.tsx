@@ -220,7 +220,8 @@ export function HistoricalPriceTab({
 
         // For single legs: show per-contract price
         // For multi-leg strategies: normalize by GCD so proportional scaling doesn't change the value
-        const normalizedQuantity = isSingleLeg ? 1 : leg.quantity / quantityScaleFactor;
+        // Always use Math.abs(quantity) to avoid double-negation when short legs have negative quantities
+        const normalizedQuantity = isSingleLeg ? 1 : Math.abs(leg.quantity) / quantityScaleFactor;
         strategyValue += valueAtClose * positionMultiplier * normalizedQuantity;
 
         if (isSingleLeg) {
@@ -298,8 +299,10 @@ export function HistoricalPriceTab({
   const isNetCredit = useMemo(() => {
     let netPremium = 0;
     legs.forEach((leg) => {
+      // Long = pay premium (negative), Short = receive premium (positive)
       const positionMultiplier = leg.position === "long" ? -1 : 1;
-      netPremium += leg.premium * positionMultiplier * leg.quantity;
+      // Use Math.abs to avoid double-negation when short legs have negative quantities
+      netPremium += leg.premium * positionMultiplier * Math.abs(leg.quantity);
     });
     return netPremium > 0;
   }, [legs]);
