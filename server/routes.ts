@@ -6,12 +6,6 @@ import type { MarketOptionQuote, MarketOptionChainSummary, OptionType, BacktestR
 import { setupGoogleAuth, isAuthenticated } from "./googleAuth";
 import { runBacktest, runTastyworksBacktest } from "./backtesting";
 
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
-const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
-
-const MARKETDATA_API_KEY = process.env.MARKETDATA_API_KEY;
-const MARKETDATA_BASE_URL = "https://api.marketdata.app/v1";
-
 const ALPACA_API_KEY = process.env.ALPACA_API_KEY;
 const ALPACA_API_SECRET = process.env.ALPACA_API_SECRET;
 const ALPACA_BASE_URL = "https://data.alpaca.markets/v1beta1";
@@ -173,39 +167,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stock quote endpoint - fetches real-time price for a symbol
+  // Stock quote endpoint - fetches real-time price for a symbol (using Alpaca)
   app.get("/api/stock/quote/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
       
-      if (!FINNHUB_API_KEY) {
-        return res.status(500).json({ error: "API key not configured" });
+      if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+        return res.status(500).json({ error: "Alpaca API keys not configured" });
       }
 
-      const response = await fetch(
-        `${FINNHUB_BASE_URL}/quote?symbol=${symbol.toUpperCase()}&token=${FINNHUB_API_KEY}`
-      );
+      // Fetch latest trade and previous day bar for change calculation
+      const [tradeRes, barRes] = await Promise.all([
+        fetch(`https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/trades/latest?feed=iex`, {
+          headers: {
+            'APCA-API-KEY-ID': ALPACA_API_KEY,
+            'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+          },
+        }),
+        fetch(`https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/bars/latest?feed=iex`, {
+          headers: {
+            'APCA-API-KEY-ID': ALPACA_API_KEY,
+            'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+          },
+        }),
+      ]);
 
-      if (!response.ok) {
-        throw new Error(`Finnhub API error: ${response.status}`);
+      if (!tradeRes.ok) {
+        throw new Error(`Alpaca API error: ${tradeRes.status}`);
       }
 
-      const data = await response.json();
+      const tradeData = await tradeRes.json();
+      const barData = barRes.ok ? await barRes.json() : null;
       
-      // Finnhub returns c (current price), pc (previous close), etc.
-      // Calculate percentage change
-      const changePercent = data.pc > 0 ? ((data.c - data.pc) / data.pc) * 100 : 0;
+      const currentPrice = tradeData.trade?.p || 0;
+      const bar = barData?.bar;
+      const previousClose = bar?.c || currentPrice;
+      const change = currentPrice - previousClose;
+      const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
 
       res.json({
         symbol: symbol.toUpperCase(),
-        price: data.c,
-        previousClose: data.pc,
-        change: data.c - data.pc,
+        price: currentPrice,
+        previousClose: previousClose,
+        change: change,
         changePercent: changePercent,
-        high: data.h,
-        low: data.l,
-        open: data.o,
-        timestamp: data.t,
+        high: bar?.h || currentPrice,
+        low: bar?.l || currentPrice,
+        open: bar?.o || currentPrice,
+        timestamp: tradeData.trade?.t ? new Date(tradeData.trade.t).getTime() / 1000 : Date.now() / 1000,
       });
     } catch (error) {
       console.error("Error fetching stock quote:", error);
@@ -213,7 +222,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stock symbol search endpoint
+  // Stock symbol search endpoint (using local list - Alpaca doesn't have search API)
+  const POPULAR_STOCKS = [
+    { symbol: 'AAPL', name: 'Apple Inc.' },
+    { symbol: 'MSFT', name: 'Microsoft Corporation' },
+    { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+    { symbol: 'AMZN', name: 'Amazon.com Inc.' },
+    { symbol: 'META', name: 'Meta Platforms Inc.' },
+    { symbol: 'TSLA', name: 'Tesla Inc.' },
+    { symbol: 'NVDA', name: 'NVIDIA Corporation' },
+    { symbol: 'JPM', name: 'JPMorgan Chase & Co.' },
+    { symbol: 'V', name: 'Visa Inc.' },
+    { symbol: 'JNJ', name: 'Johnson & Johnson' },
+    { symbol: 'WMT', name: 'Walmart Inc.' },
+    { symbol: 'PG', name: 'Procter & Gamble Co.' },
+    { symbol: 'MA', name: 'Mastercard Inc.' },
+    { symbol: 'UNH', name: 'UnitedHealth Group Inc.' },
+    { symbol: 'HD', name: 'Home Depot Inc.' },
+    { symbol: 'DIS', name: 'Walt Disney Co.' },
+    { symbol: 'BAC', name: 'Bank of America Corp.' },
+    { symbol: 'XOM', name: 'Exxon Mobil Corporation' },
+    { symbol: 'PFE', name: 'Pfizer Inc.' },
+    { symbol: 'KO', name: 'Coca-Cola Co.' },
+    { symbol: 'NFLX', name: 'Netflix Inc.' },
+    { symbol: 'AMD', name: 'Advanced Micro Devices Inc.' },
+    { symbol: 'INTC', name: 'Intel Corporation' },
+    { symbol: 'CRM', name: 'Salesforce Inc.' },
+    { symbol: 'CSCO', name: 'Cisco Systems Inc.' },
+    { symbol: 'ORCL', name: 'Oracle Corporation' },
+    { symbol: 'IBM', name: 'International Business Machines' },
+    { symbol: 'GS', name: 'Goldman Sachs Group Inc.' },
+    { symbol: 'CVX', name: 'Chevron Corporation' },
+    { symbol: 'MRK', name: 'Merck & Co. Inc.' },
+    { symbol: 'ABBV', name: 'AbbVie Inc.' },
+    { symbol: 'LLY', name: 'Eli Lilly and Company' },
+    { symbol: 'COST', name: 'Costco Wholesale Corporation' },
+    { symbol: 'AVGO', name: 'Broadcom Inc.' },
+    { symbol: 'PEP', name: 'PepsiCo Inc.' },
+    { symbol: 'TMO', name: 'Thermo Fisher Scientific' },
+    { symbol: 'MCD', name: 'McDonald\'s Corporation' },
+    { symbol: 'ADBE', name: 'Adobe Inc.' },
+    { symbol: 'NKE', name: 'Nike Inc.' },
+    { symbol: 'T', name: 'AT&T Inc.' },
+    { symbol: 'VZ', name: 'Verizon Communications' },
+    { symbol: 'CMCSA', name: 'Comcast Corporation' },
+    { symbol: 'ABT', name: 'Abbott Laboratories' },
+    { symbol: 'DHR', name: 'Danaher Corporation' },
+    { symbol: 'TXN', name: 'Texas Instruments Inc.' },
+    { symbol: 'QCOM', name: 'Qualcomm Inc.' },
+    { symbol: 'NEE', name: 'NextEra Energy Inc.' },
+    { symbol: 'PM', name: 'Philip Morris International' },
+    { symbol: 'RTX', name: 'Raytheon Technologies' },
+    { symbol: 'UNP', name: 'Union Pacific Corporation' },
+    { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust' },
+    { symbol: 'QQQ', name: 'Invesco QQQ Trust' },
+    { symbol: 'IWM', name: 'iShares Russell 2000 ETF' },
+    { symbol: 'GLD', name: 'SPDR Gold Trust' },
+    { symbol: 'SLV', name: 'iShares Silver Trust' },
+  ];
+
   app.get("/api/stock/search", async (req, res) => {
     try {
       const { q } = req.query;
@@ -222,99 +289,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Query parameter required" });
       }
 
-      if (!FINNHUB_API_KEY) {
-        return res.status(500).json({ error: "API key not configured" });
-      }
-
-      const response = await fetch(
-        `${FINNHUB_BASE_URL}/search?q=${encodeURIComponent(q)}&token=${FINNHUB_API_KEY}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Finnhub API error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const query = q.toUpperCase();
       
-      // Finnhub returns { count, result: [{ description, displaySymbol, symbol, type }] }
-      // Filter to only US stocks and limit results
-      const results = (data.result || [])
-        .filter((item: any) => item.type === "Common Stock")
+      // Search in our local list of popular stocks
+      const results = POPULAR_STOCKS
+        .filter(stock => 
+          stock.symbol.includes(query) || 
+          stock.name.toUpperCase().includes(query)
+        )
         .slice(0, 10)
-        .map((item: any) => ({
-          symbol: item.symbol,
-          name: item.description,
-          displaySymbol: item.displaySymbol,
+        .map(stock => ({
+          symbol: stock.symbol,
+          name: stock.name,
+          displaySymbol: stock.symbol,
         }));
+
+      // If no matches found but query looks like a valid symbol, add it as a custom entry
+      if (results.length === 0 && /^[A-Z]{1,5}$/.test(query)) {
+        results.push({
+          symbol: query,
+          name: `${query} (Custom Symbol)`,
+          displaySymbol: query,
+        });
+      }
 
       res.json({ results });
     } catch (error) {
       console.error("Error searching stocks:", error);
       res.status(500).json({ error: "Failed to search stocks" });
-    }
-  });
-
-  // Company profile and fundamentals endpoint
-  app.get("/api/stock/fundamentals/:symbol", async (req, res) => {
-    try {
-      const { symbol } = req.params;
-      
-      if (!FINNHUB_API_KEY) {
-        return res.status(500).json({ error: "API key not configured" });
-      }
-
-      // Fetch company profile and basic financials in parallel
-      const [profileRes, metricsRes] = await Promise.all([
-        fetch(`${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol.toUpperCase()}&token=${FINNHUB_API_KEY}`),
-        fetch(`${FINNHUB_BASE_URL}/stock/metric?symbol=${symbol.toUpperCase()}&metric=all&token=${FINNHUB_API_KEY}`)
-      ]);
-
-      if (!profileRes.ok || !metricsRes.ok) {
-        throw new Error("Failed to fetch company data from Finnhub");
-      }
-
-      const [profile, metrics] = await Promise.all([
-        profileRes.json(),
-        metricsRes.json()
-      ]);
-
-      // Extract relevant financial metrics
-      const metric = metrics.metric || {};
-      
-      res.json({
-        symbol: symbol.toUpperCase(),
-        name: profile.name || symbol.toUpperCase(),
-        logo: profile.logo,
-        exchange: profile.exchange,
-        industry: profile.finnhubIndustry,
-        marketCap: profile.marketCapitalization ? profile.marketCapitalization * 1000000 : null, // Finnhub returns in millions
-        currency: profile.currency,
-        country: profile.country,
-        weburl: profile.weburl,
-        ipo: profile.ipo,
-        shareOutstanding: profile.shareOutstanding,
-        // Key financial metrics
-        peRatio: metric['peNormalizedAnnual'] || metric['peBasicExclExtraTTM'] || null,
-        eps: metric['epsNormalizedAnnual'] || metric['epsBasicExclExtraItemsTTM'] || null,
-        epsGrowth: metric['epsGrowthTTMYoy'] || null,
-        revenueGrowth: metric['revenueGrowthTTMYoy'] || null,
-        profitMargin: metric['netProfitMarginTTM'] || null,
-        roe: metric['roeTTM'] || null,
-        roa: metric['roaTTM'] || null,
-        debtToEquity: metric['totalDebt/totalEquityQuarterly'] || null,
-        currentRatio: metric['currentRatioQuarterly'] || null,
-        quickRatio: metric['quickRatioQuarterly'] || null,
-        dividendYield: metric['dividendYieldIndicatedAnnual'] || null,
-        beta: metric['beta'] || null,
-        high52Week: metric['52WeekHigh'] || null,
-        low52Week: metric['52WeekLow'] || null,
-        priceToBook: metric['pbQuarterly'] || null,
-        priceToSales: metric['psTTM'] || null,
-        updated: Date.now(),
-      });
-    } catch (error) {
-      console.error("Error fetching company fundamentals:", error);
-      res.status(500).json({ error: "Failed to fetch company fundamentals" });
     }
   });
 
@@ -594,15 +596,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (putQuotes.length === 0 && callQuotes.length > 0) {
         console.warn(`[Options Chain] WARNING: No PUT options from Alpaca. Synthesizing ${callQuotes.length} PUTs using Put-Call Parity...`);
         
-        // Fetch underlying stock price from Finnhub
+        // Fetch underlying stock price from Alpaca
         let underlyingPrice = 0;
         try {
           const stockResponse = await fetch(
-            `${FINNHUB_BASE_URL}/quote?symbol=${symbol.toUpperCase()}&token=${FINNHUB_API_KEY}`
+            `https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/trades/latest?feed=iex`,
+            {
+              headers: {
+                'APCA-API-KEY-ID': ALPACA_API_KEY!,
+                'APCA-API-SECRET-KEY': ALPACA_API_SECRET!,
+              },
+            }
           );
           if (stockResponse.ok) {
             const stockData = await stockResponse.json();
-            underlyingPrice = stockData.c || 0;
+            underlyingPrice = stockData.trade?.p || 0;
             console.log(`[Options Chain] Fetched underlying price for ${symbol}: $${underlyingPrice}`);
           }
         } catch (err) {
