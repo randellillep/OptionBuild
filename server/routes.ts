@@ -888,11 +888,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const end = new Date(config.endDate);
       const now = new Date();
       
+      // Normalize dates to start of day for comparison
+      const endDateOnly = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
       if (start >= end) {
         return res.status(400).json({ error: "Start date must be before end date" });
       }
       
-      if (end > now) {
+      // Allow end date to be today (compare date portions only)
+      if (endDateOnly > nowDateOnly) {
         return res.status(400).json({ error: "End date cannot be in the future" });
       }
       
@@ -1063,11 +1068,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const end = new Date(request.endDate);
       const now = new Date();
       
+      // Normalize dates to start of day for comparison
+      const endDateOnly = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
       if (start >= end) {
         return res.status(400).json({ error: "Start date must be before end date" });
       }
       
-      if (end > now) {
+      // Allow end date to be today (compare date portions only)
+      if (endDateOnly > nowDateOnly) {
         return res.status(400).json({ error: "End date cannot be in the future" });
       }
       
