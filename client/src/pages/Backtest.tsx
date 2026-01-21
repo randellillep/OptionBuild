@@ -100,7 +100,8 @@ function getDefaultConfig(): BacktestConfigData {
     legs: [getDefaultLeg()],
     entryConditions: {
       frequency: "everyDay",
-      maxActiveTrades: 1,
+      maxActiveTrades: undefined,
+      specificDays: [1, 2, 3, 4, 5],
     },
     exitConditions: {
       exitAtDTE: 21,
@@ -243,11 +244,6 @@ function StockSearchInput({
         </Card>
       )}
 
-      {value && !searchTerm && (
-        <div className="absolute inset-0 flex items-center pl-8 pointer-events-none">
-          <span className="font-mono font-semibold text-sm">{value}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -279,49 +275,57 @@ function LegConfig({
       </div>
       <div className="flex flex-wrap items-center gap-2 mt-1">
         <div className="flex gap-1">
-          <Button
+          <button
             type="button"
-            size="sm"
-            variant={leg.direction === "buy" ? "default" : "secondary"}
-            className="h-8 px-3 text-xs"
+            className={`h-8 px-3 text-xs font-medium rounded-md transition-colors ${
+              leg.direction === "buy" 
+                ? "bg-emerald-600 text-white hover:bg-emerald-700" 
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-secondary-border"
+            }`}
             onClick={() => onChange({ ...leg, direction: "buy" })}
             data-testid={`button-leg-${index}-buy`}
           >
             Buy
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            size="sm"
-            variant={leg.direction === "sell" ? "default" : "secondary"}
-            className="h-8 px-3 text-xs"
+            className={`h-8 px-3 text-xs font-medium rounded-md transition-colors ${
+              leg.direction === "sell" 
+                ? "bg-red-600 text-white hover:bg-red-700" 
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-secondary-border"
+            }`}
             onClick={() => onChange({ ...leg, direction: "sell" })}
             data-testid={`button-leg-${index}-sell`}
           >
             Sell
-          </Button>
+          </button>
         </div>
         
         <div className="flex gap-1">
-          <Button
+          <button
             type="button"
-            size="sm"
-            variant={leg.optionType === "call" ? "default" : "secondary"}
-            className="h-8 px-3 text-xs"
+            className={`h-8 px-3 text-xs font-medium rounded-md transition-colors ${
+              leg.optionType === "call" 
+                ? "bg-emerald-600 text-white hover:bg-emerald-700" 
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-secondary-border"
+            }`}
             onClick={() => onChange({ ...leg, optionType: "call" })}
             data-testid={`button-leg-${index}-call`}
           >
             Call
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            size="sm"
-            variant={leg.optionType === "put" ? "default" : "secondary"}
-            className="h-8 px-3 text-xs"
+            className={`h-8 px-3 text-xs font-medium rounded-md transition-colors ${
+              leg.optionType === "put" 
+                ? "bg-red-600 text-white hover:bg-red-700" 
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-secondary-border"
+            }`}
             onClick={() => onChange({ ...leg, optionType: "put" })}
             data-testid={`button-leg-${index}-put`}
           >
             Put
-          </Button>
+          </button>
         </div>
         
         <div className="flex items-center gap-1 bg-muted rounded-md px-2 h-8">
@@ -546,6 +550,43 @@ function BacktestSetup({
                   <p className="text-xs text-muted-foreground">Enter a new trade on specific days and choose the closest expirations.</p>
                 </div>
               </div>
+              {config.entryConditions.frequency === 'specificDays' && (
+                <div className="flex flex-wrap gap-2 mt-3 ml-7" onClick={(e) => e.stopPropagation()}>
+                  {[
+                    { day: 1, label: "Mon" },
+                    { day: 2, label: "Tue" },
+                    { day: 3, label: "Wed" },
+                    { day: 4, label: "Thu" },
+                    { day: 5, label: "Fri" },
+                  ].map(({ day, label }) => {
+                    const isSelected = config.entryConditions.specificDays?.includes(day) ?? false;
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const currentDays = config.entryConditions.specificDays || [];
+                          const newDays = isSelected
+                            ? currentDays.filter(d => d !== day)
+                            : [...currentDays, day].sort();
+                          setConfig({
+                            ...config,
+                            entryConditions: { ...config.entryConditions, specificDays: newDays }
+                          });
+                        }}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                          isSelected 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                        }`}
+                        data-testid={`button-day-${label.toLowerCase()}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             
             <div 
@@ -572,21 +613,21 @@ function BacktestSetup({
                 <p className="text-xs text-muted-foreground">Only have a certain number of trades open at the same time.</p>
               </div>
               <Switch 
-                checked={(config.entryConditions.maxActiveTrades || 1) > 0}
+                checked={config.entryConditions.maxActiveTrades !== undefined}
                 onCheckedChange={(checked) => setConfig({ 
                   ...config, 
-                  entryConditions: { ...config.entryConditions, maxActiveTrades: checked ? 1 : 0 } 
+                  entryConditions: { ...config.entryConditions, maxActiveTrades: checked ? 1 : undefined } 
                 })}
                 data-testid="switch-limit-trades"
               />
             </div>
-            {(config.entryConditions.maxActiveTrades || 1) > 0 && (
+            {config.entryConditions.maxActiveTrades !== undefined && (
               <div className="mt-2">
                 <Input
                   type="number"
                   min={1}
                   max={10}
-                  value={config.entryConditions.maxActiveTrades || 1}
+                  value={config.entryConditions.maxActiveTrades}
                   onChange={(e) => setConfig({ 
                     ...config, 
                     entryConditions: { ...config.entryConditions, maxActiveTrades: parseInt(e.target.value) || 1 } 
@@ -632,6 +673,40 @@ function BacktestSetup({
                   data-testid="input-exit-dte"
                 />
                 <span className="text-xs text-muted-foreground">DTE</span>
+              </div>
+            )}
+          </div>
+
+          <div className="p-3 rounded-lg border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Exit after days in trade</p>
+                <p className="text-xs text-muted-foreground">Exit trades after being open for a certain number of days.</p>
+              </div>
+              <Switch 
+                checked={config.exitConditions.exitAfterDays !== undefined}
+                onCheckedChange={(checked) => setConfig({ 
+                  ...config, 
+                  exitConditions: { ...config.exitConditions, exitAfterDays: checked ? 7 : undefined } 
+                })}
+                data-testid="switch-exit-after-days"
+              />
+            </div>
+            {config.exitConditions.exitAfterDays !== undefined && (
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={config.exitConditions.exitAfterDays}
+                  onChange={(e) => setConfig({ 
+                    ...config, 
+                    exitConditions: { ...config.exitConditions, exitAfterDays: parseInt(e.target.value) || 1 } 
+                  })}
+                  className="h-8 w-20"
+                  data-testid="input-exit-after-days"
+                />
+                <span className="text-xs text-muted-foreground">days</span>
               </div>
             )}
           </div>
