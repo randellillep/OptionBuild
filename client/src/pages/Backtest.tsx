@@ -81,18 +81,22 @@ function getDefaultLeg(): BacktestLegConfig {
     optionType: "put",
     quantity: 1,
     strikeSelection: "delta",
-    strikeValue: 0.30,
+    strikeValue: 30,
     dte: 45,
   };
 }
 
 function getDefaultConfig(): BacktestConfigData {
   // Use a reliable historical date range with known data availability
-  // Default to 2023-2024 period which should have complete data
+  // End date defaults to today
+  const today = new Date();
+  const oneYearAgo = new Date(today);
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  
   return {
     symbol: "AAPL",
-    startDate: "2023-01-01",
-    endDate: "2024-01-01",
+    startDate: format(oneYearAgo, "yyyy-MM-dd"),
+    endDate: format(today, "yyyy-MM-dd"),
     legs: [getDefaultLeg()],
     entryConditions: {
       frequency: "everyDay",
@@ -122,9 +126,10 @@ function StockSearchInput({
   onChange: (symbol: string) => void;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
@@ -144,7 +149,8 @@ function StockSearchInput({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
+        setIsOpen(false);
+        setSearchTerm("");
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -166,32 +172,50 @@ function StockSearchInput({
   const handleSymbolSelect = (symbol: string) => {
     onChange(symbol);
     setSearchTerm("");
-    setShowSuggestions(false);
+    setIsOpen(false);
+  };
+
+  const handleButtonClick = () => {
+    setIsOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   return (
     <div className="relative" ref={searchRef}>
-      <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={value || "Search stock..."}
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value.toUpperCase());
-            setShowSuggestions(true);
-          }}
-          onFocus={() => setShowSuggestions(true)}
-          className="pl-8 h-9 text-sm"
+      {!isOpen ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-9 justify-start font-mono font-semibold"
+          onClick={handleButtonClick}
           data-testid="input-backtest-symbol"
-        />
-        {isSearching && (
-          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-        )}
-      </div>
+        >
+          {value}
+        </Button>
+      ) : (
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            ref={inputRef}
+            placeholder="Search stocks..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+            className="pl-8 h-9 text-sm"
+            data-testid="input-backtest-symbol-search"
+          />
+          {isSearching && (
+            <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
+      )}
 
-      {showSuggestions && searchTerm && (
+      {isOpen && (
         <Card className="absolute top-full mt-1 left-0 w-72 z-[100] max-h-64 overflow-y-auto shadow-lg">
-          {isSearching ? (
+          {!searchTerm ? (
+            <div className="p-3 text-center text-sm text-muted-foreground">
+              Type to search stocks...
+            </div>
+          ) : isSearching ? (
             <div className="p-3 text-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin mx-auto mb-1" />
               Searching...
@@ -201,6 +225,7 @@ function StockSearchInput({
               {searchResults.results.slice(0, 8).map((result) => (
                 <button
                   key={result.symbol}
+                  type="button"
                   onClick={() => handleSymbolSelect(result.symbol)}
                   className="w-full text-left p-2.5 hover:bg-muted rounded-md transition-colors"
                   data-testid={`button-symbol-${result.symbol.toLowerCase()}`}
@@ -243,115 +268,128 @@ function LegConfig({
   allLegs: BacktestLegConfig[];
 }) {
   return (
-    <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Leg {index + 1}</h4>
-        {canRemove && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onRemove}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            data-testid={`button-remove-leg-${index}`}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
+    <div className="p-3 border rounded-lg bg-muted/30">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider hidden sm:block w-16">Direction</div>
+        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider hidden sm:block w-16">Type</div>
+        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider hidden sm:block w-20">Quantity</div>
+        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider hidden sm:block flex-1">Strike Selection</div>
+        <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider hidden sm:block w-20">Expiration</div>
+        <div className="w-16"></div>
       </div>
-      
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label className="text-xs">Direction</Label>
-          <Select 
-            value={leg.direction} 
-            onValueChange={(v) => onChange({ ...leg, direction: v as "buy" | "sell" })}
+      <div className="flex flex-wrap items-center gap-2 mt-1">
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={leg.direction === "buy" ? "default" : "secondary"}
+            className="h-8 px-3 text-xs"
+            onClick={() => onChange({ ...leg, direction: "buy" })}
+            data-testid={`button-leg-${index}-buy`}
           >
-            <SelectTrigger className="h-9" data-testid={`select-leg-${index}-direction`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sell">Sell</SelectItem>
-              <SelectItem value="buy">Buy</SelectItem>
-            </SelectContent>
-          </Select>
+            Buy
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={leg.direction === "sell" ? "default" : "secondary"}
+            className="h-8 px-3 text-xs"
+            onClick={() => onChange({ ...leg, direction: "sell" })}
+            data-testid={`button-leg-${index}-sell`}
+          >
+            Sell
+          </Button>
         </div>
         
-        <div className="space-y-2">
-          <Label className="text-xs">Type</Label>
-          <Select 
-            value={leg.optionType} 
-            onValueChange={(v) => onChange({ ...leg, optionType: v as "call" | "put" })}
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={leg.optionType === "call" ? "default" : "secondary"}
+            className="h-8 px-3 text-xs"
+            onClick={() => onChange({ ...leg, optionType: "call" })}
+            data-testid={`button-leg-${index}-call`}
           >
-            <SelectTrigger className="h-9" data-testid={`select-leg-${index}-type`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="put">Put</SelectItem>
-              <SelectItem value="call">Call</SelectItem>
-            </SelectContent>
-          </Select>
+            Call
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={leg.optionType === "put" ? "default" : "secondary"}
+            className="h-8 px-3 text-xs"
+            onClick={() => onChange({ ...leg, optionType: "put" })}
+            data-testid={`button-leg-${index}-put`}
+          >
+            Put
+          </Button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label className="text-xs">Quantity</Label>
+        
+        <div className="flex items-center gap-1 bg-muted rounded-md px-2 h-8">
           <Input
             type="number"
             min={1}
             max={100}
             value={leg.quantity}
             onChange={(e) => onChange({ ...leg, quantity: parseInt(e.target.value) || 1 })}
-            className="h-9"
+            className="h-7 w-12 border-0 bg-transparent p-0 text-center text-sm font-medium"
             data-testid={`input-leg-${index}-quantity`}
           />
+          <span className="text-xs text-muted-foreground">contract</span>
         </div>
         
-        <div className="space-y-2">
-          <Label className="text-xs">DTE (Days to Exp)</Label>
+        <div className="flex items-center gap-1 bg-muted rounded-md h-8">
+          <Input
+            type="number"
+            step={leg.strikeSelection === "delta" ? 1 : 1}
+            value={leg.strikeValue}
+            onChange={(e) => onChange({ ...leg, strikeValue: parseFloat(e.target.value) || 0 })}
+            className="h-7 w-12 border-0 bg-transparent p-0 text-center text-sm font-medium"
+            data-testid={`input-leg-${index}-strike-value`}
+          />
+          <Select 
+            value={leg.strikeSelection} 
+            onValueChange={(v) => onChange({ ...leg, strikeSelection: v as any })}
+          >
+            <SelectTrigger className="h-7 w-12 border-0 bg-transparent px-1" data-testid={`select-leg-${index}-strike`}>
+              <span className="text-xs">
+                {leg.strikeSelection === "delta" ? "\u0394" : 
+                 leg.strikeSelection === "percentOTM" ? "%" : "$"}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="delta">\u0394 Delta</SelectItem>
+              <SelectItem value="percentOTM">% OTM</SelectItem>
+              <SelectItem value="priceOffset">$ Offset</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex items-center gap-1 bg-muted rounded-md px-2 h-8">
           <Input
             type="number"
             min={1}
             max={365}
             value={leg.dte}
             onChange={(e) => onChange({ ...leg, dte: parseInt(e.target.value) || 45 })}
-            className="h-9"
+            className="h-7 w-12 border-0 bg-transparent p-0 text-center text-sm font-medium"
             data-testid={`input-leg-${index}-dte`}
           />
+          <span className="text-xs text-muted-foreground">DTE</span>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label className="text-xs">Strike Selection</Label>
-          <Select 
-            value={leg.strikeSelection} 
-            onValueChange={(v) => onChange({ ...leg, strikeSelection: v as any })}
-          >
-            <SelectTrigger className="h-9" data-testid={`select-leg-${index}-strike`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="delta">Delta</SelectItem>
-              <SelectItem value="percentOTM">% OTM</SelectItem>
-              <SelectItem value="priceOffset">Price Offset</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="space-y-2">
-          <Label className="text-xs">
-            {leg.strikeSelection === "delta" ? "Delta Value" : 
-             leg.strikeSelection === "percentOTM" ? "% OTM" : "$ Offset"}
-          </Label>
-          <Input
-            type="number"
-            step={leg.strikeSelection === "delta" ? 0.01 : 1}
-            value={leg.strikeValue}
-            onChange={(e) => onChange({ ...leg, strikeValue: parseFloat(e.target.value) || 0 })}
-            className="h-9"
-            data-testid={`input-leg-${index}-strike-value`}
-          />
+        <div className="flex items-center gap-1 ml-auto">
+          {canRemove && (
+            <Button 
+              type="button"
+              variant="ghost" 
+              size="icon" 
+              onClick={onRemove}
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              data-testid={`button-remove-leg-${index}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -391,297 +429,338 @@ function BacktestSetup({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Strategy Configuration
-          </CardTitle>
-          <CardDescription>
-            Define your options strategy legs and parameters
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Stock Symbol</Label>
-              <StockSearchInput
-                value={config.symbol}
-                onChange={(symbol) => setConfig({ ...config, symbol })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Start Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full h-9 justify-start text-left font-normal"
-                    data-testid="input-start-date"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {config.startDate ? format(new Date(config.startDate), "MM/dd/yyyy") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-4">
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/50 rounded-lg border">
+        <div className="flex items-center gap-2">
+          <StockSearchInput
+            value={config.symbol}
+            onChange={(symbol) => setConfig({ ...config, symbol })}
+          />
+        </div>
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 gap-2 text-sm"
+              data-testid="input-date-range"
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {config.startDate && config.endDate ? (
+                <span>
+                  {format(new Date(config.startDate), "M/d/yyyy")} - {format(new Date(config.endDate), "M/d/yyyy")}
+                </span>
+              ) : "Select dates"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4" align="start">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Start Date</Label>
                   <Calendar
                     mode="single"
                     selected={config.startDate ? new Date(config.startDate) : undefined}
                     onSelect={(date) => date && setConfig({ ...config, startDate: format(date, "yyyy-MM-dd") })}
-                    initialFocus
+                    data-testid="input-start-date"
                   />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">End Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full h-9 justify-start text-left font-normal"
-                    data-testid="input-end-date"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {config.endDate ? format(new Date(config.endDate), "MM/dd/yyyy") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">End Date</Label>
                   <Calendar
                     mode="single"
                     selected={config.endDate ? new Date(config.endDate) : undefined}
                     onSelect={(date) => date && setConfig({ ...config, endDate: format(date, "yyyy-MM-dd") })}
-                    initialFocus
+                    data-testid="input-end-date"
                   />
-                </PopoverContent>
-              </Popover>
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </PopoverContent>
+        </Popover>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">Strategy Legs</CardTitle>
-              <CardDescription>Configure up to 4 option legs</CardDescription>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addLeg}
-              disabled={config.legs.length >= 4}
-              className="gap-1"
-              data-testid="button-add-leg"
+      <div className="space-y-3">
+        {config.legs.map((leg, index) => (
+          <LegConfig
+            key={leg.id}
+            leg={leg}
+            index={index}
+            onChange={(updatedLeg) => updateLeg(index, updatedLeg)}
+            onRemove={() => removeLeg(index)}
+            canRemove={config.legs.length > 1}
+            allLegs={config.legs}
+          />
+        ))}
+        
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={addLeg}
+            disabled={config.legs.length >= 4}
+            className="gap-1 text-muted-foreground hover:text-foreground"
+            data-testid="button-add-leg"
+          >
+            <Plus className="h-4 w-4" />
+            Add Another Leg
+          </Button>
+          <span className="text-xs text-muted-foreground">Select a different strategy</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Entry Conditions</h3>
+          
+          <div className="space-y-2">
+            <div 
+              className={`p-3 rounded-lg border cursor-pointer transition-colors ${config.entryConditions.frequency === 'everyDay' ? 'bg-primary/10 border-primary' : 'bg-muted/30 hover:bg-muted/50'}`}
+              onClick={() => setConfig({ ...config, entryConditions: { ...config.entryConditions, frequency: 'everyDay' }})}
+              data-testid="option-entry-everyday"
             >
-              <Plus className="h-4 w-4" />
-              Add Leg
-            </Button>
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${config.entryConditions.frequency === 'everyDay' ? 'border-primary' : 'border-muted-foreground'}`}>
+                  {config.entryConditions.frequency === 'everyDay' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Every day</p>
+                  <p className="text-xs text-muted-foreground">Enter a new trade every day and choose the closest expirations.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              className={`p-3 rounded-lg border cursor-pointer transition-colors ${config.entryConditions.frequency === 'specificDays' ? 'bg-primary/10 border-primary' : 'bg-muted/30 hover:bg-muted/50'}`}
+              onClick={() => setConfig({ ...config, entryConditions: { ...config.entryConditions, frequency: 'specificDays' }})}
+              data-testid="option-entry-specificdays"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${config.entryConditions.frequency === 'specificDays' ? 'border-primary' : 'border-muted-foreground'}`}>
+                  {config.entryConditions.frequency === 'specificDays' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">On specific days of the week</p>
+                  <p className="text-xs text-muted-foreground">Enter a new trade on specific days and choose the closest expirations.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              className={`p-3 rounded-lg border cursor-pointer transition-colors ${config.entryConditions.frequency === 'exactDTE' ? 'bg-primary/10 border-primary' : 'bg-muted/30 hover:bg-muted/50'}`}
+              onClick={() => setConfig({ ...config, entryConditions: { ...config.entryConditions, frequency: 'exactDTE' }})}
+              data-testid="option-entry-exactdte"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${config.entryConditions.frequency === 'exactDTE' ? 'border-primary' : 'border-muted-foreground'}`}>
+                  {config.entryConditions.frequency === 'exactDTE' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">On exact DTE match</p>
+                  <p className="text-xs text-muted-foreground">Enter a new trade only when the expiration date exactly matches the specified strategy DTEs.</p>
+                </div>
+              </div>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {config.legs.map((leg, index) => (
-            <LegConfig
-              key={leg.id}
-              leg={leg}
-              index={index}
-              onChange={(updatedLeg) => updateLeg(index, updatedLeg)}
-              onRemove={() => removeLeg(index)}
-              canRemove={config.legs.length > 1}
-              allLegs={config.legs}
-            />
-          ))}
-        </CardContent>
-      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Entry Conditions</CardTitle>
-            <CardDescription>When to enter new trades</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Entry Frequency</Label>
-              <Select 
-                value={config.entryConditions.frequency} 
-                onValueChange={(v) => setConfig({ 
+          <div className="p-3 rounded-lg border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Limit number of active trades</p>
+                <p className="text-xs text-muted-foreground">Only have a certain number of trades open at the same time.</p>
+              </div>
+              <Switch 
+                checked={(config.entryConditions.maxActiveTrades || 1) > 0}
+                onCheckedChange={(checked) => setConfig({ 
                   ...config, 
-                  entryConditions: { ...config.entryConditions, frequency: v as any } 
+                  entryConditions: { ...config.entryConditions, maxActiveTrades: checked ? 1 : 0 } 
                 })}
-              >
-                <SelectTrigger className="h-9" data-testid="select-entry-frequency">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="everyDay">Every Trading Day</SelectItem>
-                  <SelectItem value="specificDays">Specific Days of Week</SelectItem>
-                  <SelectItem value="exactDTE">Only at Exact DTE</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Max Active Trades</Label>
-              <Input
-                type="number"
-                min={1}
-                max={10}
-                value={config.entryConditions.maxActiveTrades || 1}
-                onChange={(e) => setConfig({ 
-                  ...config, 
-                  entryConditions: { 
-                    ...config.entryConditions, 
-                    maxActiveTrades: parseInt(e.target.value) || 1 
-                  } 
-                })}
-                className="h-9"
-                data-testid="input-max-trades"
+                data-testid="switch-limit-trades"
               />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Exit Conditions</CardTitle>
-            <CardDescription>When to close positions</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Exit at DTE</Label>
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                value={config.exitConditions.exitAtDTE ?? ""}
-                onChange={(e) => setConfig({ 
-                  ...config, 
-                  exitConditions: { 
-                    ...config.exitConditions, 
-                    exitAtDTE: e.target.value ? parseInt(e.target.value) : undefined 
-                  } 
-                })}
-                placeholder="e.g., 21"
-                className="h-9"
-                data-testid="input-exit-dte"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Stop Loss %</Label>
+            {(config.entryConditions.maxActiveTrades || 1) > 0 && (
+              <div className="mt-2">
                 <Input
                   type="number"
-                  min={0}
-                  max={500}
-                  value={config.exitConditions.stopLossPercent ?? ""}
+                  min={1}
+                  max={10}
+                  value={config.entryConditions.maxActiveTrades || 1}
                   onChange={(e) => setConfig({ 
                     ...config, 
-                    exitConditions: { 
-                      ...config.exitConditions, 
-                      stopLossPercent: e.target.value ? parseFloat(e.target.value) : undefined 
-                    } 
+                    entryConditions: { ...config.entryConditions, maxActiveTrades: parseInt(e.target.value) || 1 } 
                   })}
-                  placeholder="200"
-                  className="h-9"
-                  data-testid="input-stop-loss"
+                  className="h-8 w-20"
+                  data-testid="input-max-trades"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Take Profit %</Label>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Exit Conditions</h3>
+          
+          <div className="p-3 rounded-lg border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Exit at a specific DTE</p>
+                <p className="text-xs text-muted-foreground">Exit trades when there is a certain number of days left until expiration.</p>
+              </div>
+              <Switch 
+                checked={config.exitConditions.exitAtDTE !== undefined}
+                onCheckedChange={(checked) => setConfig({ 
+                  ...config, 
+                  exitConditions: { ...config.exitConditions, exitAtDTE: checked ? 21 : undefined } 
+                })}
+                data-testid="switch-exit-dte"
+              />
+            </div>
+            {config.exitConditions.exitAtDTE !== undefined && (
+              <div className="mt-2 flex items-center gap-2">
                 <Input
                   type="number"
                   min={0}
                   max={100}
-                  value={config.exitConditions.takeProfitPercent ?? ""}
+                  value={config.exitConditions.exitAtDTE}
                   onChange={(e) => setConfig({ 
                     ...config, 
-                    exitConditions: { 
-                      ...config.exitConditions, 
-                      takeProfitPercent: e.target.value ? parseFloat(e.target.value) : undefined 
-                    } 
+                    exitConditions: { ...config.exitConditions, exitAtDTE: parseInt(e.target.value) || 0 } 
                   })}
-                  placeholder="50"
-                  className="h-9"
-                  data-testid="input-take-profit"
+                  className="h-8 w-20"
+                  data-testid="input-exit-dte"
                 />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Capital & Fees</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Capital Method</Label>
-              <Select 
-                value={config.capitalMethod} 
-                onValueChange={(v) => setConfig({ ...config, capitalMethod: v as "auto" | "manual" })}
-              >
-                <SelectTrigger className="h-9" data-testid="select-capital-method">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Auto-calculate</SelectItem>
-                  <SelectItem value="manual">Manual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {config.capitalMethod === "manual" && (
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Starting Capital</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="number"
-                    min={1000}
-                    value={config.manualCapital || 10000}
-                    onChange={(e) => setConfig({ ...config, manualCapital: parseFloat(e.target.value) })}
-                    className="h-9 pl-8"
-                    data-testid="input-capital"
-                  />
-                </div>
+                <span className="text-xs text-muted-foreground">DTE</span>
               </div>
             )}
-            
-            <div className="space-y-2">
-              <Label className="text-xs font-medium">Fee per Contract</Label>
-              <div className="relative">
-                <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          </div>
+
+          <div className="p-3 rounded-lg border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Stop loss at % of premium</p>
+                <p className="text-xs text-muted-foreground">Exit trades when the loss has exceeded a certain percentage of the initial premium.</p>
+              </div>
+              <Switch 
+                checked={config.exitConditions.stopLossPercent !== undefined}
+                onCheckedChange={(checked) => setConfig({ 
+                  ...config, 
+                  exitConditions: { ...config.exitConditions, stopLossPercent: checked ? 200 : undefined } 
+                })}
+                data-testid="switch-stop-loss"
+              />
+            </div>
+            {config.exitConditions.stopLossPercent !== undefined && (
+              <div className="mt-2 flex items-center gap-2">
                 <Input
                   type="number"
-                  step={0.01}
                   min={0}
-                  value={config.feePerContract || 0.65}
-                  onChange={(e) => setConfig({ ...config, feePerContract: parseFloat(e.target.value) })}
-                  className="h-9 pl-8"
-                  data-testid="input-fee"
+                  max={500}
+                  value={config.exitConditions.stopLossPercent}
+                  onChange={(e) => setConfig({ 
+                    ...config, 
+                    exitConditions: { ...config.exitConditions, stopLossPercent: parseFloat(e.target.value) || 0 } 
+                  })}
+                  className="h-8 w-20"
+                  data-testid="input-stop-loss"
                 />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
+            )}
+          </div>
+
+          <div className="p-3 rounded-lg border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Take profit at % of premium</p>
+                <p className="text-xs text-muted-foreground">Exit trades when the profit has exceeded a certain percentage of the initial premium.</p>
+              </div>
+              <Switch 
+                checked={config.exitConditions.takeProfitPercent !== undefined}
+                onCheckedChange={(checked) => setConfig({ 
+                  ...config, 
+                  exitConditions: { ...config.exitConditions, takeProfitPercent: checked ? 50 : undefined } 
+                })}
+                data-testid="switch-take-profit"
+              />
+            </div>
+            {config.exitConditions.takeProfitPercent !== undefined && (
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={config.exitConditions.takeProfitPercent}
+                  onChange={(e) => setConfig({ 
+                    ...config, 
+                    exitConditions: { ...config.exitConditions, takeProfitPercent: parseFloat(e.target.value) || 0 } 
+                  })}
+                  className="h-8 w-20"
+                  data-testid="input-take-profit"
+                />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Starting Capital</h3>
+        
+        <div className="space-y-2">
+          <div 
+            className={`p-3 rounded-lg border cursor-pointer transition-colors ${config.capitalMethod === 'auto' ? 'bg-primary/10 border-primary' : 'bg-muted/30 hover:bg-muted/50'}`}
+            onClick={() => setConfig({ ...config, capitalMethod: 'auto' })}
+            data-testid="option-capital-auto"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${config.capitalMethod === 'auto' ? 'border-primary' : 'border-muted-foreground'}`}>
+                {config.capitalMethod === 'auto' && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <div>
+                <p className="text-sm font-medium">Automatically calculated, based on the required buying power</p>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-muted-foreground flex items-center gap-1">
-          <Info className="h-3 w-3" />
-          Uses historical stock prices from Finnhub + Black-Scholes option simulation
+          
+          <div 
+            className={`p-3 rounded-lg border cursor-pointer transition-colors ${config.capitalMethod === 'manual' ? 'bg-primary/10 border-primary' : 'bg-muted/30 hover:bg-muted/50'}`}
+            onClick={() => setConfig({ ...config, capitalMethod: 'manual' })}
+            data-testid="option-capital-manual"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${config.capitalMethod === 'manual' ? 'border-primary' : 'border-muted-foreground'}`}>
+                {config.capitalMethod === 'manual' && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Manual allocation to a specific amount</p>
+                {config.capitalMethod === 'manual' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      min={1000}
+                      value={config.manualCapital || 10000}
+                      onChange={(e) => setConfig({ ...config, manualCapital: parseFloat(e.target.value) })}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-8 w-32"
+                      data-testid="input-capital"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div className="text-center pt-4">
         <Button 
           type="submit" 
           size="lg" 
-          className="gap-2 px-8"
+          className="gap-2 px-12"
           disabled={isLoading}
           data-testid="button-run-backtest"
         >
@@ -693,10 +772,13 @@ function BacktestSetup({
           ) : (
             <>
               <Play className="h-4 w-4" />
-              Run Backtest
+              Run backtest
             </>
           )}
         </Button>
+        <p className="text-xs text-muted-foreground mt-3">
+          Uses historical stock prices + Black-Scholes option simulation
+        </p>
       </div>
     </form>
   );
