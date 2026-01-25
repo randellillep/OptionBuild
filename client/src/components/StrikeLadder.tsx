@@ -364,7 +364,7 @@ export function StrikeLadder({
                 </div>
               )}
               <div
-                className={`text-[12px] h-7 px-2.5 text-white font-bold whitespace-nowrap rounded-md flex items-center ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`text-[14px] h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
                   backgroundColor: isExcluded ? undefined : openBgColor,
                   boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
@@ -372,8 +372,9 @@ export function StrikeLadder({
               >
                 {strikeText}
               </div>
+              <div className="h-1" />
               <div 
-                className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent"
+                className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
                 style={{ borderTopColor: isExcluded ? '#64748b' : openBgColor }}
               />
             </button>
@@ -476,7 +477,7 @@ export function StrikeLadder({
                 </div>
               )}
               <div
-                className={`text-[12px] h-7 px-2.5 text-white font-bold whitespace-nowrap rounded-md flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`text-[14px] h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
                   backgroundColor: isExcluded ? undefined : closedBgColor,
                   boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
@@ -485,8 +486,9 @@ export function StrikeLadder({
                 {strikeText}
                 <Check className="h-3 w-3" />
               </div>
+              <div className="h-1" />
               <div 
-                className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent"
+                className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
                 style={{ borderTopColor: isExcluded ? '#64748b' : closedBgColor }}
               />
             </button>
@@ -570,8 +572,8 @@ export function StrikeLadder({
       >
         {currentPricePercent >= 0 && currentPricePercent <= 100 && (
           <div 
-            className="absolute top-0 bottom-0 w-px bg-primary"
-            style={{ left: `${currentPricePercent}%` }}
+            className="absolute w-px bg-primary"
+            style={{ left: `${currentPricePercent}%`, top: '25%', bottom: '25%' }}
           />
         )}
 
@@ -589,14 +591,14 @@ export function StrikeLadder({
             >
               <div 
                 className="absolute -translate-x-1/2 w-px bg-foreground"
-                style={{ top: '-12px', height: isLabeled ? '10px' : '6px' }}
+                style={{ top: '-18px', height: isLabeled ? '6px' : '4px' }}
               />
               <div 
                 className="absolute -translate-x-1/2 w-px bg-foreground"
-                style={{ bottom: '-12px', height: isLabeled ? '10px' : '6px' }}
+                style={{ bottom: '-18px', height: isLabeled ? '6px' : '4px' }}
               />
               {isLabeled && (
-                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-sm font-normal text-foreground whitespace-nowrap">
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[13px] font-normal text-foreground whitespace-nowrap">
                   {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
                 </div>
               )}
