@@ -344,23 +344,23 @@ export function StrikeLadder({
             className="absolute"
             style={{
               left: `${positionPercent}%`,
-              transform: 'translateX(-50%)',
+              transform: `translateX(-50%) ${isBeingDragged ? 'scale(1.1)' : ''}`,
               top: topPosition,
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
               zIndex: isBeingDragged ? 9999 : 10,
+              pointerEvents: isDragging && !isBeingDragged ? 'none' : 'auto',
             }}
           >
             <button
-              onPointerDown={(e) => canDrag && !isDragging && handleBadgePointerDown(leg, e)}
+              onPointerDown={(e) => {
+                if (canDrag && !isDragging) {
+                  handleBadgePointerDown(leg, e);
+                }
+              }}
               onClick={(e) => handleBadgeClick(leg, e, false)}
               data-testid={testId}
               className={`relative flex flex-col items-center ${canDrag && !isDragging ? 'cursor-grab' : 'cursor-pointer'}`}
-              style={{ 
-                touchAction: 'none', 
-                pointerEvents: isDragging && !isBeingDragged ? 'none' : 'auto',
-                zIndex: isBeingDragged ? 9999 : 'auto',
-                transform: isBeingDragged ? 'scale(1.1)' : 'none',
-              }}
+              style={{ touchAction: 'none' }}
             >
               {(hasClosing ? remainingQty : quantity) > 1 && (
                 <div 
