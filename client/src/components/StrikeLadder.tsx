@@ -358,8 +358,7 @@ export function StrikeLadder({
             >
               {(hasClosing ? remainingQty : quantity) > 1 && (
                 <div 
-                  className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white px-1 rounded-full"
-                  style={{ backgroundColor: isExcluded ? '#64748b' : openBgColor }}
+                  className="absolute -top-2.5 -right-2.5 text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-10"
                 >
                   x{hasClosing ? remainingQty : quantity}
                 </div>
@@ -471,8 +470,7 @@ export function StrikeLadder({
             >
               {entry.quantity > 1 && (
                 <div 
-                  className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white px-1 rounded-full"
-                  style={{ backgroundColor: isExcluded ? '#64748b' : closedBgColor }}
+                  className="absolute -top-2.5 -right-2.5 text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-10"
                 >
                   x{entry.quantity}
                 </div>
@@ -598,7 +596,7 @@ export function StrikeLadder({
                 style={{ bottom: '-12px', height: isLabeled ? '10px' : '6px' }}
               />
               {isLabeled && (
-                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-sm font-semibold text-foreground whitespace-nowrap">
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-sm font-normal text-foreground whitespace-nowrap">
                   {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
                 </div>
               )}
