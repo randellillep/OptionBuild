@@ -547,24 +547,49 @@ export function StrikeLadder({
     );
   };
 
-  const groupedLegs = useMemo(() => {
-    const groups: { [key: string]: { long: OptionLeg[], short: OptionLeg[] } } = {};
+  const badgeStackLevels = useMemo(() => {
+    const optionLegs = legs.filter(leg => leg.type !== "stock");
+    const longLegs = optionLegs.filter(leg => leg.position === 'long').sort((a, b) => a.strike - b.strike);
+    const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
     
-    legs.forEach(leg => {
-      if (leg.type === "stock") return;
-      const key = `${leg.strike}-${leg.type}`;
-      if (!groups[key]) {
-        groups[key] = { long: [], short: [] };
-      }
-      if (leg.position === 'long') {
-        groups[key].long.push(leg);
-      } else {
-        groups[key].short.push(leg);
-      }
-    });
+    const levels: { [legId: string]: number } = {};
+    const badgeWidth = 60;
     
-    return groups;
-  }, [legs]);
+    const assignLevels = (sortedLegs: OptionLeg[]) => {
+      const occupiedRanges: { left: number; right: number; level: number }[] = [];
+      
+      sortedLegs.forEach(leg => {
+        const percent = getStrikePosition(leg.strike);
+        const pixelPos = percent;
+        const halfWidth = badgeWidth / 2 / (fullRange / 100);
+        const left = pixelPos - halfWidth;
+        const right = pixelPos + halfWidth;
+        
+        let level = 0;
+        let foundLevel = false;
+        
+        while (!foundLevel) {
+          const hasOverlap = occupiedRanges.some(range => 
+            range.level === level && !(right < range.left || left > range.right)
+          );
+          
+          if (!hasOverlap) {
+            foundLevel = true;
+          } else {
+            level++;
+          }
+        }
+        
+        levels[leg.id] = level;
+        occupiedRanges.push({ left, right, level });
+      });
+    };
+    
+    assignLevels(longLegs);
+    assignLevels(shortLegs);
+    
+    return levels;
+  }, [legs, fullRange, getStrikePosition]);
 
   return (
     <div className="w-full select-none relative">
@@ -620,17 +645,18 @@ export function StrikeLadder({
           );
         })}
 
-        {Object.entries(groupedLegs).map(([key, { long, short }]) => (
-          <div key={key}>
-            {long.map((leg, i) => renderOpenBadge(leg, 'long', i))}
-            {short.map((leg, i) => renderOpenBadge(leg, 'short', i))}
-            {long.concat(short).map(leg => 
-              leg.closingTransaction?.entries?.map((entry, i) => 
-                renderClosedEntryBadge(leg, entry, leg.position as 'long' | 'short', i)
-              )
-            )}
-          </div>
-        ))}
+        {legs.filter(leg => leg.type !== "stock").map(leg => {
+          const position = leg.position as 'long' | 'short';
+          const stackLevel = badgeStackLevels[leg.id] || 0;
+          return (
+            <div key={leg.id}>
+              {renderOpenBadge(leg, position, stackLevel)}
+              {leg.closingTransaction?.entries?.map((entry, i) => 
+                renderClosedEntryBadge(leg, entry, position, stackLevel + i)
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
