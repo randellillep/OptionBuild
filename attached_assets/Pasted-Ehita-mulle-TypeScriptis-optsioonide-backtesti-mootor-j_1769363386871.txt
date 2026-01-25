@@ -1,0 +1,193 @@
+Ehita mulle TypeScriptis optsioonide backtesti mootor järgmiste tingimustega.
+
+Eesmärk:
+Luua price-based optsioonide backtester, mis kasutab ajaloolisi optsioonihindu ega kasuta alguses implied volatilityt ega Greekseid, kuid on arhitektuurilt selline, et Greekseid ja IV-d saab hiljem probleemideta juurde lisada.
+
+Üldpõhimõtted:
+
+Backtest on täielikult hinnapõhine (price-based)
+
+Entry ja exit toimuvad optsiooni hinnaga (kasuta bid/ask mid-price’i)
+
+Ära kasuta Black–Scholesi, IV-d ega Greekseid esimeses versioonis
+
+Kood peab olema modulaarne ja laiendatav
+
+Andmed:
+
+Kasutan CSV-faili optsioonide andmetega
+
+Iga rida sisaldab:
+
+timestamp
+
+optsiooni sümbol
+
+optsiooni tüüp (call või put)
+
+strike
+
+expiration date
+
+bid
+
+ask
+
+alusvara hind samal hetkel
+
+Ära kasuta last trade hinda, ainult bid/ask
+
+Projektistruktuur:
+
+engine/
+
+Market (optsiooni snapshot)
+
+Position
+
+Portfolio
+
+Backtester
+
+strategies/
+
+Strategy interface
+
+Näidis price-based strateegia
+
+main.ts, mis käivitab backtesti
+
+Market (Option Snapshot):
+
+Iga optsioon peab teadma:
+
+strike
+
+bid, ask, mid-price
+
+alusvara hind
+
+expiration
+
+Lisa funktsioon, mis ütleb, kas optsioon on OTM:
+
+PUT: strike < alusvara hind
+
+CALL: strike > alusvara hind
+
+Ära lisa Greekseid ega IV-d praegu, aga jäta klass selliseks, et neid saab hiljem juurde lisada
+
+Strategy:
+
+Strategy on eraldi loogika, mis:
+
+valib, millised optsioonid avada (entry)
+
+ütleb, millal positsioon sulgeda (exit)
+
+Strategy EI TOHI:
+
+arvutada IV-d
+
+arvutada Greekseid
+
+muuta otse portfelli raha
+
+Strategy TOHIB kasutada:
+
+OTM infot
+
+strike’i kaugust spotist
+
+optsiooni hinda (premium)
+
+lihtsat DTE loogikat
+
+Näidisstrateegia:
+
+Müüb ühe OTM put optsiooni
+
+Valib optsiooni, mille mid-price on üle kindla miinimumi
+
+Exit toimub hinnapõhiselt:
+
+kasumiprotsendi või kahjumiprotsendi järgi
+
+Position:
+
+Hoiab infot:
+
+milline optsioon
+
+entry price
+
+kas positsioon on avatud
+
+Arvutab PnL:
+
+(entry price − current price) × 100
+
+Portfolio:
+
+Hoiab:
+
+vaba raha
+
+avatud positsioone
+
+Saab:
+
+avada positsiooni
+
+sulgeda positsiooni ja lisada PnL rahale
+
+Algversioonis eelda:
+
+1 leping
+
+lihtne cash-based arvestus
+
+ilma keerulise marginita
+
+Backtester:
+
+Liigub ajas edasi timestamp timestampi kaupa
+
+Iga timestamp:
+
+ehitab option chain’i
+
+laseb strateegial valida entry’d
+
+avab positsioonid
+
+kontrollib olemasolevaid positsioone
+
+sulgeb need, mis vastavad exit-reeglitele
+
+Logi iga tehing (entry, exit, PnL)
+
+Main:
+
+Loeb CSV andmed sisse
+
+Käivitab backtesti
+
+Prindib lõpus:
+
+lõppraha
+
+tehingute arvu
+
+Tähtis arhitektuurinõue:
+
+Tee kood nii, et hiljem saab Option Snapshot’ile lisada:
+
+implied volatility
+
+delta, gamma, vega
+
+Strateegiad peavad suutma töötada nii price-only kui ka Greeks-mode’is ilma backtesti mootorit ümber kirjutamata
+
+Ära lihtsusta loogikat üle.
+Eesmärk on päris optsioonide research engine, mitte demo.

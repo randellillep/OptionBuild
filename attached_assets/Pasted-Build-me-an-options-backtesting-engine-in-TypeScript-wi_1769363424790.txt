@@ -1,0 +1,193 @@
+Build me an options backtesting engine in TypeScript with the following requirements.
+
+Goal:
+Create a price-based options backtester that uses historical option prices and does NOT use implied volatility or Greeks in the first version, but is architected in a way that allows IV and Greeks to be added later without refactoring the engine.
+
+General principles:
+
+The backtest is fully price-based
+
+Entries and exits are executed using option prices (use bid/ask mid-price)
+
+Do NOT use Black–Scholes, implied volatility, or Greeks in the first version
+
+The code must be modular and extensible
+
+Data:
+
+Use a CSV file with historical option data
+
+Each row contains:
+
+timestamp
+
+option symbol
+
+option type (call or put)
+
+strike
+
+expiration date
+
+bid
+
+ask
+
+underlying price at the same timestamp
+
+Do NOT use last trade price, only bid/ask
+
+Project structure:
+
+engine/
+
+Market (option snapshot)
+
+Position
+
+Portfolio
+
+Backtester
+
+strategies/
+
+Strategy interface
+
+Example price-based strategy
+
+main.ts to run the backtest
+
+Market (Option Snapshot):
+
+Each option snapshot must contain:
+
+strike
+
+bid, ask, mid-price
+
+underlying price
+
+expiration
+
+Add a function to determine whether the option is OTM:
+
+PUT: strike < underlying price
+
+CALL: strike > underlying price
+
+Do NOT include Greeks or IV for now, but design the class so they can be added later
+
+Strategy:
+
+A strategy is a separate logic layer that:
+
+selects which options to open (entries)
+
+decides when to close positions (exits)
+
+A strategy MUST NOT:
+
+calculate IV
+
+calculate Greeks
+
+directly modify portfolio cash
+
+A strategy MAY use:
+
+OTM information
+
+strike distance from spot
+
+option price (premium)
+
+simple DTE-based logic
+
+Example strategy:
+
+Sells one OTM put option
+
+Selects an option with mid-price above a fixed minimum premium
+
+Exit rules are price-based:
+
+take profit or stop loss based on percentage PnL
+
+Position:
+
+Stores:
+
+the option being traded
+
+entry price
+
+whether the position is open
+
+Calculates PnL as:
+
+(entry price − current price) × 100
+
+Portfolio:
+
+Stores:
+
+available cash
+
+open positions
+
+Can:
+
+open a position
+
+close a position and add PnL to cash
+
+In the initial version assume:
+
+1 contract per trade
+
+simple cash-based accounting
+
+no complex margin logic
+
+Backtester:
+
+Iterates forward in time timestamp by timestamp
+
+For each timestamp:
+
+builds the option chain
+
+lets the strategy select entries
+
+opens positions
+
+checks existing positions
+
+closes positions that meet exit conditions
+
+Log every trade (entry, exit, PnL)
+
+Main:
+
+Loads the CSV data
+
+Runs the backtest
+
+Prints at the end:
+
+final cash balance
+
+number of trades
+
+Critical architecture requirement:
+
+Design the code so that later the Option Snapshot can be extended with:
+
+implied volatility
+
+delta, gamma, vega
+
+Strategies must be able to run in both price-only mode and Greeks-enabled mode without rewriting the backtest engine
+
+Do not oversimplify the logic.
+The goal is a real options research engine, not a demo.
