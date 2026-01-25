@@ -358,10 +358,16 @@ export function StrikeLadder({
             >
               {(hasClosing ? remainingQty : quantity) > 1 && (
                 <div 
-                  className="absolute -top-2.5 -right-2.5 text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-10"
+                  className={`absolute text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-10 ${position === 'long' ? '-top-2.5 -right-2.5' : '-bottom-2.5 -right-2.5'}`}
                 >
                   x{hasClosing ? remainingQty : quantity}
                 </div>
+              )}
+              {position === 'short' && (
+                <div 
+                  className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent"
+                  style={{ borderBottomColor: isExcluded ? '#64748b' : openBgColor }}
+                />
               )}
               <div
                 className={`text-[14px] h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center ${isExcluded ? 'line-through bg-slate-500' : ''}`}
@@ -372,11 +378,12 @@ export function StrikeLadder({
               >
                 {strikeText}
               </div>
-              <div className="h-1" />
-              <div 
-                className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
-                style={{ borderTopColor: isExcluded ? '#64748b' : openBgColor }}
-              />
+              {position === 'long' && (
+                <div 
+                  className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
+                  style={{ borderTopColor: isExcluded ? '#64748b' : openBgColor }}
+                />
+              )}
             </button>
           </div>
         </PopoverTrigger>
@@ -471,10 +478,16 @@ export function StrikeLadder({
             >
               {entry.quantity > 1 && (
                 <div 
-                  className="absolute -top-2.5 -right-2.5 text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-10"
+                  className={`absolute text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-10 ${position === 'long' ? '-top-2.5 -right-2.5' : '-bottom-2.5 -right-2.5'}`}
                 >
                   x{entry.quantity}
                 </div>
+              )}
+              {position === 'short' && (
+                <div 
+                  className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent"
+                  style={{ borderBottomColor: isExcluded ? '#64748b' : closedBgColor }}
+                />
               )}
               <div
                 className={`text-[14px] h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
@@ -486,11 +499,12 @@ export function StrikeLadder({
                 {strikeText}
                 <Check className="h-3 w-3" />
               </div>
-              <div className="h-1" />
-              <div 
-                className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
-                style={{ borderTopColor: isExcluded ? '#64748b' : closedBgColor }}
-              />
+              {position === 'long' && (
+                <div 
+                  className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
+                  style={{ borderTopColor: isExcluded ? '#64748b' : closedBgColor }}
+                />
+              )}
             </button>
           </div>
         </PopoverTrigger>
