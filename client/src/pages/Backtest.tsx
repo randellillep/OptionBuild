@@ -80,8 +80,8 @@ function getDefaultLeg(): BacktestLegConfig {
     direction: "sell",
     optionType: "put",
     quantity: 1,
-    strikeSelection: "delta",
-    strikeValue: 30,
+    strikeSelection: "percentOTM",
+    strikeValue: 5,
     dte: 45,
   };
 }
@@ -344,7 +344,7 @@ function LegConfig({
         <div className="flex items-center gap-1 bg-muted rounded-md h-8">
           <Input
             type="number"
-            step={leg.strikeSelection === "delta" ? 1 : 1}
+            step={leg.strikeSelection === "percentOTM" ? 0.5 : 1}
             value={leg.strikeValue}
             onChange={(e) => onChange({ ...leg, strikeValue: parseFloat(e.target.value) || 0 })}
             className="h-7 w-12 border-0 bg-transparent p-0 text-center text-sm font-medium"
@@ -356,12 +356,10 @@ function LegConfig({
           >
             <SelectTrigger className="h-7 w-12 border-0 bg-transparent px-1" data-testid={`select-leg-${index}-strike`}>
               <span className="text-xs">
-                {leg.strikeSelection === "delta" ? "\u0394" : 
-                 leg.strikeSelection === "percentOTM" ? "%" : "$"}
+                {leg.strikeSelection === "percentOTM" ? "%" : "$"}
               </span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="delta">\u0394 Delta</SelectItem>
               <SelectItem value="percentOTM">% OTM</SelectItem>
               <SelectItem value="priceOffset">$ Offset</SelectItem>
             </SelectContent>
@@ -1030,9 +1028,7 @@ function BacktestResults({
                     <span className="font-medium">{leg.quantity}</span>
                     <span>{leg.optionType}</span>
                     <span className="text-muted-foreground">
-                      {leg.strikeSelection === "delta" ? `${(leg.strikeValue * 100).toFixed(0)} \u0394` :
-                       leg.strikeSelection === "percentOTM" ? `${leg.strikeValue}% OTM` :
-                       `$${leg.strikeValue}`}
+                      {leg.strikeSelection === "percentOTM" ? `${leg.strikeValue}% OTM` : `$${leg.strikeValue}`}
                     </span>
                     <span className="font-medium">{leg.dte} DTE</span>
                   </div>

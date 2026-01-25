@@ -209,8 +209,8 @@ export interface BacktestResult {
 // TASTYWORKS-STYLE BACKTESTING SYSTEM
 // ============================================
 
-// Strike selection method for backtesting
-export type StrikeSelectionMethod = "delta" | "percentOTM" | "priceOffset" | "premium";
+// Strike selection method for backtesting (price-based only - no Greeks)
+export type StrikeSelectionMethod = "percentOTM" | "priceOffset";
 
 // Entry frequency options
 export type EntryFrequency = "everyDay" | "specificDays" | "exactDTE";
@@ -228,7 +228,7 @@ export interface BacktestLegConfig {
   optionType: "call" | "put";
   quantity: number;
   strikeSelection: StrikeSelectionMethod;
-  strikeValue: number;           // Delta value (0-100), % OTM (0-100), price offset ($), or premium ($)
+  strikeValue: number;           // % OTM (0-50) or price offset ($)
   dte: number;                   // Days to expiration target
   linkedToLegId?: string;        // For linked legs (same expiration/strike offset)
 }

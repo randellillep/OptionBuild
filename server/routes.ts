@@ -830,7 +830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     direction: z.enum(["buy", "sell"]),
     optionType: z.enum(["call", "put"]),
     quantity: z.number().int().positive(),
-    strikeSelection: z.enum(["delta", "percentOTM", "priceOffset", "premium"]),
+    strikeSelection: z.enum(["percentOTM", "priceOffset"]),
     strikeValue: z.number(),
     dte: z.number().int().positive(),
     linkedToLegId: z.string().optional(),
@@ -879,13 +879,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate strike values based on selection method
       for (const leg of config.legs) {
-        if (leg.strikeSelection === "delta") {
-          // Delta can be 0-1 (fractional) or 1-100 (percentage)
-          // After normalization in backend, must be <= 1 (100%)
-          const normalizedDelta = leg.strikeValue > 1 ? leg.strikeValue / 100 : leg.strikeValue;
-          if (normalizedDelta < 0.01 || normalizedDelta > 1) {
+        if (leg.strikeSelection === "percentOTM") {
+          // % OTM should be between 0 and 50
+          if (leg.strikeValue < 0 || leg.strikeValue > 50) {
             return res.status(400).json({ 
-              error: `Invalid delta value ${leg.strikeValue}. Use 0.01-1.0 (fractional) or 1-100 (percentage).` 
+              error: `Invalid % OTM value ${leg.strikeValue}. Use 0-50%.` 
+            });
+          }
+        } else if (leg.strikeSelection === "priceOffset") {
+          // Price offset should be positive
+          if (leg.strikeValue < 0) {
+            return res.status(400).json({ 
+              error: `Invalid price offset ${leg.strikeValue}. Use a positive value.` 
             });
           }
         }
