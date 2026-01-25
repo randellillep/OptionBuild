@@ -558,18 +558,14 @@ export function StrikeLadder({
         className="relative h-28 cursor-grab active:cursor-grabbing mt-4"
         onPointerDown={handleLadderPointerDown}
       >
-        <div className="absolute inset-x-0 top-[calc(50%-8px)] h-px bg-muted-foreground/30" />
-        <div className="absolute inset-x-0 top-[calc(50%+8px)] h-px bg-muted-foreground/30" />
+        <div className="absolute inset-x-0 top-[calc(50%-8px)] h-px bg-foreground/20" />
+        <div className="absolute inset-x-0 top-[calc(50%+8px)] h-px bg-foreground/20" />
         
         {currentPricePercent >= 0 && currentPricePercent <= 100 && (
           <div 
-            className="absolute top-0 bottom-0 w-px bg-primary/70"
+            className="absolute top-0 bottom-0 w-px bg-primary"
             style={{ left: `${currentPricePercent}%` }}
-          >
-            <div className="absolute top-[calc(50%-20px)] left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
-              ${currentPrice.toFixed(2)}
-            </div>
-          </div>
+          />
         )}
 
         {allStrikes.map(strike => {
@@ -585,15 +581,15 @@ export function StrikeLadder({
               style={{ left: `${percent}%` }}
             >
               <div 
-                className="absolute -translate-x-1/2 w-px bg-muted-foreground/40"
+                className="absolute -translate-x-1/2 w-px bg-foreground/20"
                 style={{ top: '-8px', height: isLabeled ? '6px' : '4px' }}
               />
               <div 
-                className="absolute -translate-x-1/2 w-px bg-muted-foreground/40"
+                className="absolute -translate-x-1/2 w-px bg-foreground/20"
                 style={{ bottom: '-8px', height: isLabeled ? '6px' : '4px' }}
               />
               {isLabeled && (
-                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[10px] font-medium text-foreground/80 whitespace-nowrap">
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-medium text-foreground/50 whitespace-nowrap">
                   {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
                 </div>
               )}
