@@ -3,7 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { OptionDetailsPanel } from "@/components/OptionDetailsPanel";
 import type { OptionLeg, ClosingEntry } from "@shared/schema";
 import { calculateOptionPrice, calculateImpliedVolatility } from "@/lib/options-pricing";
-import { Check, ChevronDown } from "lucide-react";
+import { Check } from "lucide-react";
 
 interface StrikeLadderProps {
   legs: OptionLeg[];
@@ -42,10 +42,10 @@ export function StrikeLadder({
   const [isClosedBadgeClick, setIsClosedBadgeClick] = useState(false);
   const [draggedLeg, setDraggedLeg] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [scrollOffset, setScrollOffset] = useState(0);
-  const [isDraggingLadder, setIsDraggingLadder] = useState(false);
-  const [dragStartY, setDragStartY] = useState(0);
-  const [dragStartOffset, setDragStartOffset] = useState(0);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panOffset, setPanOffset] = useState(0);
+  const [panStartX, setPanStartX] = useState(0);
+  const [panStartOffset, setPanStartOffset] = useState(0);
   const ladderRef = useRef<HTMLDivElement>(null);
 
   const strikeIncrement = useMemo(() => {
@@ -78,39 +78,71 @@ export function StrikeLadder({
     return 10;
   }, [availableStrikes, currentPrice]);
 
-  const visibleStrikes = useMemo(() => {
+  const baseRange = strikeRange.max - strikeRange.min;
+  const panAdjustment = (panOffset / 100) * baseRange;
+  const adjustedMin = strikeRange.min + panAdjustment;
+  const adjustedMax = strikeRange.max + panAdjustment;
+  const range = adjustedMax - adjustedMin;
+
+  const getLabelInterval = () => {
+    const strikesInView = range / strikeIncrement;
+    if (strikesInView <= 10) return 1;
+    if (strikesInView <= 20) return 2;
+    if (strikesInView <= 40) return 4;
+    if (strikesInView <= 80) return 8;
+    return Math.ceil(strikesInView / 10);
+  };
+
+  const labelInterval = getLabelInterval();
+
+  const generateLabeledStrikes = () => {
     if (availableStrikes && availableStrikes.strikes.length > 0) {
-      return availableStrikes.strikes.filter(
-        s => s >= strikeRange.min && s <= strikeRange.max
-      ).sort((a, b) => b - a);
+      const strikesInRange = availableStrikes.strikes.filter(
+        s => s >= adjustedMin && s <= adjustedMax
+      );
+      if (labelInterval > 1) {
+        return strikesInRange.filter((_, i) => i % labelInterval === 0);
+      }
+      return strikesInRange;
     }
     
     const strikes: number[] = [];
-    const start = Math.ceil(strikeRange.min / strikeIncrement) * strikeIncrement;
-    for (let strike = start; strike <= strikeRange.max; strike += strikeIncrement) {
+    const displayIncrement = strikeIncrement * labelInterval;
+    const start = Math.ceil(adjustedMin / displayIncrement) * displayIncrement;
+    for (let strike = start; strike <= adjustedMax; strike += displayIncrement) {
       strikes.push(Number(strike.toFixed(2)));
     }
-    return strikes.sort((a, b) => b - a);
-  }, [availableStrikes, strikeRange, strikeIncrement]);
+    return strikes;
+  };
 
-  const displayStrikes = useMemo(() => {
-    const totalStrikes = visibleStrikes.length;
-    if (totalStrikes <= 15) return visibleStrikes;
-    
-    const interval = Math.ceil(totalStrikes / 15);
-    return visibleStrikes.filter((_, i) => i % interval === 0);
-  }, [visibleStrikes]);
+  const labeledStrikes = generateLabeledStrikes();
 
-  const getStrikeFromY = (clientY: number): number | null => {
+  const getStrikePosition = (strike: number) => {
+    return ((strike - adjustedMin) / range) * 100;
+  };
+
+  const getStrikeFromPosition = (clientX: number) => {
     if (!ladderRef.current) return null;
+    
     const rect = ladderRef.current.getBoundingClientRect();
-    const y = clientY - rect.top + scrollOffset;
-    const strikeHeight = 36;
-    const index = Math.floor(y / strikeHeight);
-    if (index >= 0 && index < displayStrikes.length) {
-      return displayStrikes[index];
+    const x = clientX - rect.left;
+    const percent = (x / rect.width) * 100;
+    const rawStrike = adjustedMin + (percent / 100) * range;
+    
+    if (availableStrikes && availableStrikes.strikes.length > 0) {
+      const clampedStrike = Math.max(
+        availableStrikes.min, 
+        Math.min(availableStrikes.max, rawStrike)
+      );
+      const nearest = availableStrikes.strikes.reduce((prev, curr) => 
+        Math.abs(curr - clampedStrike) < Math.abs(prev - clampedStrike) ? curr : prev
+      );
+      return nearest;
     }
-    return null;
+    
+    const clampedRaw = Math.max(strikeRange.min, Math.min(strikeRange.max, rawStrike));
+    const snapped = Math.round(clampedRaw / strikeIncrement) * strikeIncrement;
+    return Math.max(strikeRange.min, Math.min(strikeRange.max, Number(snapped.toFixed(2))));
   };
 
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
@@ -139,16 +171,16 @@ export function StrikeLadder({
 
     const handlePointerMove = (e: PointerEvent) => {
       e.preventDefault();
-      const newStrike = getStrikeFromY(e.clientY);
+      const newStrike = getStrikeFromPosition(e.clientX);
       if (newStrike !== null) {
         const leg = legs.find(l => l.id === draggedLeg);
-        if (!leg || leg.type === "stock") return;
+        if (!leg) return;
+        if (leg.type === "stock") return;
         if (leg.strike === newStrike) return;
 
         const optionType = leg.type as "call" | "put";
         let marketPrice: number | undefined;
         let marketIV: number | undefined;
-        
         if (optionsChainData?.quotes) {
           const matchingQuote = optionsChainData.quotes.find(
             (q: any) => q.strike === newStrike && q.side.toLowerCase() === optionType
@@ -161,7 +193,13 @@ export function StrikeLadder({
             }
             const effectiveDTE = Math.max(0.5, leg.expirationDays || 1);
             if (marketPrice !== undefined && marketPrice > 0) {
-              marketIV = calculateImpliedVolatility(optionType, currentPrice, newStrike, effectiveDTE, marketPrice);
+              marketIV = calculateImpliedVolatility(
+                optionType,
+                currentPrice,
+                newStrike,
+                effectiveDTE,
+                marketPrice
+              );
             } else if (matchingQuote.iv !== undefined && matchingQuote.iv > 0) {
               marketIV = matchingQuote.iv;
             }
@@ -178,7 +216,13 @@ export function StrikeLadder({
             costBasisLocked: true,
           });
         } else {
-          const theoreticalPremium = calculateOptionPrice(optionType, currentPrice, newStrike, leg.expirationDays, volatility);
+          const theoreticalPremium = calculateOptionPrice(
+            optionType,
+            currentPrice,
+            newStrike,
+            leg.expirationDays,
+            volatility
+          );
           onUpdateLeg(draggedLeg, { 
             strike: newStrike,
             premium: theoreticalPremium,
@@ -203,21 +247,29 @@ export function StrikeLadder({
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [isDragging, draggedLeg, legs, optionsChainData, onUpdateLeg, currentPrice, volatility, displayStrikes]);
+  }, [isDragging, draggedLeg, legs, optionsChainData, onUpdateLeg, currentPrice, volatility]);
 
   useEffect(() => {
-    if (!isDraggingLadder) return;
+    if (!isPanning) return;
 
     const handlePointerMove = (e: PointerEvent) => {
       e.preventDefault();
-      const deltaY = e.clientY - dragStartY;
-      const newOffset = dragStartOffset - deltaY;
-      const maxOffset = Math.max(0, displayStrikes.length * 36 - 300);
-      setScrollOffset(Math.max(0, Math.min(maxOffset, newOffset)));
+      if (!ladderRef.current) return;
+      
+      const rect = ladderRef.current.getBoundingClientRect();
+      const deltaX = e.clientX - panStartX;
+      const deltaPercent = (deltaX / rect.width) * 100;
+      const newOffset = panStartOffset - deltaPercent;
+      
+      const edgeMargin = 10;
+      const maxPan = ((currentPrice - strikeRange.min) / baseRange - edgeMargin/100) * 100;
+      const minPan = ((currentPrice - strikeRange.max) / baseRange + edgeMargin/100) * 100;
+      
+      setPanOffset(Math.max(minPan, Math.min(maxPan, newOffset)));
     };
 
     const handlePointerUp = () => {
-      setIsDraggingLadder(false);
+      setIsPanning(false);
     };
 
     document.addEventListener('pointermove', handlePointerMove);
@@ -227,39 +279,53 @@ export function StrikeLadder({
       document.removeEventListener('pointermove', handlePointerMove);
       document.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [isDraggingLadder, dragStartY, dragStartOffset, displayStrikes.length]);
+  }, [isPanning, panStartX, panStartOffset, currentPrice, strikeRange, baseRange]);
+
+  const currentPricePercent = getStrikePosition(currentPrice);
 
   const handleLadderPointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
     e.preventDefault();
-    setIsDraggingLadder(true);
-    setDragStartY(e.clientY);
-    setDragStartOffset(scrollOffset);
+    setIsPanning(true);
+    setPanStartX(e.clientX);
+    setPanStartOffset(panOffset);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
-  const callLegs = legs.filter(l => l.type === "call" && l.quantity > 0);
-  const putLegs = legs.filter(l => l.type === "put" && l.quantity > 0);
-
-  const getLegsAtStrike = (strike: number, type: "call" | "put") => {
-    return legs.filter(l => l.type === type && l.strike === strike && l.quantity > 0);
-  };
-
-  const renderOptionBadge = (leg: OptionLeg, side: "call" | "put") => {
+  const renderOpenBadge = (leg: OptionLeg, position: 'long' | 'short', verticalOffset: number = 0) => {
+    if (leg.quantity <= 0) return null;
+    
+    const isCall = leg.type === "call";
     const isExcluded = leg.isExcluded;
     const hasClosing = leg.closingTransaction?.isEnabled;
     const closingQty = hasClosing 
-      ? (leg.closingTransaction?.entries?.reduce((sum, e) => sum + e.quantity, 0) || leg.closingTransaction?.quantity || 0)
+      ? (leg.closingTransaction?.entries && leg.closingTransaction.entries.length > 0
+          ? leg.closingTransaction.entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (leg.closingTransaction?.quantity || 0))
       : 0;
-    const remainingQty = leg.quantity - closingQty;
+    const quantity = leg.quantity;
+    const remainingQty = quantity - closingQty;
     
     if (hasClosing && remainingQty <= 0) return null;
-
+    
+    const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
+    const rawPositionPercent = getStrikePosition(leg.strike);
+    const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
+    const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
     const isBeingDragged = draggedLeg === leg.id;
     const canDrag = !isExcluded;
     
-    const bgColor = side === "call" 
-      ? (leg.position === "long" ? "#35B534" : "#1a7a18")
-      : (leg.position === "long" ? "#B5312B" : "#8a2420");
+    const openBgColor = isCall ? '#35B534' : '#B5312B';
+    
+    const badgeHeight = 28;
+    const stackOffset = verticalOffset * (badgeHeight + 4);
+    const topPosition = position === 'long' 
+      ? `calc(50% - ${badgeHeight + 8}px - ${stackOffset}px)`
+      : `calc(50% + 8px + ${stackOffset}px)`;
+
+    const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
     return (
       <Popover 
@@ -274,30 +340,49 @@ export function StrikeLadder({
         modal={false}
       >
         <PopoverTrigger asChild>
-          <button
-            onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
-            onClick={(e) => handleBadgeClick(leg, e, false)}
-            data-testid={`badge-${leg.type}-${leg.position}-${leg.strike.toFixed(0)}`}
-            className={`relative flex flex-col items-center ${isBeingDragged ? 'scale-110 z-50' : ''} ${canDrag ? 'cursor-grab' : 'cursor-pointer'} ${isExcluded ? 'opacity-50' : ''}`}
-            style={{ touchAction: 'none' }}
+          <div
+            className="absolute"
+            style={{
+              left: `${positionPercent}%`,
+              transform: 'translateX(-50%)',
+              top: topPosition,
+              opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
+            }}
           >
-            <div 
-              className={`px-2 py-1 rounded text-[10px] font-bold text-white shadow-sm ${isExcluded ? 'line-through' : ''}`}
-              style={{ backgroundColor: isExcluded ? '#64748b' : bgColor }}
+            <button
+              onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
+              onClick={(e) => handleBadgeClick(leg, e, false)}
+              data-testid={testId}
+              className={`relative flex flex-col items-center ${isBeingDragged ? 'scale-110 z-50' : ''} ${canDrag ? 'cursor-grab' : 'cursor-pointer'}`}
+              style={{ touchAction: 'none' }}
             >
-              <span className="mr-1">{leg.position === "long" ? "+" : "-"}{hasClosing ? remainingQty : leg.quantity}</span>
-              <span>{side === "call" ? "C" : "P"}</span>
-            </div>
-            <ChevronDown className="w-3 h-3 text-muted-foreground -mt-0.5" />
-          </button>
+              <div
+                className={`text-[11px] h-7 px-2.5 text-white font-bold whitespace-nowrap rounded-md flex items-center ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                style={{ 
+                  backgroundColor: isExcluded ? undefined : openBgColor,
+                  boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
+                }}
+              >
+                {strikeText}
+                <span className="ml-1.5 text-[9px] opacity-80">
+                  {hasClosing ? remainingQty : (leg.position === 'short' ? `-${quantity}` : `+${quantity}`)}
+                </span>
+              </div>
+              <div 
+                className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent"
+                style={{ borderTopColor: isExcluded ? '#64748b' : openBgColor }}
+              />
+            </button>
+          </div>
         </PopoverTrigger>
         <PopoverContent 
           className="p-0 w-auto z-[9999]" 
           align="center" 
-          side={side === "call" ? "right" : "left"}
+          side="bottom" 
           sideOffset={10}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
+          style={{ pointerEvents: 'auto' }}
         >
           <OptionDetailsPanel
             leg={leg}
@@ -331,9 +416,24 @@ export function StrikeLadder({
     );
   };
 
-  const renderClosedBadge = (leg: OptionLeg, entry: ClosingEntry, side: "call" | "put") => {
+  const renderClosedEntryBadge = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', verticalOffset: number = 0) => {
+    const isCall = leg.type === "call";
     const isExcluded = entry.isExcluded;
-    const bgColor = side === "call" ? "#0f3d0d" : "#4d1511";
+    
+    const entryStrike = entry.strike;
+    const rawPositionPercent = getStrikePosition(entryStrike);
+    const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
+    const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
+    
+    const closedBgColor = isCall ? '#1a5a15' : '#6a211c';
+    
+    const badgeHeight = 28;
+    const stackOffset = verticalOffset * (badgeHeight + 4);
+    const topPosition = position === 'long'
+      ? `calc(50% + 8px + ${stackOffset}px)`
+      : `calc(50% + ${badgeHeight + 12 + stackOffset}px)`;
+
+    const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
     return (
       <Popover 
@@ -350,25 +450,42 @@ export function StrikeLadder({
         modal={false}
       >
         <PopoverTrigger asChild>
-          <button
-            onClick={(e) => handleBadgeClick(leg, e, true, entry.id)}
-            data-testid={`badge-closed-${entry.id}`}
-            className={`relative flex flex-col items-center cursor-pointer ${isExcluded ? 'opacity-50' : ''}`}
+          <div
+            className="absolute"
+            style={{
+              left: `${positionPercent}%`,
+              transform: 'translateX(-50%)',
+              top: topPosition,
+              opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
+            }}
           >
-            <div 
-              className={`px-2 py-1 rounded text-[10px] font-bold text-white shadow-sm flex items-center gap-1 ${isExcluded ? 'line-through' : ''}`}
-              style={{ backgroundColor: isExcluded ? '#64748b' : bgColor }}
+            <button
+              onClick={(e) => handleBadgeClick(leg, e, true, entry.id)}
+              className="relative flex flex-col items-center cursor-pointer"
+              data-testid={`badge-closed-${entry.id}`}
             >
-              <span>{entry.quantity}</span>
-              <Check className="w-3 h-3" />
-            </div>
-            <ChevronDown className="w-3 h-3 text-muted-foreground -mt-0.5" />
-          </button>
+              <div
+                className={`text-[11px] h-7 px-2.5 text-white font-bold whitespace-nowrap rounded-md flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                style={{ 
+                  backgroundColor: isExcluded ? undefined : closedBgColor,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                }}
+              >
+                {strikeText}
+                <Check className="h-3 w-3" />
+                <span className="text-[9px] opacity-80">{entry.quantity}</span>
+              </div>
+              <div 
+                className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent"
+                style={{ borderTopColor: isExcluded ? '#64748b' : closedBgColor }}
+              />
+            </button>
+          </div>
         </PopoverTrigger>
         <PopoverContent 
           className="p-0 w-auto z-[9999]" 
           align="center" 
-          side={side === "call" ? "right" : "left"}
+          side="bottom"
           sideOffset={10}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
@@ -404,80 +521,82 @@ export function StrikeLadder({
     );
   };
 
+  const groupedLegs = useMemo(() => {
+    const groups: { [key: string]: { long: OptionLeg[], short: OptionLeg[] } } = {};
+    
+    legs.forEach(leg => {
+      if (leg.type === "stock") return;
+      const key = `${leg.strike}-${leg.type}`;
+      if (!groups[key]) {
+        groups[key] = { long: [], short: [] };
+      }
+      if (leg.position === 'long') {
+        groups[key].long.push(leg);
+      } else {
+        groups[key].short.push(leg);
+      }
+    });
+    
+    return groups;
+  }, [legs]);
+
   return (
     <div className="w-full select-none">
       <div 
         ref={ladderRef}
-        className="relative overflow-hidden cursor-grab active:cursor-grabbing"
-        style={{ height: '320px' }}
+        className="relative h-32 cursor-grab active:cursor-grabbing"
         onPointerDown={handleLadderPointerDown}
       >
-        <div 
-          className="absolute inset-x-0"
-          style={{ 
-            transform: `translateY(-${scrollOffset}px)`,
-            transition: isDraggingLadder ? 'none' : 'transform 0.1s ease-out'
-          }}
-        >
-          {displayStrikes.map((strike, index) => {
-            const isCurrentPrice = Math.abs(strike - currentPrice) < strikeIncrement / 2;
-            const putsAtStrike = getLegsAtStrike(strike, "put");
-            const callsAtStrike = getLegsAtStrike(strike, "call");
-            
-            return (
-              <div 
-                key={strike}
-                className={`flex items-center h-9 ${isCurrentPrice ? 'bg-accent/30' : ''}`}
-              >
-                <div className="flex-1 flex justify-end items-center gap-1 pr-2 min-w-0">
-                  {putsAtStrike.map(leg => (
-                    <div key={leg.id} className="flex flex-col items-center">
-                      {renderOptionBadge(leg, "put")}
-                      {leg.closingTransaction?.entries?.map(entry => 
-                        entry.strike === strike && renderClosedBadge(leg, entry, "put")
-                      )}
-                    </div>
-                  ))}
-                </div>
-                
-                <div 
-                  className={`w-16 text-center text-xs font-medium py-1 flex-shrink-0 ${
-                    isCurrentPrice 
-                      ? 'text-foreground font-bold' 
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2)}
-                  {isCurrentPrice && (
-                    <div className="text-[9px] text-primary font-normal">SPOT</div>
-                  )}
-                </div>
-                
-                <div className="flex-1 flex justify-start items-center gap-1 pl-2 min-w-0">
-                  {callsAtStrike.map(leg => (
-                    <div key={leg.id} className="flex flex-col items-center">
-                      {renderOptionBadge(leg, "call")}
-                      {leg.closingTransaction?.entries?.map(entry => 
-                        entry.strike === strike && renderClosedBadge(leg, entry, "call")
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
         
-        <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-background to-transparent pointer-events-none z-10" />
-        <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent pointer-events-none z-10" />
+        {currentPricePercent >= 0 && currentPricePercent <= 100 && (
+          <div 
+            className="absolute top-0 bottom-0 w-px bg-primary/60"
+            style={{ left: `${currentPricePercent}%` }}
+          >
+            <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
+              ${currentPrice.toFixed(2)}
+            </div>
+          </div>
+        )}
+
+        {labeledStrikes.map(strike => {
+          const percent = getStrikePosition(strike);
+          if (percent < 0 || percent > 100) return null;
+          
+          return (
+            <div 
+              key={strike}
+              className="absolute top-1/2 -translate-y-1/2"
+              style={{ left: `${percent}%` }}
+            >
+              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-2 w-px bg-muted-foreground/30" />
+              <div className="absolute top-[calc(50%+8px)] -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap">
+                {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
+              </div>
+            </div>
+          );
+        })}
+
+        {Object.entries(groupedLegs).map(([key, { long, short }]) => (
+          <div key={key}>
+            {long.map((leg, i) => renderOpenBadge(leg, 'long', i))}
+            {short.map((leg, i) => renderOpenBadge(leg, 'short', i))}
+            {long.concat(short).map(leg => 
+              leg.closingTransaction?.entries?.map((entry, i) => 
+                renderClosedEntryBadge(leg, entry, leg.position as 'long' | 'short', i)
+              )
+            )}
+          </div>
+        ))}
       </div>
-      
-      <div className="flex justify-center gap-4 mt-2 text-[10px] text-muted-foreground">
-        <div className="flex items-center gap-1">
+
+      <div className="flex justify-center gap-6 mt-4 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded" style={{ backgroundColor: '#B5312B' }} />
           <span>Puts</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded" style={{ backgroundColor: '#35B534' }} />
           <span>Calls</span>
         </div>
