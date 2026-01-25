@@ -558,8 +558,8 @@ export function StrikeLadder({
         className="relative h-28 cursor-grab active:cursor-grabbing mt-4"
         onPointerDown={handleLadderPointerDown}
       >
-        <div className="absolute inset-x-0 top-[calc(50%-8px)] h-px bg-foreground/20" />
-        <div className="absolute inset-x-0 top-[calc(50%+8px)] h-px bg-foreground/20" />
+        <div className="absolute inset-x-0 top-[calc(50%-10px)] h-px bg-foreground/40" />
+        <div className="absolute inset-x-0 top-[calc(50%+10px)] h-px bg-foreground/40" />
         
         {currentPricePercent >= 0 && currentPricePercent <= 100 && (
           <div 
@@ -581,15 +581,15 @@ export function StrikeLadder({
               style={{ left: `${percent}%` }}
             >
               <div 
-                className="absolute -translate-x-1/2 w-px bg-foreground/20"
-                style={{ top: '-8px', height: isLabeled ? '6px' : '4px' }}
+                className="absolute -translate-x-1/2 w-px bg-foreground/60"
+                style={{ top: '-10px', height: isLabeled ? '8px' : '5px' }}
               />
               <div 
-                className="absolute -translate-x-1/2 w-px bg-foreground/20"
-                style={{ bottom: '-8px', height: isLabeled ? '6px' : '4px' }}
+                className="absolute -translate-x-1/2 w-px bg-foreground/60"
+                style={{ bottom: '-10px', height: isLabeled ? '8px' : '5px' }}
               />
               {isLabeled && (
-                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[11px] font-medium text-foreground/50 whitespace-nowrap">
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-xs font-semibold text-foreground/90 whitespace-nowrap">
                   {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
                 </div>
               )}
