@@ -42,6 +42,7 @@ export function StrikeLadder({
   const [isClosedBadgeClick, setIsClosedBadgeClick] = useState(false);
   const [draggedLeg, setDraggedLeg] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const draggedLegRef = useRef<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState(0);
   const [panStartX, setPanStartX] = useState(0);
@@ -148,6 +149,7 @@ export function StrikeLadder({
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    draggedLegRef.current = leg.id;
     setDraggedLeg(leg.id);
     setIsDragging(true);
     try {
@@ -237,6 +239,7 @@ export function StrikeLadder({
 
     const handlePointerUp = () => {
       setIsDragging(false);
+      draggedLegRef.current = null;
       setTimeout(() => setDraggedLeg(null), 100);
     };
 
@@ -348,12 +351,12 @@ export function StrikeLadder({
               top: topPosition,
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
               zIndex: isBeingDragged ? 9999 : 10,
-              pointerEvents: isDragging && !isBeingDragged ? 'none' : 'auto',
+              pointerEvents: (isDragging || draggedLegRef.current) && !isBeingDragged ? 'none' : 'auto',
             }}
           >
             <button
               onPointerDown={(e) => {
-                if (canDrag && !isDragging) {
+                if (canDrag && !isDragging && !draggedLegRef.current) {
                   handleBadgePointerDown(leg, e);
                 }
               }}
@@ -481,7 +484,7 @@ export function StrikeLadder({
               onClick={(e) => handleBadgeClick(leg, e, true, entry.id)}
               className="relative flex flex-col items-center cursor-pointer"
               data-testid={`badge-closed-${entry.id}`}
-              style={{ pointerEvents: isDragging ? 'none' : 'auto' }}
+              style={{ pointerEvents: (isDragging || draggedLegRef.current) ? 'none' : 'auto' }}
             >
               {entry.quantity > 1 && (
                 <div 
