@@ -85,37 +85,34 @@ export function StrikeLadder({
   const range = adjustedMax - adjustedMin;
 
   const getLabelInterval = () => {
-    const strikesInView = range / strikeIncrement;
-    if (strikesInView <= 10) return 1;
-    if (strikesInView <= 20) return 2;
-    if (strikesInView <= 40) return 4;
-    if (strikesInView <= 80) return 8;
-    return Math.ceil(strikesInView / 10);
+    if (currentPrice < 50) return 5;
+    if (currentPrice < 100) return 10;
+    if (currentPrice < 500) return 10;
+    return 20;
   };
 
   const labelInterval = getLabelInterval();
 
-  const generateLabeledStrikes = () => {
+  const generateAllStrikes = () => {
     if (availableStrikes && availableStrikes.strikes.length > 0) {
-      const strikesInRange = availableStrikes.strikes.filter(
+      return availableStrikes.strikes.filter(
         s => s >= adjustedMin && s <= adjustedMax
       );
-      if (labelInterval > 1) {
-        return strikesInRange.filter((_, i) => i % labelInterval === 0);
-      }
-      return strikesInRange;
     }
     
     const strikes: number[] = [];
-    const displayIncrement = strikeIncrement * labelInterval;
-    const start = Math.ceil(adjustedMin / displayIncrement) * displayIncrement;
-    for (let strike = start; strike <= adjustedMax; strike += displayIncrement) {
+    const start = Math.ceil(adjustedMin / strikeIncrement) * strikeIncrement;
+    for (let strike = start; strike <= adjustedMax; strike += strikeIncrement) {
       strikes.push(Number(strike.toFixed(2)));
     }
     return strikes;
   };
 
-  const labeledStrikes = generateLabeledStrikes();
+  const allStrikes = generateAllStrikes();
+  
+  const shouldShowLabel = (strike: number) => {
+    return strike % labelInterval === 0;
+  };
 
   const getStrikePosition = (strike: number) => {
     return ((strike - adjustedMin) / range) * 100;
@@ -560,9 +557,11 @@ export function StrikeLadder({
           </div>
         )}
 
-        {labeledStrikes.map(strike => {
+        {allStrikes.map(strike => {
           const percent = getStrikePosition(strike);
           if (percent < 0 || percent > 100) return null;
+          
+          const isLabeled = shouldShowLabel(strike);
           
           return (
             <div 
@@ -570,10 +569,15 @@ export function StrikeLadder({
               className="absolute top-1/2 -translate-y-1/2"
               style={{ left: `${percent}%` }}
             >
-              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-2 w-px bg-muted-foreground/30" />
-              <div className="absolute top-[calc(50%+8px)] -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap">
-                {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
-              </div>
+              <div 
+                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-px ${isLabeled ? 'bg-muted-foreground/50' : 'bg-muted-foreground/25'}`}
+                style={{ height: isLabeled ? '12px' : '6px' }}
+              />
+              {isLabeled && (
+                <div className="absolute top-[calc(50%+10px)] -translate-x-1/2 text-[11px] font-medium text-foreground/70 whitespace-nowrap">
+                  {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
+                </div>
+              )}
             </div>
           );
         })}
