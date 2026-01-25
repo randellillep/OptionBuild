@@ -562,22 +562,18 @@ export function StrikeLadder({
     const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
     
     const levels: { [legId: string]: number } = {};
-    const badgeWidthPercent = 8;
+    const badgeWidthInStrikes = 12;
     
     const assignLevels = (sortedLegs: OptionLeg[]) => {
-      const occupiedRanges: { left: number; right: number; level: number }[] = [];
+      const occupiedStrikes: { center: number; level: number }[] = [];
       
       sortedLegs.forEach(leg => {
-        const percent = ((leg.strike - strikeRange.min) / (strikeRange.max - strikeRange.min)) * 100;
-        const left = percent - badgeWidthPercent / 2;
-        const right = percent + badgeWidthPercent / 2;
-        
         let level = 0;
         let foundLevel = false;
         
         while (!foundLevel) {
-          const hasOverlap = occupiedRanges.some(range => 
-            range.level === level && !(right < range.left || left > range.right)
+          const hasOverlap = occupiedStrikes.some(occupied => 
+            occupied.level === level && Math.abs(leg.strike - occupied.center) < badgeWidthInStrikes
           );
           
           if (!hasOverlap) {
@@ -588,7 +584,7 @@ export function StrikeLadder({
         }
         
         levels[leg.id] = level;
-        occupiedRanges.push({ left, right, level });
+        occupiedStrikes.push({ center: leg.strike, level });
       });
     };
     
@@ -596,7 +592,7 @@ export function StrikeLadder({
     assignLevels(shortLegs);
     
     return levels;
-  }, [legs, strikesKey, strikeRange.min, strikeRange.max]);
+  }, [legs, strikesKey]);
 
   return (
     <div className="w-full select-none relative">
