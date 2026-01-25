@@ -42,6 +42,7 @@ export function StrikeLadder({
   const [isClosedBadgeClick, setIsClosedBadgeClick] = useState(false);
   const [draggedLeg, setDraggedLeg] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [draggedStrikePosition, setDraggedStrikePosition] = useState<number | null>(null);
   const draggedLegRef = useRef<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState(0);
@@ -175,6 +176,7 @@ export function StrikeLadder({
       e.preventDefault();
       const newStrike = getStrikeFromPosition(e.clientX);
       if (newStrike !== null) {
+        setDraggedStrikePosition(newStrike);
         const leg = legs.find(l => l.id === draggedLeg);
         if (!leg) return;
         if (leg.type === "stock") return;
@@ -241,6 +243,7 @@ export function StrikeLadder({
       setIsDragging(false);
       draggedLegRef.current = null;
       setDraggedLeg(null);
+      setDraggedStrikePosition(null);
     };
 
     document.addEventListener('pointermove', handlePointerMove);
@@ -353,6 +356,7 @@ export function StrikeLadder({
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
               zIndex: isBeingDragged ? 9999 : 10,
               pointerEvents: (isDragging || draggedLegRef.current) && !isBeingDragged ? 'none' : 'auto',
+              transition: isBeingDragged ? 'none' : 'top 0.15s ease-out',
             }}
           >
             <button
@@ -479,6 +483,7 @@ export function StrikeLadder({
               transform: 'translateX(-50%)',
               top: topPosition,
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
+              transition: 'top 0.15s ease-out',
             }}
           >
             <button
@@ -568,10 +573,21 @@ export function StrikeLadder({
     const levels: { [legId: string]: number } = {};
     const badgeWidthInStrikes = 12;
     
-    const assignLevels = (sortedLegs: OptionLeg[]) => {
-      const occupiedStrikes: { center: number; level: number }[] = [];
+    const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
+    const draggedLegPosition = draggedLegData?.position;
+    const effectiveDragStrike = draggedStrikePosition ?? draggedLegData?.strike;
+    
+    const assignLevels = (sortedLegs: OptionLeg[], positionType: 'long' | 'short') => {
+      const occupiedStrikes: { center: number; level: number; legId: string }[] = [];
+      
+      if (draggedLeg && draggedLegPosition === positionType && effectiveDragStrike !== undefined) {
+        occupiedStrikes.push({ center: effectiveDragStrike, level: 0, legId: draggedLeg });
+        levels[draggedLeg] = 0;
+      }
       
       sortedLegs.forEach(leg => {
+        if (leg.id === draggedLeg) return;
+        
         let level = 0;
         let foundLevel = false;
         
@@ -588,15 +604,15 @@ export function StrikeLadder({
         }
         
         levels[leg.id] = level;
-        occupiedStrikes.push({ center: leg.strike, level });
+        occupiedStrikes.push({ center: leg.strike, level, legId: leg.id });
       });
     };
     
-    assignLevels(longLegs);
-    assignLevels(shortLegs);
+    assignLevels(longLegs, 'long');
+    assignLevels(shortLegs, 'short');
     
     return levels;
-  }, [legs, strikesKey]);
+  }, [legs, strikesKey, draggedLeg, draggedStrikePosition]);
 
   return (
     <div className="w-full select-none relative">
