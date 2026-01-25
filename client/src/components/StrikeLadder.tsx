@@ -323,7 +323,8 @@ export function StrikeLadder({
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
     const badgeHeight = 28;
-    const stackOffset = verticalOffset * (badgeHeight + 4);
+    const effectiveOffset = isBeingDragged ? 0 : verticalOffset;
+    const stackOffset = effectiveOffset * (badgeHeight + 4);
     const topPosition = position === 'long' 
       ? `calc(50% - ${badgeHeight + 18}px - ${stackOffset}px)`
       : `calc(50% + 18px + ${stackOffset}px)`;
