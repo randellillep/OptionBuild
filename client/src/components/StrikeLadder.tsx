@@ -356,17 +356,22 @@ export function StrikeLadder({
               className={`relative flex flex-col items-center ${isBeingDragged ? 'scale-110 z-50' : ''} ${canDrag ? 'cursor-grab' : 'cursor-pointer'}`}
               style={{ touchAction: 'none' }}
             >
+              {(hasClosing ? remainingQty : quantity) > 1 && (
+                <div 
+                  className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white px-1 rounded-full"
+                  style={{ backgroundColor: isExcluded ? '#64748b' : openBgColor }}
+                >
+                  x{hasClosing ? remainingQty : quantity}
+                </div>
+              )}
               <div
-                className={`text-[11px] h-7 px-2.5 text-white font-bold whitespace-nowrap rounded-md flex items-center ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`text-[12px] h-7 px-2.5 text-white font-bold whitespace-nowrap rounded-md flex items-center ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
                   backgroundColor: isExcluded ? undefined : openBgColor,
                   boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
                 }}
               >
                 {strikeText}
-                <span className="ml-1.5 text-[9px] opacity-80">
-                  {hasClosing ? remainingQty : (leg.position === 'short' ? `-${quantity}` : `+${quantity}`)}
-                </span>
               </div>
               <div 
                 className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent"
@@ -464,8 +469,16 @@ export function StrikeLadder({
               className="relative flex flex-col items-center cursor-pointer"
               data-testid={`badge-closed-${entry.id}`}
             >
+              {entry.quantity > 1 && (
+                <div 
+                  className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white px-1 rounded-full"
+                  style={{ backgroundColor: isExcluded ? '#64748b' : closedBgColor }}
+                >
+                  x{entry.quantity}
+                </div>
+              )}
               <div
-                className={`text-[11px] h-7 px-2.5 text-white font-bold whitespace-nowrap rounded-md flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`text-[12px] h-7 px-2.5 text-white font-bold whitespace-nowrap rounded-md flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
                   backgroundColor: isExcluded ? undefined : closedBgColor,
                   boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
@@ -473,7 +486,6 @@ export function StrikeLadder({
               >
                 {strikeText}
                 <Check className="h-3 w-3" />
-                <span className="text-[9px] opacity-80">{entry.quantity}</span>
               </div>
               <div 
                 className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent"
@@ -558,9 +570,6 @@ export function StrikeLadder({
         className="relative h-28 cursor-grab active:cursor-grabbing mt-4"
         onPointerDown={handleLadderPointerDown}
       >
-        <div className="absolute inset-x-0 top-[calc(50%-10px)] h-px bg-foreground/40" />
-        <div className="absolute inset-x-0 top-[calc(50%+10px)] h-px bg-foreground/40" />
-        
         {currentPricePercent >= 0 && currentPricePercent <= 100 && (
           <div 
             className="absolute top-0 bottom-0 w-px bg-primary"
@@ -581,15 +590,15 @@ export function StrikeLadder({
               style={{ left: `${percent}%` }}
             >
               <div 
-                className="absolute -translate-x-1/2 w-px bg-foreground/60"
-                style={{ top: '-10px', height: isLabeled ? '8px' : '5px' }}
+                className="absolute -translate-x-1/2 w-px bg-foreground"
+                style={{ top: '-12px', height: isLabeled ? '10px' : '6px' }}
               />
               <div 
-                className="absolute -translate-x-1/2 w-px bg-foreground/60"
-                style={{ bottom: '-10px', height: isLabeled ? '8px' : '5px' }}
+                className="absolute -translate-x-1/2 w-px bg-foreground"
+                style={{ bottom: '-12px', height: isLabeled ? '10px' : '6px' }}
               />
               {isLabeled && (
-                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-xs font-semibold text-foreground/90 whitespace-nowrap">
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-sm font-semibold text-foreground whitespace-nowrap">
                   {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
                 </div>
               )}
