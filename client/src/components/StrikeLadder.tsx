@@ -322,8 +322,8 @@ export function StrikeLadder({
     const badgeHeight = 28;
     const stackOffset = verticalOffset * (badgeHeight + 4);
     const topPosition = position === 'long' 
-      ? `calc(50% - ${badgeHeight + 8}px - ${stackOffset}px)`
-      : `calc(50% + 8px + ${stackOffset}px)`;
+      ? `calc(50% - ${badgeHeight + 18}px - ${stackOffset}px)`
+      : `calc(50% + 18px + ${stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
@@ -442,8 +442,8 @@ export function StrikeLadder({
     const badgeHeight = 28;
     const stackOffset = verticalOffset * (badgeHeight + 4);
     const topPosition = position === 'long'
-      ? `calc(50% + 8px + ${stackOffset}px)`
-      : `calc(50% + ${badgeHeight + 12 + stackOffset}px)`;
+      ? `calc(50% - ${badgeHeight + 18}px - ${stackOffset}px)`
+      : `calc(50% + 18px + ${stackOffset}px)`;
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
