@@ -78,10 +78,13 @@ export function StrikeLadder({
     return 10;
   }, [availableStrikes, currentPrice]);
 
-  const baseRange = strikeRange.max - strikeRange.min;
+  const fullRange = strikeRange.max - strikeRange.min;
+  const zoomFactor = 0.5;
+  const baseRange = fullRange * zoomFactor;
+  const centerOffset = (fullRange - baseRange) / 2;
   const panAdjustment = (panOffset / 100) * baseRange;
-  const adjustedMin = strikeRange.min + panAdjustment;
-  const adjustedMax = strikeRange.max + panAdjustment;
+  const adjustedMin = strikeRange.min + centerOffset + panAdjustment;
+  const adjustedMax = strikeRange.max - centerOffset + panAdjustment;
   const range = adjustedMax - adjustedMin;
 
   const getLabelInterval = () => {
@@ -538,20 +541,32 @@ export function StrikeLadder({
   }, [legs]);
 
   return (
-    <div className="w-full select-none">
+    <div className="w-full select-none relative">
+      <div className="absolute top-0 right-0 flex items-center gap-3 text-[9px] text-muted-foreground z-10">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#B5312B' }} />
+          <span>Puts</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: '#35B534' }} />
+          <span>Calls</span>
+        </div>
+      </div>
+
       <div 
         ref={ladderRef}
-        className="relative h-32 cursor-grab active:cursor-grabbing"
+        className="relative h-28 cursor-grab active:cursor-grabbing mt-4"
         onPointerDown={handleLadderPointerDown}
       >
-        <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
+        <div className="absolute inset-x-0 top-[calc(50%-8px)] h-px bg-muted-foreground/30" />
+        <div className="absolute inset-x-0 top-[calc(50%+8px)] h-px bg-muted-foreground/30" />
         
         {currentPricePercent >= 0 && currentPricePercent <= 100 && (
           <div 
-            className="absolute top-0 bottom-0 w-px bg-primary/60"
+            className="absolute top-0 bottom-0 w-px bg-primary/70"
             style={{ left: `${currentPricePercent}%` }}
           >
-            <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
+            <div className="absolute top-[calc(50%-20px)] left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap">
               ${currentPrice.toFixed(2)}
             </div>
           </div>
@@ -570,11 +585,15 @@ export function StrikeLadder({
               style={{ left: `${percent}%` }}
             >
               <div 
-                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-px ${isLabeled ? 'bg-muted-foreground/50' : 'bg-muted-foreground/25'}`}
-                style={{ height: isLabeled ? '12px' : '6px' }}
+                className="absolute -translate-x-1/2 w-px bg-muted-foreground/40"
+                style={{ top: '-8px', height: isLabeled ? '6px' : '4px' }}
+              />
+              <div 
+                className="absolute -translate-x-1/2 w-px bg-muted-foreground/40"
+                style={{ bottom: '-8px', height: isLabeled ? '6px' : '4px' }}
               />
               {isLabeled && (
-                <div className="absolute top-[calc(50%+10px)] -translate-x-1/2 text-[11px] font-medium text-foreground/70 whitespace-nowrap">
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[10px] font-medium text-foreground/80 whitespace-nowrap">
                   {strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(1)}
                 </div>
               )}
@@ -593,17 +612,6 @@ export function StrikeLadder({
             )}
           </div>
         ))}
-      </div>
-
-      <div className="flex justify-center gap-6 mt-4 text-[10px] text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#B5312B' }} />
-          <span>Puts</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#35B534' }} />
-          <span>Calls</span>
-        </div>
       </div>
     </div>
   );
