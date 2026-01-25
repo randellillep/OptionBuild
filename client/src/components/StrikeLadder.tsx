@@ -350,11 +350,11 @@ export function StrikeLadder({
             }}
           >
             <button
-              onPointerDown={(e) => canDrag && handleBadgePointerDown(leg, e)}
+              onPointerDown={(e) => canDrag && !isDragging && handleBadgePointerDown(leg, e)}
               onClick={(e) => handleBadgeClick(leg, e, false)}
               data-testid={testId}
-              className={`relative flex flex-col items-center ${isBeingDragged ? 'scale-110 z-50' : ''} ${canDrag ? 'cursor-grab' : 'cursor-pointer'}`}
-              style={{ touchAction: 'none' }}
+              className={`relative flex flex-col items-center ${isBeingDragged ? 'scale-110 z-50' : ''} ${canDrag && !isDragging ? 'cursor-grab' : 'cursor-pointer'}`}
+              style={{ touchAction: 'none', pointerEvents: isDragging && !isBeingDragged ? 'none' : 'auto' }}
             >
               {(hasClosing ? remainingQty : quantity) > 1 && (
                 <div 
@@ -475,6 +475,7 @@ export function StrikeLadder({
               onClick={(e) => handleBadgeClick(leg, e, true, entry.id)}
               className="relative flex flex-col items-center cursor-pointer"
               data-testid={`badge-closed-${entry.id}`}
+              style={{ pointerEvents: isDragging ? 'none' : 'auto' }}
             >
               {entry.quantity > 1 && (
                 <div 
@@ -547,23 +548,23 @@ export function StrikeLadder({
     );
   };
 
+  const strikesKey = legs.filter(l => l.type !== "stock").map(l => `${l.id}:${l.strike}:${l.position}`).join(',');
+  
   const badgeStackLevels = useMemo(() => {
     const optionLegs = legs.filter(leg => leg.type !== "stock");
     const longLegs = optionLegs.filter(leg => leg.position === 'long').sort((a, b) => a.strike - b.strike);
     const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
     
     const levels: { [legId: string]: number } = {};
-    const badgeWidth = 60;
+    const badgeWidthPercent = 8;
     
     const assignLevels = (sortedLegs: OptionLeg[]) => {
       const occupiedRanges: { left: number; right: number; level: number }[] = [];
       
       sortedLegs.forEach(leg => {
-        const percent = getStrikePosition(leg.strike);
-        const pixelPos = percent;
-        const halfWidth = badgeWidth / 2 / (fullRange / 100);
-        const left = pixelPos - halfWidth;
-        const right = pixelPos + halfWidth;
+        const percent = ((leg.strike - strikeRange.min) / (strikeRange.max - strikeRange.min)) * 100;
+        const left = percent - badgeWidthPercent / 2;
+        const right = percent + badgeWidthPercent / 2;
         
         let level = 0;
         let foundLevel = false;
@@ -589,7 +590,7 @@ export function StrikeLadder({
     assignLevels(shortLegs);
     
     return levels;
-  }, [legs, fullRange, getStrikePosition]);
+  }, [legs, strikesKey, strikeRange.min, strikeRange.max]);
 
   return (
     <div className="w-full select-none relative">
