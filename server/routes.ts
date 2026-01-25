@@ -5,6 +5,14 @@ import { z } from "zod";
 import type { MarketOptionQuote, MarketOptionChainSummary, OptionType, BacktestRequest, BacktestConfigData } from "@shared/schema";
 import { setupGoogleAuth, isAuthenticated } from "./googleAuth";
 import { runBacktest, runTastyworksBacktest } from "./backtesting";
+import { 
+  Backtester, 
+  ShortPutStrategy, 
+  AlpacaDataLoader,
+  CSVDataLoader,
+  OptionChain,
+  OptionSnapshotImpl
+} from "./backtesting/index";
 
 const ALPACA_API_KEY = process.env.ALPACA_API_KEY;
 const ALPACA_API_SECRET = process.env.ALPACA_API_SECRET;
@@ -1099,6 +1107,288 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[BACKTEST] Error:", error);
       res.status(500).json({ 
         error: error.message || "Failed to run backtest" 
+      });
+    }
+  });
+
+  // Price-based backtesting endpoint (uses real historical option prices)
+  const priceBacktestConfigSchema = z.object({
+    symbol: z.string().min(1).max(10),
+    startDate: z.string(),
+    endDate: z.string(),
+    initialCash: z.number().min(1000).default(10000),
+    strategy: z.object({
+      type: z.enum(["short-put", "short-call", "covered-call", "iron-condor"]),
+      params: z.record(z.any()).optional(),
+    }),
+  });
+
+  app.post("/api/backtest/price-based", async (req, res) => {
+    try {
+      const validation = priceBacktestConfigSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid backtest configuration", 
+          details: validation.error.errors 
+        });
+      }
+
+      const config = validation.data;
+      const startDate = new Date(config.startDate);
+      const endDate = new Date(config.endDate);
+      const now = new Date();
+      
+      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      if (startDate >= endDate) {
+        return res.status(400).json({ error: "Start date must be before end date" });
+      }
+      
+      if (endDateOnly > nowDateOnly) {
+        return res.status(400).json({ error: "End date cannot be in the future" });
+      }
+
+      if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+        return res.status(500).json({ error: "Alpaca API credentials not configured" });
+      }
+
+      console.log(`[PRICE-BACKTEST] Starting price-based backtest for ${config.symbol}`);
+      console.log(`[PRICE-BACKTEST] Date range: ${config.startDate} to ${config.endDate}`);
+      console.log(`[PRICE-BACKTEST] Strategy: ${config.strategy.type}`);
+
+      // Create strategy based on type
+      let strategy;
+      switch (config.strategy.type) {
+        case "short-put":
+          strategy = new ShortPutStrategy(config.strategy.params);
+          break;
+        default:
+          return res.status(400).json({ error: `Strategy type ${config.strategy.type} not yet implemented` });
+      }
+
+      // Fetch historical stock data from Alpaca
+      const stockBarsUrl = `https://data.alpaca.markets/v2/stocks/${config.symbol}/bars?start=${config.startDate}&end=${config.endDate}&timeframe=1Day&adjustment=split`;
+      const stockResponse = await fetch(stockBarsUrl, {
+        headers: {
+          "APCA-API-KEY-ID": ALPACA_API_KEY,
+          "APCA-API-SECRET-KEY": ALPACA_API_SECRET,
+        },
+      });
+
+      if (!stockResponse.ok) {
+        const errorText = await stockResponse.text();
+        console.error(`[PRICE-BACKTEST] Stock data error: ${errorText}`);
+        return res.status(500).json({ error: "Failed to fetch stock price data" });
+      }
+
+      const stockData = await stockResponse.json();
+      const stockPricesByDate = new Map<string, number>();
+      
+      if (stockData.bars) {
+        for (const bar of stockData.bars) {
+          const date = new Date(bar.t).toDateString();
+          stockPricesByDate.set(date, bar.c);
+        }
+      }
+
+      console.log(`[PRICE-BACKTEST] Loaded ${stockPricesByDate.size} days of stock prices`);
+
+      if (stockPricesByDate.size === 0) {
+        return res.status(400).json({ 
+          error: "No stock data available for the specified date range",
+          message: "Please check the date range and ensure Alpaca has data for this period"
+        });
+      }
+
+      // Fetch historical options data from Alpaca
+      // First, get available option contracts for this symbol
+      const optionSnapshotsUrl = `${ALPACA_BASE_URL}/options/snapshots/${config.symbol.toUpperCase()}?feed=indicative`;
+      const optionResponse = await fetch(optionSnapshotsUrl, {
+        headers: {
+          "APCA-API-KEY-ID": ALPACA_API_KEY,
+          "APCA-API-SECRET-KEY": ALPACA_API_SECRET,
+        },
+      });
+
+      const optionChainsByDate = new Map<string, OptionChain>();
+
+      if (optionResponse.ok) {
+        const optionData = await optionResponse.json();
+        const snapshots = optionData.snapshots || {};
+        
+        // Parse option snapshots into our format
+        for (const [optionSymbol, snapshot] of Object.entries(snapshots as Record<string, any>)) {
+          const match = optionSymbol.match(/^([A-Z]+)(\d{6})([CP])(\d+)$/);
+          if (!match) continue;
+
+          const [, , dateStr, typeChar, strikeStr] = match;
+          const year = 2000 + parseInt(dateStr.substring(0, 2));
+          const month = parseInt(dateStr.substring(2, 4)) - 1;
+          const day = parseInt(dateStr.substring(4, 6));
+          const expiration = new Date(year, month, day);
+          const optionType = typeChar === "C" ? "call" : "put";
+          const strike = parseInt(strikeStr) / 1000;
+
+          const quote = snapshot.latestQuote;
+          if (!quote) continue;
+
+          const timestamp = new Date(quote.t || new Date());
+          const dateKey = timestamp.toDateString();
+          const underlyingPrice = stockPricesByDate.get(dateKey) || 0;
+
+          if (!optionChainsByDate.has(dateKey)) {
+            optionChainsByDate.set(dateKey, new OptionChain(timestamp, underlyingPrice));
+          }
+
+          const chain = optionChainsByDate.get(dateKey)!;
+          chain.addSnapshot(new OptionSnapshotImpl({
+            timestamp,
+            optionSymbol,
+            optionType: optionType as "call" | "put",
+            strike,
+            expiration,
+            bid: quote.bp || 0,
+            ask: quote.ap || 0,
+            underlyingPrice,
+            impliedVolatility: snapshot.impliedVolatility,
+            delta: snapshot.greeks?.delta,
+            gamma: snapshot.greeks?.gamma,
+            theta: snapshot.greeks?.theta,
+            vega: snapshot.greeks?.vega,
+          }));
+        }
+
+        console.log(`[PRICE-BACKTEST] Built ${optionChainsByDate.size} option chains from Alpaca data`);
+      } else {
+        console.log(`[PRICE-BACKTEST] No options data available from Alpaca (may require subscription)`);
+      }
+
+      // If we have option chains, run the backtest
+      if (optionChainsByDate.size > 0) {
+        const backtester = new Backtester({
+          symbol: config.symbol,
+          startDate,
+          endDate,
+          initialCash: config.initialCash,
+          strategy,
+        });
+
+        const result = await backtester.runWithData(optionChainsByDate, stockPricesByDate);
+
+        res.json({
+          status: "completed",
+          result,
+          logs: backtester.getLogs(),
+        });
+      } else {
+        // Return partial response if no options data available
+        res.json({
+          status: "partial",
+          message: "Price-based backtesting requires historical options data. Stock price data loaded successfully.",
+          stockDataDays: stockPricesByDate.size,
+          dateRange: {
+            start: config.startDate,
+            end: config.endDate,
+          },
+          note: "Full historical options data (bid/ask prices) requires Alpaca Options Data subscription or CSV upload. Use /api/backtest/upload-csv to provide historical option prices.",
+          engineStatus: "ready",
+          strategy: config.strategy.type,
+        });
+      }
+
+    } catch (error: any) {
+      console.error("[PRICE-BACKTEST] Error:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to run price-based backtest" 
+      });
+    }
+  });
+
+  // Schema for CSV backtest upload
+  const csvBacktestSchema = z.object({
+    csvContent: z.string().min(1).max(10000000), // Max 10MB of CSV content
+    symbol: z.string().min(1).max(10).optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    initialCash: z.number().min(1000).max(10000000).default(10000),
+    strategyType: z.enum(["short-put", "short-call", "covered-call", "iron-condor"]).default("short-put"),
+    strategyParams: z.record(z.any()).optional(),
+  });
+
+  // Endpoint to upload CSV data for price-based backtesting
+  app.post("/api/backtest/upload-csv", async (req, res) => {
+    try {
+      const validation = csvBacktestSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid request", 
+          details: validation.error.errors 
+        });
+      }
+
+      const { csvContent, symbol, startDate, endDate, initialCash, strategyType, strategyParams } = validation.data;
+
+      // Parse CSV data
+      const rows = CSVDataLoader.parseCSV(csvContent);
+      
+      if (rows.length === 0) {
+        return res.status(400).json({ error: "No valid data found in CSV" });
+      }
+
+      if (rows.length > 1000000) {
+        return res.status(400).json({ error: "CSV file too large. Maximum 1 million rows allowed." });
+      }
+
+      console.log(`[CSV-BACKTEST] Parsed ${rows.length} rows from CSV`);
+
+      // Build option chains
+      const optionChainsByDate = CSVDataLoader.buildOptionChains(rows);
+      
+      // Build stock prices map
+      const stockPricesByDate = new Map<string, number>();
+      for (const row of rows) {
+        const date = new Date(row.timestamp).toDateString();
+        if (!stockPricesByDate.has(date)) {
+          stockPricesByDate.set(date, row.underlyingPrice);
+        }
+      }
+
+      console.log(`[CSV-BACKTEST] Built ${optionChainsByDate.size} option chains`);
+
+      // Create strategy
+      let strategy;
+      switch (strategyType || "short-put") {
+        case "short-put":
+          strategy = new ShortPutStrategy(strategyParams || {});
+          break;
+        default:
+          return res.status(400).json({ error: `Strategy type ${strategyType} not yet implemented` });
+      }
+
+      // Run backtest
+      const backtester = new Backtester({
+        symbol: symbol || "UNKNOWN",
+        startDate: startDate ? new Date(startDate) : new Date(rows[0].timestamp),
+        endDate: endDate ? new Date(endDate) : new Date(rows[rows.length - 1].timestamp),
+        initialCash: initialCash || 10000,
+        strategy,
+      });
+
+      const result = await backtester.runWithData(optionChainsByDate, stockPricesByDate);
+
+      res.json({
+        status: "completed",
+        result,
+        logs: backtester.getLogs(),
+      });
+
+    } catch (error: any) {
+      console.error("[CSV-BACKTEST] Error:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to run CSV backtest" 
       });
     }
   });

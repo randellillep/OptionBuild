@@ -21,6 +21,7 @@ export interface OptionSnapshot {
   getDTE(): number;
   getStrikeDistance(): number;
   getStrikeDistancePercent(): number;
+  hasValidQuote(): boolean;
 }
 
 export interface Position {
