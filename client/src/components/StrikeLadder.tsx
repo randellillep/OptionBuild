@@ -240,7 +240,7 @@ export function StrikeLadder({
     const handlePointerUp = () => {
       setIsDragging(false);
       draggedLegRef.current = null;
-      setTimeout(() => setDraggedLeg(null), 100);
+      setDraggedLeg(null);
     };
 
     document.addEventListener('pointermove', handlePointerMove);
