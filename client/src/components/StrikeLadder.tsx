@@ -51,6 +51,16 @@ export function StrikeLadder({
   const [panStartX, setPanStartX] = useState(0);
   const [panStartOffset, setPanStartOffset] = useState(0);
   const ladderRef = useRef<HTMLDivElement>(null);
+  const prevSymbolRef = useRef<string>(symbol);
+
+  // Reset pan offset when symbol changes to recenter on current price
+  useEffect(() => {
+    if (symbol !== prevSymbolRef.current) {
+      setPanOffset(0);
+      setLastMovedLeg(null);
+      prevSymbolRef.current = symbol;
+    }
+  }, [symbol]);
 
   const strikeIncrement = useMemo(() => {
     if (availableStrikes && availableStrikes.strikes.length > 1) {
@@ -117,7 +127,31 @@ export function StrikeLadder({
 
   const allStrikes = generateAllStrikes();
   
+  // Determine which strikes should show labels (every Nth strike from available strikes)
+  const labeledStrikes = useMemo(() => {
+    if (!availableStrikes || availableStrikes.strikes.length === 0) {
+      // Fallback: use modulo-based labeling
+      return null;
+    }
+    
+    // Determine how many strikes to skip between labels based on total visible
+    const visibleStrikes = availableStrikes.strikes.filter(s => s >= adjustedMin && s <= adjustedMax);
+    const targetLabels = Math.min(12, Math.max(5, Math.floor(visibleStrikes.length / 3)));
+    const skipInterval = Math.max(1, Math.floor(visibleStrikes.length / targetLabels));
+    
+    // Select strikes to label at regular intervals
+    const labeled = new Set<number>();
+    for (let i = 0; i < visibleStrikes.length; i += skipInterval) {
+      labeled.add(visibleStrikes[i]);
+    }
+    return labeled;
+  }, [availableStrikes, adjustedMin, adjustedMax]);
+
   const shouldShowLabel = (strike: number) => {
+    if (labeledStrikes) {
+      return labeledStrikes.has(strike);
+    }
+    // Fallback for generated strikes
     return strike % labelInterval === 0;
   };
 
