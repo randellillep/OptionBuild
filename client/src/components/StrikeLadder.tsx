@@ -147,12 +147,19 @@ export function StrikeLadder({
     return Math.max(strikeRange.min, Math.min(strikeRange.max, Number(snapped.toFixed(2))));
   };
 
+  const pendingDragRef = useRef<{ legId: string; startX: number; pointerId: number; target: HTMLElement } | null>(null);
+  const dragThreshold = 5; // pixels before drag starts
+
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    draggedLegRef.current = leg.id;
-    setDraggedLeg(leg.id);
-    setIsDragging(true);
+    // Don't start drag immediately - wait for movement
+    pendingDragRef.current = {
+      legId: leg.id,
+      startX: e.clientX,
+      pointerId: e.pointerId,
+      target: e.target as HTMLElement,
+    };
     try {
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     } catch (err) {
@@ -161,7 +168,8 @@ export function StrikeLadder({
   };
 
   const handleBadgeClick = (leg: OptionLeg, e: React.MouseEvent, isClosedBadge: boolean = false, entryId?: string) => {
-    if (!isDragging) {
+    // Only open popover if we didn't drag
+    if (!isDragging && !draggedLegRef.current) {
       setSelectedLeg(leg);
       setIsClosedBadgeClick(isClosedBadge);
       setSelectedEntryId(entryId || null);
@@ -169,6 +177,36 @@ export function StrikeLadder({
     }
   };
 
+  // Handle pending drag detection - only start drag after movement threshold
+  useEffect(() => {
+    const handlePendingMove = (e: PointerEvent) => {
+      if (!pendingDragRef.current) return;
+      
+      const distance = Math.abs(e.clientX - pendingDragRef.current.startX);
+      if (distance >= dragThreshold) {
+        // Start actual drag
+        draggedLegRef.current = pendingDragRef.current.legId;
+        setDraggedLeg(pendingDragRef.current.legId);
+        setIsDragging(true);
+        pendingDragRef.current = null;
+      }
+    };
+
+    const handlePendingUp = () => {
+      // Click without drag - just clear pending
+      pendingDragRef.current = null;
+    };
+
+    document.addEventListener('pointermove', handlePendingMove);
+    document.addEventListener('pointerup', handlePendingUp);
+
+    return () => {
+      document.removeEventListener('pointermove', handlePendingMove);
+      document.removeEventListener('pointerup', handlePendingUp);
+    };
+  }, [dragThreshold]);
+
+  // Handle active dragging
   useEffect(() => {
     if (!isDragging || !draggedLeg) return;
 
