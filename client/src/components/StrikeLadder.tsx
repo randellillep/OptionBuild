@@ -364,8 +364,7 @@ export function StrikeLadder({
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
     const badgeHeight = 28;
-    const effectiveOffset = isBeingDragged ? 0 : verticalOffset;
-    const stackOffset = effectiveOffset * (badgeHeight + 4);
+    const stackOffset = verticalOffset * (badgeHeight + 4);
     const topPosition = position === 'long' 
       ? `calc(50% - ${badgeHeight + 18}px - ${stackOffset}px)`
       : `calc(50% + 18px + ${stackOffset}px)`;
@@ -622,11 +621,7 @@ export function StrikeLadder({
     const assignLevels = (sortedLegs: OptionLeg[], positionType: 'long' | 'short') => {
       const occupiedStrikes: { center: number; level: number; legId: string }[] = [];
       
-      if (draggedLeg && draggedLegPosition === positionType && effectiveDragStrike !== undefined) {
-        occupiedStrikes.push({ center: effectiveDragStrike, level: 0, legId: draggedLeg });
-        levels[draggedLeg] = 0;
-      }
-      
+      // First pass: assign levels to non-dragged badges
       sortedLegs.forEach(leg => {
         if (leg.id === draggedLeg) return;
         
@@ -648,6 +643,15 @@ export function StrikeLadder({
         levels[leg.id] = level;
         occupiedStrikes.push({ center: leg.strike, level, legId: leg.id });
       });
+      
+      // Second pass: assign level to dragged badge
+      // Keep it elevated (level 1) if it overlaps with any level-0 badge
+      if (draggedLeg && draggedLegPosition === positionType && effectiveDragStrike !== undefined) {
+        const overlapsWithLevel0 = occupiedStrikes.some(occupied => 
+          occupied.level === 0 && Math.abs(effectiveDragStrike - occupied.center) < badgeWidthInStrikes
+        );
+        levels[draggedLeg] = overlapsWithLevel0 ? 1 : 0;
+      }
     };
     
     assignLevels(longLegs, 'long');
