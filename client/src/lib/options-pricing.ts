@@ -771,14 +771,28 @@ export function calculateProfitLossAtDate(
     } else {
       // Type narrowed to "call" | "put" after stock check above
       const optionType = leg.type as "call" | "put";
-      optionValue = calculateOptionPrice(
-        optionType,
-        atPrice,
-        leg.strike,
-        daysRemaining,
-        scenarioVolatility,
-        riskFreeRate
-      );
+      
+      // At day 0 (daysFromNow=0) and near current price: use MARKET price (premium)
+      // This ensures P/L = $0 at the entry point, not a theoretical discrepancy
+      // For other scenarios, use theoretical Black-Scholes pricing
+      const isAtCurrentTime = daysFromNow <= 0.01; // Within ~15 minutes
+      const priceDiffPercent = Math.abs(atPrice - underlyingPrice) / underlyingPrice;
+      const isNearCurrentPrice = priceDiffPercent < 0.005; // Within 0.5% of current price
+      
+      if (isAtCurrentTime && isNearCurrentPrice) {
+        // Use actual market price - this gives P/L = 0 at entry
+        optionValue = Math.abs(leg.premium);
+      } else {
+        // Use theoretical pricing for scenario analysis
+        optionValue = calculateOptionPrice(
+          optionType,
+          atPrice,
+          leg.strike,
+          daysRemaining,
+          scenarioVolatility,
+          riskFreeRate
+        );
+      }
     }
     
     // Normalize premium to always be positive (absolute value)
