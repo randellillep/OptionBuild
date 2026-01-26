@@ -612,7 +612,7 @@ export function StrikeLadder({
     const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
     
     const levels: { [legId: string]: number } = {};
-    const badgeWidthInStrikes = 12;
+    const badgeWidthInStrikes = 18;
     
     const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
     const draggedLegPosition = draggedLegData?.position;
