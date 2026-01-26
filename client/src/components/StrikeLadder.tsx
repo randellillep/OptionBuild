@@ -333,11 +333,15 @@ export function StrikeLadder({
       : `calc(50% + 18px + ${stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
+    
+    const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
+    const baseZIndex = 10 + (verticalOffset * 2);
+    const badgeZIndex = isBeingDragged ? 9999 : (isPopoverOpenForThis ? 100 : baseZIndex);
 
     return (
       <Popover 
         key={`open-${leg.id}`} 
-        open={popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick && !isBeingDragged} 
+        open={isPopoverOpenForThis && !isBeingDragged} 
         onOpenChange={(open) => {
           if (!open && selectedLeg?.id === leg.id && !isClosedBadgeClick) {
             setPopoverOpen(false);
@@ -354,9 +358,9 @@ export function StrikeLadder({
               transform: `translateX(-50%) ${isBeingDragged ? 'scale(1.1)' : ''}`,
               top: topPosition,
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
-              zIndex: isBeingDragged ? 9999 : 10,
+              zIndex: badgeZIndex,
               pointerEvents: (isDragging || draggedLegRef.current) && !isBeingDragged ? 'none' : 'auto',
-              transition: isBeingDragged ? 'none' : 'top 0.15s ease-out',
+              transition: (isBeingDragged || isPopoverOpenForThis) ? 'none' : 'top 0.15s ease-out',
             }}
           >
             <button
