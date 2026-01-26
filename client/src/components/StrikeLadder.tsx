@@ -642,8 +642,10 @@ export function StrikeLadder({
     const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
     
     const levels: { [legId: string]: number } = {};
-    const badgeWidthInStrikes = 12; // For static badge stacking
-    const dragOverlapThreshold = 20; // Larger threshold for drag detection (visual badge width on screen)
+    const badgeWidthInStrikes = 12;
+    // Thresholds: elevate when overlapping, drop when fully past
+    const elevateThreshold = 13; // Start overlapping at ~12 strikes, elevate slightly before
+    const dropThreshold = 13; // Stay elevated until clearly past (centers > 13 strikes apart)
     
     const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
     const draggedLegPosition = draggedLegData?.position;
@@ -679,9 +681,9 @@ export function StrikeLadder({
       // Second pass: assign level to dragged badge
       // Simple rule: dragged badge is ALWAYS on top when overlapping with any other badge
       if (draggedLeg && draggedLegPosition === positionType && effectiveDragStrike !== undefined) {
-        // Check if overlapping with any badge (using larger visual threshold)
+        // Check if overlapping with any badge at any level
         const overlapsWithAny = occupiedStrikes.some(occupied => 
-          Math.abs(effectiveDragStrike - occupied.center) < dragOverlapThreshold
+          Math.abs(effectiveDragStrike - occupied.center) < badgeWidthInStrikes
         );
         
         // Dragged badge goes on top (level 1) when overlapping, otherwise level 0
