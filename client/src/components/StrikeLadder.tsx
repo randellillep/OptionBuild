@@ -678,25 +678,16 @@ export function StrikeLadder({
         occupiedStrikes.push({ center: leg.strike, level, legId: leg.id });
       });
       
-      // Second pass: assign level to dragged badge with hysteresis
+      // Second pass: assign level to dragged badge
+      // Simple rule: dragged badge is ALWAYS on top when overlapping with any other badge
       if (draggedLeg && draggedLegPosition === positionType && effectiveDragStrike !== undefined) {
-        const currentLevel = draggedLevelRef.current;
+        // Check if overlapping with any badge at any level
+        const overlapsWithAny = occupiedStrikes.some(occupied => 
+          Math.abs(effectiveDragStrike - occupied.center) < badgeWidthInStrikes
+        );
         
-        // Find closest level-0 badge distance
-        const closestDistance = occupiedStrikes
-          .filter(o => o.level === 0)
-          .reduce((min, o) => Math.min(min, Math.abs(effectiveDragStrike - o.center)), Infinity);
-        
-        let newLevel: number;
-        if (currentLevel === 0) {
-          // Currently at level 0 - only elevate if clearly overlapping
-          newLevel = closestDistance < elevateThreshold ? 1 : 0;
-        } else {
-          // Currently elevated - only drop if clearly outside
-          newLevel = closestDistance >= dropThreshold ? 0 : 1;
-        }
-        
-        draggedLevelRef.current = newLevel;
+        // Dragged badge goes on top (level 1) when overlapping, otherwise level 0
+        const newLevel = overlapsWithAny ? 1 : 0;
         levels[draggedLeg] = newLevel;
       }
     };
