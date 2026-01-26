@@ -584,13 +584,14 @@ export function StrikeLadder({
     const closedBgColor = isCall ? '#1a5a15' : '#6a211c';
     
     const badgeHeight = 28;
-    // Closed entries stack TOWARD the centerline (opposite of open badges)
-    // For long positions: closed entries go BELOW the open badge
-    // For short positions: closed entries go ABOVE the open badge
-    const closedStackOffset = closedIndex * (badgeHeight + 4);
+    // Closed entries stack TOWARD the centerline (below open badge for long, above for short)
+    // Open badge for long is at: 50% - 46px, ends at roughly 50% - 14px
+    // Closed entries stack with 2px gap between each
+    const closedStackGap = 2;
+    const closedEntryOffset = (closedIndex + 1) * (badgeHeight + closedStackGap);
     const topPosition = position === 'long'
-      ? `calc(50% - ${badgeHeight + 18}px + ${closedStackOffset + badgeHeight + 4}px)` // Stack down from open badge
-      : `calc(50% + 18px - ${closedStackOffset + badgeHeight + 4}px)`;                  // Stack up from open badge
+      ? `calc(50% - ${badgeHeight + 18}px + ${closedEntryOffset}px)` // Below open badge
+      : `calc(50% + 18px - ${closedEntryOffset}px)`;                   // Above open badge
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
@@ -617,6 +618,7 @@ export function StrikeLadder({
               top: topPosition,
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
               transition: 'top 0.15s ease-out',
+              zIndex: 5 + closedIndex,
             }}
           >
             <button
