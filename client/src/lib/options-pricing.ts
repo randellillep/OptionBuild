@@ -772,14 +772,15 @@ export function calculateProfitLossAtDate(
       // Type narrowed to "call" | "put" after stock check above
       const optionType = leg.type as "call" | "put";
       
-      // At day 0 (daysFromNow=0) and near current price: use MARKET price (premium)
-      // This ensures P/L = $0 at the entry point, not a theoretical discrepancy
-      // For other scenarios, use theoretical Black-Scholes pricing
-      const isAtCurrentTime = daysFromNow <= 0.01; // Within ~15 minutes
+      // At the exact entry point (daysFromNow <= 0): use MARKET price (premium)
+      // This ensures P/L = $0 at entry, not a theoretical discrepancy
+      // For ANY future time (even a few hours on day 0), use theoretical pricing
+      // to properly show theta decay and price sensitivity
+      const isAtOrBeforeEntry = daysFromNow <= 0; // Only at exact entry or before
       const priceDiffPercent = Math.abs(atPrice - underlyingPrice) / underlyingPrice;
-      const isNearCurrentPrice = priceDiffPercent < 0.005; // Within 0.5% of current price
+      const isAtExactCurrentPrice = priceDiffPercent < 0.001; // Within 0.1% of current price
       
-      if (isAtCurrentTime && isNearCurrentPrice) {
+      if (isAtOrBeforeEntry && isAtExactCurrentPrice) {
         // Use actual market price - this gives P/L = 0 at entry
         optionValue = Math.abs(leg.premium);
       } else {
