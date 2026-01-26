@@ -760,56 +760,30 @@ export default function Tutorial() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mb-6">
           {tutorialSteps.map((step, index) => (
             <Button
               key={step.id}
               variant={currentStep === index ? "default" : "outline"}
               size="sm"
-              className="shrink-0"
+              className="flex-col h-auto py-2 gap-1"
               onClick={() => setCurrentStep(index)}
               data-testid={`button-tutorial-step-${step.id}`}
             >
               {step.icon}
-              <span className="ml-2 hidden sm:inline">{step.title}</span>
-              <span className="ml-2 sm:hidden">{step.id}</span>
+              <span className="text-xs text-center leading-tight">{step.title}</span>
             </Button>
           ))}
         </div>
 
         <Card className="mb-6">
           <CardHeader className="pb-4 border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  {tutorialSteps[currentStep].icon}
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">Step {currentStep + 1} of {tutorialSteps.length}</span>
-                  <h2 className="text-xl">{tutorialSteps[currentStep].title}</h2>
-                </div>
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-                  disabled={currentStep === 0}
-                  data-testid="button-tutorial-prev"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentStep(Math.min(tutorialSteps.length - 1, currentStep + 1))}
-                  disabled={currentStep === tutorialSteps.length - 1}
-                  data-testid="button-tutorial-next"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+            <CardTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                {tutorialSteps[currentStep].icon}
               </div>
-            </div>
+              <h2 className="text-xl">{tutorialSteps[currentStep].title}</h2>
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             {tutorialSteps[currentStep].content}
@@ -844,32 +818,6 @@ export default function Tutorial() {
           )}
         </div>
 
-        <div className="mt-12 pt-8 border-t">
-          <h3 className="text-xl font-semibold mb-4">Quick Reference</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="hover-elevate cursor-pointer" onClick={() => setCurrentStep(0)}>
-              <CardContent className="pt-6">
-                <TrendingUp className="h-8 w-8 text-green-500 mb-3" />
-                <h4 className="font-medium mb-1">Call vs Put</h4>
-                <p className="text-sm text-muted-foreground">Understand the two fundamental option types</p>
-              </CardContent>
-            </Card>
-            <Card className="hover-elevate cursor-pointer" onClick={() => setCurrentStep(3)}>
-              <CardContent className="pt-6">
-                <Activity className="h-8 w-8 text-primary mb-3" />
-                <h4 className="font-medium mb-1">The Greeks</h4>
-                <p className="text-sm text-muted-foreground">Delta, Gamma, Theta, Vega explained</p>
-              </CardContent>
-            </Card>
-            <Card className="hover-elevate cursor-pointer" onClick={() => setCurrentStep(4)}>
-              <CardContent className="pt-6">
-                <Zap className="h-8 w-8 text-amber-500 mb-3" />
-                <h4 className="font-medium mb-1">IV Crush</h4>
-                <p className="text-sm text-muted-foreground">Why volatility matters for your trades</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
       </main>
     </div>
   );

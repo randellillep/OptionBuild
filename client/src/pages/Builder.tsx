@@ -25,7 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg } from "@shared/schema";
 import type { CommissionSettings } from "@/components/PositionsModal";
 import { strategyTemplates } from "@/lib/strategy-templates";
-import { useLocation, useSearch } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 import { useOptionsChain } from "@/hooks/useOptionsChain";
 import { calculateImpliedVolatility, calculateOptionPrice, calculateRealizedUnrealizedPL } from "@/lib/options-pricing";
@@ -1477,10 +1477,12 @@ export default function Builder() {
           </div>
 
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <Button variant="ghost" size="sm" className="h-7 px-1 sm:px-2 text-xs hidden sm:flex" data-testid="button-tutorials">
-              <BookOpen className="h-3 w-3 sm:mr-1" />
-              <span className="hidden lg:inline">Tutorials</span>
-            </Button>
+            <Link href="/tutorial">
+              <Button variant="ghost" size="sm" className="h-7 px-1 sm:px-2 text-xs hidden sm:flex" data-testid="button-tutorials">
+                <BookOpen className="h-3 w-3 sm:mr-1" />
+                <span className="hidden lg:inline">Tutorials</span>
+              </Button>
+            </Link>
             <Button variant="ghost" size="sm" className="h-7 px-1 sm:px-2 text-xs hidden sm:flex" data-testid="button-blog">
               <FileText className="h-3 w-3 sm:mr-1" />
               <span className="hidden lg:inline">Blog</span>
