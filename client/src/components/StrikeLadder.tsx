@@ -643,9 +643,9 @@ export function StrikeLadder({
     
     const levels: { [legId: string]: number } = {};
     const badgeWidthInStrikes = 12;
-    // Hysteresis thresholds: need to be clearly inside/outside to change levels
-    const elevateThreshold = 10; // Must be within 10 strikes to elevate
-    const dropThreshold = 14; // Must be more than 14 strikes apart to drop
+    // Thresholds: elevate when overlapping, drop when fully past
+    const elevateThreshold = 13; // Start overlapping at ~12 strikes, elevate slightly before
+    const dropThreshold = 13; // Stay elevated until clearly past (centers > 13 strikes apart)
     
     const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
     const draggedLegPosition = draggedLegData?.position;
