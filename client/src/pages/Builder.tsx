@@ -1015,43 +1015,18 @@ export default function Builder() {
     });
   }, [legs.length, symbolInfo?.price, volatility, optionsChainData?.quotes?.length, selectedExpirationDate]);
 
-  // Calculate available strikes from market data
-  // Use minStrike/maxStrike from API (which includes extrapolated range)
-  // and generate full strike array to fill the extrapolated range
+  // Use only actual available strikes from API (no extrapolation)
   const availableStrikes = useMemo(() => {
     if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) return null;
     
-    const actualStrikes = Array.from(new Set(optionsChainData.quotes.map((q: any) => q.strike))).sort((a, b) => a - b);
-    const min = optionsChainData.minStrike;
-    const max = optionsChainData.maxStrike;
+    // Use strikes array from API if available, otherwise extract from quotes
+    const strikes = optionsChainData.strikes || 
+      Array.from(new Set(optionsChainData.quotes.map((q: any) => q.strike))).sort((a: number, b: number) => a - b);
     
-    // If range is extrapolated beyond actual quotes, generate placeholder strikes
-    if (actualStrikes.length > 10 && (min < actualStrikes[0] || max > actualStrikes[actualStrikes.length - 1])) {
-      // Detect common interval from actual strikes
-      const intervals = new Set<number>();
-      for (let i = 1; i < Math.min(actualStrikes.length, 20); i++) {
-        intervals.add(Number((actualStrikes[i] - actualStrikes[i-1]).toFixed(2)));
-      }
-      const commonInterval = Array.from(intervals).sort((a, b) => a - b)[0] || 2.5;
-      
-      // Generate full strike array from min to max
-      const fullStrikes = new Set(actualStrikes); // Start with actual strikes
-      for (let strike = Math.ceil(min / commonInterval) * commonInterval; strike <= max; strike += commonInterval) {
-        fullStrikes.add(Number(strike.toFixed(2)));
-      }
-      
-      return {
-        min,
-        max,
-        strikes: Array.from(fullStrikes).sort((a, b) => a - b),
-      };
-    }
-    
-    // No extrapolation needed, use actual strikes
     return {
-      min,
-      max,
-      strikes: actualStrikes,
+      min: optionsChainData.minStrike,
+      max: optionsChainData.maxStrike,
+      strikes: strikes as number[],
     };
   }, [optionsChainData]);
   

@@ -681,36 +681,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[Options Chain] WARNING: Requested expiration ${expiration} returned no quotes (available: ${availableExpirations.join(', ')})`);
       }
       
-      // Calculate strike range and extrapolate if limited by API
+      // Calculate strike range from actual available strikes only (no extrapolation)
       const strikes = quotes.map(q => q.strike).sort((a, b) => a - b);
-      let minStrike = strikes.length > 0 ? Math.min(...strikes) : 0;
-      let maxStrike = strikes.length > 0 ? Math.max(...strikes) : 0;
+      const uniqueStrikes = Array.from(new Set(strikes)).sort((a, b) => a - b);
+      const minStrike = uniqueStrikes.length > 0 ? Math.min(...uniqueStrikes) : 0;
+      const maxStrike = uniqueStrikes.length > 0 ? Math.max(...uniqueStrikes) : 0;
       
-      // If we got exactly 100 or 200 snapshots (API limit), extrapolate beyond the range
-      // This ensures users can see strikes beyond what Alpaca's free tier provides
-      if (quotes.length >= 100 && strikes.length > 10) {
-        // Detect strike interval from existing data
-        const intervals = new Set<number>();
-        for (let i = 1; i < Math.min(strikes.length, 20); i++) {
-          intervals.add(Number((strikes[i] - strikes[i-1]).toFixed(2)));
-        }
-        const commonInterval = Array.from(intervals).sort((a, b) => a - b)[0] || 2.5;
-        
-        // Extrapolate ~50% more strikes above and below
-        const extrapolateCount = Math.floor(strikes.length * 0.5);
-        minStrike = Math.max(5, minStrike - (extrapolateCount * commonInterval));
-        maxStrike = maxStrike + (extrapolateCount * commonInterval);
-        
-        console.log(`[Options Chain] Extrapolated strike range: $${minStrike.toFixed(2)} - $${maxStrike.toFixed(2)} (interval: $${commonInterval}, added ${extrapolateCount} strikes each side)`);
-      } else {
-        console.log(`[Options Chain] Using strike range from ${quotes.length} quotes: $${minStrike} - $${maxStrike}`);
-      }
+      console.log(`[Options Chain] Using actual strike range from ${quotes.length} quotes: $${minStrike} - $${maxStrike} (${uniqueStrikes.length} unique strikes)`);
 
       const summary: MarketOptionChainSummary = {
         symbol: symbol.toUpperCase(),
         expirations: availableExpirations, // Use expirations from Alpaca snapshots
         minStrike,
         maxStrike,
+        strikes: uniqueStrikes,  // Pass actual available strikes
         quotes,
         cachedAt: Date.now(),
       };

@@ -157,6 +157,7 @@ export interface MarketOptionChainSummary {
   expirations: string[];
   minStrike: number;
   maxStrike: number;
+  strikes: number[];  // Actual available strikes from options chain data
   quotes: MarketOptionQuote[];
   cachedAt: number;
   availableExpirations?: string[]; // Available expirations from data source (for validation)
