@@ -72,14 +72,14 @@ const mostTradedStocks = [
   { symbol: "RIVN", name: "Rivian Automotive" },
 ];
 
-const indexes = [
-  { symbol: "SPX", name: "S&P 500 Index", displayName: "S&P 500" },
-  { symbol: "NDX", name: "Nasdaq 100 Index", displayName: "Nasdaq 100" },
-  { symbol: "DJI", name: "Dow Jones Industrial Average", displayName: "Dow Jones" },
-  { symbol: "RUT", name: "Russell 2000 Index", displayName: "Russell 2000" },
-  { symbol: "VIX", name: "CBOE Volatility Index", displayName: "VIX" },
-  { symbol: "IWM", name: "iShares Russell 2000 ETF", displayName: "Russell 2000 ETF" },
-  { symbol: "DIA", name: "SPDR Dow Jones ETF", displayName: "Dow Jones ETF" },
+// Index-tracking ETFs (Alpaca only supports ETFs, not raw index symbols)
+const indexETFs = [
+  { symbol: "SPY", name: "SPDR S&P 500 ETF", displayName: "S&P 500" },
+  { symbol: "QQQ", name: "Invesco QQQ Trust", displayName: "Nasdaq 100" },
+  { symbol: "DIA", name: "SPDR Dow Jones ETF", displayName: "Dow Jones" },
+  { symbol: "IWM", name: "iShares Russell 2000 ETF", displayName: "Russell 2000" },
+  { symbol: "VXX", name: "iPath Series B S&P 500 VIX", displayName: "VIX Futures" },
+  { symbol: "UVXY", name: "ProShares Ultra VIX Short-Term", displayName: "VIX 1.5x" },
 ];
 
 const commodities = [
@@ -384,7 +384,7 @@ export function TradingViewSearch({
                         data-testid="tab-indexes"
                       >
                         <Landmark className="h-4 w-4 mr-2" />
-                        Indexes
+                        Index ETFs
                       </TabsTrigger>
                       <TabsTrigger
                         value="commodities"
@@ -433,10 +433,10 @@ export function TradingViewSearch({
                   <TabsContent value="indexes" className="m-0 p-4">
                     <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-3">
                       <Landmark className="h-3.5 w-3.5" />
-                      MAJOR INDEXES
+                      INDEX ETFs
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
-                      {indexes.map((index) => (
+                      {indexETFs.map((index) => (
                         <SymbolRow
                           key={index.symbol}
                           symbol={index.symbol}
