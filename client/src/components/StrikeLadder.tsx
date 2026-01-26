@@ -643,11 +643,10 @@ export function StrikeLadder({
     const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
     
     const levels: { [legId: string]: number } = {};
-    // Badge width is ~70px, ladder is typically ~800-1000px wide
-    // Calculate how many strikes that 70px badge covers in the current visible range
-    // Formula: (badgePixelWidth / ladderPixelWidth) * visibleRange
-    // Approximate: 70/900 * range = 0.078 * range
-    const badgeWidthInStrikes = Math.max(4, Math.round(range * 0.08));
+    // Badge width is ~55px, ladder is typically ~900px wide
+    // Calculate how many strikes that badge covers in the current visible range
+    // Formula: (badgePixelWidth / ladderPixelWidth) * visibleRange = 55/900 * range ≈ 0.06 * range
+    const badgeWidthInStrikes = Math.max(3, Math.round(range * 0.06));
     
     const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
     const draggedLegPosition = draggedLegData?.position;
