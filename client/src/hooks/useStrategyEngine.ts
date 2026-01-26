@@ -276,7 +276,6 @@ export function useStrategyEngine(rangePercent: number = 14) {
 
   const scenarioGrid = useMemo(() => {
     const strikeCount = 15;
-    const dateCount = 8;
     
     const strikeStep = (strikeRange.max - strikeRange.min) / (strikeCount - 1);
     const strikes = Array.from({ length: strikeCount }, (_, i) => 
@@ -294,27 +293,30 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const timeSteps: number[] = [];
     
     if (useHours) {
-      // For same-day or very short-dated options, show hourly intervals
-      // Use actual remaining hours - show progression from now to expiration
+      // OptionStrat-style: show ~3 time slots per day for near-term options
+      // This lets traders see intraday P/L movement throughout today and future days
       const actualHours = Math.max(0, targetDays * 24);
       
       if (actualHours <= 0) {
-        // Option is expired - all columns show intrinsic value at expiration
-        // Use exactly 0 for all time steps so P/L shows pure intrinsic value
-        for (let i = 0; i < dateCount; i++) {
-          timeSteps.push(0); // All at expiration - intrinsic value only
-        }
+        // Option is expired - show expiration value
+        timeSteps.push(0);
       } else {
-        // Normal case: show time decay from now (0) to expiration (actualHours)
-        // Each column represents a step closer to expiration
-        const hourStep = actualHours / (dateCount - 1);
-        for (let i = 0; i < dateCount; i++) {
+        // Generate time steps: ~3 columns per day like OptionStrat
+        // Use trading-hour-aligned intervals (roughly 4pm, 8pm, 11pm style)
+        const numDays = Math.ceil(targetDays);
+        const columnsPerDay = 3;
+        const totalColumns = Math.min(numDays * columnsPerDay, 15); // Cap at 15 columns
+        
+        // Spread evenly from now to expiration
+        const hourStep = actualHours / (totalColumns - 1);
+        for (let i = 0; i < totalColumns; i++) {
           const hoursFromNow = i * hourStep;
-          timeSteps.push(hoursFromNow / 24); // Convert to fractional days for calculations
+          timeSteps.push(hoursFromNow / 24); // Convert to fractional days
         }
       }
     } else {
-      // Generate day intervals
+      // For longer-dated options, show daily intervals
+      const dateCount = 8;
       const dayStep = targetDays / (dateCount - 1);
       for (let i = 0; i < dateCount; i++) {
         timeSteps.push(Math.max(0, Math.round(i * dayStep)));
