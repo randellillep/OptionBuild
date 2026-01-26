@@ -44,8 +44,8 @@ export function StrikeLadder({
   const [isDragging, setIsDragging] = useState(false);
   const [draggedStrikePosition, setDraggedStrikePosition] = useState<number | null>(null);
   const [rawDragPosition, setRawDragPosition] = useState<number | null>(null); // Unsnapped position for smooth overlap detection
+  const [lastMovedLeg, setLastMovedLeg] = useState<string | null>(null); // Track which leg was last moved for stacking priority
   const draggedLegRef = useRef<string | null>(null);
-  const draggedLevelRef = useRef<number>(0); // Track the current level during drag for stability
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState(0);
   const [panStartX, setPanStartX] = useState(0);
@@ -205,9 +205,7 @@ export function StrikeLadder({
       
       const distance = Math.abs(e.clientX - pendingDragRef.current.startX);
       if (distance >= dragThreshold) {
-        // Initialize level ref with current stacking level
         const legId = pendingDragRef.current.legId;
-        draggedLevelRef.current = getCurrentStackLevel(legId);
         
         // Start actual drag
         draggedLegRef.current = legId;
@@ -306,9 +304,12 @@ export function StrikeLadder({
     };
 
     const handlePointerUp = () => {
+      // Remember which leg was just moved for stacking priority
+      if (draggedLeg) {
+        setLastMovedLeg(draggedLeg);
+      }
       setIsDragging(false);
       draggedLegRef.current = null;
-      draggedLevelRef.current = 0; // Reset level ref
       setDraggedLeg(null);
       setDraggedStrikePosition(null);
       setRawDragPosition(null);
@@ -652,12 +653,18 @@ export function StrikeLadder({
     // Use raw position for smooth overlap detection during drag
     const effectiveDragStrike = rawDragPosition ?? draggedStrikePosition ?? draggedLegData?.strike;
     
+    // Priority leg: either the one being dragged, or the one that was last moved
+    const priorityLegId = draggedLeg || lastMovedLeg;
+    const priorityLegData = priorityLegId ? legs.find(l => l.id === priorityLegId) : null;
+    const priorityLegPosition = priorityLegData?.position;
+    const priorityLegStrike = draggedLeg ? effectiveDragStrike : priorityLegData?.strike;
+    
     const assignLevels = (sortedLegs: OptionLeg[], positionType: 'long' | 'short') => {
       const occupiedStrikes: { center: number; level: number; legId: string }[] = [];
       
-      // First pass: assign levels to non-dragged badges
+      // First pass: assign levels to non-priority badges
       sortedLegs.forEach(leg => {
-        if (leg.id === draggedLeg) return;
+        if (leg.id === priorityLegId) return; // Skip priority leg for now
         
         let level = 0;
         let foundLevel = false;
@@ -678,17 +685,17 @@ export function StrikeLadder({
         occupiedStrikes.push({ center: leg.strike, level, legId: leg.id });
       });
       
-      // Second pass: assign level to dragged badge
-      // Simple rule: dragged badge is ALWAYS on top when overlapping with any other badge
-      if (draggedLeg && draggedLegPosition === positionType && effectiveDragStrike !== undefined) {
+      // Second pass: assign level to priority badge (dragged or last moved)
+      // Priority badge is ALWAYS on top when overlapping with any other badge
+      if (priorityLegId && priorityLegPosition === positionType && priorityLegStrike !== undefined) {
         // Check if overlapping with any badge at any level
         const overlapsWithAny = occupiedStrikes.some(occupied => 
-          Math.abs(effectiveDragStrike - occupied.center) < badgeWidthInStrikes
+          Math.abs(priorityLegStrike - occupied.center) < badgeWidthInStrikes
         );
         
-        // Dragged badge goes on top (level 1) when overlapping, otherwise level 0
+        // Priority badge goes on top (level 1) when overlapping, otherwise level 0
         const newLevel = overlapsWithAny ? 1 : 0;
-        levels[draggedLeg] = newLevel;
+        levels[priorityLegId] = newLevel;
       }
     };
     
@@ -696,7 +703,7 @@ export function StrikeLadder({
     assignLevels(shortLegs, 'short');
     
     return levels;
-  }, [legs, strikesKey, draggedLeg, draggedStrikePosition, rawDragPosition]);
+  }, [legs, strikesKey, draggedLeg, draggedStrikePosition, rawDragPosition, lastMovedLeg]);
 
   return (
     <div className="w-full select-none relative">
