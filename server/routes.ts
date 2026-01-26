@@ -25,56 +25,87 @@ const optionsChainQuerySchema = z.object({
   side: z.enum(["call", "put"]).optional(),
 });
 
-// Shared helper to fetch option snapshots from Alpaca
+// Parse option symbol to extract expiration date
+function parseOptionSymbolExpiration(optionSymbol: string): string | null {
+  const match = optionSymbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
+  if (!match) return null;
+  
+  const [, , dateStr] = match;
+  const year = 2000 + parseInt(dateStr.substring(0, 2));
+  const month = parseInt(dateStr.substring(2, 4));
+  const day = parseInt(dateStr.substring(4, 6));
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// Shared helper to fetch option snapshots from Alpaca with pagination
 // Returns snapshots object and list of available expirations
-async function fetchAlpacaSnapshots(symbol: string) {
+async function fetchAlpacaSnapshots(symbol: string, options?: { expiration?: string }) {
   if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
     throw new Error("Alpaca API credentials not configured");
   }
   
-  const url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}?feed=indicative`;
+  const allSnapshots: Record<string, any> = {};
+  let pageToken: string | null = null;
+  let pageCount = 0;
+  const maxPages = 10; // Limit to prevent infinite loops (1000 options max)
   
-  const response = await fetch(url, {
-    headers: {
-      'APCA-API-KEY-ID': ALPACA_API_KEY,
-      'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+  do {
+    // Build URL with optional expiration filter and pagination
+    let url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}?feed=indicative&limit=100`;
+    if (options?.expiration) {
+      url += `&expiration_date=${options.expiration}`;
     }
-  });
-  
-  if (response.status === 429) {
-    const error: any = new Error("Rate limit exceeded");
-    error.status = 429;
-    error.retryAfter = response.headers.get("Retry-After") || "60";
-    throw error;
-  }
-  
-  if (!response.ok) {
-    if (response.status === 404) {
-      const error: any = new Error(`No options data available for ${symbol.toUpperCase()}`);
-      error.status = 404;
+    if (pageToken) {
+      url += `&page_token=${encodeURIComponent(pageToken)}`;
+    }
+    
+    const response = await fetch(url, {
+      headers: {
+        'APCA-API-KEY-ID': ALPACA_API_KEY,
+        'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+      }
+    });
+    
+    if (response.status === 429) {
+      const error: any = new Error("Rate limit exceeded");
+      error.status = 429;
+      error.retryAfter = response.headers.get("Retry-After") || "60";
       throw error;
     }
-    throw new Error(`Alpaca API error: ${response.status}`);
-  }
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        const error: any = new Error(`No options data available for ${symbol.toUpperCase()}`);
+        error.status = 404;
+        throw error;
+      }
+      throw new Error(`Alpaca API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const pageSnapshots = data.snapshots || {};
+    
+    // Merge snapshots
+    Object.assign(allSnapshots, pageSnapshots);
+    
+    // Check for next page
+    pageToken = data.next_page_token || null;
+    pageCount++;
+    
+    if (pageToken && pageCount < maxPages) {
+      console.log(`[Options Chain] Fetching page ${pageCount + 1} for ${symbol}... (${Object.keys(allSnapshots).length} options so far)`);
+    }
+  } while (pageToken && pageCount < maxPages);
   
-  const data = await response.json();
-  const snapshots = data.snapshots || {};
+  if (pageCount > 1) {
+    console.log(`[Options Chain] Fetched ${pageCount} pages with ${Object.keys(allSnapshots).length} total options for ${symbol}`);
+  }
   
   // Parse option symbols to extract unique expiration dates
   const expirationSet = new Set<string>();
-  const parseOptionSymbol = (optionSymbol: string) => {
-    const match = optionSymbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
-    if (!match) return null;
-    
-    const [, , dateStr] = match;
-    const year = 2000 + parseInt(dateStr.substring(0, 2));
-    const month = parseInt(dateStr.substring(2, 4));
-    const day = parseInt(dateStr.substring(4, 6));
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  };
   
-  for (const optionSymbol of Object.keys(snapshots)) {
-    const isoDate = parseOptionSymbol(optionSymbol);
+  for (const optionSymbol of Object.keys(allSnapshots)) {
+    const isoDate = parseOptionSymbolExpiration(optionSymbol);
     if (isoDate) {
       expirationSet.add(isoDate);
     }
@@ -83,9 +114,9 @@ async function fetchAlpacaSnapshots(symbol: string) {
   const availableExpirations = Array.from(expirationSet).sort();
   
   return {
-    snapshots,
+    snapshots: allSnapshots,
     availableExpirations,
-    count: Object.keys(snapshots).length,
+    count: Object.keys(allSnapshots).length,
   };
 }
 
@@ -476,8 +507,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(cachedData);
       }
 
-      // Use shared helper to fetch snapshots
-      const { snapshots, availableExpirations, count } = await fetchAlpacaSnapshots(symbol);
+      // Use shared helper to fetch snapshots with pagination
+      // Pass expiration to filter on server-side for better efficiency
+      const { snapshots, availableExpirations, count } = await fetchAlpacaSnapshots(symbol, 
+        expiration ? { expiration } : undefined
+      );
       
       console.log(`[Options Chain] Fetched ${count} snapshots for ${symbol.toUpperCase()}`);
       console.log(`[Options Chain] Available expirations:`, availableExpirations.slice(0, 5));
