@@ -288,8 +288,9 @@ export function useStrategyEngine(rangePercent: number = 14) {
       ? selectedExpirationDays 
       : Math.max(...uniqueExpirationDays);
     
-    // If expiration is very near (< 3 days), show hours instead of days
-    const useHours = targetDays < 3;
+    // Match OptionStrat: show hourly intervals for options with 7 days or less
+    // This gives traders better visibility into theta decay for weekly options
+    const useHours = targetDays <= 7;
     const timeSteps: number[] = [];
     
     if (useHours) {
@@ -332,16 +333,19 @@ export function useStrategyEngine(rangePercent: number = 14) {
         const dateKey = `${targetTime.getMonth()}-${targetTime.getDate()}`;
         
         if (dateKey !== lastDateKey) {
-          // Generate date label
-          const month = targetTime.toLocaleString('default', { month: 'short' });
+          // Generate OptionStrat-style date label: "26 M", "27 T", "28 w", etc.
           const day = targetTime.getDate();
-          const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
-                        day === 2 || day === 22 ? 'nd' :
-                        day === 3 || day === 23 ? 'rd' : 'th';
+          const weekdayFull = targetTime.toLocaleString('default', { weekday: 'short' });
+          // Get weekday initial: Mon->M, Tue->T, Wed->w, Thu->Th, Fri->F, Sat->Sa, Sun->Su
+          const weekdayInitial = weekdayFull === 'Wed' ? 'w' : 
+                                  weekdayFull === 'Thu' ? 'Th' : 
+                                  weekdayFull === 'Sat' ? 'Sa' : 
+                                  weekdayFull === 'Sun' ? 'Su' : 
+                                  weekdayFull.charAt(0);
           
           // Start new group
           dateGroups.push({
-            dateLabel: `${month} ${day}${suffix}`,
+            dateLabel: `${day} ${weekdayInitial}`,
             startIdx: idx,
             count: 1,
           });
