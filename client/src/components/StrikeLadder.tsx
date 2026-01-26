@@ -572,7 +572,7 @@ export function StrikeLadder({
     );
   };
 
-  const renderClosedEntryBadge = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', verticalOffset: number = 0) => {
+  const renderClosedEntryBadge = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', closedIndex: number = 0) => {
     const isCall = leg.type === "call";
     const isExcluded = entry.isExcluded;
     
@@ -584,10 +584,13 @@ export function StrikeLadder({
     const closedBgColor = isCall ? '#1a5a15' : '#6a211c';
     
     const badgeHeight = 28;
-    const stackOffset = verticalOffset * (badgeHeight + 4);
+    // Closed entries stack TOWARD the centerline (opposite of open badges)
+    // For long positions: closed entries go BELOW the open badge
+    // For short positions: closed entries go ABOVE the open badge
+    const closedStackOffset = closedIndex * (badgeHeight + 4);
     const topPosition = position === 'long'
-      ? `calc(50% - ${badgeHeight + 18}px - ${stackOffset}px)`
-      : `calc(50% + 18px + ${stackOffset}px)`;
+      ? `calc(50% - ${badgeHeight + 18}px + ${closedStackOffset + badgeHeight + 4}px)` // Stack down from open badge
+      : `calc(50% + 18px - ${closedStackOffset + badgeHeight + 4}px)`;                  // Stack up from open badge
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
@@ -824,7 +827,7 @@ export function StrikeLadder({
             <div key={leg.id}>
               {renderOpenBadge(leg, position, stackLevel)}
               {leg.closingTransaction?.entries?.map((entry, i) => 
-                renderClosedEntryBadge(leg, entry, position, stackLevel + i)
+                renderClosedEntryBadge(leg, entry, position, i)
               )}
             </div>
           );
