@@ -286,9 +286,9 @@ export function PLHeatmap({
                   }`}
                   data-testid={`header-time-${idx}`}
                 >
-                  <div className="text-[9px] text-muted-foreground leading-tight">{getTimeLabel(day)}</div>
+                  <div className="text-[10px] text-muted-foreground leading-tight">{getTimeLabel(day)}</div>
                   {getTimeSubLabel(day) && (
-                    <div className="text-[9px] text-muted-foreground/70 font-normal leading-tight">
+                    <div className="text-[9px] text-muted-foreground/60 font-normal leading-tight">
                       {getTimeSubLabel(day)}
                     </div>
                   )}

@@ -301,18 +301,39 @@ export function useStrategyEngine(rangePercent: number = 14) {
         // Option is expired - show expiration value
         timeSteps.push(0);
       } else {
-        // Generate time steps: ~3 columns per day like OptionStrat
-        // Use trading-hour-aligned intervals (roughly 4pm, 8pm, 11pm style)
-        const numDays = Math.ceil(targetDays);
-        const columnsPerDay = 3;
-        const totalColumns = Math.min(numDays * columnsPerDay, 15); // Cap at 15 columns
+        // Generate time steps day by day, ~3 columns per day like OptionStrat
+        // Ensures TODAY has multiple time slots showing intraday movement
+        const now = new Date();
+        const currentHour = now.getHours() + now.getMinutes() / 60;
         
-        // Spread evenly from now to expiration
-        const hourStep = actualHours / (totalColumns - 1);
-        for (let i = 0; i < totalColumns; i++) {
-          const hoursFromNow = i * hourStep;
-          timeSteps.push(hoursFromNow / 24); // Convert to fractional days
+        // Hours remaining today (until midnight)
+        const hoursLeftToday = 24 - currentHour;
+        
+        // Generate 3 time slots for TODAY (now, +4h, +8h or until midnight)
+        const todaySlots = Math.min(3, Math.ceil(hoursLeftToday / 3));
+        const todayHourStep = hoursLeftToday / todaySlots;
+        for (let i = 0; i < todaySlots; i++) {
+          timeSteps.push((i * todayHourStep) / 24);
         }
+        
+        // Then add time slots for subsequent days (3 per day: morning, afternoon, evening)
+        // Starting from tomorrow morning
+        let dayOffset = 1;
+        const numDays = Math.ceil(targetDays);
+        while (timeSteps.length < 15 && dayOffset <= numDays) {
+          // Add 3 time slots per day: ~9am, ~3pm, ~9pm (relative to day start)
+          const dailyHours = [9, 15, 21]; // 9am, 3pm, 9pm
+          for (const hour of dailyHours) {
+            const hoursFromNow = (dayOffset * 24) - currentHour + hour;
+            if (hoursFromNow > 0 && hoursFromNow <= actualHours && timeSteps.length < 15) {
+              timeSteps.push(hoursFromNow / 24);
+            }
+          }
+          dayOffset++;
+        }
+        
+        // Sort time steps to ensure proper order
+        timeSteps.sort((a, b) => a - b);
       }
     } else {
       // For longer-dated options, show daily intervals
