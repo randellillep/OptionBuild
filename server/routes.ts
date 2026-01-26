@@ -216,31 +216,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch latest trade and previous day bar for change calculation
-      const [tradeRes, barRes] = await Promise.all([
-        fetch(`https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/trades/latest?feed=iex`, {
-          headers: {
-            'APCA-API-KEY-ID': ALPACA_API_KEY,
-            'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
-          },
-        }),
-        fetch(`https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/bars/latest?feed=iex`, {
-          headers: {
-            'APCA-API-KEY-ID': ALPACA_API_KEY,
-            'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
-          },
-        }),
-      ]);
+      // Use snapshot endpoint to get current price AND previous day's close
+      const snapshotRes = await fetch(`https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/snapshot?feed=iex`, {
+        headers: {
+          'APCA-API-KEY-ID': ALPACA_API_KEY,
+          'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+        },
+      });
 
-      if (!tradeRes.ok) {
-        throw new Error(`Alpaca API error: ${tradeRes.status}`);
+      if (!snapshotRes.ok) {
+        throw new Error(`Alpaca API error: ${snapshotRes.status}`);
       }
 
-      const tradeData = await tradeRes.json();
-      const barData = barRes.ok ? await barRes.json() : null;
+      const snapshot = await snapshotRes.json();
       
-      const currentPrice = tradeData.trade?.p || 0;
-      const bar = barData?.bar;
-      const previousClose = bar?.c || currentPrice;
+      // Current price from latest trade
+      const currentPrice = snapshot.latestTrade?.p || 0;
+      
+      // Previous day's close from prevDailyBar
+      const prevDailyBar = snapshot.prevDailyBar;
+      const dailyBar = snapshot.dailyBar;
+      const previousClose = prevDailyBar?.c || currentPrice;
+      
+      // Calculate change from previous day's close
       const change = currentPrice - previousClose;
       const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
 
@@ -250,10 +248,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         previousClose: previousClose,
         change: change,
         changePercent: changePercent,
-        high: bar?.h || currentPrice,
-        low: bar?.l || currentPrice,
-        open: bar?.o || currentPrice,
-        timestamp: tradeData.trade?.t ? new Date(tradeData.trade.t).getTime() / 1000 : Date.now() / 1000,
+        high: dailyBar?.h || currentPrice,
+        low: dailyBar?.l || currentPrice,
+        open: dailyBar?.o || currentPrice,
+        timestamp: snapshot.latestTrade?.t ? new Date(snapshot.latestTrade.t).getTime() / 1000 : Date.now() / 1000,
       });
     } catch (error) {
       console.error("Error fetching stock quote:", error);
