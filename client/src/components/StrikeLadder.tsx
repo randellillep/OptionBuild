@@ -643,10 +643,11 @@ export function StrikeLadder({
     const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
     
     const levels: { [legId: string]: number } = {};
-    const badgeWidthInStrikes = 12;
-    // Thresholds: elevate when overlapping, drop when fully past
-    const elevateThreshold = 13; // Start overlapping at ~12 strikes, elevate slightly before
-    const dropThreshold = 13; // Stay elevated until clearly past (centers > 13 strikes apart)
+    // Badge width is ~70px, ladder is typically ~800-1000px wide
+    // Calculate how many strikes that 70px badge covers in the current visible range
+    // Formula: (badgePixelWidth / ladderPixelWidth) * visibleRange
+    // Approximate: 70/900 * range = 0.078 * range
+    const badgeWidthInStrikes = Math.max(4, Math.round(range * 0.08));
     
     const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
     const draggedLegPosition = draggedLegData?.position;
@@ -703,7 +704,7 @@ export function StrikeLadder({
     assignLevels(shortLegs, 'short');
     
     return levels;
-  }, [legs, strikesKey, draggedLeg, draggedStrikePosition, rawDragPosition, lastMovedLeg]);
+  }, [legs, strikesKey, draggedLeg, draggedStrikePosition, rawDragPosition, lastMovedLeg, range]);
 
   return (
     <div className="w-full select-none relative">
