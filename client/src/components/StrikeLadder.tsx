@@ -45,6 +45,7 @@ export function StrikeLadder({
   const [draggedStrikePosition, setDraggedStrikePosition] = useState<number | null>(null);
   const [rawDragPosition, setRawDragPosition] = useState<number | null>(null); // Unsnapped position for smooth overlap detection
   const draggedLegRef = useRef<string | null>(null);
+  const draggedLevelRef = useRef<number>(0); // Track the current level during drag for stability
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState(0);
   const [panStartX, setPanStartX] = useState(0);
@@ -179,6 +180,24 @@ export function StrikeLadder({
     }
   };
 
+  // Helper to get current stacking level for a leg
+  const getCurrentStackLevel = (legId: string): number => {
+    const leg = legs.find(l => l.id === legId);
+    if (!leg || leg.type === "stock") return 0;
+    
+    const samePositionLegs = legs
+      .filter(l => l.type !== "stock" && l.position === leg.position && l.id !== legId)
+      .sort((a, b) => a.strike - b.strike);
+    
+    const badgeWidthInStrikes = 12;
+    for (const otherLeg of samePositionLegs) {
+      if (Math.abs(leg.strike - otherLeg.strike) < badgeWidthInStrikes) {
+        return 1; // If overlapping with any same-position leg, we're elevated
+      }
+    }
+    return 0;
+  };
+
   // Handle pending drag detection - only start drag after movement threshold
   useEffect(() => {
     const handlePendingMove = (e: PointerEvent) => {
@@ -186,9 +205,13 @@ export function StrikeLadder({
       
       const distance = Math.abs(e.clientX - pendingDragRef.current.startX);
       if (distance >= dragThreshold) {
+        // Initialize level ref with current stacking level
+        const legId = pendingDragRef.current.legId;
+        draggedLevelRef.current = getCurrentStackLevel(legId);
+        
         // Start actual drag
-        draggedLegRef.current = pendingDragRef.current.legId;
-        setDraggedLeg(pendingDragRef.current.legId);
+        draggedLegRef.current = legId;
+        setDraggedLeg(legId);
         setIsDragging(true);
         pendingDragRef.current = null;
       }
@@ -206,7 +229,7 @@ export function StrikeLadder({
       document.removeEventListener('pointermove', handlePendingMove);
       document.removeEventListener('pointerup', handlePendingUp);
     };
-  }, [dragThreshold]);
+  }, [dragThreshold, legs]);
 
   // Handle active dragging
   useEffect(() => {
@@ -285,6 +308,7 @@ export function StrikeLadder({
     const handlePointerUp = () => {
       setIsDragging(false);
       draggedLegRef.current = null;
+      draggedLevelRef.current = 0; // Reset level ref
       setDraggedLeg(null);
       setDraggedStrikePosition(null);
       setRawDragPosition(null);
@@ -619,6 +643,9 @@ export function StrikeLadder({
     
     const levels: { [legId: string]: number } = {};
     const badgeWidthInStrikes = 12;
+    // Hysteresis thresholds: need to be clearly inside/outside to change levels
+    const elevateThreshold = 10; // Must be within 10 strikes to elevate
+    const dropThreshold = 14; // Must be more than 14 strikes apart to drop
     
     const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
     const draggedLegPosition = draggedLegData?.position;
@@ -651,13 +678,26 @@ export function StrikeLadder({
         occupiedStrikes.push({ center: leg.strike, level, legId: leg.id });
       });
       
-      // Second pass: assign level to dragged badge
-      // Keep it elevated (level 1) if it overlaps with any level-0 badge
+      // Second pass: assign level to dragged badge with hysteresis
       if (draggedLeg && draggedLegPosition === positionType && effectiveDragStrike !== undefined) {
-        const overlapsWithLevel0 = occupiedStrikes.some(occupied => 
-          occupied.level === 0 && Math.abs(effectiveDragStrike - occupied.center) < badgeWidthInStrikes
-        );
-        levels[draggedLeg] = overlapsWithLevel0 ? 1 : 0;
+        const currentLevel = draggedLevelRef.current;
+        
+        // Find closest level-0 badge distance
+        const closestDistance = occupiedStrikes
+          .filter(o => o.level === 0)
+          .reduce((min, o) => Math.min(min, Math.abs(effectiveDragStrike - o.center)), Infinity);
+        
+        let newLevel: number;
+        if (currentLevel === 0) {
+          // Currently at level 0 - only elevate if clearly overlapping
+          newLevel = closestDistance < elevateThreshold ? 1 : 0;
+        } else {
+          // Currently elevated - only drop if clearly outside
+          newLevel = closestDistance >= dropThreshold ? 0 : 1;
+        }
+        
+        draggedLevelRef.current = newLevel;
+        levels[draggedLeg] = newLevel;
       }
     };
     
