@@ -514,7 +514,7 @@ export function StrikeLadder({
                 />
               )}
               <div
-                className={`text-[14px] h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
                   backgroundColor: isExcluded ? undefined : openBgColor,
                   boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
@@ -641,7 +641,7 @@ export function StrikeLadder({
                 />
               )}
               <div
-                className={`text-[14px] h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
                   backgroundColor: isExcluded ? undefined : closedBgColor,
                   boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
