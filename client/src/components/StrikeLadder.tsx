@@ -53,14 +53,38 @@ export function StrikeLadder({
   const ladderRef = useRef<HTMLDivElement>(null);
   const prevSymbolRef = useRef<string>(symbol);
 
-  // Reset pan offset when symbol changes to recenter on current price
+  // Calculate pan offset needed to center on current price
+  const calculateCenterPanOffset = (minStrike: number, maxStrike: number, price: number) => {
+    const fullRangeCalc = maxStrike - minStrike;
+    if (fullRangeCalc <= 0) return 0;
+    const zoomFactorCalc = 0.5;
+    const baseRangeCalc = fullRangeCalc * zoomFactorCalc;
+    // Default center (when panOffset = 0) is the middle of the strike range
+    const defaultCenter = (minStrike + maxStrike) / 2;
+    // We want the center to be at currentPrice
+    // panAdjustment = (panOffset / 100) * baseRange
+    // newCenter = defaultCenter + panAdjustment = currentPrice
+    // panOffset = (currentPrice - defaultCenter) / baseRange * 100
+    const offset = ((price - defaultCenter) / baseRangeCalc) * 100;
+    return offset;
+  };
+
+  // Track when we need to recenter (symbol change or first data load)
+  const prevDataKeyRef = useRef<string>("");
+  
+  // Recenter on current price when symbol changes OR when strike data loads
   useEffect(() => {
-    if (symbol !== prevSymbolRef.current) {
-      setPanOffset(0);
+    // Create a key that changes when symbol or strike range significantly changes
+    const dataKey = `${symbol}-${strikeRange.min.toFixed(0)}-${strikeRange.max.toFixed(0)}`;
+    
+    if (dataKey !== prevDataKeyRef.current) {
+      const centerOffset = calculateCenterPanOffset(strikeRange.min, strikeRange.max, currentPrice);
+      setPanOffset(centerOffset);
       setLastMovedLeg(null);
+      prevDataKeyRef.current = dataKey;
       prevSymbolRef.current = symbol;
     }
-  }, [symbol]);
+  }, [symbol, strikeRange.min, strikeRange.max, currentPrice]);
 
   const strikeIncrement = useMemo(() => {
     if (availableStrikes && availableStrikes.strikes.length > 1) {
