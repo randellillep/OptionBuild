@@ -132,8 +132,8 @@ export function PLHeatmap({
 
   const getTimeSubLabel = (daysValue: number) => {
     if (useHours) {
-      const totalHours = Math.round(daysValue * 24);
-      return `${totalHours}h`;
+      // No sub-label needed for hourly mode - time is already shown above
+      return '';
     } else {
       return `${Math.round(daysValue)}d`;
     }
@@ -281,15 +281,17 @@ export function PLHeatmap({
                 <th
                   key={idx}
                   scope="col"
-                  className={`text-[11px] font-semibold text-center p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
+                  className={`text-[10px] font-normal text-center p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
                     isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
                   }`}
                   data-testid={`header-time-${idx}`}
                 >
-                  <div className="text-[11px] leading-tight">{getTimeLabel(day)}</div>
-                  <div className="text-[10px] text-muted-foreground font-normal leading-tight">
-                    {getTimeSubLabel(day)}
-                  </div>
+                  <div className="text-[9px] text-muted-foreground leading-tight">{getTimeLabel(day)}</div>
+                  {getTimeSubLabel(day) && (
+                    <div className="text-[9px] text-muted-foreground/70 font-normal leading-tight">
+                      {getTimeSubLabel(day)}
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>
