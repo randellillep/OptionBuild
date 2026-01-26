@@ -777,14 +777,6 @@ export default function Tutorial() {
         </div>
 
         <Card className="mb-6">
-          <CardHeader className="pb-4 border-b">
-            <CardTitle className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                {tutorialSteps[currentStep].icon}
-              </div>
-              <h2 className="text-xl">{tutorialSteps[currentStep].title}</h2>
-            </CardTitle>
-          </CardHeader>
           <CardContent className="pt-6">
             {tutorialSteps[currentStep].content}
           </CardContent>
