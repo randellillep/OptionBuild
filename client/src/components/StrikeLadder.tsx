@@ -43,6 +43,7 @@ export function StrikeLadder({
   const [draggedLeg, setDraggedLeg] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [draggedStrikePosition, setDraggedStrikePosition] = useState<number | null>(null);
+  const [rawDragPosition, setRawDragPosition] = useState<number | null>(null); // Unsnapped position for smooth overlap detection
   const draggedLegRef = useRef<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState(0);
@@ -123,7 +124,7 @@ export function StrikeLadder({
     return ((strike - adjustedMin) / range) * 100;
   };
 
-  const getStrikeFromPosition = (clientX: number) => {
+  const getStrikeFromPosition = (clientX: number): { snapped: number; raw: number } | null => {
     if (!ladderRef.current) return null;
     
     const rect = ladderRef.current.getBoundingClientRect();
@@ -139,12 +140,13 @@ export function StrikeLadder({
       const nearest = availableStrikes.strikes.reduce((prev, curr) => 
         Math.abs(curr - clampedStrike) < Math.abs(prev - clampedStrike) ? curr : prev
       );
-      return nearest;
+      return { snapped: nearest, raw: clampedStrike };
     }
     
     const clampedRaw = Math.max(strikeRange.min, Math.min(strikeRange.max, rawStrike));
     const snapped = Math.round(clampedRaw / strikeIncrement) * strikeIncrement;
-    return Math.max(strikeRange.min, Math.min(strikeRange.max, Number(snapped.toFixed(2))));
+    const snappedValue = Math.max(strikeRange.min, Math.min(strikeRange.max, Number(snapped.toFixed(2))));
+    return { snapped: snappedValue, raw: clampedRaw };
   };
 
   const pendingDragRef = useRef<{ legId: string; startX: number; pointerId: number; target: HTMLElement } | null>(null);
@@ -212,9 +214,12 @@ export function StrikeLadder({
 
     const handlePointerMove = (e: PointerEvent) => {
       e.preventDefault();
-      const newStrike = getStrikeFromPosition(e.clientX);
-      if (newStrike !== null) {
+      const strikeResult = getStrikeFromPosition(e.clientX);
+      if (strikeResult !== null) {
+        const { snapped: newStrike, raw: rawPosition } = strikeResult;
         setDraggedStrikePosition(newStrike);
+        setRawDragPosition(rawPosition); // Track raw position for smooth overlap detection
+        
         const leg = legs.find(l => l.id === draggedLeg);
         if (!leg) return;
         if (leg.type === "stock") return;
@@ -282,6 +287,7 @@ export function StrikeLadder({
       draggedLegRef.current = null;
       setDraggedLeg(null);
       setDraggedStrikePosition(null);
+      setRawDragPosition(null);
     };
 
     document.addEventListener('pointermove', handlePointerMove);
@@ -616,7 +622,8 @@ export function StrikeLadder({
     
     const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
     const draggedLegPosition = draggedLegData?.position;
-    const effectiveDragStrike = draggedStrikePosition ?? draggedLegData?.strike;
+    // Use raw position for smooth overlap detection during drag
+    const effectiveDragStrike = rawDragPosition ?? draggedStrikePosition ?? draggedLegData?.strike;
     
     const assignLevels = (sortedLegs: OptionLeg[], positionType: 'long' | 'short') => {
       const occupiedStrikes: { center: number; level: number; legId: string }[] = [];
@@ -658,7 +665,7 @@ export function StrikeLadder({
     assignLevels(shortLegs, 'short');
     
     return levels;
-  }, [legs, strikesKey, draggedLeg, draggedStrikePosition]);
+  }, [legs, strikesKey, draggedLeg, draggedStrikePosition, rawDragPosition]);
 
   return (
     <div className="w-full select-none relative">
