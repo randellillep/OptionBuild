@@ -22,35 +22,35 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
       value: greeks.delta * 100,
       icon: TrendingUp,
       description: "Price sensitivity",
-      color: "text-blue-600 dark:text-blue-500",
+      color: "text-muted-foreground",
     },
     {
       name: "Gamma",
       value: greeks.gamma * 100,
       icon: Activity,
       description: "Delta change rate",
-      color: "text-purple-600 dark:text-purple-500",
+      color: "text-muted-foreground",
     },
     {
       name: "Theta",
       value: greeks.theta * 100,
       icon: Clock,
       description: "Time decay",
-      color: "text-orange-600 dark:text-orange-500",
+      color: "text-muted-foreground",
     },
     {
       name: "Vega",
       value: greeks.vega * 100,
       icon: BarChart2,
       description: "Volatility sensitivity",
-      color: "text-green-600 dark:text-green-500",
+      color: "text-muted-foreground",
     },
     {
       name: "Rho",
       value: greeks.rho * 100,
       icon: DollarSign,
       description: "Interest rate sensitivity",
-      color: "text-red-600 dark:text-red-500",
+      color: "text-muted-foreground",
     },
   ];
 
@@ -117,11 +117,11 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
   const getRiskBadge = (level: RiskLevel) => {
     switch (level) {
       case 'High':
-        return <Badge className="bg-red-500 text-white hover:bg-red-600 text-[10px] px-2">High</Badge>;
+        return <Badge variant="outline" className="border-red-500/50 text-red-600 dark:text-red-400 bg-red-500/10 text-[10px] px-2">High</Badge>;
       case 'Medium':
-        return <Badge className="bg-amber-500 text-white hover:bg-amber-600 text-[10px] px-2">Medium</Badge>;
+        return <Badge variant="outline" className="border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-[10px] px-2">Medium</Badge>;
       case 'Low':
-        return <Badge className="bg-emerald-500 text-white hover:bg-emerald-600 text-[10px] px-2">Low</Badge>;
+        return <Badge variant="outline" className="border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] px-2">Low</Badge>;
     }
   };
 
@@ -199,7 +199,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
       {riskAnalysis.hasPosition && (
         <Card className="p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Shield className="h-4 w-4 text-primary" />
+            <Shield className="h-4 w-4 text-muted-foreground" />
             Greeks Summary & Interpretation
           </h3>
 
@@ -207,13 +207,13 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
             <div className="space-y-3 md:col-span-2">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Risk Metrics</h4>
               
-              <div className="space-y-3">
-                <div className="p-3 bg-muted/30 rounded-md">
+              <div className="space-y-2">
+                <div className="p-3 bg-muted/20 rounded-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1">
-                      <TrendingUp className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <TrendingUp className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Price Risk (Delta):</span>
+                        <span className="text-sm font-medium">Price Risk (Delta)</span>
                         <p className="text-xs text-muted-foreground mt-1">{getDeltaInsight()}</p>
                       </div>
                     </div>
@@ -221,12 +221,12 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                   </div>
                 </div>
 
-                <div className="p-3 bg-muted/30 rounded-md">
+                <div className="p-3 bg-muted/20 rounded-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1">
-                      <Clock className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                      <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">Time Risk (Theta):</span>
+                        <span className="text-sm font-medium">Time Risk (Theta)</span>
                         <p className="text-xs text-muted-foreground mt-1">{getThetaInsight()}</p>
                       </div>
                     </div>
@@ -234,12 +234,12 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                   </div>
                 </div>
 
-                <div className="p-3 bg-muted/30 rounded-md">
+                <div className="p-3 bg-muted/20 rounded-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1">
-                      <BarChart2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                      <BarChart2 className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-sm font-semibold text-green-600 dark:text-green-400">Volatility Risk (Vega):</span>
+                        <span className="text-sm font-medium">Volatility Risk (Vega)</span>
                         <p className="text-xs text-muted-foreground mt-1">{getVegaInsight()}</p>
                       </div>
                     </div>
@@ -247,12 +247,12 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                   </div>
                 </div>
 
-                <div className="p-3 bg-muted/30 rounded-md">
+                <div className="p-3 bg-muted/20 rounded-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1">
-                      <Activity className="h-4 w-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                      <Activity className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                       <div>
-                        <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">Gamma Risk:</span>
+                        <span className="text-sm font-medium">Gamma Risk</span>
                         <p className="text-xs text-muted-foreground mt-1">{getGammaInsight()}</p>
                       </div>
                     </div>
@@ -262,10 +262,10 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
               </div>
 
               {riskAnalysis.hasShortPositions && (
-                <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/30 rounded-md">
+                <div className="mt-3 p-2 bg-muted/40 border border-border rounded-md">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground">
                       This strategy includes short positions. Monitor closely as short options carry additional risk.
                     </p>
                   </div>
@@ -273,10 +273,10 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
               )}
 
               {(riskAnalysis.maxLoss === 'Unlimited' || riskAnalysis.thetaRisk === 'High' || riskAnalysis.gammaRisk === 'High' || riskAnalysis.deltaRisk === 'High') && (
-                <div className="mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded-md">
+                <div className="mt-2 p-2 bg-muted/40 border border-border rounded-md">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-red-600 dark:text-red-400">
+                    <AlertTriangle className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground">
                       {getOverallRiskSummary()}
                     </p>
                   </div>

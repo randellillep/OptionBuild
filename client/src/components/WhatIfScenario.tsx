@@ -135,7 +135,7 @@ export function WhatIfScenario({
     return (
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-3">
-          <Zap className="h-4 w-4 text-primary" />
+          <Zap className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold">What-If Scenario</h3>
         </div>
         <div className="h-24 flex items-center justify-center bg-muted/30 rounded-md">
@@ -149,7 +149,7 @@ export function WhatIfScenario({
     <Card className="p-4" data-testid="what-if-scenario">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-primary" />
+          <Zap className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold">What-If Scenario</h3>
           <Tooltip>
             <TooltipTrigger asChild>
