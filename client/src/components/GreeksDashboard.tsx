@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Greeks, OptionLeg, StrategyMetrics } from "@shared/schema";
-import { TrendingUp, Activity, DollarSign, AlertTriangle, Shield, Clock, BarChart2 } from "lucide-react";
+import { TrendingUp, Activity, DollarSign, AlertTriangle, Clock, BarChart2 } from "lucide-react";
 import { useMemo } from "react";
 
 interface GreeksDashboardProps {
@@ -22,35 +22,35 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
       value: greeks.delta * 100,
       icon: TrendingUp,
       description: "Price sensitivity",
-      color: "text-muted-foreground",
+      color: "text-blue-400/70 dark:text-blue-400/60",
     },
     {
       name: "Gamma",
       value: greeks.gamma * 100,
       icon: Activity,
       description: "Delta change rate",
-      color: "text-muted-foreground",
+      color: "text-purple-400/70 dark:text-purple-400/60",
     },
     {
       name: "Theta",
       value: greeks.theta * 100,
       icon: Clock,
       description: "Time decay",
-      color: "text-muted-foreground",
+      color: "text-orange-400/70 dark:text-orange-400/60",
     },
     {
       name: "Vega",
       value: greeks.vega * 100,
       icon: BarChart2,
       description: "Volatility sensitivity",
-      color: "text-muted-foreground",
+      color: "text-emerald-400/70 dark:text-emerald-400/60",
     },
     {
       name: "Rho",
       value: greeks.rho * 100,
       icon: DollarSign,
       description: "Interest rate sensitivity",
-      color: "text-muted-foreground",
+      color: "text-rose-400/70 dark:text-rose-400/60",
     },
   ];
 
@@ -198,11 +198,6 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
 
       {riskAnalysis.hasPosition && (
         <Card className="p-4">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Shield className="h-4 w-4 text-muted-foreground" />
-            Greeks Summary & Interpretation
-          </h3>
-
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-3 md:col-span-2">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Risk Metrics</h4>
@@ -211,7 +206,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                 <div className="p-3 bg-muted/20 rounded-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1">
-                      <TrendingUp className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <TrendingUp className="h-4 w-4 text-blue-400/60 flex-shrink-0 mt-0.5" />
                       <div>
                         <span className="text-sm font-medium">Price Risk (Delta)</span>
                         <p className="text-xs text-muted-foreground mt-1">{getDeltaInsight()}</p>
@@ -224,7 +219,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                 <div className="p-3 bg-muted/20 rounded-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1">
-                      <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <Clock className="h-4 w-4 text-orange-400/60 flex-shrink-0 mt-0.5" />
                       <div>
                         <span className="text-sm font-medium">Time Risk (Theta)</span>
                         <p className="text-xs text-muted-foreground mt-1">{getThetaInsight()}</p>
@@ -237,7 +232,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                 <div className="p-3 bg-muted/20 rounded-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1">
-                      <BarChart2 className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <BarChart2 className="h-4 w-4 text-emerald-400/60 flex-shrink-0 mt-0.5" />
                       <div>
                         <span className="text-sm font-medium">Volatility Risk (Vega)</span>
                         <p className="text-xs text-muted-foreground mt-1">{getVegaInsight()}</p>
@@ -250,7 +245,7 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
                 <div className="p-3 bg-muted/20 rounded-md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2 flex-1">
-                      <Activity className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <Activity className="h-4 w-4 text-purple-400/60 flex-shrink-0 mt-0.5" />
                       <div>
                         <span className="text-sm font-medium">Gamma Risk</span>
                         <p className="text-xs text-muted-foreground mt-1">{getGammaInsight()}</p>
@@ -262,10 +257,10 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
               </div>
 
               {riskAnalysis.hasShortPositions && (
-                <div className="mt-3 p-2 bg-muted/40 border border-border rounded-md">
+                <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground">
+                    <AlertTriangle className="h-4 w-4 text-amber-500/80 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-600 dark:text-amber-400/80">
                       This strategy includes short positions. Monitor closely as short options carry additional risk.
                     </p>
                   </div>
@@ -273,10 +268,10 @@ export function GreeksDashboard({ greeks, legs = [], metrics, currentPrice = 0, 
               )}
 
               {(riskAnalysis.maxLoss === 'Unlimited' || riskAnalysis.thetaRisk === 'High' || riskAnalysis.gammaRisk === 'High' || riskAnalysis.deltaRisk === 'High') && (
-                <div className="mt-2 p-2 bg-muted/40 border border-border rounded-md">
+                <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded-md">
                   <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground">
+                    <AlertTriangle className="h-4 w-4 text-red-500/80 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-600 dark:text-red-400/80">
                       {getOverallRiskSummary()}
                     </p>
                   </div>
