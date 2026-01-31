@@ -592,17 +592,16 @@ export function StrikeLadder({
     const arrowHeight = 4;
     const closedStackGap = 2;
     
-    // Tick marks are at 50% - 18px (upper) and 50% + 18px (lower)
-    // Open badge for long is at: 50% - 46px
-    // Closed badges: first one with bottom at upper tick, subsequent ones stack DOWNWARD (toward center)
+    // Open badge for long: top at 50% - 46px, body 28px, arrow 4px, ends at ~50% - 14px
+    // Closed badges should start BELOW the open badge (at 50% - 14px), stacking downward
+    // This keeps open badge on top, closed badges below it
     const closedEntryOffset = closedIndex * (badgeHeight + closedStackGap);
     
-    // For LONG: first badge bottom at upper tick (50% - 18px), top at 50% - 18px - badgeHeight = 50% - 42px
-    // Subsequent badges stack DOWN (toward center): add offset
-    // For SHORT: first badge top at lower tick, subsequent stack up
+    // For LONG: closed badge starts where open badge arrow ends (50% - 14px), stacking down
+    // For SHORT: closed badge starts where open badge arrow ends (50% + 14px), stacking up
     const topPosition = position === 'long'
-      ? `calc(50% - ${18 + badgeHeight}px + ${closedEntryOffset}px)` // Bottom at upper tick, stack down toward center
-      : `calc(50% + ${18}px - ${closedEntryOffset}px)`; // Top at lower tick, stack up toward center
+      ? `calc(50% - 14px + ${closedEntryOffset}px)` // Start below open badge arrow, stack down
+      : `calc(50% + 14px - ${badgeHeight + closedEntryOffset}px)`; // Start above open badge arrow for short, stack up
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
