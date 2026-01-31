@@ -457,10 +457,14 @@ export function StrikeLadder({
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
     const badgeHeight = 28;
+    const closedBadgeHeight = 24;
     const stackOffset = verticalOffset * (badgeHeight + 4);
+    // Closed badge is centered on upper tick (50% - 18px), so its top is at 50% - 30px
+    // Open badge should be directly above closed badge with 2px gap
+    // Open badge bottom at 50% - 32px, so top at 50% - 60px
     const topPosition = position === 'long' 
-      ? `calc(50% - ${badgeHeight + 18}px - ${stackOffset}px)`
-      : `calc(50% + 18px + ${stackOffset}px)`;
+      ? `calc(50% - ${60 + stackOffset}px)`  // Directly above closed badge
+      : `calc(50% + ${30 + stackOffset}px)`; // Directly below closed badge for short
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -594,16 +598,15 @@ export function StrikeLadder({
     const arrowHeight = 4;
     const closedStackGap = 2;
     
-    // Closed badges should be centered ON the line (50%)
-    // For a badge with height 24px, top at 50% - 12px centers it on the line
-    // Open badge for LONG is above at 50% - 46px
+    // Closed badges should be centered on the UPPER tick mark (50% - 18px)
+    // For a badge with height 24px, center at tick means top at 50% - 18px - 12px = 50% - 30px
     const closedEntryOffset = closedIndex * (badgeHeight + closedStackGap);
     
-    // For LONG: first closed badge centered on line (50% - 12px), stacking down
-    // For SHORT: first closed badge centered on line (50% - 12px), stacking up
+    // For LONG: first closed badge centered on upper tick (50% - 30px), stacking down
+    // For SHORT: first closed badge centered on lower tick (50% + 18px - 12px = 50% + 6px), stacking up
     const topPosition = position === 'long'
-      ? `calc(50% - ${badgeHeight / 2}px + ${closedEntryOffset}px)` // Centered on line, stack down
-      : `calc(50% - ${badgeHeight / 2}px - ${closedEntryOffset}px)`; // Centered on line, stack up
+      ? `calc(50% - 30px + ${closedEntryOffset}px)` // Centered on upper tick, stack down
+      : `calc(50% + 6px - ${closedEntryOffset}px)`; // Centered on lower tick, stack up
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
