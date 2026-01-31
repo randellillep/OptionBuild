@@ -490,7 +490,6 @@ export function StrikeLadder({
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
               zIndex: badgeZIndex,
               pointerEvents: (isDragging || draggedLegRef.current) && !isBeingDragged ? 'none' : 'auto',
-              transition: (isBeingDragged || isPopoverOpenForThis) ? 'none' : 'top 0.15s ease-out',
             }}
           >
             <button
@@ -741,8 +740,10 @@ export function StrikeLadder({
     const assignLevels = (sortedLegs: OptionLeg[], positionType: 'long' | 'short') => {
       // If there's only one leg of this position type, always assign level 0
       // This ensures consistent positioning when moving a single short or long badge
-      if (sortedLegs.length === 1) {
-        levels[sortedLegs[0].id] = 0;
+      if (sortedLegs.length <= 1) {
+        if (sortedLegs.length === 1) {
+          levels[sortedLegs[0].id] = 0;
+        }
         return;
       }
       
@@ -847,7 +848,10 @@ export function StrikeLadder({
 
         {legs.filter(leg => leg.type !== "stock").map(leg => {
           const position = leg.position as 'long' | 'short';
-          const stackLevel = badgeStackLevels[leg.id] || 0;
+          // Count how many legs of this position type exist
+          const samePositionLegs = legs.filter(l => l.type !== "stock" && l.position === position);
+          // If only one leg of this position type, force level 0 for consistent positioning
+          const stackLevel = samePositionLegs.length === 1 ? 0 : (badgeStackLevels[leg.id] || 0);
           return (
             <div key={leg.id}>
               {renderOpenBadge(leg, position, stackLevel)}
