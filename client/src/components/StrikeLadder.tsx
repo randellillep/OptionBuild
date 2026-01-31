@@ -461,14 +461,14 @@ export function StrikeLadder({
     // Closed badges stack with NO gap between them
     const closedStackOffset = closedCount > 0 ? closedCount * closedBadgeHeight : 0;
     
-    // Both LONG and SHORT badges align on the center line at 50%
-    // LONG: arrow points down, badge sits above the line (top = 50% - badgeHeight)
-    // SHORT: arrow points up, badge sits below the line (top = 50%)
-    // When there are closed entries, push the open badge away from the line
-    const baseTop = position === 'long' ? 28 : 0; // 28px = badge height for LONG above line
+    // Badges align on the tick marks at 18px from center
+    // LONG: arrow tip touches upper tick at (50% - 18px), badge above it
+    //       badge top = 50% - 18px - 28px = 50% - 46px
+    // SHORT: arrow tip touches lower tick at (50% + 18px), badge below it
+    //       badge top = 50% + 18px
     const topPosition = position === 'long' 
-      ? `calc(50% - ${baseTop + closedStackOffset + stackOffset}px)`
-      : `calc(50% + ${closedStackOffset + stackOffset}px)`;
+      ? `calc(50% - ${46 + closedStackOffset + stackOffset}px)`
+      : `calc(50% + ${18 + closedStackOffset + stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -603,13 +603,12 @@ export function StrikeLadder({
     // Apply same stack offset as the open badge for this leg
     const stackOffset = stackLevel * badgeHeight;
     
-    // Both LONG and SHORT closed badges align on the center line at 50%
-    // LONG: badge sits above the line, stacking upward
-    // SHORT: badge sits below the line, stacking downward
-    const baseTop = position === 'long' ? 28 : 0; // 28px = badge height for LONG above line
+    // Closed badges align on the tick marks at 18px from center
+    // LONG: arrow tip at upper tick (50% - 18px), badge top = 50% - 46px
+    // SHORT: arrow tip at lower tick (50% + 18px), badge top = 50% + 18px
     const topPosition = position === 'long'
-      ? `calc(50% - ${baseTop + closedEntryOffset + stackOffset}px)`
-      : `calc(50% + ${closedEntryOffset + stackOffset}px)`;
+      ? `calc(50% - ${46 + closedEntryOffset + stackOffset}px)`
+      : `calc(50% + ${18 + closedEntryOffset + stackOffset}px)`;
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
