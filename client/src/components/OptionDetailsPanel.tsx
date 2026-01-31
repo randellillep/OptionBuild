@@ -581,6 +581,7 @@ export function OptionDetailsPanel({
       
       // Add the new separate leg
       onReopenAsNewLeg(newLeg);
+      onClose();
       return;
     }
     
@@ -592,6 +593,7 @@ export function OptionDetailsPanel({
         isEnabled: false
       }
     });
+    onClose();
   };
 
   // === Delete Specific Closing Entry ===

@@ -554,6 +554,7 @@ export function StrikeLadder({
             isClosedView={false}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
+            onReopenAsNewLeg={onAddLeg}
             onSwitchType={() => {
               onUpdateLeg(leg.id, { type: leg.type === "call" ? "put" : "call" });
               setPopoverOpen(false);
@@ -687,6 +688,7 @@ export function StrikeLadder({
             selectedEntryId={entry.id}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
+            onReopenAsNewLeg={onAddLeg}
             onSwitchType={() => {}}
             onChangePosition={() => {}}
             onRemove={() => {
