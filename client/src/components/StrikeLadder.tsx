@@ -362,9 +362,13 @@ export function StrikeLadder({
     };
 
     const handlePointerUp = () => {
-      // Remember which leg was just moved for stacking priority
-      if (draggedLeg) {
+      // Remember which leg was just moved for stacking priority (only if there are other legs to overlap with)
+      const optionLegs = legs.filter(l => l.type !== "stock");
+      if (draggedLeg && optionLegs.length > 1) {
         setLastMovedLeg(draggedLeg);
+      } else {
+        // Clear lastMovedLeg for single badges to ensure consistent positioning
+        setLastMovedLeg(null);
       }
       setIsDragging(false);
       draggedLegRef.current = null;
@@ -711,6 +715,13 @@ export function StrikeLadder({
     const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
     
     const levels: { [legId: string]: number } = {};
+    
+    // For single badges, always assign level 0 for consistent positioning
+    if (optionLegs.length === 1) {
+      levels[optionLegs[0].id] = 0;
+      return levels;
+    }
+    
     // Badge width is ~55px, ladder is typically ~900px wide
     // Calculate how many strikes that badge covers in the current visible range
     // Formula: (badgePixelWidth / ladderPixelWidth) * visibleRange = 55/900 * range ≈ 0.06 * range
