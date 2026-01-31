@@ -461,14 +461,13 @@ export function StrikeLadder({
     // Closed badges stack with NO gap between them
     const closedStackOffset = closedCount > 0 ? closedCount * closedBadgeHeight : 0;
     
-    // Tick bottom edge is at 50% - 12px (tick starts at -18px, height 6px)
-    // LONG: arrow tip touches tick bottom at 50% - 12px
+    // LONG: arrow tip touches UPPER tick bottom at 50% - 12px, badge ABOVE line
     //       badge height 28px, so top = 50% - 12px - 28px = 50% - 40px
-    // SHORT: arrow tip touches same tick bottom at 50% - 12px
-    //       arrow is at top, so badge top = 50% - 12px
+    // SHORT: arrow tip touches LOWER tick top at 50% + 12px, badge BELOW line
+    //       arrow is at top, so badge top = 50% + 12px
     const topPosition = position === 'long' 
       ? `calc(50% - ${40 + closedStackOffset + stackOffset}px)`
-      : `calc(50% - ${12 - closedStackOffset - stackOffset}px)`;
+      : `calc(50% + ${12 + closedStackOffset + stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -603,12 +602,11 @@ export function StrikeLadder({
     // Apply same stack offset as the open badge for this leg
     const stackOffset = stackLevel * badgeHeight;
     
-    // Both LONG and SHORT align on the UPPER tick line at (50% - 18px)
-    // LONG: badge above the line, stacking upward
-    // SHORT: badge below the line (arrow tip on line), stacking downward
+    // LONG: arrow tip touches UPPER tick at 50% - 12px, badge ABOVE
+    // SHORT: arrow tip touches LOWER tick at 50% + 12px, badge BELOW
     const topPosition = position === 'long'
-      ? `calc(50% - ${46 + closedEntryOffset + stackOffset}px)`
-      : `calc(50% - ${18 - closedEntryOffset - stackOffset}px)`;
+      ? `calc(50% - ${40 + closedEntryOffset + stackOffset}px)`
+      : `calc(50% + ${12 + closedEntryOffset + stackOffset}px)`;
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
