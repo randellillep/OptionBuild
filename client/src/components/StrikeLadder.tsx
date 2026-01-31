@@ -459,12 +459,16 @@ export function StrikeLadder({
     const badgeHeight = 28;
     const closedBadgeHeight = 24;
     const stackOffset = verticalOffset * (badgeHeight + 4);
-    // Closed badge is centered on upper tick (50% - 18px), so its top is at 50% - 30px
-    // Open badge should be directly above closed badge with 2px gap
-    // Open badge bottom at 50% - 32px, so top at 50% - 60px
+    // When no closed entries: open badge bottom at tick mark (50% - 46px top)
+    // When has closed entries: open badge directly above closed badge (50% - 72px top)
+    const hasClosedEntries = hasClosing && closingQty > 0;
     const topPosition = position === 'long' 
-      ? `calc(50% - ${60 + stackOffset}px)`  // Directly above closed badge
-      : `calc(50% + ${30 + stackOffset}px)`; // Directly below closed badge for short
+      ? hasClosedEntries 
+        ? `calc(50% - ${72 + stackOffset}px)`  // Directly above closed badge
+        : `calc(50% - ${46 + stackOffset}px)`  // Bottom at tick mark (no closed entries)
+      : hasClosedEntries
+        ? `calc(50% + ${42 + stackOffset}px)`  // Directly below closed badge for short
+        : `calc(50% + ${18 + stackOffset}px)`; // Top at tick mark for short (no closed entries)
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -598,15 +602,15 @@ export function StrikeLadder({
     const arrowHeight = 4;
     const closedStackGap = 2;
     
-    // Closed badges should be centered on the UPPER tick mark (50% - 18px)
-    // For a badge with height 24px, center at tick means top at 50% - 18px - 12px = 50% - 30px
+    // Closed badges should have bottom edge at the UPPER tick mark (50% - 18px)
+    // For a badge with height 24px, bottom at tick means top at 50% - 18px - 24px = 50% - 42px
     const closedEntryOffset = closedIndex * (badgeHeight + closedStackGap);
     
-    // For LONG: first closed badge centered on upper tick (50% - 30px), stacking down
-    // For SHORT: first closed badge centered on lower tick (50% + 18px - 12px = 50% + 6px), stacking up
+    // For LONG: first closed badge bottom at upper tick (top at 50% - 42px), stacking UP (away from center)
+    // For SHORT: first closed badge top at lower tick (50% + 18px), stacking DOWN (away from center)
     const topPosition = position === 'long'
-      ? `calc(50% - 30px + ${closedEntryOffset}px)` // Centered on upper tick, stack down
-      : `calc(50% + 6px - ${closedEntryOffset}px)`; // Centered on lower tick, stack up
+      ? `calc(50% - 42px - ${closedEntryOffset}px)` // Bottom at upper tick, stack up
+      : `calc(50% + 18px + ${closedEntryOffset}px)`; // Top at lower tick, stack down
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
