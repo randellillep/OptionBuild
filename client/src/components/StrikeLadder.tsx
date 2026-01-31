@@ -459,7 +459,8 @@ export function StrikeLadder({
     const badgeHeight = 28;
     const closedBadgeHeight = 24;
     const closedStackGap = 2;
-    const stackOffset = verticalOffset * (badgeHeight + 4);
+    // verticalOffset is now a pixel offset, not a level multiplier
+    const stackOffset = verticalOffset;
     
     // When no closed entries: open badge bottom at tick mark (50% - 46px top)
     // When has closed entries: open badge directly above ALL closed badges
@@ -484,8 +485,10 @@ export function StrikeLadder({
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
     // Level 0 (original) should render on top of level 1 (newer positions)
     // Open badges should always be on top of closed badges (z-index 5)
-    // Base z-index starts at 30 for level 0, decreasing for higher levels
-    const baseZIndex = 30 - (verticalOffset * 2);
+    // Base z-index: offset 0 gets z-index 30, higher offsets get lower z-index
+    // Divide offset by 16 to get approximate level, cap at reasonable range
+    const approximateLevel = Math.floor(verticalOffset / 16);
+    const baseZIndex = Math.max(10, 30 - approximateLevel);
     const badgeZIndex = isBeingDragged ? 9999 : (isPopoverOpenForThis ? 100 : baseZIndex);
 
     return (
@@ -729,7 +732,31 @@ export function StrikeLadder({
 
   const strikesKey = legs.filter(l => l.type !== "stock").map(l => `${l.id}:${l.strike}:${l.position}`).join(',');
   
-  const badgeStackLevels = useMemo(() => {
+  // Calculate the visual height of a leg's badges (open + all closed entries)
+  const getLegBadgeHeight = (leg: OptionLeg): number => {
+    const openBadgeHeight = 28;
+    const closedBadgeHeight = 24;
+    const closedStackGap = 2;
+    const gapBetweenOpenAndClosed = 2;
+    
+    const hasOpenBadge = leg.quantity > 0;
+    const numClosedEntries = leg.closingTransaction?.entries?.length || 0;
+    const hasClosedBadges = leg.closingTransaction?.isEnabled && numClosedEntries > 0;
+    
+    let totalHeight = 0;
+    if (hasOpenBadge) {
+      totalHeight += openBadgeHeight;
+    }
+    if (hasClosedBadges) {
+      if (hasOpenBadge) totalHeight += gapBetweenOpenAndClosed;
+      totalHeight += numClosedEntries * closedBadgeHeight + (numClosedEntries - 1) * closedStackGap;
+    }
+    
+    return totalHeight || openBadgeHeight; // Default to open badge height
+  };
+  
+  // Returns pixel offsets for each leg (not just level numbers)
+  const badgeStackOffsets = useMemo(() => {
     const optionLegs = legs.filter(leg => leg.type !== "stock");
     // Create a map of leg ID to original array index to preserve creation order
     const legIndexMap = new Map(legs.map((leg, idx) => [leg.id, idx]));
@@ -742,84 +769,79 @@ export function StrikeLadder({
       a.strike - b.strike || (legIndexMap.get(b.id) ?? 0) - (legIndexMap.get(a.id) ?? 0)
     );
     
-    const levels: { [legId: string]: number } = {};
+    const offsets: { [legId: string]: number } = {};
     
-    // For single badges, always assign level 0 for consistent positioning
+    // For single badges, always assign offset 0 for consistent positioning
     if (optionLegs.length === 1) {
-      levels[optionLegs[0].id] = 0;
-      return levels;
+      offsets[optionLegs[0].id] = 0;
+      return offsets;
     }
     
     // Badge width is ~55px, ladder is typically ~900px wide
-    // Calculate how many strikes that badge covers in the current visible range
-    // Formula: (badgePixelWidth / ladderPixelWidth) * visibleRange = 55/900 * range ≈ 0.06 * range
     const badgeWidthInStrikes = Math.max(3, Math.round(range * 0.06));
     
     const draggedLegData = draggedLeg ? legs.find(l => l.id === draggedLeg) : null;
     const draggedLegPosition = draggedLegData?.position;
-    // Use raw position for smooth overlap detection during drag
     const effectiveDragStrike = rawDragPosition ?? draggedStrikePosition ?? draggedLegData?.strike;
     
-    // Priority leg: either the one being dragged, or the one that was last moved
     const priorityLegId = draggedLeg || lastMovedLeg;
     const priorityLegData = priorityLegId ? legs.find(l => l.id === priorityLegId) : null;
     const priorityLegPosition = priorityLegData?.position;
     const priorityLegStrike = draggedLeg ? effectiveDragStrike : priorityLegData?.strike;
     
-    const assignLevels = (sortedLegs: OptionLeg[], positionType: 'long' | 'short') => {
-      // If there's only one leg of this position type, always assign level 0
-      // This ensures consistent positioning when moving a single short or long badge
+    const assignOffsets = (sortedLegs: OptionLeg[], positionType: 'long' | 'short') => {
       if (sortedLegs.length <= 1) {
         if (sortedLegs.length === 1) {
-          levels[sortedLegs[0].id] = 0;
+          offsets[sortedLegs[0].id] = 0;
         }
         return;
       }
       
-      const occupiedStrikes: { center: number; level: number; legId: string }[] = [];
+      // Track occupied positions: strike -> list of {offset, height, legId}
+      const occupiedStrikes: { center: number; offset: number; height: number; legId: string }[] = [];
+      const stackGap = 4; // Gap between stacked leg groups
       
-      // First pass: assign levels to non-priority badges
+      // First pass: assign offsets to non-priority badges
       sortedLegs.forEach(leg => {
-        if (leg.id === priorityLegId) return; // Skip priority leg for now
+        if (leg.id === priorityLegId) return;
         
-        let level = 0;
-        let foundLevel = false;
+        const legHeight = getLegBadgeHeight(leg);
         
-        while (!foundLevel) {
-          const hasOverlap = occupiedStrikes.some(occupied => 
-            occupied.level === level && Math.abs(leg.strike - occupied.center) < badgeWidthInStrikes
-          );
-          
-          if (!hasOverlap) {
-            foundLevel = true;
-          } else {
-            level++;
-          }
-        }
-        
-        levels[leg.id] = level;
-        occupiedStrikes.push({ center: leg.strike, level, legId: leg.id });
-      });
-      
-      // Second pass: assign level to priority badge (dragged or last moved)
-      // Priority badge is ALWAYS on top when overlapping with any other badge
-      if (priorityLegId && priorityLegPosition === positionType && priorityLegStrike !== undefined) {
-        // Check if overlapping with any badge at any level
-        const overlapsWithAny = occupiedStrikes.some(occupied => 
-          Math.abs(priorityLegStrike - occupied.center) < badgeWidthInStrikes
+        // Find overlapping legs and calculate cumulative offset
+        const overlapping = occupiedStrikes.filter(occ => 
+          Math.abs(leg.strike - occ.center) < badgeWidthInStrikes
         );
         
-        // Priority badge goes on top (level 1) when overlapping, otherwise level 0
-        const newLevel = overlapsWithAny ? 1 : 0;
-        levels[priorityLegId] = newLevel;
+        let offset = 0;
+        if (overlapping.length > 0) {
+          // Stack above the highest existing badge
+          offset = Math.max(...overlapping.map(o => o.offset + o.height)) + stackGap;
+        }
+        
+        offsets[leg.id] = offset;
+        occupiedStrikes.push({ center: leg.strike, offset, height: legHeight, legId: leg.id });
+      });
+      
+      // Second pass: priority badge always at base (offset 0)
+      if (priorityLegId && priorityLegPosition === positionType && priorityLegStrike !== undefined) {
+        offsets[priorityLegId] = 0;
       }
     };
     
-    assignLevels(longLegs, 'long');
-    assignLevels(shortLegs, 'short');
+    assignOffsets(longLegs, 'long');
+    assignOffsets(shortLegs, 'short');
     
-    return levels;
+    return offsets;
   }, [legs, strikesKey, draggedLeg, draggedStrikePosition, rawDragPosition, lastMovedLeg, range]);
+  
+  // Keep badgeStackLevels for backward compatibility (convert offsets to approximate levels)
+  const badgeStackLevels = useMemo(() => {
+    const levels: { [legId: string]: number } = {};
+    for (const [legId, offset] of Object.entries(badgeStackOffsets)) {
+      levels[legId] = offset; // Now passing pixel offset directly
+    }
+    return levels;
+  }, [badgeStackOffsets]);
 
   return (
     <div className="w-full select-none relative">
