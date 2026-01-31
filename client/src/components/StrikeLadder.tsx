@@ -461,12 +461,14 @@ export function StrikeLadder({
     // Closed badges stack with NO gap between them
     const closedStackOffset = closedCount > 0 ? closedCount * closedBadgeHeight : 0;
     
-    // When there are closed entries, push the open badge DIRECTLY above them (no gap)
-    // For LONG: base position 50% - 46px, open badge sits directly on top of closed stack
-    // For SHORT: base position 50% + 18px, open badge sits directly below closed stack
+    // Both LONG and SHORT badges align on the center line at 50%
+    // LONG: arrow points down, badge sits above the line (top = 50% - badgeHeight)
+    // SHORT: arrow points up, badge sits below the line (top = 50%)
+    // When there are closed entries, push the open badge away from the line
+    const baseTop = position === 'long' ? 28 : 0; // 28px = badge height for LONG above line
     const topPosition = position === 'long' 
-      ? `calc(50% - ${46 + closedStackOffset}px - ${stackOffset}px)`
-      : `calc(50% + ${18 + closedStackOffset}px + ${stackOffset}px)`;
+      ? `calc(50% - ${baseTop + closedStackOffset + stackOffset}px)`
+      : `calc(50% + ${closedStackOffset + stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -601,11 +603,13 @@ export function StrikeLadder({
     // Apply same stack offset as the open badge for this leg
     const stackOffset = stackLevel * badgeHeight;
     
-    // For LONG: closed badge on the upper line (50% - 46px), stacking upward (no gap)
-    // For SHORT: closed badge on the lower line (50% + 18px), stacking downward (no gap)
+    // Both LONG and SHORT closed badges align on the center line at 50%
+    // LONG: badge sits above the line, stacking upward
+    // SHORT: badge sits below the line, stacking downward
+    const baseTop = position === 'long' ? 28 : 0; // 28px = badge height for LONG above line
     const topPosition = position === 'long'
-      ? `calc(50% - ${46 + closedEntryOffset + stackOffset}px)` // On the upper line, stacking upward
-      : `calc(50% + ${18 + closedEntryOffset + stackOffset}px)`; // On the lower line, stacking downward
+      ? `calc(50% - ${baseTop + closedEntryOffset + stackOffset}px)`
+      : `calc(50% + ${closedEntryOffset + stackOffset}px)`;
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
