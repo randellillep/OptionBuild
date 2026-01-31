@@ -452,22 +452,21 @@ export function StrikeLadder({
     
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
-    const badgeHeight = 28;
+    const badgeHeight = 28; // Open badge: 24px body + 4px arrow
     const stackOffset = verticalOffset * (badgeHeight + 4);
     
     // Count closed entries for this leg to know how much to offset the open badge
     const closedCount = leg.closingTransaction?.entries?.length || 0;
-    const closedBadgeHeight = 24;
-    const closedStackGap = 2;
-    // Closed badges start at 50% - 46px and stack upward
-    // Open badge needs to be above all closed badges
-    const closedStackOffset = closedCount > 0 ? closedCount * (closedBadgeHeight + closedStackGap) : 0;
+    const closedBadgeHeight = 28; // 24px body + 4px arrow
+    // Closed badges stack with NO gap between them
+    const closedStackOffset = closedCount > 0 ? closedCount * closedBadgeHeight : 0;
     
-    // When there are closed entries, push the open badge ABOVE them
-    // Base position: 50% - 46px, plus height of all closed badges stacked above
+    // When there are closed entries, push the open badge DIRECTLY above them (no gap)
+    // For LONG: base position 50% - 46px, open badge sits directly on top of closed stack
+    // For SHORT: base position 50% + 18px, open badge sits directly below closed stack
     const topPosition = position === 'long' 
-      ? `calc(50% - ${46 + closedStackOffset + badgeHeight + 4}px - ${stackOffset}px)`
-      : `calc(50% + 18px + ${stackOffset}px)`;
+      ? `calc(50% - ${46 + closedStackOffset}px - ${stackOffset}px)`
+      : `calc(50% + ${18 + closedStackOffset}px + ${stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -594,17 +593,14 @@ export function StrikeLadder({
     
     const closedBgColor = isCall ? '#1a5a15' : '#6a211c';
     
-    const badgeHeight = 24; // h-6 = 24px
-    const arrowHeight = 4;
-    const closedStackGap = 2;
+    const badgeHeight = 28; // 24px body + 4px arrow
     
-    // CLOSED badges should be positioned on the UPPER line (where open badges normally sit)
-    // Open badge position for long: 50% - 46px
-    // Closed badges go at that same position, stacking upward for additional entries
-    const closedEntryOffset = closedIndex * (badgeHeight + closedStackGap);
+    // CLOSED badges positioned on the line (where open badges normally sit)
+    // They stack with NO gap between them
+    const closedEntryOffset = closedIndex * badgeHeight;
     
-    // For LONG: closed badge on the upper line (50% - 46px), stacking upward
-    // For SHORT: closed badge on the lower line (50% + 18px), stacking downward
+    // For LONG: closed badge on the upper line (50% - 46px), stacking upward (no gap)
+    // For SHORT: closed badge on the lower line (50% + 18px), stacking downward (no gap)
     const topPosition = position === 'long'
       ? `calc(50% - ${46 + closedEntryOffset}px)` // On the upper line, stacking upward
       : `calc(50% + ${18 + closedEntryOffset}px)`; // On the lower line, stacking downward
