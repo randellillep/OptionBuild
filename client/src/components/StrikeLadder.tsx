@@ -594,15 +594,16 @@ export function StrikeLadder({
     const arrowHeight = 4;
     const closedStackGap = 2;
     
-    // Open badge for LONG: top at 50% - 46px, height 24px, bottom at 50% - 22px
-    // Closed badges should start BELOW the open badge (50% - 20px with 2px gap)
+    // Closed badges should be centered ON the line (50%)
+    // For a badge with height 24px, top at 50% - 12px centers it on the line
+    // Open badge for LONG is above at 50% - 46px
     const closedEntryOffset = closedIndex * (badgeHeight + closedStackGap);
     
-    // For LONG: first closed badge top at 50% - 20px (just below open badge), stacking down
-    // For SHORT: first closed badge bottom at 50% + 20px (just above open badge), stacking up
+    // For LONG: first closed badge centered on line (50% - 12px), stacking down
+    // For SHORT: first closed badge centered on line (50% - 12px), stacking up
     const topPosition = position === 'long'
-      ? `calc(50% - 20px + ${closedEntryOffset}px)` // Below open badge, stack down
-      : `calc(50% + 20px - ${badgeHeight + closedEntryOffset}px)`; // Above open badge, stack up
+      ? `calc(50% - ${badgeHeight / 2}px + ${closedEntryOffset}px)` // Centered on line, stack down
+      : `calc(50% - ${badgeHeight / 2}px - ${closedEntryOffset}px)`; // Centered on line, stack up
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
