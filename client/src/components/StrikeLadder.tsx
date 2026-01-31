@@ -453,7 +453,7 @@ export function StrikeLadder({
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
     const badgeHeight = 28; // Open badge: 24px body + 4px arrow
-    const stackOffset = verticalOffset * (badgeHeight + 4);
+    const stackOffset = verticalOffset * badgeHeight; // No gap between stacked badges
     
     // Count closed entries for this leg to know how much to offset the open badge
     const closedCount = leg.closingTransaction?.entries?.length || 0;
@@ -582,7 +582,7 @@ export function StrikeLadder({
     );
   };
 
-  const renderClosedEntryBadge = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', closedIndex: number = 0) => {
+  const renderClosedEntryBadge = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', closedIndex: number = 0, stackLevel: number = 0) => {
     const isCall = leg.type === "call";
     const isExcluded = entry.isExcluded;
     
@@ -598,12 +598,14 @@ export function StrikeLadder({
     // CLOSED badges positioned on the line (where open badges normally sit)
     // They stack with NO gap between them
     const closedEntryOffset = closedIndex * badgeHeight;
+    // Apply same stack offset as the open badge for this leg
+    const stackOffset = stackLevel * badgeHeight;
     
     // For LONG: closed badge on the upper line (50% - 46px), stacking upward (no gap)
     // For SHORT: closed badge on the lower line (50% + 18px), stacking downward (no gap)
     const topPosition = position === 'long'
-      ? `calc(50% - ${46 + closedEntryOffset}px)` // On the upper line, stacking upward
-      : `calc(50% + ${18 + closedEntryOffset}px)`; // On the lower line, stacking downward
+      ? `calc(50% - ${46 + closedEntryOffset + stackOffset}px)` // On the upper line, stacking upward
+      : `calc(50% + ${18 + closedEntryOffset + stackOffset}px)`; // On the lower line, stacking downward
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
@@ -721,8 +723,9 @@ export function StrikeLadder({
   
   const badgeStackLevels = useMemo(() => {
     const optionLegs = legs.filter(leg => leg.type !== "stock");
-    const longLegs = optionLegs.filter(leg => leg.position === 'long').sort((a, b) => a.strike - b.strike);
-    const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
+    // Preserve original insertion order - do NOT sort by strike
+    const longLegs = optionLegs.filter(leg => leg.position === 'long');
+    const shortLegs = optionLegs.filter(leg => leg.position === 'short');
     
     const levels: { [legId: string]: number } = {};
     // Badge width is ~55px, ladder is typically ~900px wide
@@ -848,7 +851,7 @@ export function StrikeLadder({
             <div key={leg.id}>
               {renderOpenBadge(leg, position, stackLevel)}
               {leg.closingTransaction?.entries?.map((entry, i) => 
-                renderClosedEntryBadge(leg, entry, position, i)
+                renderClosedEntryBadge(leg, entry, position, i, stackLevel)
               )}
             </div>
           );
