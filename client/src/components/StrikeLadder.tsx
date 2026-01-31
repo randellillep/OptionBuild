@@ -459,11 +459,16 @@ export function StrikeLadder({
     const badgeHeight = 28;
     const closedBadgeHeight = 24;
     const stackOffset = verticalOffset * (badgeHeight + 4);
-    // Keep open badge at consistent position regardless of closed entries
-    // This prevents position shifts when reopening closed positions
+    // When no closed entries: open badge bottom at tick mark (50% - 46px top)
+    // When has closed entries: open badge directly above closed badge (50% - 72px top)
+    const hasClosedEntries = hasClosing && closingQty > 0;
     const topPosition = position === 'long' 
-      ? `calc(50% - ${72 + stackOffset}px)`  // Always above closed badge area
-      : `calc(50% + ${42 + stackOffset}px)`; // Always below closed badge area for short
+      ? hasClosedEntries 
+        ? `calc(50% - ${72 + stackOffset}px)`  // Directly above closed badge
+        : `calc(50% - ${46 + stackOffset}px)`  // Bottom at tick mark (no closed entries)
+      : hasClosedEntries
+        ? `calc(50% + ${42 + stackOffset}px)`  // Directly below closed badge for short
+        : `calc(50% + ${18 + stackOffset}px)`; // Top at tick mark for short (no closed entries)
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
