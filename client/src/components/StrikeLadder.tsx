@@ -461,12 +461,11 @@ export function StrikeLadder({
     // Closed badges stack with NO gap between them
     const closedStackOffset = closedCount > 0 ? closedCount * closedBadgeHeight : 0;
     
-    // Both LONG and SHORT arrow tips meet at CENTER (50%) where numbers are
-    // LONG: badge above center, arrow tip at 50%, top = 50% - 28px
-    // SHORT: badge below center, arrow tip at 50%, top = 50%
+    // LONG: arrow tip at upper tick bottom (50% - 12px), badge above
+    // SHORT: arrow tip at lower tick top (50% + 12px), badge below
     const topPosition = position === 'long' 
-      ? `calc(50% - ${28 + closedStackOffset + stackOffset}px)`
-      : `calc(50% + ${closedStackOffset + stackOffset}px)`;
+      ? `calc(50% - ${40 + closedStackOffset + stackOffset}px)`
+      : `calc(50% + ${12 + closedStackOffset + stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -601,12 +600,11 @@ export function StrikeLadder({
     // Apply same stack offset as the open badge for this leg
     const stackOffset = stackLevel * badgeHeight;
     
-    // Both LONG and SHORT arrow tips meet at CENTER (50%)
-    // LONG: badge above center, arrow tip at 50%, top = 50% - 28px
-    // SHORT: badge below center, arrow tip at 50%, top = 50%
+    // LONG: arrow tip at upper tick bottom (50% - 12px), badge above
+    // SHORT: arrow tip at lower tick top (50% + 12px), badge below
     const topPosition = position === 'long'
-      ? `calc(50% - ${28 + closedEntryOffset + stackOffset}px)`
-      : `calc(50% + ${closedEntryOffset + stackOffset}px)`;
+      ? `calc(50% - ${40 + closedEntryOffset + stackOffset}px)`
+      : `calc(50% + ${12 + closedEntryOffset + stackOffset}px)`;
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
