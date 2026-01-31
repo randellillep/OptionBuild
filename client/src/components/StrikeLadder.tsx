@@ -587,16 +587,16 @@ export function StrikeLadder({
     const arrowHeight = 4;
     const closedStackGap = 2;
     
-    // Open badge for long is at: 50% - 46px, badge body is 24px, arrow 4px = ends at 50% - 18px
-    // Position closed badges to start just below the open badge body, stacking downward
-    // But cap position to stay above 50% centerline where price labels are
+    // Open badge for long is at: 50% - 46px, badge body is 24px (ends at 50%-22px), arrow 4px (ends at 50%-18px)
+    // Position closed badges to start just below the open badge body (at the arrow level)
+    // This positions them at approximately the red line shown in user's reference image
     const closedEntryOffset = closedIndex * (badgeHeight + closedStackGap);
     
-    // For LONG: start at 50% - 18px (bottom of open badge), stack downward but stay above 50%
-    // For SHORT: start at 50% + 18px + 24px (bottom of open badge), stack further down
+    // For LONG: position at 50% - 24px (overlapping with open badge's arrow area, above price labels)
+    // For SHORT: position below open badge, stacking further down
     const topPosition = position === 'long'
-      ? `calc(50% - ${18 - closedStackGap}px + ${closedEntryOffset}px)` // Below open badge, starts at ~50%-16px
-      : `calc(50% + ${18 + badgeHeight + closedStackGap}px + ${closedEntryOffset}px)`; // Below open badge for short
+      ? `calc(50% - ${24 + closedEntryOffset}px)` // Positioned at ~50%-24px, well above price labels
+      : `calc(50% + ${18 + badgeHeight + closedStackGap + closedEntryOffset}px)`; // Below open badge for short
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
