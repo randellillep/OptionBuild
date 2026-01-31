@@ -521,18 +521,32 @@ export function OptionDetailsPanel({
     ? leg.closingTransaction?.entries?.find(e => e.id === selectedEntryId)
     : null;
 
-  // === Reopen Closed Entry - Makes it active again (adds back to remaining) ===
+  // === Reopen Closed Entry as a NEW Separate Open Leg ===
   const handleReopenPosition = () => {
     if (!onUpdateLeg) return;
     
-    // If we have a selectedEntryId, reopen just that entry by removing it from closed entries
-    // This makes the quantity "active" again as part of the existing position
-    if (selectedEntryId && leg.closingTransaction?.entries) {
+    // If we have a selectedEntryId, reopen that entry as a NEW separate open leg
+    // This keeps the boxes separate - doesn't merge with remaining position
+    if (selectedEntryId && leg.closingTransaction?.entries && onReopenAsNewLeg) {
       const entryToReopen = leg.closingTransaction.entries.find(e => e.id === selectedEntryId);
       if (!entryToReopen) return;
       
-      // Remove the entry from the closing transaction
-      // Deep copy remaining entries to prevent shared references
+      // Create a NEW open leg with the closed entry's data
+      const newLeg: Omit<OptionLeg, "id"> = {
+        type: leg.type,
+        position: leg.position,
+        strike: entryToReopen.strike,
+        premium: leg.premium, // Original cost basis
+        quantity: entryToReopen.quantity,
+        expirationDays: leg.expirationDays,
+        expirationDate: leg.expirationDate,
+        premiumSource: leg.premiumSource,
+        impliedVolatility: leg.impliedVolatility,
+        entryUnderlyingPrice: leg.entryUnderlyingPrice ?? underlyingPrice,
+        // No closing transaction - it's now open
+      };
+      
+      // Remove the entry from the current leg's closing transaction
       const updatedEntries = leg.closingTransaction.entries
         .filter(e => e.id !== selectedEntryId)
         .map(e => ({ ...e }));
@@ -542,11 +556,18 @@ export function OptionDetailsPanel({
         ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
         : 0;
       
-      // Update the leg: just remove the entry from closing transaction
-      // The original quantity stays the same, so "remaining" now includes the reopened amount
       const hasRemainingEntries = updatedEntries.length > 0;
       
+      // Calculate remaining quantity for the original leg
+      // Original quantity minus the reopened amount = what stays in original leg
+      const totalClosedQty = leg.closingTransaction.entries.reduce((sum, e) => sum + (e.isExcluded ? 0 : e.quantity), 0);
+      const originalRemaining = leg.quantity - totalClosedQty;
+      // New quantity is just the original remaining (the reopened goes to new leg)
+      const newQuantity = originalRemaining;
+      
+      // Update the original leg: remove the entry, reduce quantity to just remaining
       onUpdateLeg({
+        quantity: newQuantity > 0 ? newQuantity : leg.quantity, // Keep at least the original if calc goes wrong
         closingTransaction: hasRemainingEntries ? {
           ...leg.closingTransaction,
           quantity: totalActiveQty,
@@ -560,10 +581,13 @@ export function OptionDetailsPanel({
           entries: [],
         }
       });
+      
+      // Add the new separate open leg
+      onReopenAsNewLeg(newLeg);
       return;
     }
     
-    // Legacy fallback: clear the entire closing transaction (old behavior)
+    // Legacy fallback: clear the entire closing transaction
     onUpdateLeg({ 
       closingTransaction: {
         quantity: 0,
