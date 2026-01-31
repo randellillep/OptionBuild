@@ -457,10 +457,17 @@ export function StrikeLadder({
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
     const badgeHeight = 28;
+    const arrowHeight = 4;
+    const gapAboveClosed = 6; // Gap between open badge and closed badge
     const stackOffset = verticalOffset * (badgeHeight + 4);
+    
+    // Position open badge ABOVE the closed badge (which has arrow tip at 50%)
+    // Closed badge for long is at 50%-28px, so open badge should be above that
+    // Open badge arrow tip should be at (50% - 28px - gap) = 50% - 34px
+    // So open badge top = 50% - 34px - 28px = 50% - 62px
     const topPosition = position === 'long' 
-      ? `calc(50% - ${badgeHeight + 18}px - ${stackOffset}px)`
-      : `calc(50% + 18px + ${stackOffset}px)`;
+      ? `calc(50% - ${badgeHeight + arrowHeight + gapAboveClosed + 28}px - ${stackOffset}px)` // 28px for closed badge + gap
+      : `calc(50% + ${28 + gapAboveClosed}px + ${stackOffset}px)`; // Below closed badge for short
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -591,17 +598,16 @@ export function StrikeLadder({
     const badgeHeight = 24; // h-6 = 24px
     const arrowHeight = 4;
     const closedStackGap = 2;
+    const totalBadgeHeight = badgeHeight + arrowHeight; // 28px total
     
-    // Open badge for long is at: 50% - 46px, badge body is 24px (ends at 50%-22px), arrow 4px (ends at 50%-18px)
-    // Position closed badges to start just below the open badge body (at the arrow level)
-    // This positions them at approximately the red line shown in user's reference image
+    // Position closed badges so the arrow tip is ON the tick mark (50%)
+    // For LONG: badge body + arrow = 28px, so top = 50% - 28px puts arrow tip at 50%
+    // For SHORT: arrow points up, so top = 50% puts arrow tip at 50%
     const closedEntryOffset = closedIndex * (badgeHeight + closedStackGap);
     
-    // For LONG: position at 50% - 24px (overlapping with open badge's arrow area, above price labels)
-    // For SHORT: position below open badge, stacking further down
     const topPosition = position === 'long'
-      ? `calc(50% - ${24 + closedEntryOffset}px)` // Positioned at ~50%-24px, well above price labels
-      : `calc(50% + ${18 + badgeHeight + closedStackGap + closedEntryOffset}px)`; // Below open badge for short
+      ? `calc(50% - ${totalBadgeHeight + closedEntryOffset}px)` // Arrow tip at 50%
+      : `calc(50% + ${closedEntryOffset}px)`; // Arrow tip at 50% for short
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
