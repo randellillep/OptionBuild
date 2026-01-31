@@ -521,21 +521,21 @@ export function OptionDetailsPanel({
     ? leg.closingTransaction?.entries?.find(e => e.id === selectedEntryId)
     : null;
 
-  // === Reopen Closed Entry as a NEW Separate Open Leg ===
+  // === Reopen Closed Entry as NEW Separate Leg ===
   const handleReopenPosition = () => {
     if (!onUpdateLeg) return;
     
-    // If we have a selectedEntryId, reopen that entry as a NEW separate open leg
-    // This keeps the boxes separate - doesn't merge with remaining position
+    // If we have a selectedEntryId, reopen just that entry as a NEW separate leg
     if (selectedEntryId && leg.closingTransaction?.entries && onReopenAsNewLeg) {
       const entryToReopen = leg.closingTransaction.entries.find(e => e.id === selectedEntryId);
       if (!entryToReopen) return;
       
-      // Create a NEW open leg with the closed entry's data
+      // Create a NEW leg with the reopened entry's data
+      // Use the entry's ORIGINAL cost basis (leg.premium) not the closing price
       const newLeg: Omit<OptionLeg, "id"> = {
         type: leg.type,
         position: leg.position,
-        strike: entryToReopen.strike,
+        strike: entryToReopen.strike, // Use entry's strike (may differ from current leg)
         premium: leg.premium, // Original cost basis
         quantity: entryToReopen.quantity,
         expirationDays: leg.expirationDays,
@@ -547,6 +547,7 @@ export function OptionDetailsPanel({
       };
       
       // Remove the entry from the current leg's closing transaction
+      // Deep copy remaining entries to prevent shared references
       const updatedEntries = leg.closingTransaction.entries
         .filter(e => e.id !== selectedEntryId)
         .map(e => ({ ...e }));
@@ -556,18 +557,14 @@ export function OptionDetailsPanel({
         ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
         : 0;
       
+      // Update the original leg:
+      // 1. Remove the entry from closing transaction
+      // 2. REDUCE the leg's quantity by the reopened amount (so it transfers to the new leg)
       const hasRemainingEntries = updatedEntries.length > 0;
+      const newOriginalQuantity = Math.max(0, leg.quantity - entryToReopen.quantity);
       
-      // Calculate remaining quantity for the original leg
-      // Original quantity minus the reopened amount = what stays in original leg
-      const totalClosedQty = leg.closingTransaction.entries.reduce((sum, e) => sum + (e.isExcluded ? 0 : e.quantity), 0);
-      const originalRemaining = leg.quantity - totalClosedQty;
-      // New quantity is just the original remaining (the reopened goes to new leg)
-      const newQuantity = originalRemaining;
-      
-      // Update the original leg: remove the entry, reduce quantity to just remaining
       onUpdateLeg({
-        quantity: newQuantity > 0 ? newQuantity : leg.quantity, // Keep at least the original if calc goes wrong
+        quantity: newOriginalQuantity,
         closingTransaction: hasRemainingEntries ? {
           ...leg.closingTransaction,
           quantity: totalActiveQty,
@@ -582,12 +579,12 @@ export function OptionDetailsPanel({
         }
       });
       
-      // Add the new separate open leg
+      // Add the new separate leg
       onReopenAsNewLeg(newLeg);
       return;
     }
     
-    // Legacy fallback: clear the entire closing transaction
+    // Legacy fallback: clear the entire closing transaction (old behavior)
     onUpdateLeg({ 
       closingTransaction: {
         quantity: 0,
