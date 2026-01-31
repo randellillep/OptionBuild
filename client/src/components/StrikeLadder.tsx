@@ -461,13 +461,13 @@ export function StrikeLadder({
     // Closed badges stack with NO gap between them
     const closedStackOffset = closedCount > 0 ? closedCount * closedBadgeHeight : 0;
     
-    // When there are closed entries, push the open badge DIRECTLY above them (no gap)
-    // For LONG: base position 50% - 28px (badge bottom touches center line)
-    // For SHORT: base position 50% (badge top touches center line)
-    // This ensures long and short badges at same strike have NO gap between them
+    // Both LONG and SHORT badges are centered ON the line (50% - half badge height)
+    // With badge height 28px, center = 50% - 14px
+    // Closed badges stack upward from the line position
+    const baseOffset = 14; // Half of badge height to center on line
     const topPosition = position === 'long' 
-      ? `calc(50% - ${28 + closedStackOffset}px - ${stackOffset}px)`
-      : `calc(50% + ${closedStackOffset}px + ${stackOffset}px)`;
+      ? `calc(50% - ${baseOffset + closedStackOffset}px - ${stackOffset}px)`
+      : `calc(50% - ${baseOffset}px + ${closedStackOffset}px + ${stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -602,11 +602,11 @@ export function StrikeLadder({
     // Apply same stack offset as the open badge for this leg
     const stackOffset = stackLevel * badgeHeight;
     
-    // For LONG: closed badge at 50% - 28px (badge bottom touches center), stacking upward (no gap)
-    // For SHORT: closed badge at 50% (badge top touches center), stacking downward (no gap)
+    // Both LONG and SHORT closed badges are centered ON the line (50% - half badge height)
+    const baseOffset = 14; // Half of badge height to center on line
     const topPosition = position === 'long'
-      ? `calc(50% - ${28 + closedEntryOffset + stackOffset}px)` // Badge bottom at center, stacking upward
-      : `calc(50% + ${closedEntryOffset + stackOffset}px)`; // Badge top at center, stacking downward
+      ? `calc(50% - ${baseOffset + closedEntryOffset + stackOffset}px)` // Centered on line, stacking upward
+      : `calc(50% - ${baseOffset}px + ${closedEntryOffset + stackOffset}px)`; // Centered on line, stacking downward
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
