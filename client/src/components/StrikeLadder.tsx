@@ -846,21 +846,27 @@ export function StrikeLadder({
           );
         })}
 
-        {legs.filter(leg => leg.type !== "stock").map(leg => {
-          const position = leg.position as 'long' | 'short';
-          // Count how many legs of this position type exist
-          const samePositionLegs = legs.filter(l => l.type !== "stock" && l.position === position);
-          // If only one leg of this position type, force level 0 for consistent positioning
-          const stackLevel = samePositionLegs.length === 1 ? 0 : (badgeStackLevels[leg.id] || 0);
-          return (
-            <div key={leg.id}>
-              {renderOpenBadge(leg, position, stackLevel)}
-              {leg.closingTransaction?.entries?.map((entry, i) => 
-                renderClosedEntryBadge(leg, entry, position, i)
-              )}
-            </div>
-          );
-        })}
+        {(() => {
+          const optionLegs = legs.filter(leg => leg.type !== "stock");
+          const longLegsCount = optionLegs.filter(l => l.position === 'long').length;
+          const shortLegsCount = optionLegs.filter(l => l.position === 'short').length;
+          
+          return optionLegs.map(leg => {
+            const position = leg.position as 'long' | 'short';
+            // If only one leg of this position type, ALWAYS force level 0 for consistent positioning
+            const isSingleOfType = (position === 'long' && longLegsCount === 1) || 
+                                   (position === 'short' && shortLegsCount === 1);
+            const stackLevel = isSingleOfType ? 0 : (badgeStackLevels[leg.id] || 0);
+            return (
+              <div key={leg.id}>
+                {renderOpenBadge(leg, position, stackLevel)}
+                {leg.closingTransaction?.entries?.map((entry, i) => 
+                  renderClosedEntryBadge(leg, entry, position, i)
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );
