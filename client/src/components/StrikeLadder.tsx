@@ -691,6 +691,13 @@ export function StrikeLadder({
             selectedEntryId={entry.id}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
+            onReopenAsNewLeg={(newLeg) => {
+              onAddLeg(newLeg);
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+              setSelectedEntryId(null);
+              setIsClosedBadgeClick(false);
+            }}
             onSwitchType={() => {}}
             onChangePosition={() => {}}
             onRemove={() => {
