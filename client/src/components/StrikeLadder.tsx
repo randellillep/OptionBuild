@@ -466,7 +466,9 @@ export function StrikeLadder({
     
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
     // Level 0 (original) should render on top of level 1 (newer positions)
-    const baseZIndex = 20 - (verticalOffset * 2);
+    // Open badges should always be on top of closed badges (z-index 5)
+    // Base z-index starts at 30 for level 0, decreasing for higher levels
+    const baseZIndex = 30 - (verticalOffset * 2);
     const badgeZIndex = isBeingDragged ? 9999 : (isPopoverOpenForThis ? 100 : baseZIndex);
 
     return (
@@ -629,7 +631,7 @@ export function StrikeLadder({
               top: topPosition,
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
               transition: 'top 0.15s ease-out',
-              zIndex: 5 + closedIndex,
+              zIndex: 5, // Closed badges always below open badges
             }}
           >
             <button
