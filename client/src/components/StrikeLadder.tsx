@@ -739,6 +739,13 @@ export function StrikeLadder({
     const priorityLegStrike = draggedLeg ? effectiveDragStrike : priorityLegData?.strike;
     
     const assignLevels = (sortedLegs: OptionLeg[], positionType: 'long' | 'short') => {
+      // If there's only one leg of this position type, always assign level 0
+      // This ensures consistent positioning when moving a single short or long badge
+      if (sortedLegs.length === 1) {
+        levels[sortedLegs[0].id] = 0;
+        return;
+      }
+      
       const occupiedStrikes: { center: number; level: number; legId: string }[] = [];
       
       // First pass: assign levels to non-priority badges
