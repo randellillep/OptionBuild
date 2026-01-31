@@ -461,14 +461,14 @@ export function StrikeLadder({
     // Closed badges stack with NO gap between them
     const closedStackOffset = closedCount > 0 ? closedCount * closedBadgeHeight : 0;
     
-    // Badges align on the tick marks at 18px from center
-    // LONG: arrow tip touches upper tick at (50% - 18px), badge above it
+    // Both LONG and SHORT align on the UPPER tick line at (50% - 18px)
+    // LONG: arrow at bottom pointing down, badge above the line
     //       badge top = 50% - 18px - 28px = 50% - 46px
-    // SHORT: arrow tip touches lower tick at (50% + 18px), badge below it
-    //       badge top = 50% + 18px
+    // SHORT: arrow at top pointing up, badge below the line but arrow tip on same line
+    //       badge top = 50% - 18px (arrow tip at the line)
     const topPosition = position === 'long' 
       ? `calc(50% - ${46 + closedStackOffset + stackOffset}px)`
-      : `calc(50% + ${18 + closedStackOffset + stackOffset}px)`;
+      : `calc(50% - ${18 - closedStackOffset - stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -603,12 +603,12 @@ export function StrikeLadder({
     // Apply same stack offset as the open badge for this leg
     const stackOffset = stackLevel * badgeHeight;
     
-    // Closed badges align on the tick marks at 18px from center
-    // LONG: arrow tip at upper tick (50% - 18px), badge top = 50% - 46px
-    // SHORT: arrow tip at lower tick (50% + 18px), badge top = 50% + 18px
+    // Both LONG and SHORT align on the UPPER tick line at (50% - 18px)
+    // LONG: badge above the line, stacking upward
+    // SHORT: badge below the line (arrow tip on line), stacking downward
     const topPosition = position === 'long'
       ? `calc(50% - ${46 + closedEntryOffset + stackOffset}px)`
-      : `calc(50% + ${18 + closedEntryOffset + stackOffset}px)`;
+      : `calc(50% - ${18 - closedEntryOffset - stackOffset}px)`;
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
