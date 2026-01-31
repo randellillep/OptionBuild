@@ -137,7 +137,7 @@ export function OptionDetailsPanel({
     const effectiveDTE = Math.max(0.5, leg.expirationDays || 1);
     
     let effectiveIV: number;
-    if (optionMid > 0 && underlyingPrice > 0) {
+    if (optionMid > 0 && underlyingPrice > 0 && (leg.type === 'call' || leg.type === 'put')) {
       effectiveIV = calculateImpliedVolatility(
         leg.type,
         underlyingPrice,

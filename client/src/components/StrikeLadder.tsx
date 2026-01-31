@@ -722,8 +722,9 @@ export function StrikeLadder({
   
   const badgeStackLevels = useMemo(() => {
     const optionLegs = legs.filter(leg => leg.type !== "stock");
-    const longLegs = optionLegs.filter(leg => leg.position === 'long').sort((a, b) => a.strike - b.strike);
-    const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike);
+    // Sort by strike, then by ID (creation order) to maintain consistent positioning after reopening
+    const longLegs = optionLegs.filter(leg => leg.position === 'long').sort((a, b) => a.strike - b.strike || a.id.localeCompare(b.id));
+    const shortLegs = optionLegs.filter(leg => leg.position === 'short').sort((a, b) => a.strike - b.strike || a.id.localeCompare(b.id));
     
     const levels: { [legId: string]: number } = {};
     
