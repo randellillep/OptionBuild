@@ -461,14 +461,14 @@ export function StrikeLadder({
     // Closed badges stack with NO gap between them
     const closedStackOffset = closedCount > 0 ? closedCount * closedBadgeHeight : 0;
     
-    // Both LONG and SHORT align on the UPPER tick line at (50% - 18px)
-    // LONG: arrow at bottom pointing down, badge above the line
-    //       badge top = 50% - 18px - 28px = 50% - 46px
-    // SHORT: arrow at top pointing up, badge below the line but arrow tip on same line
-    //       badge top = 50% - 18px (arrow tip at the line)
+    // Tick bottom edge is at 50% - 12px (tick starts at -18px, height 6px)
+    // LONG: arrow tip touches tick bottom at 50% - 12px
+    //       badge height 28px, so top = 50% - 12px - 28px = 50% - 40px
+    // SHORT: arrow tip touches same tick bottom at 50% - 12px
+    //       arrow is at top, so badge top = 50% - 12px
     const topPosition = position === 'long' 
-      ? `calc(50% - ${46 + closedStackOffset + stackOffset}px)`
-      : `calc(50% - ${18 - closedStackOffset - stackOffset}px)`;
+      ? `calc(50% - ${40 + closedStackOffset + stackOffset}px)`
+      : `calc(50% - ${12 - closedStackOffset - stackOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
