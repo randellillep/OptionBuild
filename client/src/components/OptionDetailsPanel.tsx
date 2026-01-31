@@ -398,6 +398,10 @@ export function OptionDetailsPanel({
     
     // Create a new closing entry with the current strike and opening price (cost basis)
     // These values are captured as primitives and will NOT change when the leg is moved
+    // Calculate the next visualOrder (max existing + 1, or 0 if no existing entries)
+    const existingOrders = (leg.closingTransaction?.entries || []).map(e => e.visualOrder ?? 0);
+    const nextVisualOrder = existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 0;
+    
     const newEntry: import("@shared/schema").ClosingEntry = {
       id: `close-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       quantity: closingQty,
@@ -406,6 +410,7 @@ export function OptionDetailsPanel({
       strike: leg.strike, // Capture strike at time of close (immutable primitive)
       openingPrice: leg.premium, // Capture cost basis at time of close (immutable primitive)
       isExcluded: false,
+      visualOrder: nextVisualOrder, // Stable visual position that doesn't change when entries are removed
     };
     
     // Deep copy ALL existing entries to prevent any shared references

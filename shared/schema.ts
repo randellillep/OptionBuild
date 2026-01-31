@@ -65,6 +65,7 @@ export interface ClosingEntry {
   strike: number;          // Strike price at time of close (immutable - doesn't move with leg)
   openingPrice: number;    // Cost basis per contract at time of close (immutable - doesn't change when leg moves)
   isExcluded?: boolean;    // Whether this closed portion is excluded from P/L calculations
+  visualOrder?: number;    // Stable visual position (0, 1, 2...) preserved when entries are removed
 }
 
 // Represents all closing transactions for an option leg

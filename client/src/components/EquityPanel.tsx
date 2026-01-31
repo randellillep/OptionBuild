@@ -267,6 +267,7 @@ export function EquityPanel({
         openingPrice: leg.premium,
         strike: 0,
         closedAt: new Date().toISOString(),
+        visualOrder: 0, // First entry gets order 0
       };
       
       // Create new stock leg with the sold shares - it will be created as active

@@ -908,11 +908,18 @@ export function StrikeLadder({
             const isSingleOfType = (position === 'long' && longLegsCount === 1) || 
                                    (position === 'short' && shortLegsCount === 1);
             const stackLevel = isSingleOfType ? 0 : (badgeStackLevels[leg.id] || 0);
+            
+            // Sort closed entries by visualOrder to maintain stable positions
+            // When an entry is removed, remaining entries keep their visual positions
+            const sortedEntries = leg.closingTransaction?.entries 
+              ? [...leg.closingTransaction.entries].sort((a, b) => (a.visualOrder ?? 0) - (b.visualOrder ?? 0))
+              : [];
+            
             return (
               <div key={leg.id}>
                 {renderOpenBadge(leg, position, stackLevel)}
-                {leg.closingTransaction?.entries?.map((entry, i) => 
-                  renderClosedEntryBadge(leg, entry, position, i)
+                {sortedEntries.map((entry) => 
+                  renderClosedEntryBadge(leg, entry, position, entry.visualOrder ?? 0)
                 )}
               </div>
             );
