@@ -465,7 +465,8 @@ export function StrikeLadder({
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
-    const baseZIndex = 10 + (verticalOffset * 2);
+    // Level 0 (original) should render on top of level 1 (newer positions)
+    const baseZIndex = 20 - (verticalOffset * 2);
     const badgeZIndex = isBeingDragged ? 9999 : (isPopoverOpenForThis ? 100 : baseZIndex);
 
     return (
