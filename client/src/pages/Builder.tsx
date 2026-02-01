@@ -1638,6 +1638,7 @@ export default function Builder() {
                 optionsChainData={optionsChainData}
                 availableStrikes={availableStrikes}
                 allAvailableExpirations={optionsExpirationsData?.expirations || []}
+                onChangeGlobalExpiration={setSelectedExpiration}
               />
 
               {activeTab === "heatmap" ? (

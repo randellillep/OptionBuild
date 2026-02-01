@@ -29,6 +29,8 @@ interface OptionDetailsPanelProps {
   onClose: () => void;
   // Available expirations for Change Expiration feature
   availableExpirations?: string[];
+  // Callback to update global expiration (updates heatmap and top bar)
+  onChangeGlobalExpiration?: (days: number, date: string) => void;
   // View mode for closed positions
   isClosedView?: boolean;
   // Selected closing entry ID (for per-entry operations)
@@ -54,6 +56,7 @@ export function OptionDetailsPanel({
   onAddToStrategy,
   onClose,
   availableExpirations = [],
+  onChangeGlobalExpiration,
   isClosedView = false,
   selectedEntryId,
   onReopenAsNewLeg,
@@ -499,10 +502,16 @@ export function OptionDetailsPanel({
     const diffTime = expDate.getTime() - today.getTime();
     const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     
+    // Update the leg's expiration
     onUpdateLeg({ 
       expirationDate: newExpirationDate,
       expirationDays: diffDays,
     });
+    
+    // Also update global expiration (updates heatmap and top bar)
+    if (onChangeGlobalExpiration) {
+      onChangeGlobalExpiration(diffDays, newExpirationDate);
+    }
     
     setShowExpirationPicker(false);
   };
