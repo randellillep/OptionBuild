@@ -589,32 +589,18 @@ export function OptionDetailsPanel({
     ? leg.closingTransaction?.entries?.find(e => e.id === selectedEntryId)
     : null;
 
-  // === Reopen Closed Entry as NEW Separate Leg ===
+  // === Reopen Closed Entry - Remove entry so contracts become open again on SAME leg ===
+  // This preserves the leg's original ID/timestamp so badge position stays stable
   const handleReopenPosition = () => {
     if (!onUpdateLeg) return;
     
-    // If we have a selectedEntryId, reopen just that entry as a NEW separate leg
-    if (selectedEntryId && leg.closingTransaction?.entries && onReopenAsNewLeg) {
+    // If we have a selectedEntryId, just remove that entry from closing transaction
+    // The contracts will automatically become "open" again on this same leg
+    if (selectedEntryId && leg.closingTransaction?.entries) {
       const entryToReopen = leg.closingTransaction.entries.find(e => e.id === selectedEntryId);
       if (!entryToReopen) return;
       
-      // Create a NEW leg with the reopened entry's data
-      // Use the entry's ORIGINAL cost basis (leg.premium) not the closing price
-      const newLeg: Omit<OptionLeg, "id"> = {
-        type: leg.type,
-        position: leg.position,
-        strike: entryToReopen.strike, // Use entry's strike (may differ from current leg)
-        premium: leg.premium, // Original cost basis
-        quantity: entryToReopen.quantity,
-        expirationDays: leg.expirationDays,
-        expirationDate: leg.expirationDate,
-        premiumSource: leg.premiumSource,
-        impliedVolatility: leg.impliedVolatility,
-        entryUnderlyingPrice: leg.entryUnderlyingPrice ?? underlyingPrice,
-        // No closing transaction - it's now open
-      };
-      
-      // Remove the entry from the current leg's closing transaction
+      // Remove the entry from the closing transaction
       // Deep copy remaining entries to prevent shared references
       const updatedEntries = leg.closingTransaction.entries
         .filter(e => e.id !== selectedEntryId)
@@ -625,14 +611,11 @@ export function OptionDetailsPanel({
         ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
         : 0;
       
-      // Update the original leg:
-      // 1. Remove the entry from closing transaction
-      // 2. REDUCE the leg's quantity by the reopened amount (so it transfers to the new leg)
+      // Update the leg: just remove the entry, quantity stays the same
+      // The removed contracts become "open" again since they're no longer in closingTransaction
       const hasRemainingEntries = updatedEntries.length > 0;
-      const newOriginalQuantity = Math.max(0, leg.quantity - entryToReopen.quantity);
       
       onUpdateLeg({
-        quantity: newOriginalQuantity,
         closingTransaction: hasRemainingEntries ? {
           ...leg.closingTransaction,
           quantity: totalActiveQty,
@@ -647,8 +630,6 @@ export function OptionDetailsPanel({
         }
       });
       
-      // Add the new separate leg
-      onReopenAsNewLeg(newLeg);
       onClose();
       return;
     }
