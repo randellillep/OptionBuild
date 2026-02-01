@@ -457,28 +457,16 @@ export function StrikeLadder({
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
     const badgeHeight = 28;
-    const closedBadgeHeight = 24;
-    const closedStackGap = 2;
-    // verticalOffset is now a pixel offset, not a level multiplier
-    const stackOffset = verticalOffset;
+    // verticalOffset is now a cumulative pixel offset from the tick mark
+    // Unified stacking: all badges at a strike use the same coordinate system
+    // For LONG: badges stack ABOVE the upper tick (50% - 18px is the tick, badges go up from there)
+    // For SHORT: badges stack BELOW the lower tick (50% + 18px is the tick, badges go down from there)
     
-    // When no closed entries: open badge bottom at tick mark (50% - 46px top)
-    // When has closed entries: open badge directly above ALL closed badges
-    const hasClosedEntries = hasClosing && closingQty > 0;
-    const numClosedEntries = leg.closingTransaction?.entries?.length || 0;
-    // Calculate height of stacked closed entries: first at base, subsequent stack up
-    const closedStackHeight = Math.max(0, numClosedEntries - 1) * (closedBadgeHeight + closedStackGap);
-    // Base position (72px for 1 entry) + additional stack height for more entries
-    const openBaseOffset = 72 + closedStackHeight;
-    const shortBaseOffset = 42 + closedStackHeight;
-    
+    // Badge bottom at tick means top at: 50% - 18px - badgeHeight = 50% - 46px
+    // With offset, top at: 50% - 46px - verticalOffset
     const topPosition = position === 'long' 
-      ? hasClosedEntries 
-        ? `calc(50% - ${openBaseOffset + stackOffset}px)`  // Directly above ALL closed badges
-        : `calc(50% - ${46 + stackOffset}px)`  // Bottom at tick mark (no closed entries)
-      : hasClosedEntries
-        ? `calc(50% + ${shortBaseOffset + stackOffset}px)`  // Directly below ALL closed badges for short
-        : `calc(50% + ${18 + stackOffset}px)`; // Top at tick mark for short (no closed entries)
+      ? `calc(50% - ${46 + verticalOffset}px)`  // Stack up from tick
+      : `calc(50% + ${18 + verticalOffset}px)`; // Stack down from tick
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -730,6 +718,132 @@ export function StrikeLadder({
     );
   };
 
+  // Unified version of closed entry badge that uses cumulative stackOffset
+  const renderClosedEntryBadgeUnified = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', verticalOffset: number = 0) => {
+    const isCall = leg.type === "call";
+    const isExcluded = entry.isExcluded;
+    
+    const entryStrike = entry.strike;
+    const rawPositionPercent = getStrikePosition(entryStrike);
+    const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
+    const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
+    
+    const closedBgColor = isCall ? '#1a5a15' : '#6a211c';
+    
+    const badgeHeight = 24; // h-6 = 24px
+    
+    // Unified stacking: same coordinate system as open badges
+    // For LONG: badge bottom at tick means top at 50% - 18px - 24px = 50% - 42px, then stack up with offset
+    // For SHORT: badge top at tick means top at 50% + 18px, then stack down with offset
+    const topPosition = position === 'long'
+      ? `calc(50% - ${42 + verticalOffset}px)` // Stack up from tick
+      : `calc(50% + ${18 + verticalOffset}px)`; // Stack down from tick
+
+    const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
+
+    return (
+      <Popover 
+        key={`closed-${entry.id}`} 
+        open={popoverOpen && selectedLeg?.id === leg.id && selectedEntryId === entry.id && isClosedBadgeClick} 
+        onOpenChange={(open) => {
+          if (!open && selectedEntryId === entry.id) {
+            setPopoverOpen(false);
+            setSelectedLeg(null);
+            setSelectedEntryId(null);
+            setIsClosedBadgeClick(false);
+          }
+        }}
+        modal={false}
+      >
+        <PopoverTrigger asChild>
+          <div
+            className="absolute"
+            style={{
+              left: `${positionPercent}%`,
+              transform: 'translateX(-50%)',
+              top: topPosition,
+              opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
+              zIndex: 5, // Closed badges always below open badges
+            }}
+          >
+            <button
+              onClick={(e) => handleBadgeClick(leg, e, true, entry.id)}
+              className="relative flex flex-col items-center cursor-pointer"
+              data-testid={`badge-closed-${entry.id}`}
+              style={{ pointerEvents: (isDragging || draggedLegRef.current) ? 'none' : 'auto' }}
+            >
+              {entry.quantity > 1 && (
+                <div 
+                  className={`absolute text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-[100] ${position === 'long' ? '-top-2.5 -right-2.5' : '-bottom-2.5 -right-2.5'}`}
+                >
+                  x{entry.quantity}
+                </div>
+              )}
+              {position === 'short' && (
+                <div 
+                  className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent"
+                  style={{ borderBottomColor: isExcluded ? '#64748b' : closedBgColor }}
+                />
+              )}
+              <div
+                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                style={{ 
+                  backgroundColor: isExcluded ? undefined : closedBgColor,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                }}
+              >
+                {strikeText}
+                <Check className="h-3 w-3" />
+              </div>
+              {position === 'long' && (
+                <div 
+                  className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
+                  style={{ borderTopColor: isExcluded ? '#64748b' : closedBgColor }}
+                />
+              )}
+            </button>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="p-0 w-auto z-[9999]" 
+          align="center" 
+          side="bottom"
+          sideOffset={10}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <OptionDetailsPanel
+            leg={leg}
+            underlyingPrice={currentPrice}
+            volatility={volatility}
+            optionsChainData={optionsChainData}
+            symbol={symbol}
+            expirationDate={expirationDate}
+            availableExpirations={optionsChainData?.expirations || []}
+            isClosedView={true}
+            selectedEntryId={entry.id}
+            onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
+            onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
+            onReopenAsNewLeg={onAddLeg}
+            onSwitchType={() => {}}
+            onChangePosition={() => {}}
+            onRemove={() => {
+              onRemoveLeg(leg.id);
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+            }}
+            onClose={() => {
+              setPopoverOpen(false);
+              setSelectedLeg(null);
+              setSelectedEntryId(null);
+              setIsClosedBadgeClick(false);
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
   const strikesKey = legs.filter(l => l.type !== "stock").map(l => `${l.id}:${l.strike}:${l.position}`).join(',');
   
   // Calculate the visual height of a leg's badges (open + all closed entries)
@@ -899,31 +1013,96 @@ export function StrikeLadder({
 
         {(() => {
           const optionLegs = legs.filter(leg => leg.type !== "stock");
-          const longLegsCount = optionLegs.filter(l => l.position === 'long').length;
-          const shortLegsCount = optionLegs.filter(l => l.position === 'short').length;
           
-          return optionLegs.map(leg => {
+          // Build unified badge list for each position type
+          // Each badge gets a sequential stackIndex for its strike group
+          type BadgeItem = {
+            type: 'open' | 'closed';
+            leg: OptionLeg;
+            entry?: ClosingEntry;
+            strike: number;
+            position: 'long' | 'short';
+            createdOrder: number; // For stable sorting
+          };
+          
+          const allBadges: BadgeItem[] = [];
+          
+          optionLegs.forEach((leg, legIndex) => {
             const position = leg.position as 'long' | 'short';
-            // If only one leg of this position type, ALWAYS force level 0 for consistent positioning
-            const isSingleOfType = (position === 'long' && longLegsCount === 1) || 
-                                   (position === 'short' && shortLegsCount === 1);
-            const stackLevel = isSingleOfType ? 0 : (badgeStackLevels[leg.id] || 0);
             
-            // Sort closed entries by visualOrder to maintain stable positions
-            // When an entry is removed, remaining entries keep their visual positions
-            const sortedEntries = leg.closingTransaction?.entries 
-              ? [...leg.closingTransaction.entries].sort((a, b) => (a.visualOrder ?? 0) - (b.visualOrder ?? 0))
-              : [];
+            // Add closed entry badges first (they stack closest to the tick)
+            const entries = leg.closingTransaction?.entries || [];
+            entries.forEach((entry, entryIndex) => {
+              allBadges.push({
+                type: 'closed',
+                leg,
+                entry,
+                strike: entry.strike,
+                position,
+                createdOrder: legIndex * 1000 + entryIndex,
+              });
+            });
             
-            return (
-              <div key={leg.id}>
-                {renderOpenBadge(leg, position, stackLevel)}
-                {sortedEntries.map((entry) => 
-                  renderClosedEntryBadge(leg, entry, position, entry.visualOrder ?? 0)
-                )}
-              </div>
-            );
+            // Add open badge if leg has remaining quantity
+            const closingQty = leg.closingTransaction?.isEnabled 
+              ? entries.reduce((sum, e) => sum + e.quantity, 0)
+              : 0;
+            const remainingQty = leg.quantity - closingQty;
+            if (remainingQty > 0) {
+              allBadges.push({
+                type: 'open',
+                leg,
+                strike: leg.strike,
+                position,
+                createdOrder: legIndex * 1000 + 999, // Open badges after closed
+              });
+            }
           });
+          
+          // Group badges by strike and position
+          const badgeGroups = new Map<string, BadgeItem[]>();
+          allBadges.forEach(badge => {
+            const key = `${badge.strike}-${badge.position}`;
+            if (!badgeGroups.has(key)) {
+              badgeGroups.set(key, []);
+            }
+            badgeGroups.get(key)!.push(badge);
+          });
+          
+          // Sort each group: closed badges first (by createdOrder), then open badges
+          badgeGroups.forEach(group => {
+            group.sort((a, b) => {
+              // Closed badges come before open badges
+              if (a.type !== b.type) return a.type === 'closed' ? -1 : 1;
+              // Within same type, sort by createdOrder
+              return a.createdOrder - b.createdOrder;
+            });
+          });
+          
+          // Render all badges with unified stacking
+          const renderedBadges: React.ReactNode[] = [];
+          
+          badgeGroups.forEach((group, key) => {
+            let stackOffset = 0;
+            const badgeHeight = 28; // Open badge height
+            const closedBadgeHeight = 24;
+            const stackGap = 2;
+            
+            group.forEach((badge, index) => {
+              const height = badge.type === 'open' ? badgeHeight : closedBadgeHeight;
+              
+              if (badge.type === 'open') {
+                renderedBadges.push(renderOpenBadge(badge.leg, badge.position, stackOffset));
+              } else if (badge.entry) {
+                renderedBadges.push(renderClosedEntryBadgeUnified(badge.leg, badge.entry, badge.position, stackOffset));
+              }
+              
+              // Add height + gap for next badge
+              stackOffset += height + stackGap;
+            });
+          });
+          
+          return renderedBadges;
         })()}
       </div>
     </div>
