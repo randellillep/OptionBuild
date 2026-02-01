@@ -1042,6 +1042,9 @@ export function StrikeLadder({
           };
           
           optionLegs.forEach((leg) => {
+            // Skip legs with quantity 0 - all contracts have been transferred to other legs
+            if (leg.quantity <= 0) return;
+            
             const position = leg.position as 'long' | 'short';
             const legCreationTime = getLegCreationTime(leg.id);
             
