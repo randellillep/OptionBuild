@@ -787,8 +787,8 @@ export function OptionDetailsPanel({
     const isProfitable = profitLoss >= 0;
     
     // Labels based on position type
-    const closePriceLabel = leg.position === "long" ? "Avg Sold Price" : "Avg Bought Price";
-    const openPriceLabel = leg.position === "long" ? "Bought Price" : "Sold Price";
+    const closePriceLabel = "Avg Close Price";
+    const openPriceLabel = "Open Price";
 
     return (
       <div 
