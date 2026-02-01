@@ -1086,20 +1086,9 @@ export function StrikeLadder({
           // visualOrder NEVER changes - ensures badges maintain exact position through all operations
           badgeGroups.forEach(group => {
             group.sort((a, b) => {
-              // Primary sort by visualOrder (stable, never changes)
-              if (a.visualOrder !== b.visualOrder) {
-                return a.visualOrder - b.visualOrder;
-              }
-              // Secondary sort by leg.id for deterministic ordering when visualOrders are equal
-              const legCompare = a.leg.id.localeCompare(b.leg.id);
-              if (legCompare !== 0) return legCompare;
-              // Tertiary: within same leg, closed comes before open
-              // (closed badges render at lower stackOffset = closer to tick = below)
-              if (a.type !== b.type) return a.type === 'closed' ? -1 : 1;
-              // Finally, by entry id if both are closed entries
-              const aEntryId = a.entry?.id || '';
-              const bEntryId = b.entry?.id || '';
-              return aEntryId.localeCompare(bEntryId);
+              // ONLY sort by visualOrder - nothing else
+              // visualOrder is stable and NEVER changes, ensuring positions stay fixed
+              return a.visualOrder - b.visualOrder;
             });
           });
           
