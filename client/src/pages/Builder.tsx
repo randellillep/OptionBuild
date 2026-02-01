@@ -30,6 +30,7 @@ import { useStrategyEngine } from "@/hooks/useStrategyEngine";
 import { useOptionsChain } from "@/hooks/useOptionsChain";
 import { calculateImpliedVolatility, calculateOptionPrice, calculateRealizedUnrealizedPL } from "@/lib/options-pricing";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 
 // Helper to deep copy a leg, preserving immutable closingTransaction entries
 // This prevents cost basis (openingPrice) and strike from being mutated
@@ -629,6 +630,14 @@ export default function Builder() {
   const { data: expectedMoveChainData } = useOptionsChain({
     symbol: symbolInfo.symbol,
     enabled: !!symbolInfo.symbol,
+  });
+
+  // Fetch available expirations from the same endpoint ExpirationTimeline uses
+  // This ensures Change Expiration picker shows same dates as the top bar
+  const { data: optionsExpirationsData } = useQuery<{ expirations: string[] }>({
+    queryKey: ["/api/options/expirations", symbolInfo.symbol],
+    enabled: !!symbolInfo.symbol,
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour
   });
 
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
@@ -1628,6 +1637,7 @@ export default function Builder() {
                 onAddLeg={addLeg}
                 optionsChainData={optionsChainData}
                 availableStrikes={availableStrikes}
+                allAvailableExpirations={optionsExpirationsData?.expirations || []}
               />
 
               {activeTab === "heatmap" ? (

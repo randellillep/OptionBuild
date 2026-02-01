@@ -21,6 +21,7 @@ interface StrikeLadderProps {
     max: number;
     strikes: number[];
   } | null;
+  allAvailableExpirations?: string[];
 }
 
 export function StrikeLadder({ 
@@ -35,6 +36,7 @@ export function StrikeLadder({
   onAddLeg,
   optionsChainData,
   availableStrikes,
+  allAvailableExpirations = [],
 }: StrikeLadderProps) {
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -561,7 +563,7 @@ export function StrikeLadder({
             optionsChainData={optionsChainData}
             symbol={symbol}
             expirationDate={expirationDate}
-            availableExpirations={optionsChainData?.expirations || []}
+            availableExpirations={allAvailableExpirations}
             isClosedView={false}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
@@ -693,7 +695,7 @@ export function StrikeLadder({
             optionsChainData={optionsChainData}
             symbol={symbol}
             expirationDate={expirationDate}
-            availableExpirations={optionsChainData?.expirations || []}
+            availableExpirations={allAvailableExpirations}
             isClosedView={true}
             selectedEntryId={entry.id}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
@@ -819,7 +821,7 @@ export function StrikeLadder({
             optionsChainData={optionsChainData}
             symbol={symbol}
             expirationDate={expirationDate}
-            availableExpirations={optionsChainData?.expirations || []}
+            availableExpirations={allAvailableExpirations}
             isClosedView={true}
             selectedEntryId={entry.id}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
