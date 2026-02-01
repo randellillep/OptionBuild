@@ -1238,10 +1238,22 @@ export default function Builder() {
     });
   };
 
-  const addLeg = (legTemplate: Omit<OptionLeg, "id">) => {
+  const addLeg = (legTemplate: Omit<OptionLeg, "id">, preserveOrderFromId?: string) => {
+    // If preserveOrderFromId is provided, derive ID from it to maintain sort position
+    // Add a small offset to keep it right after the original leg
+    let newId: string;
+    if (preserveOrderFromId) {
+      // Extract timestamp from original ID and add small offset for uniqueness
+      const match = preserveOrderFromId.match(/(\d{10,})/);
+      const baseTime = match ? parseInt(match[1], 10) : Date.now();
+      newId = (baseTime + 1).toString(); // +1ms to sort right after original
+    } else {
+      newId = Date.now().toString();
+    }
+    
     const newLeg: OptionLeg = {
       ...legTemplate,
-      id: Date.now().toString(),
+      id: newId,
     };
     // Apply market prices immediately to get accurate pricing
     const [legWithPrice] = applyMarketPrices([newLeg]);

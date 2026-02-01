@@ -35,8 +35,8 @@ interface OptionDetailsPanelProps {
   isClosedView?: boolean;
   // Selected closing entry ID (for per-entry operations)
   selectedEntryId?: string | null;
-  // Callback to reopen a closed entry as a NEW separate leg
-  onReopenAsNewLeg?: (leg: Omit<OptionLeg, "id">) => void;
+  // Callback to reopen a closed entry as a NEW separate leg (with optional ID to preserve sort order)
+  onReopenAsNewLeg?: (leg: Omit<OptionLeg, "id">, preserveOrderFromId?: string) => void;
   // Legacy props for backward compatibility
   symbol?: string;
   expirationDate?: string | null;
@@ -589,19 +589,32 @@ export function OptionDetailsPanel({
     ? leg.closingTransaction?.entries?.find(e => e.id === selectedEntryId)
     : null;
 
-  // === Reopen Closed Entry - Remove entry so contracts become open again on SAME leg ===
-  // This preserves the leg's original ID/timestamp so badge position stays stable
+  // === Reopen Closed Entry as NEW Separate Leg ===
+  // Creates a new separate leg to keep boxes independent, but preserves sort order
   const handleReopenPosition = () => {
     if (!onUpdateLeg) return;
     
-    // If we have a selectedEntryId, just remove that entry from closing transaction
-    // The contracts will automatically become "open" again on this same leg
-    if (selectedEntryId && leg.closingTransaction?.entries) {
+    // If we have a selectedEntryId, reopen as a NEW separate leg
+    if (selectedEntryId && leg.closingTransaction?.entries && onReopenAsNewLeg) {
       const entryToReopen = leg.closingTransaction.entries.find(e => e.id === selectedEntryId);
       if (!entryToReopen) return;
       
-      // Remove the entry from the closing transaction
-      // Deep copy remaining entries to prevent shared references
+      // Create a NEW leg with the reopened entry's data
+      const newLeg: Omit<OptionLeg, "id"> = {
+        type: leg.type,
+        position: leg.position,
+        strike: entryToReopen.strike,
+        premium: leg.premium, // Original cost basis
+        quantity: entryToReopen.quantity,
+        expirationDays: leg.expirationDays,
+        expirationDate: leg.expirationDate,
+        premiumSource: leg.premiumSource,
+        impliedVolatility: leg.impliedVolatility,
+        entryUnderlyingPrice: leg.entryUnderlyingPrice ?? underlyingPrice,
+        costBasisLocked: true,
+      };
+      
+      // Remove the entry from the current leg's closing transaction
       const updatedEntries = leg.closingTransaction.entries
         .filter(e => e.id !== selectedEntryId)
         .map(e => ({ ...e }));
@@ -611,10 +624,9 @@ export function OptionDetailsPanel({
         ? activeEntries.reduce((sum, e) => sum + (e.closingPrice * e.quantity), 0) / totalActiveQty
         : 0;
       
-      // Update the leg: just remove the entry, quantity stays the same
-      // The removed contracts become "open" again since they're no longer in closingTransaction
       const hasRemainingEntries = updatedEntries.length > 0;
       
+      // Update the original leg to remove the entry
       onUpdateLeg({
         closingTransaction: hasRemainingEntries ? {
           ...leg.closingTransaction,
@@ -630,6 +642,8 @@ export function OptionDetailsPanel({
         }
       });
       
+      // Add the new leg, preserving sort order from original leg's ID
+      onReopenAsNewLeg(newLeg, leg.id);
       onClose();
       return;
     }

@@ -14,7 +14,7 @@ interface StrikeLadderProps {
   volatility?: number;
   onUpdateLeg: (legId: string, updates: Partial<OptionLeg>) => void;
   onRemoveLeg: (legId: string) => void;
-  onAddLeg: (leg: Omit<OptionLeg, "id">) => void;
+  onAddLeg: (leg: Omit<OptionLeg, "id">, preserveOrderFromId?: string) => void;
   optionsChainData?: any;
   availableStrikes?: {
     min: number;
