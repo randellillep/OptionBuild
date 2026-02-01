@@ -198,6 +198,7 @@ export default function Builder() {
             // Preserve all leg properties including isExcluded, closingTransaction, market data, etc.
             // IMPORTANT: Preserve marketBid/Ask/Mark/Last from SavedTrades for immediate P/L consistency
             // Lock cost basis so premium never updates - only market fields will update
+            // CRITICAL: Backfill visualOrder for legacy legs to maintain position stability
             const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `saved-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -218,6 +219,8 @@ export default function Builder() {
               marketAsk: leg.marketAsk,
               marketMark: leg.marketMark,
               marketLast: leg.marketLast,
+              // Backfill visualOrder for legacy legs - use index to preserve original order
+              visualOrder: leg.visualOrder ?? index,
             }));
             
             setLegs(normalizedLegs);
@@ -339,6 +342,7 @@ export default function Builder() {
             // Mark as 'saved' to preserve the original cost basis from when trade was shared
             // Preserve all leg properties including isExcluded, closingTransaction, etc.
             // IMPORTANT: Recalculate expirationDays from expirationDate to reflect current time
+            // CRITICAL: Backfill visualOrder for legacy legs to maintain position stability
             const normalizedLegs: OptionLeg[] = strategy.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `shared-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -354,6 +358,8 @@ export default function Builder() {
               expirationDate: leg.expirationDate,
               isExcluded: leg.isExcluded,
               closingTransaction: leg.closingTransaction,
+              // Backfill visualOrder for legacy legs - use index to preserve original order
+              visualOrder: leg.visualOrder ?? index,
             }));
             
             setLegs(normalizedLegs);
@@ -1239,31 +1245,32 @@ export default function Builder() {
   };
 
   const addLeg = (legTemplate: Omit<OptionLeg, "id">, preserveOrderFromId?: string) => {
-    // If preserveOrderFromId is provided, derive ID from it to maintain sort position
-    // Use -1 offset so new leg sorts BEFORE original (stays below in visual stack)
-    let newId: string;
-    if (preserveOrderFromId) {
-      // Extract timestamp from original ID and subtract offset for uniqueness
-      // This keeps the reopened leg in same position as the closed entry was (below open)
-      const match = preserveOrderFromId.match(/(\d{10,})/);
-      const baseTime = match ? parseInt(match[1], 10) : Date.now();
-      newId = (baseTime - 1).toString(); // -1ms to sort before original (stays below)
-    } else {
-      newId = Date.now().toString();
-    }
+    const newId = Date.now().toString();
     
-    const newLeg: OptionLeg = {
-      ...legTemplate,
-      id: newId,
-    };
-    // Apply market prices immediately to get accurate pricing
-    const [legWithPrice] = applyMarketPrices([newLeg]);
-    // Lock the cost basis so premium never updates after entry
-    const legWithLockedCostBasis: OptionLeg = {
-      ...legWithPrice,
-      costBasisLocked: true,
-    };
-    setLegs(prevLegs => [...prevLegs, legWithLockedCostBasis]);
+    // Use setLegs with callback to properly access current legs state
+    setLegs(prevLegs => {
+      // Calculate visualOrder: if template has one, use it; otherwise get next available
+      let visualOrder = legTemplate.visualOrder;
+      if (visualOrder === undefined) {
+        // Assign next visual order (max existing + 1)
+        const existingOrders = prevLegs.map(l => l.visualOrder ?? 0);
+        visualOrder = existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 0;
+      }
+      
+      const newLeg: OptionLeg = {
+        ...legTemplate,
+        id: newId,
+        visualOrder,
+      };
+      // Apply market prices immediately to get accurate pricing
+      const [legWithPrice] = applyMarketPrices([newLeg]);
+      // Lock the cost basis so premium never updates after entry
+      const legWithLockedCostBasis: OptionLeg = {
+        ...legWithPrice,
+        costBasisLocked: true,
+      };
+      return [...prevLegs, legWithLockedCostBasis];
+    });
     // Clear frozen P/L values so live calculations take over
     setInitialPLFromSavedTrade(null);
   };

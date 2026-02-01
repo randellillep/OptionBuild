@@ -99,6 +99,7 @@ export interface OptionLeg {
   expirationDate?: string;         // ISO date string for expiration
   isExcluded?: boolean;            // Whether to exclude from P/L calculations
   closingTransaction?: ClosingTransaction; // Closing transaction details
+  visualOrder?: number;            // Stable visual position - NEVER changes after creation
 }
 
 export interface Strategy {

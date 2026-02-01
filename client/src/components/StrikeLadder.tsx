@@ -1029,36 +1029,30 @@ export function StrikeLadder({
             entry?: ClosingEntry;
             strike: number;
             position: 'long' | 'short';
-            createdOrder: number; // For stable sorting
+            visualOrder: number; // Stable visual position - NEVER changes
           };
           
           const allBadges: BadgeItem[] = [];
-          
-          // Extract numeric timestamp from leg ID for stable ordering
-          // IDs are like "1769946629691" or "saved-1769946629691-0"
-          const getLegCreationTime = (legId: string): number => {
-            const match = legId.match(/(\d{10,})/);
-            return match ? parseInt(match[1], 10) : 0;
-          };
           
           optionLegs.forEach((leg) => {
             // Skip legs with quantity 0 - all contracts have been transferred to other legs
             if (leg.quantity <= 0) return;
             
             const position = leg.position as 'long' | 'short';
-            const legCreationTime = getLegCreationTime(leg.id);
+            // Use leg's stable visualOrder (falls back to 0 for legacy legs)
+            const legVisualOrder = leg.visualOrder ?? 0;
             
             // Add closed entry badges
             const entries = leg.closingTransaction?.entries || [];
             entries.forEach((entry) => {
-              // Use leg creation time only - ensures stable position when reopening
+              // Use leg's visualOrder - ensures STABLE position when reopening
               allBadges.push({
                 type: 'closed',
                 leg,
                 entry,
                 strike: entry.strike,
                 position,
-                createdOrder: legCreationTime, // Same as open badge for stable positioning
+                visualOrder: legVisualOrder, // Same as open badge for stable positioning
               });
             });
             
@@ -1073,7 +1067,7 @@ export function StrikeLadder({
                 leg,
                 strike: leg.strike,
                 position,
-                createdOrder: legCreationTime, // Same as closed badges for stable positioning
+                visualOrder: legVisualOrder, // Same as closed badges for stable positioning
               });
             }
           });
@@ -1088,15 +1082,15 @@ export function StrikeLadder({
             badgeGroups.get(key)!.push(badge);
           });
           
-          // Sort each group purely by creation order for stable positioning
-          // This ensures badges maintain their position when reopening/closing
+          // Sort each group purely by visualOrder for STABLE positioning
+          // visualOrder NEVER changes - ensures badges maintain exact position through all operations
           badgeGroups.forEach(group => {
             group.sort((a, b) => {
-              // Primary sort by createdOrder (leg creation time)
-              if (a.createdOrder !== b.createdOrder) {
-                return a.createdOrder - b.createdOrder;
+              // Primary sort by visualOrder (stable, never changes)
+              if (a.visualOrder !== b.visualOrder) {
+                return a.visualOrder - b.visualOrder;
               }
-              // Secondary sort by leg.id for deterministic ordering when times are equal
+              // Secondary sort by leg.id for deterministic ordering when visualOrders are equal
               const legCompare = a.leg.id.localeCompare(b.leg.id);
               if (legCompare !== 0) return legCompare;
               // Tertiary: within same leg, closed comes before open

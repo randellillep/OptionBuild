@@ -615,6 +615,7 @@ export function OptionDetailsPanel({
       if (!entryToReopen) return;
       
       // Create a NEW leg with the reopened entry's data
+      // CRITICAL: Inherit visualOrder from original leg to maintain exact position
       const newLeg: Omit<OptionLeg, "id"> = {
         type: leg.type,
         position: leg.position,
@@ -627,6 +628,7 @@ export function OptionDetailsPanel({
         impliedVolatility: leg.impliedVolatility,
         entryUnderlyingPrice: leg.entryUnderlyingPrice ?? underlyingPrice,
         costBasisLocked: true,
+        visualOrder: leg.visualOrder, // Inherit visualOrder to keep same position
       };
       
       // Remove the entry from the current leg's closing transaction
