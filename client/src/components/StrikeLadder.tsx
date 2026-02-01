@@ -1084,12 +1084,24 @@ export function StrikeLadder({
             badgeGroups.get(key)!.push(badge);
           });
           
-          // Sort each group purely by visualOrder for STABLE positioning
-          // visualOrder NEVER changes - ensures badges maintain exact position through all operations
+          // Sort each group: original open badges first (top), then closed/reopened (bottom)
+          // Within each tier, sort by visualOrder for stable positioning
           badgeGroups.forEach(group => {
             group.sort((a, b) => {
-              // ONLY sort by visualOrder - nothing else
-              // visualOrder is stable and NEVER changes, ensuring positions stay fixed
+              // Determine tier: 0 = original open badges (top), 1 = closed and reopened (bottom)
+              const getTier = (badge: BadgeItem): number => {
+                if (badge.type === 'closed') return 1; // Closed always at bottom
+                if (badge.type === 'open' && badge.leg.isFromReopened) return 1; // Reopened stays at bottom
+                return 0; // Original open badges at top
+              };
+              
+              const tierA = getTier(a);
+              const tierB = getTier(b);
+              
+              // First sort by tier (top vs bottom)
+              if (tierA !== tierB) return tierA - tierB;
+              
+              // Within same tier, sort by visualOrder for stable positioning
               return a.visualOrder - b.visualOrder;
             });
           });

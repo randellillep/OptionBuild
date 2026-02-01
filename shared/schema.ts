@@ -100,6 +100,7 @@ export interface OptionLeg {
   isExcluded?: boolean;            // Whether to exclude from P/L calculations
   closingTransaction?: ClosingTransaction; // Closing transaction details
   visualOrder?: number;            // Stable visual position - NEVER changes after creation
+  isFromReopened?: boolean;        // True if leg was created by reopening a closed position (stays at bottom with closed badges)
 }
 
 export interface Strategy {

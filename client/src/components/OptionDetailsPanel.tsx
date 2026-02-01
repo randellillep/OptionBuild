@@ -639,6 +639,7 @@ export function OptionDetailsPanel({
         entryUnderlyingPrice: leg.entryUnderlyingPrice ?? underlyingPrice,
         costBasisLocked: true,
         visualOrder: reopenedVisualOrder, // Unique but maintains same position
+        isFromReopened: true, // Marks this leg as reopened - stays at bottom with closed badges
       };
       
       // Remove the entry from the current leg's closing transaction
