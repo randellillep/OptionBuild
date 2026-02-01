@@ -1096,8 +1096,9 @@ export function StrikeLadder({
               // Secondary sort by leg.id for deterministic ordering when times are equal
               const legCompare = a.leg.id.localeCompare(b.leg.id);
               if (legCompare !== 0) return legCompare;
-              // Tertiary: within same leg, open comes before closed for consistency
-              if (a.type !== b.type) return a.type === 'open' ? -1 : 1;
+              // Tertiary: within same leg, closed comes before open
+              // (closed badges render at lower stackOffset = closer to tick = below)
+              if (a.type !== b.type) return a.type === 'closed' ? -1 : 1;
               // Finally, by entry id if both are closed entries
               const aEntryId = a.entry?.id || '';
               const bEntryId = b.entry?.id || '';
