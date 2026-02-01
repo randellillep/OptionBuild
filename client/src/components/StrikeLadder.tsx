@@ -1035,26 +1035,28 @@ export function StrikeLadder({
           const allBadges: BadgeItem[] = [];
           
           optionLegs.forEach((leg) => {
-            // Skip legs with quantity 0 - all contracts have been transferred to other legs
-            if (leg.quantity <= 0) return;
-            
             const position = leg.position as 'long' | 'short';
             // Use leg's stable visualOrder (falls back to 0 for legacy legs)
             const legVisualOrder = leg.visualOrder ?? 0;
             
-            // Add closed entry badges
+            // Add closed entry badges - ALWAYS show these, even if leg.quantity is 0
             const entries = leg.closingTransaction?.entries || [];
             entries.forEach((entry) => {
-              // Use leg's visualOrder - ensures STABLE position when reopening
+              // Use entry's visualOrder if it exists, otherwise leg's
+              const entryVisualOrder = entry.visualOrder ?? legVisualOrder;
               allBadges.push({
                 type: 'closed',
                 leg,
                 entry,
                 strike: entry.strike,
                 position,
-                visualOrder: legVisualOrder, // Same as open badge for stable positioning
+                visualOrder: entryVisualOrder, // Use entry's unique visualOrder
               });
             });
+            
+            // Skip legs with quantity 0 for OPEN badges only
+            // (closed entries were already added above)
+            if (leg.quantity <= 0) return;
             
             // Add open badge if leg has remaining quantity
             const closingQty = leg.closingTransaction?.isEnabled 
