@@ -1240,13 +1240,14 @@ export default function Builder() {
 
   const addLeg = (legTemplate: Omit<OptionLeg, "id">, preserveOrderFromId?: string) => {
     // If preserveOrderFromId is provided, derive ID from it to maintain sort position
-    // Add a small offset to keep it right after the original leg
+    // Use -1 offset so new leg sorts BEFORE original (stays below in visual stack)
     let newId: string;
     if (preserveOrderFromId) {
-      // Extract timestamp from original ID and add small offset for uniqueness
+      // Extract timestamp from original ID and subtract offset for uniqueness
+      // This keeps the reopened leg in same position as the closed entry was (below open)
       const match = preserveOrderFromId.match(/(\d{10,})/);
       const baseTime = match ? parseInt(match[1], 10) : Date.now();
-      newId = (baseTime + 1).toString(); // +1ms to sort right after original
+      newId = (baseTime - 1).toString(); // -1ms to sort before original (stays below)
     } else {
       newId = Date.now().toString();
     }
