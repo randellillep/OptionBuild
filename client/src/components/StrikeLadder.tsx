@@ -1045,18 +1045,17 @@ export function StrikeLadder({
             const position = leg.position as 'long' | 'short';
             const legCreationTime = getLegCreationTime(leg.id);
             
-            // Add closed entry badges first (they stack closest to the tick)
+            // Add closed entry badges
             const entries = leg.closingTransaction?.entries || [];
             entries.forEach((entry) => {
-              // Use entry's visualOrder for ordering within a leg, plus leg creation time
-              const entryOrder = entry.visualOrder ?? 0;
+              // Use leg creation time only - ensures stable position when reopening
               allBadges.push({
                 type: 'closed',
                 leg,
                 entry,
                 strike: entry.strike,
                 position,
-                createdOrder: legCreationTime + entryOrder, // Leg time + entry order
+                createdOrder: legCreationTime, // Same as open badge for stable positioning
               });
             });
             
@@ -1071,7 +1070,7 @@ export function StrikeLadder({
                 leg,
                 strike: leg.strike,
                 position,
-                createdOrder: legCreationTime, // Use leg creation time
+                createdOrder: legCreationTime, // Same as closed badges for stable positioning
               });
             }
           });
