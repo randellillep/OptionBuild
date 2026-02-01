@@ -517,6 +517,7 @@ export function OptionDetailsPanel({
   };
 
   // Format expiration dates for display - group by month
+  // Use the same expirationDate that the header uses (global expiration from props)
   const formatExpirationDates = () => {
     if (!availableExpirations || availableExpirations.length === 0) return [];
     
@@ -532,7 +533,8 @@ export function OptionDetailsPanel({
       const date = new Date(dateStr);
       const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
       const day = date.getDate();
-      const isCurrent = leg.expirationDate === dateStr;
+      // Use same expirationDate as header (global from props, not leg-specific)
+      const isCurrent = expirationDate === dateStr;
       
       let monthGroup = grouped.find(g => g.month === monthKey);
       if (!monthGroup) {
