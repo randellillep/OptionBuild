@@ -1269,30 +1269,34 @@ export default function Builder() {
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
-    setLegs(prevLegs => prevLegs.map((leg) => {
-      if (leg.id !== id) return leg;
-      
-      // Check if closingTransaction is explicitly being updated (even to undefined)
-      const hasClosingTransactionUpdate = 'closingTransaction' in updates;
-      
-      // Deep copy the closing transaction to preserve immutable entry data
-      // This prevents mutations from affecting stored openingPrice/strike values
-      const preservedClosingTransaction = leg.closingTransaction ? {
-        ...leg.closingTransaction,
-        // Deep copy entries array to prevent reference mutations
-        entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
-      } : undefined;
-      
-      return { 
-        ...leg, 
-        ...updates,
-        // Use the update's closingTransaction if explicitly provided (even if undefined),
-        // otherwise preserve the existing one
-        closingTransaction: hasClosingTransactionUpdate 
-          ? updates.closingTransaction 
-          : preservedClosingTransaction
-      };
-    }));
+    setLegs(prevLegs => prevLegs
+      .map((leg) => {
+        if (leg.id !== id) return leg;
+        
+        // Check if closingTransaction is explicitly being updated (even to undefined)
+        const hasClosingTransactionUpdate = 'closingTransaction' in updates;
+        
+        // Deep copy the closing transaction to preserve immutable entry data
+        // This prevents mutations from affecting stored openingPrice/strike values
+        const preservedClosingTransaction = leg.closingTransaction ? {
+          ...leg.closingTransaction,
+          // Deep copy entries array to prevent reference mutations
+          entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
+        } : undefined;
+        
+        return { 
+          ...leg, 
+          ...updates,
+          // Use the update's closingTransaction if explicitly provided (even if undefined),
+          // otherwise preserve the existing one
+          closingTransaction: hasClosingTransactionUpdate 
+            ? updates.closingTransaction 
+            : preservedClosingTransaction
+        };
+      })
+      // Remove legs with quantity 0 (all contracts transferred to new legs via reopen)
+      .filter(leg => leg.quantity > 0)
+    );
     // Clear frozen P/L values so live calculations take over
     setInitialPLFromSavedTrade(null);
   };
