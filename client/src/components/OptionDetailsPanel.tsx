@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Minus, Plus, X, RotateCcw, Check, EyeOff, Undo2, Trash2 } from "lucide-react";
+import { Minus, Plus, X, RotateCcw, Check, EyeOff, Undo2, Trash2, Calendar } from "lucide-react";
 import type { OptionLeg, MarketOptionChainSummary, ClosingTransaction } from "@shared/schema";
 import { calculateGreeks, calculateImpliedVolatility } from "@/lib/options-pricing";
 
@@ -342,6 +342,9 @@ export function OptionDetailsPanel({
     }
   };
 
+  // === Change Expiration State ===
+  const [showExpirationPicker, setShowExpirationPicker] = useState(false);
+  
   // === Closing Transaction State ===
   // Fix: Initialize to false - only open when explicitly clicked, not based on existing transactions
   const [showClosingSection, setShowClosingSection] = useState(false);
@@ -482,6 +485,55 @@ export function OptionDetailsPanel({
         } 
       });
     }
+  };
+
+  // === Change Expiration Handler ===
+  const handleChangeExpiration = (newExpirationDate: string) => {
+    if (!onUpdateLeg) return;
+    
+    // Calculate new expirationDays from the selected date
+    const expDate = new Date(newExpirationDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expDate.setHours(0, 0, 0, 0);
+    const diffTime = expDate.getTime() - today.getTime();
+    const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    
+    onUpdateLeg({ 
+      expirationDate: newExpirationDate,
+      expirationDays: diffDays,
+    });
+    
+    setShowExpirationPicker(false);
+  };
+
+  // Format expiration dates for display - group by month
+  const formatExpirationDates = () => {
+    if (!availableExpirations || availableExpirations.length === 0) return [];
+    
+    // Sort dates chronologically
+    const sortedDates = [...availableExpirations].sort((a, b) => 
+      new Date(a).getTime() - new Date(b).getTime()
+    );
+    
+    // Group by month
+    const grouped: { month: string; dates: { date: string; day: number; isCurrent: boolean }[] }[] = [];
+    
+    sortedDates.forEach(dateStr => {
+      const date = new Date(dateStr);
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+      const day = date.getDate();
+      const isCurrent = leg.expirationDate === dateStr;
+      
+      let monthGroup = grouped.find(g => g.month === monthKey);
+      if (!monthGroup) {
+        monthGroup = { month: monthKey, dates: [] };
+        grouped.push(monthGroup);
+      }
+      monthGroup.dates.push({ date: dateStr, day, isCurrent });
+    });
+    
+    return grouped;
   };
 
   // === Exclude Toggle ===
@@ -645,21 +697,6 @@ export function OptionDetailsPanel({
         entries: [],
       }
     });
-  };
-
-  // === Change Expiration ===
-  const handleExpirationChange = (newExpiration: string) => {
-    if (onUpdateLeg) {
-      // Calculate new expiration days from the selected date
-      const today = new Date();
-      const expDate = new Date(newExpiration);
-      const diffTime = expDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      onUpdateLeg({ 
-        expirationDate: newExpiration,
-        expirationDays: Math.max(1, diffDays)
-      });
-    }
   };
 
   // Get the opposite action text for closing
@@ -1206,6 +1243,53 @@ export function OptionDetailsPanel({
                 </div>
               )}
             </div>
+
+            {/* Change Expiration - OptionStrat style */}
+            {availableExpirations && availableExpirations.length > 0 && (
+              <div className="space-y-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs h-8 gap-2"
+                  onClick={() => setShowExpirationPicker(!showExpirationPicker)}
+                  data-testid="button-change-expiration"
+                >
+                  <Calendar className="h-3 w-3" />
+                  Change Expiration
+                </Button>
+
+                {/* Expanded Expiration Picker - OptionStrat calendar row style */}
+                {showExpirationPicker && (
+                  <div className="ml-5 p-2 rounded-md bg-muted/50 space-y-2">
+                    {formatExpirationDates().map((monthGroup) => (
+                      <div key={monthGroup.month} className="space-y-1">
+                        <div className="text-[10px] font-medium text-muted-foreground text-center">
+                          {monthGroup.month}
+                        </div>
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {monthGroup.dates.map(({ date, day, isCurrent }) => (
+                            <button
+                              key={date}
+                              onClick={() => handleChangeExpiration(date)}
+                              className={`
+                                min-w-[28px] h-6 px-1.5 text-xs font-medium rounded transition-colors
+                                ${isCurrent 
+                                  ? 'bg-primary text-primary-foreground' 
+                                  : 'bg-muted hover:bg-accent hover:text-accent-foreground'
+                                }
+                              `}
+                              data-testid={`button-expiration-${date}`}
+                            >
+                              {day}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Exclude Toggle */}
             <Button
