@@ -729,7 +729,9 @@ export function OptionDetailsPanel({
   const closedActionText = leg.position === "long" ? "Sold" : "Bought";
 
   // Closed Position View - simplified view for positions that have been closed
-  if (isClosedView && leg.closingTransaction?.isEnabled) {
+  // Check for entries existence as backup in case isEnabled is not properly set
+  const hasClosingEntries = leg.closingTransaction?.entries && leg.closingTransaction.entries.length > 0;
+  if (isClosedView && leg.closingTransaction && (leg.closingTransaction.isEnabled || hasClosingEntries)) {
     const closedQty = leg.closingTransaction.quantity || 0;
     const closePrice = leg.closingTransaction.closingPrice || 0;
     const closingEntries = leg.closingTransaction.entries || [];
