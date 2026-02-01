@@ -745,10 +745,7 @@ export function OptionDetailsPanel({
   // Check for entries existence as backup in case isEnabled is not properly set
   const hasClosingEntries = leg.closingTransaction?.entries && leg.closingTransaction.entries.length > 0;
   if (isClosedView && leg.closingTransaction && (leg.closingTransaction.isEnabled || hasClosingEntries)) {
-    const closedQty = leg.closingTransaction.quantity || 0;
-    const closePrice = leg.closingTransaction.closingPrice || 0;
     const closingEntries = leg.closingTransaction.entries || [];
-    const hasMultipleEntries = closingEntries.length > 1;
     
     // Get the selected entry if there's a selectedEntryId
     // This allows displaying the IMMUTABLE strike and cost basis from the entry itself
@@ -760,20 +757,33 @@ export function OptionDetailsPanel({
     const displayStrike = selectedClosedEntry?.strike ?? leg.strike;
     const displayCostBasis = selectedClosedEntry?.openingPrice ?? leg.premium;
     
+    // When viewing a specific entry, show only THAT entry's qty and price
+    // Otherwise show totals (for legacy panels without entry selection)
+    const closedQty = selectedClosedEntry ? selectedClosedEntry.quantity : (leg.closingTransaction.quantity || 0);
+    const closePrice = selectedClosedEntry ? selectedClosedEntry.closingPrice : (leg.closingTransaction.closingPrice || 0);
+    
     // Create title using the ENTRY's immutable strike (not leg.strike which can change)
     const closedTitle = `${symbol.toUpperCase()} ${formatStrike(displayStrike)}${leg.type === "call" ? "C" : "P"} ${formatDate(expirationDate)}`;
     
-    // P/L calculation using each entry's stored opening price (immutable cost basis)
-    // For entries with openingPrice, use it; otherwise fall back to leg.premium (legacy)
-    // Long: P/L = (closePrice - openingPrice) * qty * 100
-    // Short: P/L = (openingPrice - closePrice) * qty * 100
-    const profitLoss = closingEntries.reduce((total, entry) => {
-      const costBasis = entry.openingPrice ?? leg.premium;
-      const entryPL = leg.position === "long"
-        ? (entry.closingPrice - costBasis) * entry.quantity * 100
-        : (costBasis - entry.closingPrice) * entry.quantity * 100;
-      return total + entryPL;
-    }, 0);
+    // P/L calculation: when viewing a specific entry, calculate only for THAT entry
+    // Otherwise calculate for all entries (legacy behavior)
+    let profitLoss: number;
+    if (selectedClosedEntry) {
+      // Calculate P/L for just this specific entry
+      const costBasis = selectedClosedEntry.openingPrice ?? leg.premium;
+      profitLoss = leg.position === "long"
+        ? (selectedClosedEntry.closingPrice - costBasis) * selectedClosedEntry.quantity * 100
+        : (costBasis - selectedClosedEntry.closingPrice) * selectedClosedEntry.quantity * 100;
+    } else {
+      // Legacy: calculate P/L for all entries combined
+      profitLoss = closingEntries.reduce((total, entry) => {
+        const costBasis = entry.openingPrice ?? leg.premium;
+        const entryPL = leg.position === "long"
+          ? (entry.closingPrice - costBasis) * entry.quantity * 100
+          : (costBasis - entry.closingPrice) * entry.quantity * 100;
+        return total + entryPL;
+      }, 0);
+    }
     const isProfitable = profitLoss >= 0;
     
     // Labels based on position type
@@ -927,38 +937,13 @@ export function OptionDetailsPanel({
             </div>
           </div>
 
-          {/* Show individual closing entries if multiple partial closes */}
-          {hasMultipleEntries && (
-            <div className="bg-muted/50 rounded p-2 space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Closing Entries</label>
-              {closingEntries.map((entry, idx) => {
-                // Use entry's stored opening price (immutable cost basis), fallback to leg.premium for legacy
-                const costBasis = entry.openingPrice ?? leg.premium;
-                const entryPL = leg.position === "long"
-                  ? (entry.closingPrice - costBasis) * entry.quantity * 100
-                  : (costBasis - entry.closingPrice) * entry.quantity * 100;
-                const entryProfitable = entryPL >= 0;
-                return (
-                  <div key={entry.id || idx} className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground">
-                      {entry.quantity} @ ${entry.closingPrice.toFixed(2)}
-                    </span>
-                    <span className={entryProfitable ? 'text-emerald-600' : 'text-rose-600'}>
-                      {entryProfitable ? '+' : ''}${entryPL.toFixed(2)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Quantity Closed</label>
+              <label className="text-xs font-medium text-muted-foreground">Contracts Closed</label>
               <div className="font-mono font-semibold">{closedQty}</div>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Total P/L</label>
+              <label className="text-xs font-medium text-muted-foreground">P/L</label>
               <div className={`font-mono font-semibold ${isProfitable ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {isProfitable ? '+' : ''}${profitLoss.toFixed(2)}
               </div>
