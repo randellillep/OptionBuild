@@ -1086,12 +1086,11 @@ export function StrikeLadder({
             badgeGroups.get(key)!.push(badge);
           });
           
-          // Sort each group: closed badges first (by createdOrder), then open badges
+          // Sort each group purely by creation order for stable positioning
+          // This ensures badges maintain their position when reopening/closing
           badgeGroups.forEach(group => {
             group.sort((a, b) => {
-              // Closed badges come before open badges
-              if (a.type !== b.type) return a.type === 'closed' ? -1 : 1;
-              // Within same type, sort by createdOrder
+              // Sort by createdOrder only - keeps badges in stable positions
               return a.createdOrder - b.createdOrder;
             });
           });
