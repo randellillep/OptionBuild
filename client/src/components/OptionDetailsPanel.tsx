@@ -626,8 +626,12 @@ export function OptionDetailsPanel({
       
       const hasRemainingEntries = updatedEntries.length > 0;
       
-      // Update the original leg to remove the entry
+      // Update the original leg: remove the entry AND reduce quantity
+      // The reopened contracts are transferred to the new leg
+      const newOriginalQuantity = leg.quantity - entryToReopen.quantity;
+      
       onUpdateLeg({
+        quantity: newOriginalQuantity,
         closingTransaction: hasRemainingEntries ? {
           ...leg.closingTransaction,
           quantity: totalActiveQty,
