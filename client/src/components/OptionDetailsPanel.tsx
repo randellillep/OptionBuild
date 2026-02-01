@@ -370,6 +370,21 @@ export function OptionDetailsPanel({
   const [closedOpenPriceText, setClosedOpenPriceText] = useState("");
   const [closedClosePriceText, setClosedClosePriceText] = useState("");
 
+  // Reset closing section state when leg changes
+  useEffect(() => {
+    setShowClosingSection(false);
+    setShowExpirationPicker(false);
+    // Reset closing quantity for the new leg
+    const closedQty = leg.closingTransaction?.entries
+      ?.filter(e => !e.isExcluded)
+      .reduce((sum, e) => sum + e.quantity, 0) || 0;
+    const remaining = Math.max(0, leg.quantity - closedQty);
+    setClosingQty(Math.min(1, Math.max(1, remaining)));
+    // Reset closing price
+    const defaultPrice = marketData?.ask || leg.premium;
+    setClosingPriceText(defaultPrice.toFixed(2));
+  }, [leg.id]);
+
   // Sync closing transaction state with leg - but DON'T auto-open the section
   useEffect(() => {
     // Only update closing price text if already showing and not editing
