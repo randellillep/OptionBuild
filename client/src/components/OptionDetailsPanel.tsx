@@ -1285,60 +1285,65 @@ export function OptionDetailsPanel({
                   Change Expiration
                 </Button>
 
-                {/* Expanded Expiration Picker - OptionStrat horizontal scroll style */}
+                {/* Expanded Expiration Picker - OptionStrat continuous scroll style */}
                 {showExpirationPicker && (() => {
                   const monthGroups = formatExpirationDates();
-                  // Auto-select first month with current expiration, or just first month
-                  const currentMonth = monthGroups.find(g => g.dates.some(d => d.isCurrent))?.month || monthGroups[0]?.month;
-                  const activeMonth = selectedExpirationMonth || currentMonth;
-                  const activeGroup = monthGroups.find(g => g.month === activeMonth) || monthGroups[0];
                   
                   return (
-                    <div className="ml-5 p-2 rounded-md bg-muted/50 space-y-2">
-                      {/* Month Tabs */}
-                      <div className="flex gap-1 border-b border-border pb-1">
-                        {monthGroups.map((group) => (
-                          <button
-                            key={group.month}
-                            onClick={() => setSelectedExpirationMonth(group.month)}
-                            className={`
-                              px-3 py-1 text-xs font-medium rounded-t transition-colors
-                              ${activeMonth === group.month
-                                ? 'bg-background text-foreground border-b-2 border-primary'
-                                : 'text-muted-foreground hover:text-foreground'
-                              }
-                            `}
-                            data-testid={`button-month-${group.month}`}
-                          >
-                            {group.month}
-                          </button>
+                    <div className="ml-5 p-2 rounded-md bg-muted/50">
+                      {/* Continuous Horizontal Scrollable Date Row with Month Labels */}
+                      <div 
+                        className="flex gap-1 overflow-x-auto pb-1 cursor-grab active:cursor-grabbing select-none"
+                        style={{ scrollbarWidth: 'thin' }}
+                        data-testid="expiration-scroll-container"
+                        onMouseDown={(e) => {
+                          const container = e.currentTarget;
+                          const startX = e.pageX - container.offsetLeft;
+                          const scrollLeft = container.scrollLeft;
+                          
+                          const onMouseMove = (moveEvent: MouseEvent) => {
+                            const x = moveEvent.pageX - container.offsetLeft;
+                            const walk = (x - startX) * 1.5;
+                            container.scrollLeft = scrollLeft - walk;
+                          };
+                          
+                          const onMouseUp = () => {
+                            document.removeEventListener('mousemove', onMouseMove);
+                            document.removeEventListener('mouseup', onMouseUp);
+                          };
+                          
+                          document.addEventListener('mousemove', onMouseMove);
+                          document.addEventListener('mouseup', onMouseUp);
+                        }}
+                      >
+                        {monthGroups.map((group, groupIdx) => (
+                          <div key={group.month} className="flex flex-col items-center flex-shrink-0">
+                            {/* Month Label */}
+                            <div className="text-[10px] font-medium text-muted-foreground mb-1 px-1">
+                              {group.month}
+                            </div>
+                            {/* Dates Row for this month */}
+                            <div className="flex gap-1">
+                              {group.dates.map(({ date, day, isCurrent }) => (
+                                <button
+                                  key={date}
+                                  onClick={() => handleChangeExpiration(date)}
+                                  className={`
+                                    flex-shrink-0 min-w-[28px] h-6 px-1.5 text-xs font-medium rounded transition-colors
+                                    ${isCurrent 
+                                      ? 'bg-primary text-primary-foreground' 
+                                      : 'bg-muted hover:bg-accent hover:text-accent-foreground'
+                                    }
+                                  `}
+                                  data-testid={`button-expiration-${date}`}
+                                >
+                                  {day}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         ))}
                       </div>
-                      
-                      {/* Horizontal Scrollable Date Row */}
-                      {activeGroup && (
-                        <div 
-                          className="flex gap-1 overflow-x-auto pb-1 scrollbar-thin"
-                          style={{ scrollbarWidth: 'thin' }}
-                        >
-                          {activeGroup.dates.map(({ date, day, isCurrent }) => (
-                            <button
-                              key={date}
-                              onClick={() => handleChangeExpiration(date)}
-                              className={`
-                                flex-shrink-0 min-w-[28px] h-6 px-1.5 text-xs font-medium rounded transition-colors
-                                ${isCurrent 
-                                  ? 'bg-primary text-primary-foreground' 
-                                  : 'bg-muted hover:bg-accent hover:text-accent-foreground'
-                                }
-                              `}
-                              data-testid={`button-expiration-${date}`}
-                            >
-                              {day}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })()}
