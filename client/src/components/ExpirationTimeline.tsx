@@ -7,6 +7,7 @@ interface ExpirationTimelineProps {
   onSelectDays: (days: number, date: string) => void;
   symbol?: string;
   activeLegsExpirations?: number[]; // Unique expiration days from active legs
+  expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
 }
 
 interface OptionsExpirationsResponse {
@@ -57,6 +58,7 @@ export function ExpirationTimeline({
   onSelectDays,
   symbol = "SPY",
   activeLegsExpirations = [],
+  expirationColorMap,
 }: ExpirationTimelineProps) {
   const today = new Date();
   
@@ -208,6 +210,9 @@ export function ExpirationTimeline({
                 const isSelected = selectedDays === days || (selectedDays === null && days === allDays[0]);
                 const hasLeg = hasActiveLeg(days);
                 
+                // Get color for this expiration date from the map
+                const expirationColor = expirationColorMap?.get(days);
+                
                 return (
                   <button
                     key={`${days}-${idx}`}
@@ -216,18 +221,19 @@ export function ExpirationTimeline({
                       onSelectDays(days, dateStr);
                     }}
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
-                      isSelected
+                      isSelected && !hasLeg
                         ? 'bg-primary text-primary-foreground'
-                        : hasLeg
-                        ? 'bg-accent/50 text-accent-foreground hover:bg-accent/70'
-                        : 'hover:bg-muted/60 active:bg-muted'
+                        : !hasLeg
+                        ? 'hover:bg-muted/60 active:bg-muted'
+                        : ''
                     }`}
+                    style={hasLeg && expirationColor ? {
+                      backgroundColor: expirationColor,
+                      color: 'white',
+                    } : undefined}
                     data-testid={`button-expiration-${days}`}
                   >
                     {day}
-                    {hasLeg && !isSelected && (
-                      <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-primary rounded-full" />
-                    )}
                   </button>
                 );
               })}

@@ -23,6 +23,7 @@ interface StrikeLadderProps {
   } | null;
   allAvailableExpirations?: string[];
   onChangeGlobalExpiration?: (days: number, date: string) => void;
+  expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
 }
 
 export function StrikeLadder({ 
@@ -39,6 +40,7 @@ export function StrikeLadder({
   availableStrikes,
   allAvailableExpirations = [],
   onChangeGlobalExpiration,
+  expirationColorMap,
 }: StrikeLadderProps) {
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -491,6 +493,21 @@ export function StrikeLadder({
       return false;
     })();
     
+    // Get expiration color for multi-expiration visual coding (OptionStrat-style)
+    const expirationColor = expirationColorMap?.get(leg.expirationDays);
+    const hasMultipleExpirations = expirationColorMap && expirationColorMap.size > 1;
+    
+    // Format expiration date as short subscript (M/D format)
+    const formatExpirationSubscript = (date: string | undefined) => {
+      if (!date) return '';
+      const d = new Date(date);
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    };
+    const expirationSubscript = formatExpirationSubscript(leg.expirationDate);
+    
+    // Use expiration color when multiple expirations exist, otherwise use call/put color
+    const badgeColor = hasMultipleExpirations && expirationColor ? expirationColor : openBgColor;
+    
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
     // Level 0 (original) should render on top of level 1 (newer positions)
     // Open badges should always be on top of closed badges (z-index 5)
@@ -545,23 +562,26 @@ export function StrikeLadder({
               {position === 'short' && (
                 <div 
                   className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent"
-                  style={{ borderBottomColor: isExcluded ? '#64748b' : openBgColor }}
+                  style={{ borderBottomColor: isExcluded ? '#64748b' : badgeColor }}
                 />
               )}
               <div
-                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-0.5 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
-                  backgroundColor: isExcluded ? undefined : openBgColor,
+                  backgroundColor: isExcluded ? undefined : badgeColor,
                   boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
                 }}
               >
                 {strikeText}
+                {hasMultipleExpirations && expirationSubscript && (
+                  <span className="text-[9px] font-medium opacity-90">{expirationSubscript}</span>
+                )}
                 {isExpired && <Check className="w-3.5 h-3.5" />}
               </div>
               {position === 'long' && (
                 <div 
                   className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
-                  style={{ borderTopColor: isExcluded ? '#64748b' : openBgColor }}
+                  style={{ borderTopColor: isExcluded ? '#64748b' : badgeColor }}
                 />
               )}
             </button>

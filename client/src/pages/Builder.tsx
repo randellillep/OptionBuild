@@ -117,6 +117,28 @@ export default function Builder() {
   
   // Track the last processed symbolChangeId to gate effects
   const lastProcessedSymbolChangeIdRef = useRef(symbolChangeId);
+  
+  // Color palette for multi-expiration visual coding (OptionStrat-style)
+  // Each unique expiration gets a distinct color to help identify legs
+  const EXPIRATION_COLORS = [
+    '#a855f7', // Purple (first expiration)
+    '#22c55e', // Green (second expiration)
+    '#3b82f6', // Blue
+    '#f97316', // Orange
+    '#ec4899', // Pink
+    '#14b8a6', // Teal
+    '#eab308', // Yellow
+  ];
+  
+  // Create a mapping from expiration days to colors (sorted by days, earliest first)
+  const expirationColorMap = useMemo(() => {
+    const sorted = [...uniqueExpirationDays].sort((a, b) => a - b);
+    const map = new Map<number, string>();
+    sorted.forEach((days, idx) => {
+      map.set(days, EXPIRATION_COLORS[idx % EXPIRATION_COLORS.length]);
+    });
+    return map;
+  }, [uniqueExpirationDays]);
 
   const volatilityPercent = Math.round(volatility * 100);
   const calculatedIVPercent = Math.round(calculatedIV * 100);
@@ -1616,6 +1638,7 @@ export default function Builder() {
                 onSelectDays={setSelectedExpiration}
                 symbol={symbolInfo.symbol}
                 activeLegsExpirations={uniqueExpirationDays}
+                expirationColorMap={expirationColorMap}
               />
 
               <EquityPanel
@@ -1665,6 +1688,7 @@ export default function Builder() {
                 availableStrikes={availableStrikes}
                 allAvailableExpirations={optionsExpirationsData?.expirations || []}
                 onChangeGlobalExpiration={setSelectedExpiration}
+                expirationColorMap={expirationColorMap}
               />
 
               {activeTab === "heatmap" ? (
