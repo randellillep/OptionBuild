@@ -1030,53 +1030,10 @@ export default function Builder() {
     });
   }, [legs.length, symbolInfo?.price, volatility, optionsChainData?.quotes?.length, selectedExpirationDate]);
 
-  // Sync ALL legs when global expiration changes
-  // This ensures heatmap and P/L calculations use consistent expiration across all legs
-  const prevExpirationRef = useRef<{ days: number | null; date: string }>({ days: null, date: '' });
-  useEffect(() => {
-    // Skip if no valid expiration or no legs
-    if (!selectedExpirationDate || selectedExpirationDays === null || legs.length === 0) {
-      return;
-    }
-    
-    // Skip if expiration hasn't actually changed
-    if (prevExpirationRef.current.days === selectedExpirationDays && 
-        prevExpirationRef.current.date === selectedExpirationDate) {
-      return;
-    }
-    
-    console.log('[EXPIRATION-SYNC] Global expiration changed:', {
-      from: prevExpirationRef.current,
-      to: { days: selectedExpirationDays, date: selectedExpirationDate }
-    });
-    
-    // Update the ref
-    prevExpirationRef.current = { days: selectedExpirationDays, date: selectedExpirationDate };
-    
-    // Update all legs with the new expiration
-    setLegs(currentLegs => {
-      let updated = false;
-      const newLegs = currentLegs.map(leg => {
-        // Skip if leg already has the correct expiration
-        if (leg.expirationDate === selectedExpirationDate && leg.expirationDays === selectedExpirationDays) {
-          return leg;
-        }
-        
-        updated = true;
-        return {
-          ...leg,
-          expirationDate: selectedExpirationDate,
-          expirationDays: selectedExpirationDays,
-        };
-      });
-      
-      if (updated) {
-        console.log('[EXPIRATION-SYNC] Updated', newLegs.length, 'legs with new expiration:', selectedExpirationDate);
-      }
-      
-      return updated ? newLegs : currentLegs;
-    });
-  }, [selectedExpirationDate, selectedExpirationDays, legs.length, setLegs]);
+  // Multi-expiration support: Each leg keeps its own expiration date
+  // The global expiration controls the timeline view and is used for new legs
+  // Heatmap calculates each leg based on its individual expiration
+  // No automatic sync - legs maintain independent expirations for multi-expiration strategies
 
   // Use only actual available strikes from API (no extrapolation)
   const availableStrikes = useMemo(() => {
