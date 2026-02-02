@@ -1615,6 +1615,7 @@ export default function Builder() {
                 selectedDays={selectedExpirationDays}
                 onSelectDays={setSelectedExpiration}
                 symbol={symbolInfo.symbol}
+                activeLegsExpirations={uniqueExpirationDays}
               />
 
               <EquityPanel

@@ -6,6 +6,7 @@ interface ExpirationTimelineProps {
   selectedDays: number | null;
   onSelectDays: (days: number, date: string) => void;
   symbol?: string;
+  activeLegsExpirations?: number[]; // Unique expiration days from active legs
 }
 
 interface OptionsExpirationsResponse {
@@ -55,6 +56,7 @@ export function ExpirationTimeline({
   selectedDays,
   onSelectDays,
   symbol = "SPY",
+  activeLegsExpirations = [],
 }: ExpirationTimelineProps) {
   const today = new Date();
   
@@ -166,11 +168,25 @@ export function ExpirationTimeline({
     }
   }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays]);
 
+  // Format expirations label: "2d, 11d" for multiple, or "30d" for single
+  const expirationsLabel = useMemo(() => {
+    if (activeLegsExpirations.length === 0) {
+      return `${selectedExpirationDays}d`;
+    }
+    const sorted = [...activeLegsExpirations].sort((a, b) => a - b);
+    return sorted.map(d => `${d}d`).join(', ');
+  }, [activeLegsExpirations, selectedExpirationDays]);
+
+  // Check if a date has an active leg
+  const hasActiveLeg = (days: number) => activeLegsExpirations.includes(days);
+
   return (
     <div className="bg-muted/30 rounded-md px-2 py-1.5 border border-border">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-[10px] font-semibold text-muted-foreground">EXPIRATION:</span>
-        <span className="text-[10px] font-bold text-foreground">{selectedExpirationDays}d</span>
+        <span className="text-[10px] font-semibold text-muted-foreground">
+          {activeLegsExpirations.length > 1 ? 'EXPIRATIONS:' : 'EXPIRATION:'}
+        </span>
+        <span className="text-[10px] font-bold text-foreground">{expirationsLabel}</span>
         {isLoading && (
           <span className="text-[10px] text-muted-foreground">(Loading...)</span>
         )}
@@ -190,6 +206,7 @@ export function ExpirationTimeline({
             <div className="flex items-stretch border-r border-border">
               {group.dates.map(({ day, days }, idx) => {
                 const isSelected = selectedDays === days || (selectedDays === null && days === allDays[0]);
+                const hasLeg = hasActiveLeg(days);
                 
                 return (
                   <button
@@ -198,14 +215,19 @@ export function ExpirationTimeline({
                       const dateStr = activeDaysToDateMap.get(days) || '';
                       onSelectDays(days, dateStr);
                     }}
-                    className={`flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
+                    className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
                       isSelected
                         ? 'bg-primary text-primary-foreground'
+                        : hasLeg
+                        ? 'bg-accent/50 text-accent-foreground hover:bg-accent/70'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
                     data-testid={`button-expiration-${days}`}
                   >
                     {day}
+                    {hasLeg && !isSelected && (
+                      <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-primary rounded-full" />
+                    )}
                   </button>
                 );
               })}

@@ -282,10 +282,13 @@ export function useStrategyEngine(rangePercent: number = 14) {
       strikeRange.max - i * strikeStep  // Reverse order: start from max, go down to min
     );
 
-    // Use selected expiration if available, otherwise fall back to max from legs
-    const targetDays = selectedExpirationDays !== null 
+    // For multi-expiration strategies: use the MAXIMUM expiration across all legs
+    // This ensures the heatmap shows the full range needed to visualize all positions
+    // The P/L calculations use each leg's individual expirationDays
+    const maxLegExpiration = Math.max(...uniqueExpirationDays);
+    const targetDays = selectedExpirationDays !== null && selectedExpirationDays >= maxLegExpiration
       ? selectedExpirationDays 
-      : Math.max(...uniqueExpirationDays);
+      : maxLegExpiration;
     
     // Match OptionStrat: show hourly intervals for options with 7 days or less
     // This gives traders better visibility into theta decay for weekly options
