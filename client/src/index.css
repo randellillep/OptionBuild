@@ -512,4 +512,14 @@
   .dark .bg-neutral {
     background-color: hsl(220 15% 55% / 0.15);
   }
+  
+  /* Hide scrollbar utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

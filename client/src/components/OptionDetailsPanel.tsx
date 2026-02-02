@@ -1293,8 +1293,7 @@ export function OptionDetailsPanel({
                     <div className="ml-5 p-2 rounded-md bg-muted/50">
                       {/* Continuous Horizontal Scrollable Date Row with Month Labels */}
                       <div 
-                        className="flex gap-1 overflow-x-auto pb-1 cursor-grab active:cursor-grabbing select-none"
-                        style={{ scrollbarWidth: 'thin' }}
+                        className="flex gap-1 overflow-x-auto pb-1 cursor-ew-resize select-none scrollbar-hide"
                         data-testid="expiration-scroll-container"
                         onMouseDown={(e) => {
                           const container = e.currentTarget;
