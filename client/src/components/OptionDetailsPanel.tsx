@@ -199,8 +199,22 @@ export function OptionDetailsPanel({
     return strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2).replace(/\.?0+$/, '');
   };
   
-  // Check if this leg has expired (expirationDays <= 0 means expired)
-  const isExpired = leg.expirationDays !== undefined && leg.expirationDays <= 0;
+  // Check if this leg has expired (expirationDays < 0 means past expiration)
+  // Also derive from expirationDate as fallback if expirationDays is undefined/stale
+  const isExpired = (() => {
+    if (leg.expirationDays !== undefined && leg.expirationDays < 0) {
+      return true;
+    }
+    // Fallback: compare expirationDate to today
+    if (leg.expirationDate) {
+      const expDate = new Date(leg.expirationDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      expDate.setHours(0, 0, 0, 0);
+      return expDate < today;
+    }
+    return false;
+  })();
   const title = `${symbol.toUpperCase()} ${formatStrike(leg.strike)}${leg.type === "call" ? "C" : "P"} ${formatDate(leg.expirationDate || expirationDate)}${isExpired ? ' (Expired)' : ''}`;
   const positionText = leg.position === "long" ? "Buy" : "Sell";
   const oppositePosition = leg.position === "long" ? "Sell" : "Buy";

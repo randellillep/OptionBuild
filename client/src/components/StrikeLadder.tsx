@@ -474,8 +474,22 @@ export function StrikeLadder({
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
-    // Check if leg is expired (expirationDays <= 0)
-    const isExpired = leg.expirationDays !== undefined && leg.expirationDays <= 0;
+    // Check if leg is expired (expirationDays < 0 means past expiration)
+    // Also derive from expirationDate as fallback if expirationDays is undefined/stale
+    const isExpired = (() => {
+      if (leg.expirationDays !== undefined && leg.expirationDays < 0) {
+        return true;
+      }
+      // Fallback: compare expirationDate to today
+      if (leg.expirationDate) {
+        const expDate = new Date(leg.expirationDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        expDate.setHours(0, 0, 0, 0);
+        return expDate < today;
+      }
+      return false;
+    })();
     
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
     // Level 0 (original) should render on top of level 1 (newer positions)
