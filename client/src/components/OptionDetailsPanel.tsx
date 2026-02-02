@@ -199,7 +199,9 @@ export function OptionDetailsPanel({
     return strike % 1 === 0 ? strike.toFixed(0) : strike.toFixed(2).replace(/\.?0+$/, '');
   };
   
-  const title = `${symbol.toUpperCase()} ${formatStrike(leg.strike)}${leg.type === "call" ? "C" : "P"} ${formatDate(expirationDate)}`;
+  // Check if this leg has expired (expirationDays <= 0 means expired)
+  const isExpired = leg.expirationDays !== undefined && leg.expirationDays <= 0;
+  const title = `${symbol.toUpperCase()} ${formatStrike(leg.strike)}${leg.type === "call" ? "C" : "P"} ${formatDate(leg.expirationDate || expirationDate)}${isExpired ? ' (Expired)' : ''}`;
   const positionText = leg.position === "long" ? "Buy" : "Sell";
   const oppositePosition = leg.position === "long" ? "Sell" : "Buy";
   
@@ -765,7 +767,7 @@ export function OptionDetailsPanel({
     const closePrice = selectedClosedEntry ? selectedClosedEntry.closingPrice : (leg.closingTransaction.closingPrice || 0);
     
     // Create title using the ENTRY's immutable strike (not leg.strike which can change)
-    const closedTitle = `${symbol.toUpperCase()} ${formatStrike(displayStrike)}${leg.type === "call" ? "C" : "P"} ${formatDate(expirationDate)}`;
+    const closedTitle = `${symbol.toUpperCase()} ${formatStrike(displayStrike)}${leg.type === "call" ? "C" : "P"} ${formatDate(leg.expirationDate || expirationDate)}${isExpired ? ' (Expired)' : ''}`;
     
     // P/L calculation: when viewing a specific entry, calculate only for THAT entry
     // Otherwise calculate for all entries (legacy behavior)
