@@ -5,6 +5,7 @@ interface ExpirationTimelineProps {
   expirationDays: number[];
   selectedDays: number | null;
   onSelectDays: (days: number, date: string) => void;
+  onAutoSelect?: (days: number, date: string) => void;
   symbol?: string;
   activeLegsExpirations?: number[]; // Unique expiration days from active legs
   expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
@@ -56,6 +57,7 @@ export function ExpirationTimeline({
   expirationDays,
   selectedDays,
   onSelectDays,
+  onAutoSelect,
   symbol = "SPY",
   activeLegsExpirations = [],
   expirationColorMap,
@@ -147,28 +149,23 @@ export function ExpirationTimeline({
 
   // Auto-select expiration when:
   // 1. Nothing is currently selected
-  // 2. There's only one expiration date available
-  // 3. The currently selected expiration is not in the available list
+  // 2. The currently selected expiration is not in the available list
+  // Uses onAutoSelect (which only updates global selection) to avoid overriding per-leg expirations
   useEffect(() => {
     if (allDays.length === 0) return;
     
     const firstDays = allDays[0];
     const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
     
-    // Auto-select if no selection, only one option, or current selection is invalid
     const shouldAutoSelect = 
       selectedDays === null || 
-      allDays.length === 1 || 
       (selectedDays !== null && !allDays.includes(selectedDays));
     
     if (shouldAutoSelect) {
-      console.log('[ExpirationTimeline] Auto-selecting expiration:', firstDays, 'days (', firstDateStr, ')', 
-        selectedDays === null ? '- no selection' : 
-        allDays.length === 1 ? '- only one option' : 
-        '- current selection invalid');
-      onSelectDays(firstDays, firstDateStr);
+      const handler = onAutoSelect || onSelectDays;
+      handler(firstDays, firstDateStr);
     }
-  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays]);
+  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect]);
 
   // Format expirations label: "2d, 11d" for multiple, or "30d" for single
   const expirationsLabel = useMemo(() => {

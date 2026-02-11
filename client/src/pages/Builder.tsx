@@ -131,14 +131,18 @@ export default function Builder() {
   ];
   
   // Create a mapping from expiration days to colors (sorted by days, earliest first)
+  // ONLY color-code when 2+ legs have DIFFERENT expirations
   const expirationColorMap = useMemo(() => {
-    const sorted = [...uniqueExpirationDays].sort((a, b) => a - b);
+    const uniqueDaysArr = Array.from(new Set(legs.filter(l => l.type !== "stock").map(l => l.expirationDays)));
+    if (uniqueDaysArr.length < 2) return new Map<number, string>();
+    
+    const sorted = uniqueDaysArr.sort((a, b) => a - b);
     const map = new Map<number, string>();
     sorted.forEach((days, idx) => {
       map.set(days, EXPIRATION_COLORS[idx % EXPIRATION_COLORS.length]);
     });
     return map;
-  }, [uniqueExpirationDays]);
+  }, [legs]);
 
   const volatilityPercent = Math.round(volatility * 100);
   const calculatedIVPercent = Math.round(calculatedIV * 100);
@@ -883,7 +887,6 @@ export default function Builder() {
                 marketAsk: matchingQuote.ask,
                 marketMark: matchingQuote.mid,
                 marketLast: matchingQuote.last,
-                expirationDays: actualDTE,
                 impliedVolatility: currentIV,
               });
             }
@@ -933,7 +936,6 @@ export default function Builder() {
               marketQuoteId: matchingQuote.optionSymbol,
               premiumSource: 'market' as const,
               impliedVolatility: calculatedIV,
-              expirationDays: actualDTE,
               entryUnderlyingPrice: symbolInfo.price,
               marketBid: matchingQuote.bid,
               marketAsk: matchingQuote.ask,
@@ -964,7 +966,6 @@ export default function Builder() {
               return deepCopyLeg(leg, {
                 premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
                 premiumSource: 'theoretical' as const,
-                expirationDays: actualDTE,  // Store actual DTE even for theoretical
                 entryUnderlyingPrice: symbolInfo.price,
               });
             }
@@ -975,7 +976,6 @@ export default function Builder() {
           return deepCopyLeg(leg, {
             premium: 0.01,
             premiumSource: 'theoretical' as const,
-            expirationDays: actualDTE,
             entryUnderlyingPrice: symbolInfo.price,
           });
         }
@@ -1017,13 +1017,14 @@ export default function Builder() {
         // Stock legs don't need theoretical pricing
         if (leg.type === "stock") return leg;
 
-        // Calculate theoretical price
+        // Calculate theoretical price using leg's own DTE if available
+        const legDTE = leg.expirationDays > 0 ? Math.max(14, leg.expirationDays) : daysToExpiration;
         if (leg.strike > 0) {
           const theoreticalPremium = calculateOptionPrice(
             leg.type as "call" | "put",
             symbolInfo.price,
             leg.strike,
-            daysToExpiration,
+            legDTE,
             currentVol
           );
 
@@ -1032,7 +1033,6 @@ export default function Builder() {
             return deepCopyLeg(leg, {
               premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
               premiumSource: 'theoretical' as const,
-              expirationDays: daysToExpiration,
               entryUnderlyingPrice: symbolInfo.price,
             });
           }
@@ -1043,7 +1043,6 @@ export default function Builder() {
         return deepCopyLeg(leg, {
           premium: 0.01,
           premiumSource: 'theoretical' as const,
-          expirationDays: daysToExpiration,
           entryUnderlyingPrice: symbolInfo.price,
         });
       });
@@ -1179,7 +1178,6 @@ export default function Builder() {
             marketMark: matchingQuote.mid,
             marketLast: matchingQuote.last,
             impliedVolatility: currentIV,
-            expirationDays: actualDTE,
             closingTransaction: preservedClosingTransaction,
           };
         }
@@ -1215,13 +1213,16 @@ export default function Builder() {
           calculatedIV = matchingQuote.iv;
         }
         
+        // Preserve leg's own expirationDays if already set, otherwise use global DTE
+        const legExpDays = leg.expirationDays > 0 ? leg.expirationDays : actualDTE;
+        
         return {
           ...leg,
           premium: newPremium,
           marketQuoteId: matchingQuote.optionSymbol,
           premiumSource: 'market' as const,
           impliedVolatility: calculatedIV,
-          expirationDays: actualDTE,
+          expirationDays: legExpDays,
           entryUnderlyingPrice: symbolInfo.price,
           closingTransaction: preservedClosingTransaction,
         };
@@ -1236,13 +1237,17 @@ export default function Builder() {
         };
       }
       
+      // Preserve leg's own expirationDays if already set, otherwise use global DTE
+      const legExpDays = leg.expirationDays > 0 ? leg.expirationDays : actualDTE;
+      const legTheoreticalDTE = Math.max(14, legExpDays);
+      
       // Use minimum 14 days for theoretical pricing to show realistic premiums
       if (symbolInfo?.price && symbolInfo.price > 0 && leg.strike > 0) {
         const theoreticalPremium = calculateOptionPrice(
           leg.type as "call" | "put",
           symbolInfo.price,
           leg.strike,
-          theoreticalDTE,  // Use inflated DTE for theoretical pricing only
+          legTheoreticalDTE,
           currentVol
         );
         
@@ -1252,7 +1257,7 @@ export default function Builder() {
             ...leg,
             premium: Number(Math.max(0.01, theoreticalPremium).toFixed(2)),
             premiumSource: 'theoretical' as const,
-            expirationDays: actualDTE,  // Store actual DTE even for theoretical
+            expirationDays: legExpDays,
             entryUnderlyingPrice: symbolInfo.price,
             closingTransaction: preservedClosingTransaction,
           };
@@ -1264,7 +1269,7 @@ export default function Builder() {
         ...leg,
         premium: leg.premium ?? 0.01,
         premiumSource: 'theoretical' as const,
-        expirationDays: actualDTE,
+        expirationDays: legExpDays,
         entryUnderlyingPrice: symbolInfo?.price,
         closingTransaction: preservedClosingTransaction,
       };
@@ -1363,6 +1368,28 @@ export default function Builder() {
     }));
     // Clear frozen P/L values so live calculations take over
     setInitialPLFromSavedTrade(null);
+  };
+
+  // Handler for clicking a date on the main ExpirationTimeline
+  // Updates ALL option legs to the new expiration and recalculates prices
+  const handleTimelineExpirationChange = (days: number, dateStr: string) => {
+    // Update the global selected expiration
+    setSelectedExpiration(days, dateStr);
+    
+    // Update ALL option legs to the new expiration date
+    setLegs(currentLegs => {
+      const hasOptionLegs = currentLegs.some(l => l.type !== "stock");
+      if (!hasOptionLegs) return currentLegs;
+      
+      return currentLegs.map(leg => {
+        if (leg.type === "stock") return leg;
+        
+        return deepCopyLeg(leg, {
+          expirationDays: days,
+          expirationDate: dateStr,
+        });
+      });
+    });
   };
 
   const loadTemplate = (templateIndex: number) => {
@@ -1635,7 +1662,8 @@ export default function Builder() {
               <ExpirationTimeline
                 expirationDays={uniqueExpirationDays}
                 selectedDays={selectedExpirationDays}
-                onSelectDays={setSelectedExpiration}
+                onSelectDays={handleTimelineExpirationChange}
+                onAutoSelect={setSelectedExpiration}
                 symbol={symbolInfo.symbol}
                 activeLegsExpirations={uniqueExpirationDays}
                 expirationColorMap={expirationColorMap}
