@@ -58,7 +58,7 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
         q: leg.quantity,
         pr: leg.premium,
         expD: leg.expirationDays,
-        expDt: leg.expirationDate,
+        expDt: leg.expirationDate || selectedExpirationDate || undefined,
         ex: leg.isExcluded,
         ct: leg.closingTransaction,
       })),
@@ -145,13 +145,18 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
   });
 
   const handleSave = () => {
+    const legsWithDates = legs.map(leg => ({
+      ...leg,
+      expirationDate: leg.expirationDate || selectedExpirationDate || undefined,
+    }));
+
     const tradeData = {
       name: tradeName || generateDefaultName(),
       description,
       tradeGroup: group,
       symbol: symbolInfo.symbol,
       price: symbolInfo.price,
-      legs,
+      legs: legsWithDates,
       expirationDate: selectedExpirationDate,
     };
 
