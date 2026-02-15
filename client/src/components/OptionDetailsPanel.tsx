@@ -540,16 +540,12 @@ export function OptionDetailsPanel({
     const diffTime = expDate.getTime() - today.getTime();
     const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     
-    // Update the leg's expiration
+    // Update ONLY this leg's expiration (don't change global)
+    // This preserves multi-expiration strategies where different legs have different dates
     onUpdateLeg({ 
       expirationDate: newExpirationDate,
       expirationDays: diffDays,
     });
-    
-    // Also update global expiration (updates heatmap and top bar)
-    if (onChangeGlobalExpiration) {
-      onChangeGlobalExpiration(diffDays, newExpirationDate);
-    }
     
     setShowExpirationPicker(false);
   };
@@ -571,8 +567,7 @@ export function OptionDetailsPanel({
       const date = new Date(dateStr);
       const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
       const day = date.getDate();
-      // Use same expirationDate as header (global from props, not leg-specific)
-      const isCurrent = expirationDate === dateStr;
+      const isCurrent = (leg.expirationDate || expirationDate) === dateStr;
       
       let monthGroup = grouped.find(g => g.month === monthKey);
       if (!monthGroup) {

@@ -12,9 +12,11 @@ interface AddLegDropdownProps {
   currentPrice: number;
   onAddLeg: (leg: Omit<OptionLeg, "id">) => void;
   optionsChainData?: MarketOptionChainSummary;
+  selectedExpirationDays?: number | null;
+  selectedExpirationDate?: string | null;
 }
 
-export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: AddLegDropdownProps) {
+export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData, selectedExpirationDays, selectedExpirationDate }: AddLegDropdownProps) {
   const legTemplates = [
     {
       label: "Buy Call",
@@ -107,7 +109,8 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData }: Add
       strike,
       quantity: 1,
       premium: 3.5,
-      expirationDays: 30,
+      expirationDays: selectedExpirationDays || 30,
+      expirationDate: selectedExpirationDate || undefined,
       premiumSource: 'theoretical' as const,
       entryUnderlyingPrice: currentPrice,
     });

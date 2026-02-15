@@ -1653,6 +1653,8 @@ export default function Builder() {
                 currentPrice={symbolInfo.price} 
                 onAddLeg={addLeg}
                 optionsChainData={optionsChainData}
+                selectedExpirationDays={selectedExpirationDays}
+                selectedExpirationDate={selectedExpirationDate}
               />
             )}
           />

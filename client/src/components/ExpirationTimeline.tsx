@@ -218,7 +218,9 @@ export function ExpirationTimeline({
                       onSelectDays(days, dateStr);
                     }}
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
-                      isSelected && !hasLeg
+                      hasLeg && !expirationColor
+                        ? 'bg-primary text-primary-foreground'
+                        : isSelected && !hasLeg
                         ? 'bg-primary text-primary-foreground'
                         : !hasLeg
                         ? 'hover:bg-muted/60 active:bg-muted'
