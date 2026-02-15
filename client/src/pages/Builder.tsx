@@ -1004,6 +1004,7 @@ export default function Builder() {
               marketAsk: matchingQuote.ask,
               marketMark: matchingQuote.mid,
               marketLast: matchingQuote.last,
+              costBasisLocked: true,
             });
           }
         } else if (!isFinite(leg.premium) || leg.premium <= 0 || (!matchingQuote && underlyingPriceChanged)) {
