@@ -52,13 +52,6 @@ const deepCopyLeg = (leg: OptionLeg, updates: Partial<OptionLeg> = {}): OptionLe
 export default function Builder() {
   const [, setLocation] = useLocation();
   const searchString = useSearch();
-  
-  useEffect(() => {
-    return () => {
-      localStorage.removeItem('currentStrategy');
-    };
-  }, []);
-  
   const [range, setRange] = useState(14);
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
