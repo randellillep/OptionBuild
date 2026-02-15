@@ -143,6 +143,10 @@ export default function Builder() {
   // Create a mapping from expiration days to colors (sorted by days, earliest first)
   // ONLY color-code when 2+ legs have DIFFERENT expirations
   const expirationColorMap = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+
     const activeOptionLegs = legs.filter(l => {
       if (l.type === "stock") return false;
       if (l.quantity <= 0) return false;
@@ -152,7 +156,13 @@ export default function Builder() {
       }
       return true;
     });
-    const uniqueDaysArr = Array.from(new Set(activeOptionLegs.map(l => l.expirationDays)));
+    const uniqueDaysArr = Array.from(new Set(activeOptionLegs.map(l => {
+      if (l.expirationDate) {
+        const expDate = new Date(l.expirationDate + 'T00:00:00');
+        return Math.round((expDate.getTime() - todayMs) / (1000 * 60 * 60 * 24));
+      }
+      return Math.round(l.expirationDays);
+    })));
     if (uniqueDaysArr.length < 2) return new Map<number, string>();
     
     const sorted = uniqueDaysArr.sort((a, b) => a - b);
