@@ -683,8 +683,10 @@ export default function Builder() {
   // Fetch chains for all unique expiration dates
   useEffect(() => {
     if (!symbolInfo.symbol || uniqueLegExpirationDates.length <= 1) {
-      // Single or no expiration - primary chain handles it
-      if (multiChainData.size > 0) setMultiChainData(new Map());
+      if (multiChainData.size > 0) {
+        setMultiChainData(new Map());
+        multiChainFetchRef.current = '';
+      }
       return;
     }
 
@@ -724,12 +726,22 @@ export default function Builder() {
 
   // Helper: get the correct chain data for a leg based on its expiration
   const getChainForLeg = (leg: OptionLeg): MarketOptionChainSummary | undefined => {
-    // If multi-chain data available and leg has its own expiration date
-    if (multiChainData.size > 0 && leg.expirationDate) {
-      const legChain = multiChainData.get(leg.expirationDate);
+    const legExpDate = leg.expirationDate;
+    
+    // If leg has its own expiration and multi-chain data is available, use it
+    if (multiChainData.size > 0 && legExpDate) {
+      const legChain = multiChainData.get(legExpDate);
       if (legChain) return legChain;
     }
-    // Fall back to the primary chain (global selected expiration)
+    
+    // Only fall back to primary chain if the leg's expiration matches the global expiration
+    // This prevents pricing a leg from the wrong expiration's chain
+    if (legExpDate && selectedExpirationDate && legExpDate !== selectedExpirationDate) {
+      // Leg has a different expiration than the primary chain - don't use wrong chain
+      // Return undefined so the market-update effect skips this leg until correct chain arrives
+      return undefined;
+    }
+    
     return optionsChainData;
   };
 
