@@ -31,6 +31,8 @@ interface OptionDetailsPanelProps {
   availableExpirations?: string[];
   // Callback to update global expiration (updates heatmap and top bar)
   onChangeGlobalExpiration?: (days: number, date: string) => void;
+  // Map of expiration date strings to their assigned colors (for multi-exp visual coding)
+  expirationDateColorMap?: Map<string, string>;
   // View mode for closed positions
   isClosedView?: boolean;
   // Selected closing entry ID (for per-entry operations)
@@ -57,6 +59,7 @@ export function OptionDetailsPanel({
   onClose,
   availableExpirations = [],
   onChangeGlobalExpiration,
+  expirationDateColorMap,
   isClosedView = false,
   selectedEntryId,
   onReopenAsNewLeg,
@@ -565,20 +568,21 @@ export function OptionDetailsPanel({
     );
     
     // Group by month
-    const grouped: { month: string; dates: { date: string; day: number; isCurrent: boolean }[] }[] = [];
+    const grouped: { month: string; dates: { date: string; day: number; isCurrent: boolean; legColor?: string }[] }[] = [];
     
     sortedDates.forEach(dateStr => {
       const date = new Date(dateStr);
       const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
       const day = date.getDate();
       const isCurrent = (leg.expirationDate || expirationDate) === dateStr;
+      const legColor = expirationDateColorMap?.get(dateStr);
       
       let monthGroup = grouped.find(g => g.month === monthKey);
       if (!monthGroup) {
         monthGroup = { month: monthKey, dates: [] };
         grouped.push(monthGroup);
       }
-      monthGroup.dates.push({ date: dateStr, day, isCurrent });
+      monthGroup.dates.push({ date: dateStr, day, isCurrent, legColor });
     });
     
     return grouped;
@@ -1338,17 +1342,24 @@ export function OptionDetailsPanel({
                             </div>
                             {/* Dates Row for this month */}
                             <div className="flex gap-1">
-                              {group.dates.map(({ date, day, isCurrent }) => (
+                              {group.dates.map(({ date, day, isCurrent, legColor }) => (
                                 <button
                                   key={date}
                                   onClick={() => handleChangeExpiration(date)}
                                   className={`
-                                    flex-shrink-0 min-w-[28px] h-6 px-1.5 text-xs font-medium rounded transition-colors
-                                    ${isCurrent 
-                                      ? 'bg-primary text-primary-foreground' 
-                                      : 'bg-muted hover:bg-accent hover:text-accent-foreground'
+                                    flex-shrink-0 min-w-[28px] h-6 px-1.5 text-xs font-semibold rounded transition-colors
+                                    ${!isCurrent && !legColor
+                                      ? 'bg-muted hover:bg-accent hover:text-accent-foreground'
+                                      : ''
                                     }
                                   `}
+                                  style={
+                                    isCurrent
+                                      ? { backgroundColor: legColor || 'hsl(var(--primary))', color: '#fff' }
+                                      : legColor
+                                      ? { backgroundColor: legColor, color: '#fff', opacity: 0.7 }
+                                      : undefined
+                                  }
                                   data-testid={`button-expiration-${date}`}
                                 >
                                   {day}

@@ -44,6 +44,18 @@ export function StrikeLadder({
   expirationColorMap,
   getChainForLeg,
 }: StrikeLadderProps) {
+  const expirationDateColorMap = useMemo(() => {
+    if (!expirationColorMap || expirationColorMap.size === 0) return undefined;
+    const dateMap = new Map<string, string>();
+    legs.forEach(leg => {
+      if (leg.type !== 'stock' && leg.expirationDate && leg.expirationDays !== undefined) {
+        const color = expirationColorMap.get(leg.expirationDays);
+        if (color) dateMap.set(leg.expirationDate, color);
+      }
+    });
+    return dateMap.size > 0 ? dateMap : undefined;
+  }, [legs, expirationColorMap]);
+
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -616,6 +628,7 @@ export function StrikeLadder({
             expirationDate={expirationDate}
             availableExpirations={allAvailableExpirations}
             onChangeGlobalExpiration={onChangeGlobalExpiration}
+            expirationDateColorMap={expirationDateColorMap}
             isClosedView={false}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
@@ -749,6 +762,7 @@ export function StrikeLadder({
             expirationDate={expirationDate}
             availableExpirations={allAvailableExpirations}
             onChangeGlobalExpiration={onChangeGlobalExpiration}
+            expirationDateColorMap={expirationDateColorMap}
             isClosedView={true}
             selectedEntryId={entry.id}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
@@ -876,6 +890,7 @@ export function StrikeLadder({
             expirationDate={expirationDate}
             availableExpirations={allAvailableExpirations}
             onChangeGlobalExpiration={onChangeGlobalExpiration}
+            expirationDateColorMap={expirationDateColorMap}
             isClosedView={true}
             selectedEntryId={entry.id}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
