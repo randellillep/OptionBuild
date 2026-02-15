@@ -506,15 +506,9 @@ export function StrikeLadder({
     const expirationSubscript = formatExpirationSubscript(leg.expirationDate);
 
     const badgeHeight = 28;
-    const showDatePill = hasMultipleExpirations && !!expirationSubscript;
-    const datePillHeight = showDatePill ? 16 : 0;
     
-    // Unified stacking: all badges at a strike use the same coordinate system
-    // For LONG: badges stack ABOVE the upper tick (50% - 18px is the tick, badges go up from there)
-    // For SHORT: badges stack BELOW the lower tick (50% + 18px is the tick, badges go down from there)
-    // The date pill sits above (long) or below (short) the badge, so we account for its height
     const topPosition = position === 'long' 
-      ? `calc(50% - ${46 + verticalOffset + datePillHeight}px)`
+      ? `calc(50% - ${46 + verticalOffset}px)`
       : `calc(50% + ${18 + verticalOffset}px)`;
     
     // Badge color is ALWAYS call/put color (green/red) - never changes based on expiration
@@ -564,19 +558,6 @@ export function StrikeLadder({
               className={`relative flex flex-col items-center ${canDrag && !isDragging ? 'cursor-grab' : 'cursor-pointer'}`}
               style={{ touchAction: 'none' }}
             >
-              {(hasClosing ? remainingQty : quantity) > 1 && (
-                <div 
-                  className={`absolute text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-[100] ${position === 'long' ? '-top-2.5 -right-2.5' : '-bottom-2.5 -right-2.5'}`}
-                >
-                  x{hasClosing ? remainingQty : quantity}
-                </div>
-              )}
-              {position === 'long' && hasMultipleExpirations && expirationSubscript && (
-                <div
-                  className="text-[9px] font-bold text-white rounded-sm px-1 py-px mb-0.5 leading-tight"
-                  style={{ backgroundColor: expirationColor || 'rgba(255,255,255,0.3)' }}
-                >{expirationSubscript}</div>
-              )}
               {position === 'short' && (
                 <div 
                   className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent"
@@ -584,26 +565,33 @@ export function StrikeLadder({
                 />
               )}
               <div
-                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-0.5 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`h-6 min-h-6 max-h-6 text-white font-bold whitespace-nowrap rounded flex items-center overflow-hidden ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
                   backgroundColor: isExcluded ? undefined : badgeColor,
                   boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
                 }}
               >
-                {strikeText}
-                {isExpired && <Check className="w-3.5 h-3.5" />}
+                {(hasClosing ? remainingQty : quantity) > 1 && (
+                  <span className="text-[10px] font-semibold text-white/80 pl-1.5 pr-0.5">
+                    x{hasClosing ? remainingQty : quantity}
+                  </span>
+                )}
+                <span className={`text-[14px] flex items-center gap-0.5 ${(hasClosing ? remainingQty : quantity) > 1 ? 'pr-1' : hasMultipleExpirations && expirationSubscript ? 'pl-2 pr-1' : 'px-2'}`}>
+                  {strikeText}
+                  {isExpired && <Check className="w-3.5 h-3.5" />}
+                </span>
+                {hasMultipleExpirations && expirationSubscript && (
+                  <span
+                    className="text-[10px] font-bold text-white h-full flex items-center px-1.5 rounded-r"
+                    style={{ backgroundColor: expirationColor || 'rgba(255,255,255,0.2)' }}
+                  >{expirationSubscript}</span>
+                )}
               </div>
               {position === 'long' && (
                 <div 
                   className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
                   style={{ borderTopColor: isExcluded ? '#64748b' : badgeColor }}
                 />
-              )}
-              {position === 'short' && hasMultipleExpirations && expirationSubscript && (
-                <div
-                  className="text-[9px] font-bold text-white rounded-sm px-1 py-px mt-0.5 leading-tight"
-                  style={{ backgroundColor: expirationColor || 'rgba(255,255,255,0.3)' }}
-                >{expirationSubscript}</div>
               )}
             </button>
           </div>
