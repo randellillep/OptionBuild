@@ -207,8 +207,8 @@ export function ExpirationTimeline({
                 const isSelected = selectedDays === days || (selectedDays === null && days === allDays[0]);
                 const hasLeg = hasActiveLeg(days);
                 
-                // Get color for this expiration date from the map
                 const expirationColor = expirationColorMap?.get(days);
+                const hasMultipleExpirations = expirationColorMap && expirationColorMap.size > 1;
                 
                 return (
                   <button
@@ -218,13 +218,15 @@ export function ExpirationTimeline({
                       onSelectDays(days, dateStr);
                     }}
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
-                      hasLeg && !expirationColor
+                      hasLeg && expirationColor
+                        ? ''
+                        : hasLeg
                         ? 'bg-primary text-primary-foreground'
-                        : isSelected && !hasLeg
+                        : isSelected && !hasMultipleExpirations
                         ? 'bg-primary text-primary-foreground'
-                        : !hasLeg
-                        ? 'hover:bg-muted/60 active:bg-muted'
-                        : ''
+                        : isSelected && hasMultipleExpirations
+                        ? 'ring-1 ring-inset ring-primary text-foreground'
+                        : 'hover:bg-muted/60 active:bg-muted'
                     }`}
                     style={hasLeg && expirationColor ? {
                       backgroundColor: expirationColor,
