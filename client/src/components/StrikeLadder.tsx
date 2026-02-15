@@ -476,27 +476,13 @@ export function StrikeLadder({
     
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
-    const badgeHeight = 28;
-    const showDatePill = hasMultipleExpirations && !!expirationSubscript;
-    const datePillHeight = showDatePill ? 16 : 0;
-    
-    // Unified stacking: all badges at a strike use the same coordinate system
-    // For LONG: badges stack ABOVE the upper tick (50% - 18px is the tick, badges go up from there)
-    // For SHORT: badges stack BELOW the lower tick (50% + 18px is the tick, badges go down from there)
-    // The date pill sits above (long) or below (short) the badge, so we account for its height
-    const topPosition = position === 'long' 
-      ? `calc(50% - ${46 + verticalOffset + datePillHeight}px)`
-      : `calc(50% + ${18 + verticalOffset}px)`;
-
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
     // Check if leg is expired (expirationDays < 0 means past expiration)
-    // Also derive from expirationDate as fallback if expirationDays is undefined/stale
     const isExpired = (() => {
       if (leg.expirationDays !== undefined && leg.expirationDays < 0) {
         return true;
       }
-      // Fallback: compare expirationDate to today
       if (leg.expirationDate) {
         const expDate = new Date(leg.expirationDate);
         const today = new Date();
@@ -518,6 +504,18 @@ export function StrikeLadder({
       return `${d.getMonth() + 1}/${d.getDate()}`;
     };
     const expirationSubscript = formatExpirationSubscript(leg.expirationDate);
+
+    const badgeHeight = 28;
+    const showDatePill = hasMultipleExpirations && !!expirationSubscript;
+    const datePillHeight = showDatePill ? 16 : 0;
+    
+    // Unified stacking: all badges at a strike use the same coordinate system
+    // For LONG: badges stack ABOVE the upper tick (50% - 18px is the tick, badges go up from there)
+    // For SHORT: badges stack BELOW the lower tick (50% + 18px is the tick, badges go down from there)
+    // The date pill sits above (long) or below (short) the badge, so we account for its height
+    const topPosition = position === 'long' 
+      ? `calc(50% - ${46 + verticalOffset + datePillHeight}px)`
+      : `calc(50% + ${18 + verticalOffset}px)`;
     
     // Badge color is ALWAYS call/put color (green/red) - never changes based on expiration
     const badgeColor = openBgColor;
