@@ -477,16 +477,16 @@ export function StrikeLadder({
     const openBgColor = isCall ? '#35B534' : '#B5312B';
     
     const badgeHeight = 28;
-    // verticalOffset is now a cumulative pixel offset from the tick mark
+    const showDatePill = hasMultipleExpirations && !!expirationSubscript;
+    const datePillHeight = showDatePill ? 16 : 0;
+    
     // Unified stacking: all badges at a strike use the same coordinate system
     // For LONG: badges stack ABOVE the upper tick (50% - 18px is the tick, badges go up from there)
     // For SHORT: badges stack BELOW the lower tick (50% + 18px is the tick, badges go down from there)
-    
-    // Badge bottom at tick means top at: 50% - 18px - badgeHeight = 50% - 46px
-    // With offset, top at: 50% - 46px - verticalOffset
+    // The date pill sits above (long) or below (short) the badge, so we account for its height
     const topPosition = position === 'long' 
-      ? `calc(50% - ${46 + verticalOffset}px)`  // Stack up from tick
-      : `calc(50% + ${18 + verticalOffset}px)`; // Stack down from tick
+      ? `calc(50% - ${46 + verticalOffset + datePillHeight}px)`
+      : `calc(50% + ${18 + verticalOffset}px)`;
 
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
