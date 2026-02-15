@@ -421,6 +421,21 @@ export function useStrategyEngine(rangePercent: number = 14) {
     setSelectedExpirationDate(date);
   };
 
+  // Auto-snap selected expiration to nearest active leg when current selection
+  // doesn't match any active leg (e.g. after removing a leg)
+  useEffect(() => {
+    if (uniqueExpirationDays.length === 0) return;
+    if (selectedExpirationDays !== null && uniqueExpirationDays.includes(selectedExpirationDays)) return;
+    
+    // Find the active leg whose expirationDays matches the first unique day
+    const targetDays = uniqueExpirationDays[0];
+    const matchingLeg = legs.find(l => l.type !== 'stock' && l.expirationDays === targetDays && l.expirationDate);
+    if (matchingLeg && matchingLeg.expirationDate) {
+      setSelectedExpirationDays(targetDays);
+      setSelectedExpirationDate(matchingLeg.expirationDate);
+    }
+  }, [uniqueExpirationDays, selectedExpirationDays, legs]);
+
   return {
     symbolInfo,
     setSymbolInfo,
