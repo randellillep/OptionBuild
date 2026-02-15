@@ -23,7 +23,8 @@ interface StrikeLadderProps {
   } | null;
   allAvailableExpirations?: string[];
   onChangeGlobalExpiration?: (days: number, date: string) => void;
-  expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
+  expirationColorMap?: Map<number, string>;
+  getChainForLeg?: (leg: OptionLeg) => any;
 }
 
 export function StrikeLadder({ 
@@ -41,6 +42,7 @@ export function StrikeLadder({
   allAvailableExpirations = [],
   onChangeGlobalExpiration,
   expirationColorMap,
+  getChainForLeg,
 }: StrikeLadderProps) {
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -606,7 +608,7 @@ export function StrikeLadder({
             leg={leg}
             underlyingPrice={currentPrice}
             volatility={volatility}
-            optionsChainData={optionsChainData}
+            optionsChainData={getChainForLeg ? getChainForLeg(leg) : optionsChainData}
             symbol={symbol}
             expirationDate={expirationDate}
             availableExpirations={allAvailableExpirations}
@@ -739,7 +741,7 @@ export function StrikeLadder({
             leg={leg}
             underlyingPrice={currentPrice}
             volatility={volatility}
-            optionsChainData={optionsChainData}
+            optionsChainData={getChainForLeg ? getChainForLeg(leg) : optionsChainData}
             symbol={symbol}
             expirationDate={expirationDate}
             availableExpirations={allAvailableExpirations}
@@ -866,7 +868,7 @@ export function StrikeLadder({
             leg={leg}
             underlyingPrice={currentPrice}
             volatility={volatility}
-            optionsChainData={optionsChainData}
+            optionsChainData={getChainForLeg ? getChainForLeg(leg) : optionsChainData}
             symbol={symbol}
             expirationDate={expirationDate}
             availableExpirations={allAvailableExpirations}

@@ -88,14 +88,14 @@ export function OptionDetailsPanel({
       };
     }
     if (!optionsChainData || !optionsChainData.quotes) {
-      // No market data - calculate Greeks using Black-Scholes
-      const greeks = calculateGreeks(leg, underlyingPrice, volatility);
+      const effectiveIV = leg.impliedVolatility || volatility;
+      const greeks = calculateGreeks(leg, underlyingPrice, effectiveIV);
       const multiplier = leg.position === "long" ? 1 : -1;
       return {
-        bid: undefined,
-        ask: undefined,
+        bid: leg.marketBid,
+        ask: leg.marketAsk,
         iv: leg.impliedVolatility,
-        delta: (greeks.delta / leg.quantity) * multiplier, // Normalize to per-contract and apply position
+        delta: (greeks.delta / leg.quantity) * multiplier,
         gamma: (greeks.gamma / leg.quantity) * multiplier,
         theta: (greeks.theta / leg.quantity) * multiplier,
         vega: (greeks.vega / leg.quantity) * multiplier,

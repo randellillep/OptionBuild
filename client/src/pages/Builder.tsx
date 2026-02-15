@@ -1775,6 +1775,7 @@ export default function Builder() {
                 allAvailableExpirations={optionsExpirationsData?.expirations || []}
                 onChangeGlobalExpiration={setSelectedExpiration}
                 expirationColorMap={expirationColorMap}
+                getChainForLeg={getChainForLeg}
               />
 
               {activeTab === "heatmap" ? (
