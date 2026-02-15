@@ -801,7 +801,7 @@ export default function Builder() {
         Math.abs(q.strike - symbolInfo.price) < Math.abs(best.strike - symbolInfo.price) ? q : best
       );
       atmStrike = closest.strike;
-      atmPremium = closest.last || closest.ask || closest.bid || 0.01;
+      atmPremium = closest.mid || closest.last || closest.ask || closest.bid || 0.01;
     }
     
     const newId = Date.now().toString();
