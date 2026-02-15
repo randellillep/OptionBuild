@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface ExpirationTimelineProps {
@@ -62,13 +62,19 @@ export function ExpirationTimeline({
   activeLegsExpirations = [],
   expirationColorMap,
 }: ExpirationTimelineProps) {
-  const today = new Date();
+  // Stabilize "today" to just the date (no time component) so memos don't bust on every render
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  }, []);
+  const today = useMemo(() => new Date(todayStr + 'T00:00:00'), [todayStr]);
   
   // Fetch real options expiration dates from API
   const { data: apiExpirations, isLoading } = useQuery<OptionsExpirationsResponse>({
     queryKey: ["/api/options/expirations", symbol],
     enabled: !!symbol,
-    staleTime: 1000 * 60 * 60, // Cache for 1 hour (expirations don't change frequently)
+    staleTime: 1000 * 60 * 60,
   });
   
   // Generate standard options expiration dates as fallback
@@ -78,12 +84,13 @@ export function ExpirationTimeline({
   const { apiExpirationDays, daysToDateMap } = useMemo(() => {
     if (!apiExpirations?.expirations) return { apiExpirationDays: [], daysToDateMap: new Map<number, string>() };
     
+    const todayMs = today.getTime();
     const mapping = new Map<number, string>();
     const days = apiExpirations.expirations
       .map((dateStr: string) => {
-        const expirationDate = new Date(dateStr);
-        const diffTime = expirationDate.getTime() - today.getTime();
-        const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const expirationDate = new Date(dateStr + 'T00:00:00');
+        const diffTime = expirationDate.getTime() - todayMs;
+        const dayCount = Math.round(diffTime / (1000 * 60 * 60 * 24));
         if (dayCount >= 0) {
           mapping.set(dayCount, dateStr);
           return dayCount;
@@ -97,10 +104,11 @@ export function ExpirationTimeline({
   
   // Convert calculated dates to days from today (fallback) and create mapping
   const { calculatedExpirationDays, calculatedDaysToDateMap } = useMemo(() => {
+    const todayMs = today.getTime();
     const mapping = new Map<number, string>();
     const days = expirationDates.map(date => {
-      const diffTime = date.getTime() - today.getTime();
-      const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffTime = date.getTime() - todayMs;
+      const dayCount = Math.round(diffTime / (1000 * 60 * 60 * 24));
       mapping.set(dayCount, date.toISOString().split('T')[0]);
       return dayCount;
     });
@@ -147,25 +155,28 @@ export function ExpirationTimeline({
 
   const selectedExpirationDays = selectedDays ?? (allDays.length > 0 ? allDays[0] : 0);
 
-  // Auto-select expiration when:
-  // 1. Nothing is currently selected
-  // 2. The currently selected expiration is not in the available list
-  // Uses onAutoSelect (which only updates global selection) to avoid overriding per-leg expirations
+  // Auto-select expiration when nothing is currently selected or selection is stale
+  const lastAutoSelectedRef = useRef<{ days: number; symbol: string } | null>(null);
   useEffect(() => {
     if (allDays.length === 0) return;
-    
-    const firstDays = allDays[0];
-    const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
     
     const shouldAutoSelect = 
       selectedDays === null || 
       (selectedDays !== null && !allDays.includes(selectedDays));
     
-    if (shouldAutoSelect) {
-      const handler = onAutoSelect || onSelectDays;
-      handler(firstDays, firstDateStr);
+    if (!shouldAutoSelect) return;
+    
+    const firstDays = allDays[0];
+    const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
+    
+    if (lastAutoSelectedRef.current?.days === firstDays && lastAutoSelectedRef.current?.symbol === symbol) {
+      return;
     }
-  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect]);
+    
+    lastAutoSelectedRef.current = { days: firstDays, symbol };
+    const handler = onAutoSelect || onSelectDays;
+    handler(firstDays, firstDateStr);
+  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect, symbol]);
 
   // Format expirations label: "2d, 11d" for multiple, or "30d" for single
   const expirationsLabel = useMemo(() => {

@@ -780,55 +780,45 @@ export default function Builder() {
     staleTime: 1000 * 60 * 60, // Cache for 1 hour
   });
 
-  // Auto-select nearest upcoming expiration when data loads and none is selected
-  useEffect(() => {
-    if (!optionsExpirationsData?.expirations?.length) return;
-    if (selectedExpirationDate && selectedExpirationDays !== null) return;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const firstFutureDate = optionsExpirationsData.expirations.find(dateStr => {
-      const d = new Date(dateStr);
-      d.setHours(0, 0, 0, 0);
-      return d >= today;
-    });
-    
-    if (firstFutureDate) {
-      const expDate = new Date(firstFutureDate);
-      const diffTime = expDate.getTime() - today.getTime();
-      const days = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-      setSelectedExpiration(days, firstFutureDate);
-    }
-  }, [optionsExpirationsData, selectedExpirationDate, selectedExpirationDays, setSelectedExpiration]);
-
-  // Add a default ATM call when we have price/expiration data but no legs
-  // This runs after symbol changes clear the legs, and after initial page load
+  // Add a default ATM call when we have chain data but no legs
+  // Waits for real chain data so leg has accurate strike and premium
   const defaultLegAddedForSymbolRef = useRef<string>('');
   useEffect(() => {
     if (!symbolInfo.symbol || !symbolInfo.price || symbolInfo.price <= 0) return;
     if (!selectedExpirationDate || selectedExpirationDays === null) return;
+    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) return;
     if (legs.length > 0) return;
     if (defaultLegAddedForSymbolRef.current === symbolInfo.symbol) return;
     
     defaultLegAddedForSymbolRef.current = symbolInfo.symbol;
     
-    const atmStrike = Math.round(symbolInfo.price);
+    const calls = optionsChainData.quotes.filter(q => q.side?.toLowerCase() === 'call');
+    let atmStrike = Math.round(symbolInfo.price);
+    let atmPremium = 0.01;
+    
+    if (calls.length > 0) {
+      const closest = calls.reduce((best, q) => 
+        Math.abs(q.strike - symbolInfo.price) < Math.abs(best.strike - symbolInfo.price) ? q : best
+      );
+      atmStrike = closest.strike;
+      atmPremium = closest.last || closest.ask || closest.bid || 0.01;
+    }
+    
     const newId = Date.now().toString();
     setLegs([{
       id: newId,
       type: 'call' as const,
       position: 'long' as const,
       strike: atmStrike,
-      premium: 0.01,
+      premium: atmPremium,
       quantity: 1,
       expirationDays: selectedExpirationDays,
       expirationDate: selectedExpirationDate,
       entryUnderlyingPrice: symbolInfo.price,
-      costBasisLocked: false,
+      costBasisLocked: true,
     }]);
     setLastEditedLegId(newId);
-  }, [symbolInfo.symbol, symbolInfo.price, selectedExpirationDate, selectedExpirationDays, legs.length, setLegs]);
+  }, [symbolInfo.symbol, symbolInfo.price, selectedExpirationDate, selectedExpirationDays, optionsChainData, legs.length, setLegs]);
 
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
   // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration
