@@ -540,14 +540,20 @@ export function OptionDetailsPanel({
     const diffTime = expDate.getTime() - today.getTime();
     const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     
-    // Update this leg's expiration - do NOT change global expiration
-    // The multi-chain system will fetch the correct chain for this leg's new expiration
     onUpdateLeg({ 
       expirationDate: newExpirationDate,
       expirationDays: diffDays,
       costBasisLocked: false,
       premiumSource: undefined,
+      marketBid: undefined,
+      marketAsk: undefined,
+      marketMark: undefined,
+      marketLast: undefined,
     });
+    
+    if (onChangeGlobalExpiration) {
+      onChangeGlobalExpiration(diffDays, newExpirationDate);
+    }
     
     setShowExpirationPicker(false);
   };

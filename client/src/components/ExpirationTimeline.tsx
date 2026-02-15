@@ -208,7 +208,6 @@ export function ExpirationTimeline({
                 const hasLeg = hasActiveLeg(days);
                 
                 const expirationColor = expirationColorMap?.get(days);
-                const hasMultipleExpirations = expirationColorMap && expirationColorMap.size > 1;
                 
                 return (
                   <button
@@ -222,9 +221,7 @@ export function ExpirationTimeline({
                         ? ''
                         : hasLeg
                         ? 'bg-primary text-primary-foreground'
-                        : isSelected && !hasMultipleExpirations
-                        ? 'bg-primary text-primary-foreground'
-                        : isSelected && hasMultipleExpirations
+                        : isSelected
                         ? 'ring-1 ring-inset ring-primary text-foreground'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
