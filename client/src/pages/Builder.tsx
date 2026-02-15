@@ -22,7 +22,7 @@ import { AIChatAssistant } from "@/components/AIChatAssistant";
 import { SaveTradeModal } from "@/components/SaveTradeModal";
 import { StrategySelector } from "@/components/StrategySelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { OptionLeg } from "@shared/schema";
+import type { OptionLeg, MarketOptionChainSummary } from "@shared/schema";
 import type { CommissionSettings } from "@/components/PositionsModal";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation, useSearch, Link } from "wouter";
@@ -664,6 +664,75 @@ export default function Builder() {
     enabled: !!symbolInfo.symbol,
   });
 
+  // Multi-expiration chain data: fetch separate chains for each unique leg expiration
+  // This ensures each leg gets prices from its own expiration's chain
+  const [multiChainData, setMultiChainData] = useState<Map<string, MarketOptionChainSummary>>(new Map());
+  const multiChainFetchRef = useRef<string>('');
+  
+  // Compute unique expiration dates from legs (excluding stock legs)
+  const uniqueLegExpirationDates = useMemo(() => {
+    const dates = new Set<string>();
+    legs.forEach(leg => {
+      if (leg.type !== 'stock' && leg.expirationDate) {
+        dates.add(leg.expirationDate);
+      }
+    });
+    return Array.from(dates).sort();
+  }, [legs]);
+
+  // Fetch chains for all unique expiration dates
+  useEffect(() => {
+    if (!symbolInfo.symbol || uniqueLegExpirationDates.length <= 1) {
+      // Single or no expiration - primary chain handles it
+      if (multiChainData.size > 0) setMultiChainData(new Map());
+      return;
+    }
+
+    const fetchKey = `${symbolInfo.symbol}-${uniqueLegExpirationDates.join(',')}`;
+    if (multiChainFetchRef.current === fetchKey) return;
+    multiChainFetchRef.current = fetchKey;
+
+    const fetchChains = async () => {
+      const newMap = new Map<string, MarketOptionChainSummary>();
+      
+      // Fetch all chains in parallel
+      const results = await Promise.allSettled(
+        uniqueLegExpirationDates.map(async (expDate) => {
+          const params = new URLSearchParams({ expiration: expDate });
+          const url = `/api/options/chain/${encodeURIComponent(symbolInfo.symbol)}?${params}`;
+          const response = await fetch(url, { credentials: 'include' });
+          if (!response.ok) return null;
+          const data = await response.json();
+          return { expDate, data };
+        })
+      );
+
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          newMap.set(result.value.expDate, result.value.data);
+        }
+      });
+
+      if (newMap.size > 0) {
+        console.log('[MULTI-CHAIN] Fetched chains for', newMap.size, 'expirations:', Array.from(newMap.keys()));
+        setMultiChainData(newMap);
+      }
+    };
+
+    fetchChains();
+  }, [symbolInfo.symbol, uniqueLegExpirationDates]);
+
+  // Helper: get the correct chain data for a leg based on its expiration
+  const getChainForLeg = (leg: OptionLeg): MarketOptionChainSummary | undefined => {
+    // If multi-chain data available and leg has its own expiration date
+    if (multiChainData.size > 0 && leg.expirationDate) {
+      const legChain = multiChainData.get(leg.expirationDate);
+      if (legChain) return legChain;
+    }
+    // Fall back to the primary chain (global selected expiration)
+    return optionsChainData;
+  };
+
   // Fetch available expirations from the same endpoint ExpirationTimeline uses
   // This ensures Change Expiration picker shows same dates as the top bar
   const { data: optionsExpirationsData } = useQuery<{ expirations: string[] }>({
@@ -808,67 +877,58 @@ export default function Builder() {
   }, [expectedMoveChainData, symbolInfo.symbol, symbolInfo.price]);
 
   // Auto-update leg premiums with market data when chain loads or refreshes
+  // Supports multi-expiration: each leg uses its own expiration's chain data
   useEffect(() => {
-    if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) {
-      return;
-    }
+    // Need at least primary chain data OR multi-chain data
+    const hasPrimaryChain = optionsChainData?.quotes && optionsChainData.quotes.length > 0;
+    const hasMultiChain = multiChainData.size > 0;
+    if (!hasPrimaryChain && !hasMultiChain) return;
 
-    // If symbolChangeId changed since last processed, update our tracking ref
-    // This ensures we don't skip legitimate market updates after the first one post-symbol-change
     if (symbolChangeId !== lastProcessedSymbolChangeIdRef.current) {
-      console.log('[MARKET-UPDATE] New symbolChangeId detected:', symbolChangeId, '- updating tracking ref');
       lastProcessedSymbolChangeIdRef.current = symbolChangeId;
-      // Continue processing - the legs have been reset by useStrategyEngine
     }
-    
-    // Debug: Log the symbol of the options chain data
-    console.log('[MARKET-UPDATE] Processing options chain data, current symbol:', symbolInfo.symbol, 'quotes count:', optionsChainData.quotes.length);
 
-    // Calculate days to expiration from selected date
-    const calculateDTE = (): number => {
-      if (!selectedExpirationDate) return 30;
-      const expDate = new Date(selectedExpirationDate);
+    // Helper: calculate DTE from a date string
+    const calcDTE = (dateStr: string | undefined): number => {
+      if (!dateStr) return 30;
+      const expDate = new Date(dateStr);
       const today = new Date();
       const expDateUTC = Date.UTC(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
       const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-      const diffTime = expDateUTC - todayUTC;
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-      return Math.max(1, diffDays);
+      return Math.max(1, Math.round((expDateUTC - todayUTC) / (1000 * 60 * 60 * 24)));
     };
 
-    // Use ACTUAL DTE for IV calculation (critical for accuracy)
-    const actualDTE = calculateDTE();
-    // Use minimum 14 days for THEORETICAL pricing only
-    const theoreticalDTE = Math.max(14, actualDTE);
-
-    // Update legs with market prices and populate market fields
     setLegs(currentLegs => {
       let updated = false;
       const newLegs = currentLegs.map(leg => {
-        // Find matching market quote (same strike and type)
-        const matchingQuote = optionsChainData.quotes.find(
+        if (leg.type === "stock") return leg;
+
+        // Get the correct chain for THIS leg's expiration
+        const legChain = getChainForLeg(leg);
+        if (!legChain?.quotes || legChain.quotes.length === 0) return leg;
+
+        // Use THIS leg's DTE for IV calculations (not the global one)
+        const legDTE = calcDTE(leg.expirationDate || selectedExpirationDate);
+        const effectiveDTE = Math.max(0.5, legDTE);
+        const theoreticalDTE = Math.max(14, legDTE);
+
+        // Find matching market quote from this leg's chain
+        const matchingQuote = legChain.quotes.find(
           q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
         );
 
-        // Check if underlying price changed significantly (symbol change indicator)
-        // If entryUnderlyingPrice differs by >20% from current price, it's likely a different symbol
         const underlyingPriceChanged = (leg.entryUnderlyingPrice && symbolInfo?.price &&
           Math.abs(leg.entryUnderlyingPrice - symbolInfo.price) / symbolInfo.price > 0.20);
 
-        // For legs with locked cost basis, ONLY update market fields (never touch premium)
-        // UNLESS the underlying price changed significantly (symbol change) - then recalculate
-        // Cost basis is locked after initial entry to preserve P/L accuracy
+        // For legs with locked cost basis, ONLY update market fields
         if ((leg.costBasisLocked || leg.premiumSource === 'manual' || leg.premiumSource === 'saved') && !underlyingPriceChanged) {
           if (matchingQuote) {
-            // Check if market fields need updating
             const marketNeedsUpdate = 
               leg.marketBid !== matchingQuote.bid ||
               leg.marketAsk !== matchingQuote.ask ||
               leg.marketMark !== matchingQuote.mid ||
               leg.marketLast !== matchingQuote.last;
             
-            // Calculate fresh IV from current market price for display purposes
-            const effectiveDTE = Math.max(0.5, actualDTE);
             let currentIV = leg.impliedVolatility || 0.3;
             if (matchingQuote.mid > 0 && symbolInfo?.price) {
               currentIV = calculateImpliedVolatility(
@@ -896,10 +956,7 @@ export default function Builder() {
 
         if (matchingQuote && matchingQuote.mid > 0) {
           const newPremium = Number(matchingQuote.mid.toFixed(2));
-          console.log('[MARKET-UPDATE] Found matching quote for', leg.type, leg.strike, 'mid:', matchingQuote.mid, 'newPremium:', newPremium);
           
-          // Update if: price changed, source isn't market, or current premium is missing/invalid
-          // Also update if underlying price changed significantly (symbol change)
           const needsUpdate = leg.premium !== newPremium || 
                               leg.premiumSource !== 'market' || 
                               !isFinite(leg.premium) || 
@@ -912,12 +969,7 @@ export default function Builder() {
           if (needsUpdate) {
             updated = true;
             
-            // ALWAYS calculate IV from market price using European Black-Scholes
-            // API-provided IV is often unreliable and doesn't match industry standards (OptionStrat)
-            // Use at least 0.5 DTE for very short-dated options to avoid solver issues
-            const effectiveDTE = Math.max(0.5, actualDTE);
-            let calculatedIV = 0.3; // Default fallback
-            
+            let calculatedIV = 0.3;
             if (matchingQuote.mid > 0 && symbolInfo?.price) {
               calculatedIV = calculateImpliedVolatility(
                 matchingQuote.side as 'call' | 'put',
@@ -927,7 +979,6 @@ export default function Builder() {
                 matchingQuote.mid
               );
             } else if (matchingQuote.iv) {
-              // Fallback to API IV only if we can't calculate
               calculatedIV = matchingQuote.iv;
             }
             
@@ -944,20 +995,13 @@ export default function Builder() {
             });
           }
         } else if (!isFinite(leg.premium) || leg.premium <= 0 || (!matchingQuote && underlyingPriceChanged)) {
-          // Fallback to theoretical pricing if:
-          // 1. Leg has no valid premium, OR
-          // 2. No matching quote found AND underlying price changed significantly (symbol change)
-          // Stock legs don't need theoretical pricing - they use entry price
-          if (leg.type === "stock") return leg;
-          
-          // Use minimum 14 days for theoretical pricing to show realistic premiums
           if (symbolInfo?.price && symbolInfo.price > 0 && leg.strike > 0) {
             const currentVol = volatility || 0.3;
             const theoreticalPremium = calculateOptionPrice(
               leg.type as "call" | "put",
               symbolInfo.price,
               leg.strike,
-              theoreticalDTE,  // Use inflated DTE for theoretical pricing only
+              theoreticalDTE,
               currentVol
             );
             
@@ -971,7 +1015,6 @@ export default function Builder() {
             }
           }
           
-          // Ultimate fallback: minimal placeholder premium
           updated = true;
           return deepCopyLeg(leg, {
             premium: 0.01,
@@ -985,7 +1028,7 @@ export default function Builder() {
 
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, selectedExpirationDate, symbolInfo?.price, volatility, symbolChangeId]);
+  }, [optionsChainData, multiChainData, selectedExpirationDate, symbolInfo?.price, volatility, symbolChangeId]);
 
   // Ensure all legs have valid premiums (fallback to theoretical even when chain data partial)
   // IMPORTANT: Use callback pattern to get current legs state and avoid race conditions
@@ -1150,15 +1193,16 @@ export default function Builder() {
         entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
       } : undefined;
       
+      // Get the correct chain for THIS leg's expiration
+      const legChain = getChainForLeg(leg);
+
       // For legs with locked cost basis, ONLY update market fields (never touch premium)
-      // This preserves the original entry price for accurate P/L calculation
       if (leg.costBasisLocked || leg.premiumSource === 'saved') {
-        const matchingQuote = optionsChainData?.quotes?.find(
+        const matchingQuote = legChain?.quotes?.find(
           (q: any) => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
         );
         
         if (matchingQuote) {
-          // Update market fields but NOT premium
           const effectiveDTE = Math.max(0.5, actualDTE);
           let currentIV = leg.impliedVolatility || 0.3;
           if (matchingQuote.mid > 0 && symbolInfo?.price) {
@@ -1181,12 +1225,11 @@ export default function Builder() {
             closingTransaction: preservedClosingTransaction,
           };
         }
-        // No matching quote - return leg unchanged
         return { ...leg, closingTransaction: preservedClosingTransaction };
       }
       
-      // Try to find matching market quote (same strike and type)
-      const matchingQuote = optionsChainData?.quotes?.find(
+      // Try to find matching market quote from this leg's chain
+      const matchingQuote = legChain?.quotes?.find(
         (q: any) => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
       );
 

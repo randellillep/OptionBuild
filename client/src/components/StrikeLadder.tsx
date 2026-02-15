@@ -505,8 +505,8 @@ export function StrikeLadder({
     };
     const expirationSubscript = formatExpirationSubscript(leg.expirationDate);
     
-    // Use expiration color when multiple expirations exist, otherwise use call/put color
-    const badgeColor = hasMultipleExpirations && expirationColor ? expirationColor : openBgColor;
+    // Badge color is ALWAYS call/put color (green/red) - never changes based on expiration
+    const badgeColor = openBgColor;
     
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
     // Level 0 (original) should render on top of level 1 (newer positions)
@@ -574,7 +574,13 @@ export function StrikeLadder({
               >
                 {strikeText}
                 {hasMultipleExpirations && expirationSubscript && (
-                  <span className="text-[9px] font-medium opacity-90">{expirationSubscript}</span>
+                  <span 
+                    className="text-[9px] font-bold rounded px-0.5 ml-0.5"
+                    style={{ 
+                      backgroundColor: expirationColor || 'rgba(255,255,255,0.3)',
+                      color: '#fff',
+                    }}
+                  >{expirationSubscript}</span>
                 )}
                 {isExpired && <Check className="w-3.5 h-3.5" />}
               </div>
