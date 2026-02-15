@@ -36,25 +36,20 @@ export default function SavedTrades() {
   const uniqueSymbolExpirations = useMemo(() => {
     const pairs: { symbol: string; expiration: string }[] = [];
     const seen = new Set<string>();
-    trades.forEach(trade => {
-      // Add trade-level expiration
-      if (trade.expirationDate) {
-        const key = `${trade.symbol}|${trade.expirationDate}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          pairs.push({ symbol: trade.symbol, expiration: trade.expirationDate });
-        }
+    const today = new Date().toISOString().split('T')[0];
+    const addPair = (symbol: string, expiration: string) => {
+      if (expiration < today) return;
+      const key = `${symbol}|${expiration}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        pairs.push({ symbol, expiration });
       }
-      // Also add each leg's individual expiration (for multi-expiration strategies)
+    };
+    trades.forEach(trade => {
+      if (trade.expirationDate) addPair(trade.symbol, trade.expirationDate);
       const legs = (trade.legs as OptionLeg[]) || [];
       legs.forEach(leg => {
-        if (leg.expirationDate) {
-          const key = `${trade.symbol}|${leg.expirationDate}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            pairs.push({ symbol: trade.symbol, expiration: leg.expirationDate });
-          }
-        }
+        if (leg.expirationDate) addPair(trade.symbol, leg.expirationDate);
       });
     });
     return pairs;

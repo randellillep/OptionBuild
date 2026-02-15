@@ -16,13 +16,33 @@ export interface ScenarioPoint {
 // Key for localStorage persistence
 const STRATEGY_STORAGE_KEY = 'currentStrategy';
 
+// Check if URL indicates a saved trade is being loaded
+// If so, skip persisted state to avoid showing stale data before the saved trade replaces it
+const isLoadingFromURL = (): boolean => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('loadSaved') === 'true' || params.get('shared') === 'true';
+  } catch {
+    return false;
+  }
+};
+
 // Load initial state from localStorage if available
 const loadPersistedState = (): { symbolInfo: SymbolInfo; legs: OptionLeg[]; volatility: number; isManualVolatility: boolean; expirationDays: number | null; expirationDate: string } | null => {
+  if (isLoadingFromURL()) return null;
   try {
     const saved = localStorage.getItem(STRATEGY_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed.symbolInfo && Array.isArray(parsed.legs)) {
+        if (parsed.expirationDate) {
+          const expDate = new Date(parsed.expirationDate + 'T21:00:00Z');
+          if (expDate.getTime() < Date.now()) {
+            parsed.expirationDate = '';
+            parsed.expirationDays = null;
+            parsed.legs = [];
+          }
+        }
         return parsed;
       }
     }
