@@ -315,6 +315,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
   const uniqueExpirationDays = useMemo(() => {
     const activeLegs = legs.filter(leg => {
       if (leg.type === 'stock') return false;
+      if (leg.isExcluded) return false;
       if (leg.quantity <= 0) return false;
       if (leg.closingTransaction?.isEnabled) {
         const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
