@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface ExpirationTimelineProps {
@@ -8,8 +8,7 @@ interface ExpirationTimelineProps {
   onAutoSelect?: (days: number, date: string) => void;
   symbol?: string;
   activeLegsExpirations?: number[]; // Unique expiration days from active legs
-  activeLegsExpirationDates?: string[]; // Expiration date strings from active legs (for unambiguous matching)
-  expirationColorMap?: Map<string, string>; // Color mapping keyed by expiration date string
+  expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
 }
 
 interface OptionsExpirationsResponse {
@@ -61,22 +60,15 @@ export function ExpirationTimeline({
   onAutoSelect,
   symbol = "SPY",
   activeLegsExpirations = [],
-  activeLegsExpirationDates = [],
   expirationColorMap,
 }: ExpirationTimelineProps) {
-  // Stabilize "today" to just the date (no time component) so memos don't bust on every render
-  const todayStr = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString().split('T')[0];
-  }, []);
-  const today = useMemo(() => new Date(todayStr + 'T00:00:00'), [todayStr]);
+  const today = new Date();
   
   // Fetch real options expiration dates from API
   const { data: apiExpirations, isLoading } = useQuery<OptionsExpirationsResponse>({
     queryKey: ["/api/options/expirations", symbol],
     enabled: !!symbol,
-    staleTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour (expirations don't change frequently)
   });
   
   // Generate standard options expiration dates as fallback
@@ -86,13 +78,12 @@ export function ExpirationTimeline({
   const { apiExpirationDays, daysToDateMap } = useMemo(() => {
     if (!apiExpirations?.expirations) return { apiExpirationDays: [], daysToDateMap: new Map<number, string>() };
     
-    const todayMs = today.getTime();
     const mapping = new Map<number, string>();
     const days = apiExpirations.expirations
       .map((dateStr: string) => {
-        const expirationDate = new Date(dateStr + 'T00:00:00');
-        const diffTime = expirationDate.getTime() - todayMs;
-        const dayCount = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        const expirationDate = new Date(dateStr);
+        const diffTime = expirationDate.getTime() - today.getTime();
+        const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (dayCount >= 0) {
           mapping.set(dayCount, dateStr);
           return dayCount;
@@ -106,11 +97,10 @@ export function ExpirationTimeline({
   
   // Convert calculated dates to days from today (fallback) and create mapping
   const { calculatedExpirationDays, calculatedDaysToDateMap } = useMemo(() => {
-    const todayMs = today.getTime();
     const mapping = new Map<number, string>();
     const days = expirationDates.map(date => {
-      const diffTime = date.getTime() - todayMs;
-      const dayCount = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      const diffTime = date.getTime() - today.getTime();
+      const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       mapping.set(dayCount, date.toISOString().split('T')[0]);
       return dayCount;
     });
@@ -157,28 +147,25 @@ export function ExpirationTimeline({
 
   const selectedExpirationDays = selectedDays ?? (allDays.length > 0 ? allDays[0] : 0);
 
-  // Auto-select expiration when nothing is currently selected or selection is stale
-  const lastAutoSelectedRef = useRef<{ days: number; symbol: string } | null>(null);
+  // Auto-select expiration when:
+  // 1. Nothing is currently selected
+  // 2. The currently selected expiration is not in the available list
+  // Uses onAutoSelect (which only updates global selection) to avoid overriding per-leg expirations
   useEffect(() => {
     if (allDays.length === 0) return;
+    
+    const firstDays = allDays[0];
+    const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
     
     const shouldAutoSelect = 
       selectedDays === null || 
       (selectedDays !== null && !allDays.includes(selectedDays));
     
-    if (!shouldAutoSelect) return;
-    
-    const firstDays = allDays[0];
-    const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
-    
-    if (lastAutoSelectedRef.current?.days === firstDays && lastAutoSelectedRef.current?.symbol === symbol) {
-      return;
+    if (shouldAutoSelect) {
+      const handler = onAutoSelect || onSelectDays;
+      handler(firstDays, firstDateStr);
     }
-    
-    lastAutoSelectedRef.current = { days: firstDays, symbol };
-    const handler = onAutoSelect || onSelectDays;
-    handler(firstDays, firstDateStr);
-  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect, symbol]);
+  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect]);
 
   // Format expirations label: "2d, 11d" for multiple, or "30d" for single
   const expirationsLabel = useMemo(() => {
@@ -189,15 +176,8 @@ export function ExpirationTimeline({
     return sorted.map(d => `${d}d`).join(', ');
   }, [activeLegsExpirations, selectedExpirationDays]);
 
-  // Build a set of active leg date strings for fast lookup
-  const activeLegsDateSet = useMemo(() => new Set(activeLegsExpirationDates), [activeLegsExpirationDates]);
-
-  // Check if a date has an active leg (using date string for unambiguous matching)
-  const hasActiveLeg = (days: number) => {
-    const dateStr = activeDaysToDateMap.get(days);
-    if (dateStr && activeLegsDateSet.has(dateStr)) return true;
-    return activeLegsExpirations.includes(days);
-  };
+  // Check if a date has an active leg
+  const hasActiveLeg = (days: number) => activeLegsExpirations.includes(days);
 
   return (
     <div className="bg-muted/30 rounded-md px-2 py-1.5 border border-border">
@@ -227,13 +207,13 @@ export function ExpirationTimeline({
                 const isSelected = selectedDays === days || (selectedDays === null && days === allDays[0]);
                 const hasLeg = hasActiveLeg(days);
                 
-                const dateStr = activeDaysToDateMap.get(days) || '';
-                const expirationColor = dateStr ? expirationColorMap?.get(dateStr) : undefined;
+                const expirationColor = expirationColorMap?.get(days);
                 
                 return (
                   <button
                     key={`${days}-${idx}`}
                     onClick={() => {
+                      const dateStr = activeDaysToDateMap.get(days) || '';
                       onSelectDays(days, dateStr);
                     }}
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${

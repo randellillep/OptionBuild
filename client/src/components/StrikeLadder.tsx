@@ -23,7 +23,7 @@ interface StrikeLadderProps {
   } | null;
   allAvailableExpirations?: string[];
   onChangeGlobalExpiration?: (days: number, date: string) => void;
-  expirationColorMap?: Map<string, string>;
+  expirationColorMap?: Map<number, string>;
   getChainForLeg?: (leg: OptionLeg) => any;
 }
 
@@ -46,8 +46,15 @@ export function StrikeLadder({
 }: StrikeLadderProps) {
   const expirationDateColorMap = useMemo(() => {
     if (!expirationColorMap || expirationColorMap.size === 0) return undefined;
-    return expirationColorMap;
-  }, [expirationColorMap]);
+    const dateMap = new Map<string, string>();
+    legs.forEach(leg => {
+      if (leg.type !== 'stock' && leg.expirationDate && leg.expirationDays !== undefined) {
+        const color = expirationColorMap.get(leg.expirationDays);
+        if (color) dateMap.set(leg.expirationDate, color);
+      }
+    });
+    return dateMap.size > 0 ? dateMap : undefined;
+  }, [legs, expirationColorMap]);
 
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -487,7 +494,7 @@ export function StrikeLadder({
     })();
     
     // Get expiration color for multi-expiration visual coding (OptionStrat-style)
-    const expirationColor = leg.expirationDate ? expirationColorMap?.get(leg.expirationDate) : undefined;
+    const expirationColor = expirationColorMap?.get(leg.expirationDays);
     const hasMultipleExpirations = expirationColorMap && expirationColorMap.size > 1;
     
     // Format expiration date as short subscript (M/D format)

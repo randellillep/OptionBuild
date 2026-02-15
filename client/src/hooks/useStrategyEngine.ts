@@ -254,10 +254,6 @@ export function useStrategyEngine(rangePercent: number = 14) {
   }, [legs, symbolInfo.price, volatility]);
 
   const uniqueExpirationDays = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
-
     const activeLegs = legs.filter(leg => {
       if (leg.type === 'stock') return false;
       if (leg.quantity <= 0) return false;
@@ -267,13 +263,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       }
       return true;
     });
-    const days = Array.from(new Set(activeLegs.map(leg => {
-      if (leg.expirationDate) {
-        const expDate = new Date(leg.expirationDate + 'T00:00:00');
-        return Math.round((expDate.getTime() - todayMs) / (1000 * 60 * 60 * 24));
-      }
-      return Math.round(leg.expirationDays);
-    }))).sort((a, b) => a - b);
+    const days = Array.from(new Set(activeLegs.map(leg => leg.expirationDays))).sort((a, b) => a - b);
     return days.length > 0 ? days : [30];
   }, [legs]);
 
