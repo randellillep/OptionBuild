@@ -62,15 +62,6 @@ export default function Builder() {
   });
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   const urlParamsProcessed = useRef(false);
-  const tradeLoadingRef = useRef(false);
-  const tradeLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  const [isLoadingTrade, setIsLoadingTrade] = useState(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('loadSaved') === 'true' || params.get('shared') === 'true';
-    } catch { return false; }
-  });
   
   // Store initial P/L values from SavedTrades for immediate consistency
   // These values are used for the heatmap's current-scenario cell until user makes changes
@@ -196,35 +187,56 @@ export default function Builder() {
     // Handle loading saved trade from localStorage
     if (loadSaved === 'true') {
       urlParamsProcessed.current = true;
-      let loadedSuccessfully = false;
       try {
         const savedTradeData = localStorage.getItem('loadTrade');
         if (savedTradeData) {
           const trade = JSON.parse(savedTradeData);
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
-            tradeLoadingRef.current = true;
-            if (tradeLoadingTimerRef.current) clearTimeout(tradeLoadingTimerRef.current);
-            tradeLoadingTimerRef.current = setTimeout(() => {
-              tradeLoadingRef.current = false;
-            }, 3000);
-            
+            // Use the current price passed from SavedTrades (if available) for immediate consistency
+            // This ensures the heatmap shows the EXACT same P/L as Total Return in Saved Trades
             const initialPrice = trade._currentPrice || trade.price || 100;
             setSymbolInfoForSavedTrade({ symbol: trade.symbol, price: initialPrice });
             
+            // Don't immediately override with fetched price - keep the passed price for consistency
+            // The 10-second price poll will update it later if needed
+            
+            // Helper to recalculate expirationDays from expirationDate
+            // Uses fractional days for same-day options to enable time decay visualization
+            // Expiration is set to 4pm ET (NYSE market close) for accuracy
             const recalculateExpirationDays = (legExpDate?: string, fallback?: number): number => {
               if (legExpDate) {
                 try {
-                  const dateOnly = legExpDate.split('T')[0];
+                  // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
+                  const dateOnly = legExpDate.split('T')[0]; // Extract date part
                   const [year, month, day] = dateOnly.split('-').map(Number);
-                  if (isNaN(year) || isNaN(month) || isNaN(day)) return fallback || 30;
+                  
+                  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+                    return fallback || 30;
+                  }
+                  
+                  // Set expiration to 4pm ET (21:00 UTC during EST, 20:00 UTC during EDT)
+                  // Use 21:00 UTC as approximation (accurate during EST, 1hr off during EDT)
                   const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
-                  const diffMs = expDateUTC.getTime() - new Date().getTime();
-                  return Math.max(0, diffMs / (1000 * 60 * 60 * 24));
-                } catch { return fallback || 30; }
+                  
+                  const now = new Date();
+                  const diffMs = expDateUTC.getTime() - now.getTime();
+                  
+                  // Use fractional days for intraday precision
+                  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                  return Math.max(0, diffDays);
+                } catch {
+                  return fallback || 30;
+                }
               }
               return fallback || 30;
             };
 
+            // Normalize legs to ensure required fields exist
+            // Mark as 'saved' to preserve the original cost basis from when trade was saved
+            // Preserve all leg properties including isExcluded, closingTransaction, market data, etc.
+            // IMPORTANT: Preserve marketBid/Ask/Mark/Last from SavedTrades for immediate P/L consistency
+            // Lock cost basis so premium never updates - only market fields will update
+            // CRITICAL: Backfill visualOrder for legacy legs to maintain position stability
             const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `saved-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -233,35 +245,46 @@ export default function Builder() {
               quantity: leg.quantity || 1,
               premium: leg.premium || 0,
               expirationDays: recalculateExpirationDays(leg.expirationDate, leg.expirationDays),
-              premiumSource: 'saved' as const,
-              costBasisLocked: true,
+              premiumSource: 'saved' as const,  // Preserve original cost basis
+              costBasisLocked: true,            // Lock so premium never updates
               impliedVolatility: leg.impliedVolatility,
               entryUnderlyingPrice: leg.entryUnderlyingPrice ?? trade.price,
               expirationDate: leg.expirationDate,
               isExcluded: leg.isExcluded,
               closingTransaction: leg.closingTransaction,
+              // Preserve market data from SavedTrades for immediate consistency
               marketBid: leg.marketBid,
               marketAsk: leg.marketAsk,
               marketMark: leg.marketMark,
               marketLast: leg.marketLast,
+              // Backfill visualOrder for legacy legs - use index to preserve original order
               visualOrder: leg.visualOrder ?? index,
             }));
             
             setLegs(normalizedLegs);
             
-            let expirationDays = 30;
+            // Set expiration - use FRACTIONAL days for accurate time decay visualization
+            let expirationDays = 30; // Default fallback
             let expirationDateStr = '';
             
             if (trade.expirationDate) {
+              // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
               const dateOnly = trade.expirationDate.split('T')[0];
               const [year, month, day] = dateOnly.split('-').map(Number);
+              
               if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                // Set expiration to 4pm ET (21:00 UTC as approximation)
                 const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
-                const diffDaysFractional = (expDateUTC.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+                const now = new Date();
+                const diffMs = expDateUTC.getTime() - now.getTime();
+                const diffDaysFractional = diffMs / (1000 * 60 * 60 * 24);
+                
                 if (diffDaysFractional > 0) {
+                  // Valid future expiration - use fractional days
                   expirationDays = diffDaysFractional;
                   expirationDateStr = dateOnly;
                 } else {
+                  // Expired - use 7-day forward as default
                   expirationDays = 7;
                   const futureDate = new Date();
                   futureDate.setDate(futureDate.getDate() + 7);
@@ -272,6 +295,7 @@ export default function Builder() {
                 expirationDateStr = trade.expirationDate;
               }
             } else {
+              // No expiration stored - derive from legs (which have fractional days) or use default
               const legDays = normalizedLegs.map(l => l.expirationDays).filter(d => d > 0);
               expirationDays = legDays.length > 0 ? Math.max(...legDays) : 30;
               const futureDate = new Date();
@@ -281,6 +305,8 @@ export default function Builder() {
             
             setSelectedExpiration(expirationDays, expirationDateStr);
             
+            // Store the EXACT P/L values calculated by SavedTrades for immediate consistency
+            // This ensures the heatmap's current-scenario cell shows the SAME value as Total Return
             if (trade._realizedPL !== undefined && trade._unrealizedPL !== undefined) {
               setInitialPLFromSavedTrade({
                 realizedPL: trade._realizedPL,
@@ -289,17 +315,11 @@ export default function Builder() {
             }
             
             localStorage.removeItem('loadTrade');
-            loadedSuccessfully = true;
           }
         }
       } catch {
         // Silent fail if parse fails
       }
-      if (!loadedSuccessfully) {
-        tradeLoadingRef.current = false;
-        if (tradeLoadingTimerRef.current) { clearTimeout(tradeLoadingTimerRef.current); tradeLoadingTimerRef.current = null; }
-      }
-      setIsLoadingTrade(false);
       window.history.replaceState({}, '', '/builder');
       return;
     }
@@ -308,20 +328,15 @@ export default function Builder() {
     const isShared = params.get('shared');
     if (isShared === 'true') {
       urlParamsProcessed.current = true;
-      let sharedLoadedSuccessfully = false;
       try {
         const sharedData = sessionStorage.getItem('sharedStrategy');
         if (sharedData) {
           const strategy = JSON.parse(sharedData);
           if (strategy.symbol && strategy.legs && Array.isArray(strategy.legs)) {
-            tradeLoadingRef.current = true;
-            if (tradeLoadingTimerRef.current) clearTimeout(tradeLoadingTimerRef.current);
-            tradeLoadingTimerRef.current = setTimeout(() => {
-              tradeLoadingRef.current = false;
-            }, 3000);
-            
+            // IMMEDIATELY fetch current price so heatmap shows accurate P/L from the start
             setSymbolInfoForSavedTrade({ symbol: strategy.symbol, price: strategy.price || 100 });
             
+            // Fetch current price right away (don't wait for 10s poll interval)
             fetch(`/api/stock/quote/${strategy.symbol}`)
               .then(res => res.ok ? res.json() : null)
               .then(data => {
@@ -329,22 +344,43 @@ export default function Builder() {
                   setSymbolInfo({ symbol: strategy.symbol, price: data.price });
                 }
               })
-              .catch(() => {});
+              .catch(() => { /* Use saved price as fallback */ });
             
+            // Helper to recalculate expirationDays from expirationDate
+            // Uses fractional days for same-day options to enable time decay visualization
+            // Expiration is set to 4pm ET (NYSE market close) for accuracy
             const recalculateSharedExpirationDays = (legExpDate?: string, fallback?: number): number => {
               if (legExpDate) {
                 try {
-                  const dateOnly = legExpDate.split('T')[0];
+                  // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
+                  const dateOnly = legExpDate.split('T')[0]; // Extract date part
                   const [year, month, day] = dateOnly.split('-').map(Number);
-                  if (isNaN(year) || isNaN(month) || isNaN(day)) return fallback || 30;
+                  
+                  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+                    return fallback || 30;
+                  }
+                  
+                  // Set expiration to 4pm ET (21:00 UTC during EST, 20:00 UTC during EDT)
                   const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
-                  const diffMs = expDateUTC.getTime() - new Date().getTime();
-                  return Math.max(0, diffMs / (1000 * 60 * 60 * 24));
-                } catch { return fallback || 30; }
+                  
+                  const now = new Date();
+                  const diffMs = expDateUTC.getTime() - now.getTime();
+                  
+                  // Use fractional days for intraday precision
+                  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                  return Math.max(0, diffDays);
+                } catch {
+                  return fallback || 30;
+                }
               }
               return fallback || 30;
             };
 
+            // Normalize legs from shared format
+            // Mark as 'saved' to preserve the original cost basis from when trade was shared
+            // Preserve all leg properties including isExcluded, closingTransaction, etc.
+            // IMPORTANT: Recalculate expirationDays from expirationDate to reflect current time
+            // CRITICAL: Backfill visualOrder for legacy legs to maintain position stability
             const normalizedLegs: OptionLeg[] = strategy.legs.map((leg: Partial<OptionLeg>, index: number) => ({
               id: leg.id || `shared-${Date.now()}-${index}`,
               type: leg.type || 'call',
@@ -353,27 +389,35 @@ export default function Builder() {
               quantity: leg.quantity || 1,
               premium: leg.premium || 0,
               expirationDays: recalculateSharedExpirationDays(leg.expirationDate, leg.expirationDays),
-              premiumSource: 'saved' as const,
-              costBasisLocked: true,
+              premiumSource: 'saved' as const,  // Preserve original cost basis
+              costBasisLocked: true,            // Lock so premium never updates
               impliedVolatility: leg.impliedVolatility,
               entryUnderlyingPrice: leg.entryUnderlyingPrice ?? strategy.price,
               expirationDate: leg.expirationDate,
               isExcluded: leg.isExcluded,
               closingTransaction: leg.closingTransaction,
+              // Backfill visualOrder for legacy legs - use index to preserve original order
               visualOrder: leg.visualOrder ?? index,
             }));
             
             setLegs(normalizedLegs);
             
+            // Set expiration - use FRACTIONAL days for accurate time decay visualization
             let expirationDays = 30;
             let expirationDateStr = '';
             
             if (strategy.expirationDate) {
+              // Parse expiration date - handle both YYYY-MM-DD and ISO datetime formats
               const dateOnly = strategy.expirationDate.split('T')[0];
               const [year, month, day] = dateOnly.split('-').map(Number);
+              
               if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                // Set expiration to 4pm ET (21:00 UTC as approximation)
                 const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
-                const diffDaysFractional = (expDateUTC.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+                const now = new Date();
+                const diffMs = expDateUTC.getTime() - now.getTime();
+                const diffDaysFractional = diffMs / (1000 * 60 * 60 * 24);
+                
                 if (diffDaysFractional > 0) {
                   expirationDays = diffDaysFractional;
                   expirationDateStr = dateOnly;
@@ -388,6 +432,7 @@ export default function Builder() {
                 expirationDateStr = strategy.expirationDate;
               }
             } else {
+              // Use fractional days from legs
               const legDays = normalizedLegs.map(l => l.expirationDays).filter(d => d > 0);
               expirationDays = legDays.length > 0 ? Math.max(...legDays) : 30;
               const futureDate = new Date();
@@ -397,17 +442,11 @@ export default function Builder() {
             
             setSelectedExpiration(expirationDays, expirationDateStr);
             sessionStorage.removeItem('sharedStrategy');
-            sharedLoadedSuccessfully = true;
           }
         }
       } catch {
         // Silent fail if parse fails
       }
-      if (!sharedLoadedSuccessfully) {
-        tradeLoadingRef.current = false;
-        if (tradeLoadingTimerRef.current) { clearTimeout(tradeLoadingTimerRef.current); tradeLoadingTimerRef.current = null; }
-      }
-      setIsLoadingTrade(false);
       window.history.replaceState({}, '', '/builder');
       return;
     }
@@ -457,15 +496,6 @@ export default function Builder() {
       window.history.replaceState({}, '', '/builder');
     }
   }, [searchString, symbolInfo.symbol, symbolInfo.price, setSymbolInfo, setLegs]);
-  
-  useEffect(() => {
-    return () => {
-      if (tradeLoadingTimerRef.current) {
-        clearTimeout(tradeLoadingTimerRef.current);
-        tradeLoadingTimerRef.current = null;
-      }
-    };
-  }, []);
 
   // Helper to round strike to valid increments
   const roundStrike = (strike: number, direction: 'up' | 'down' | 'nearest' = 'nearest'): number => {
@@ -641,20 +671,9 @@ export default function Builder() {
 
   // Separate options chain for EXPECTED MOVE - fetched WITHOUT expiration filter
   // This is ALWAYS enabled when we have a symbol, independent of strategy expiration
-  // Uses longer staleTime and no refetch interval since expected move is relatively stable
-  const { data: expectedMoveChainData } = useQuery<MarketOptionChainSummary>({
-    queryKey: ["/api/options/chain/expected-move", symbolInfo.symbol],
-    queryFn: async () => {
-      const url = `/api/options/chain/${encodeURIComponent(symbolInfo.symbol)}`;
-      const response = await fetch(url, { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to fetch expected move chain");
-      return await response.json();
-    },
+  const { data: expectedMoveChainData } = useOptionsChain({
+    symbol: symbolInfo.symbol,
     enabled: !!symbolInfo.symbol,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    retry: 1,
-    refetchInterval: false,
   });
 
   // Multi-expiration chain data: fetch separate chains for each unique leg expiration
@@ -663,20 +682,14 @@ export default function Builder() {
   const multiChainFetchRef = useRef<string>('');
   
   // Compute unique expiration dates from active option legs only
-  // Excludes expired dates (past today) since the API won't have chain data for them
   const uniqueLegExpirationDates = useMemo(() => {
     const dates = new Set<string>();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     legs.forEach(leg => {
       if (leg.type === 'stock' || leg.quantity <= 0 || !leg.expirationDate) return;
       if (leg.closingTransaction?.isEnabled) {
         const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
         if (closedQty >= leg.quantity) return;
       }
-      const expDate = new Date(leg.expirationDate);
-      expDate.setHours(0, 0, 0, 0);
-      if (expDate < today) return;
       dates.add(leg.expirationDate);
     });
     return Array.from(dates).sort();
@@ -685,17 +698,10 @@ export default function Builder() {
   // Fetch chains for leg expirations not covered by the primary chain query.
   // The primary chain fetches for selectedExpirationDate; any leg with a different
   // expiration needs its own chain data via this multi-chain mechanism.
-  // Stabilized: only changes when the actual set of dates changes (not just array reference)
-  const expirationsNeedingFetchKey = useMemo(() => {
-    return uniqueLegExpirationDates.filter(d => d !== selectedExpirationDate).join(',');
-  }, [uniqueLegExpirationDates, selectedExpirationDate]);
-  
   const expirationsNeedingFetch = useMemo(() => {
-    return expirationsNeedingFetchKey ? expirationsNeedingFetchKey.split(',') : [];
-  }, [expirationsNeedingFetchKey]);
+    return uniqueLegExpirationDates.filter(d => d !== selectedExpirationDate);
+  }, [uniqueLegExpirationDates, selectedExpirationDate]);
 
-  const multiChainFetchAbortRef = useRef<AbortController | null>(null);
-  
   useEffect(() => {
     if (!symbolInfo.symbol || expirationsNeedingFetch.length === 0) {
       if (multiChainData.size > 0) {
@@ -709,29 +715,19 @@ export default function Builder() {
     if (multiChainFetchRef.current === fetchKey) return;
     multiChainFetchRef.current = fetchKey;
 
-    if (multiChainFetchAbortRef.current) {
-      multiChainFetchAbortRef.current.abort();
-    }
-    const abortController = new AbortController();
-    multiChainFetchAbortRef.current = abortController;
-
     const fetchChains = async () => {
-      if (abortController.signal.aborted) return;
-      
       const newMap = new Map<string, MarketOptionChainSummary>();
       
       const results = await Promise.allSettled(
         expirationsNeedingFetch.map(async (expDate) => {
           const params = new URLSearchParams({ expiration: expDate });
           const url = `/api/options/chain/${encodeURIComponent(symbolInfo.symbol)}?${params}`;
-          const response = await fetch(url, { credentials: 'include', signal: abortController.signal });
+          const response = await fetch(url, { credentials: 'include' });
           if (!response.ok) return null;
           const data = await response.json();
           return { expDate, data };
         })
       );
-
-      if (abortController.signal.aborted) return;
 
       results.forEach((result) => {
         if (result.status === 'fulfilled' && result.value) {
@@ -745,11 +741,7 @@ export default function Builder() {
       }
     };
 
-    const timer = setTimeout(fetchChains, 500);
-    return () => {
-      clearTimeout(timer);
-      abortController.abort();
-    };
+    fetchChains();
   }, [symbolInfo.symbol, expirationsNeedingFetch]);
 
   // Helper: get the correct chain data for a leg based on its expiration
@@ -919,8 +911,7 @@ export default function Builder() {
   // Auto-update leg premiums with market data when chain loads or refreshes
   // Supports multi-expiration: each leg uses its own expiration's chain data
   useEffect(() => {
-    if (tradeLoadingRef.current) return;
-    
+    // Need at least primary chain data OR multi-chain data
     const hasPrimaryChain = optionsChainData?.quotes && optionsChainData.quotes.length > 0;
     const hasMultiChain = multiChainData.size > 0;
     if (!hasPrimaryChain && !hasMultiChain) return;
@@ -964,16 +955,11 @@ export default function Builder() {
         // For legs with locked cost basis, ONLY update market fields
         if ((leg.costBasisLocked || leg.premiumSource === 'manual' || leg.premiumSource === 'saved') && !underlyingPriceChanged) {
           if (matchingQuote) {
-            const roundedBid = Number(matchingQuote.bid?.toFixed(2)) || 0;
-            const roundedAsk = Number(matchingQuote.ask?.toFixed(2)) || 0;
-            const roundedMid = Number(matchingQuote.mid?.toFixed(2)) || 0;
-            const roundedLast = Number(matchingQuote.last?.toFixed(2)) || 0;
-            
             const marketNeedsUpdate = 
-              Math.abs((leg.marketBid || 0) - roundedBid) > 0.005 ||
-              Math.abs((leg.marketAsk || 0) - roundedAsk) > 0.005 ||
-              Math.abs((leg.marketMark || 0) - roundedMid) > 0.005 ||
-              Math.abs((leg.marketLast || 0) - roundedLast) > 0.005;
+              leg.marketBid !== matchingQuote.bid ||
+              leg.marketAsk !== matchingQuote.ask ||
+              leg.marketMark !== matchingQuote.mid ||
+              leg.marketLast !== matchingQuote.last;
             
             let currentIV = leg.impliedVolatility || 0.3;
             if (matchingQuote.mid > 0 && symbolInfo?.price) {
@@ -984,18 +970,15 @@ export default function Builder() {
                 effectiveDTE,
                 matchingQuote.mid
               );
-              currentIV = Number(currentIV.toFixed(4));
             }
             
-            const ivChanged = Math.abs((leg.impliedVolatility || 0.3) - currentIV) > 0.0005;
-            
-            if (marketNeedsUpdate || ivChanged) {
+            if (marketNeedsUpdate || leg.impliedVolatility !== currentIV) {
               updated = true;
               return deepCopyLeg(leg, {
-                marketBid: roundedBid,
-                marketAsk: roundedAsk,
-                marketMark: roundedMid,
-                marketLast: roundedLast,
+                marketBid: matchingQuote.bid,
+                marketAsk: matchingQuote.ask,
+                marketMark: matchingQuote.mid,
+                marketLast: matchingQuote.last,
                 impliedVolatility: currentIV,
               });
             }
@@ -1005,17 +988,14 @@ export default function Builder() {
 
         if (matchingQuote && matchingQuote.mid > 0) {
           const newPremium = Number(matchingQuote.mid.toFixed(2));
-          const roundedBid2 = Number(matchingQuote.bid?.toFixed(2)) || 0;
-          const roundedAsk2 = Number(matchingQuote.ask?.toFixed(2)) || 0;
-          const roundedMid2 = Number(matchingQuote.mid?.toFixed(2)) || 0;
           
-          const needsUpdate = Math.abs(leg.premium - newPremium) > 0.005 || 
+          const needsUpdate = leg.premium !== newPremium || 
                               leg.premiumSource !== 'market' || 
                               !isFinite(leg.premium) || 
                               leg.premium <= 0 ||
-                              Math.abs((leg.marketBid || 0) - roundedBid2) > 0.005 ||
-                              Math.abs((leg.marketAsk || 0) - roundedAsk2) > 0.005 ||
-                              Math.abs((leg.marketMark || 0) - roundedMid2) > 0.005 ||
+                              leg.marketBid !== matchingQuote.bid ||
+                              leg.marketAsk !== matchingQuote.ask ||
+                              leg.marketMark !== matchingQuote.mid ||
                               underlyingPriceChanged;
           
           if (needsUpdate) {
@@ -1030,9 +1010,8 @@ export default function Builder() {
                 effectiveDTE,
                 matchingQuote.mid
               );
-              calculatedIV = Number(calculatedIV.toFixed(4));
             } else if (matchingQuote.iv) {
-              calculatedIV = Number(matchingQuote.iv.toFixed(4));
+              calculatedIV = matchingQuote.iv;
             }
             
             return deepCopyLeg(leg, {
@@ -1041,10 +1020,10 @@ export default function Builder() {
               premiumSource: 'market' as const,
               impliedVolatility: calculatedIV,
               entryUnderlyingPrice: symbolInfo.price,
-              marketBid: roundedBid2,
-              marketAsk: roundedAsk2,
-              marketMark: roundedMid2,
-              marketLast: Number(matchingQuote.last?.toFixed(2)) || 0,
+              marketBid: matchingQuote.bid,
+              marketAsk: matchingQuote.ask,
+              marketMark: matchingQuote.mid,
+              marketLast: matchingQuote.last,
               costBasisLocked: true,
             });
           }
@@ -1087,7 +1066,7 @@ export default function Builder() {
   // Ensure all legs have valid premiums (fallback to theoretical even when chain data partial)
   // IMPORTANT: Use callback pattern to get current legs state and avoid race conditions
   useEffect(() => {
-    if (tradeLoadingRef.current) return;
+    // Skip if symbolInfo.price is not valid yet
     if (!symbolInfo?.price || symbolInfo.price <= 0) return;
 
     const rawDTE = selectedExpirationDate 
@@ -1584,17 +1563,6 @@ export default function Builder() {
     setLegs(legsWithMarketPrices);
   };
 
-  if (isLoadingTrade) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center" data-testid="trade-loading-overlay">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <span className="text-sm text-muted-foreground">Loading trade...</span>
-        </div>
-      </div>
-    );
-  }
-  
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

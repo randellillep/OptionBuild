@@ -16,15 +16,6 @@ export function useOptionsChain({
   side,
   enabled = true,
 }: UseOptionsChainParams) {
-  const isExpired = (() => {
-    if (!expiration) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const expDate = new Date(expiration);
-    expDate.setHours(0, 0, 0, 0);
-    return expDate < today;
-  })();
-
   return useQuery<MarketOptionChainSummary>({
     queryKey: ["/api/options/chain", symbol, expiration, strike, side],
     queryFn: async () => {
@@ -49,10 +40,10 @@ export function useOptionsChain({
 
       return await response.json();
     },
-    enabled: enabled && !!symbol && !isExpired,
+    enabled: enabled && !!symbol,
     staleTime: 30000,
     gcTime: 5 * 60 * 1000,
-    retry: false,
-    refetchInterval: 60000,
+    retry: 2,
+    refetchInterval: 30000,
   });
 }
