@@ -682,14 +682,20 @@ export default function Builder() {
   const multiChainFetchRef = useRef<string>('');
   
   // Compute unique expiration dates from active option legs only
+  // Excludes expired dates (past today) since the API won't have chain data for them
   const uniqueLegExpirationDates = useMemo(() => {
     const dates = new Set<string>();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     legs.forEach(leg => {
       if (leg.type === 'stock' || leg.quantity <= 0 || !leg.expirationDate) return;
       if (leg.closingTransaction?.isEnabled) {
         const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
         if (closedQty >= leg.quantity) return;
       }
+      const expDate = new Date(leg.expirationDate);
+      expDate.setHours(0, 0, 0, 0);
+      if (expDate < today) return;
       dates.add(leg.expirationDate);
     });
     return Array.from(dates).sort();
@@ -698,10 +704,17 @@ export default function Builder() {
   // Fetch chains for leg expirations not covered by the primary chain query.
   // The primary chain fetches for selectedExpirationDate; any leg with a different
   // expiration needs its own chain data via this multi-chain mechanism.
-  const expirationsNeedingFetch = useMemo(() => {
-    return uniqueLegExpirationDates.filter(d => d !== selectedExpirationDate);
+  // Stabilized: only changes when the actual set of dates changes (not just array reference)
+  const expirationsNeedingFetchKey = useMemo(() => {
+    return uniqueLegExpirationDates.filter(d => d !== selectedExpirationDate).join(',');
   }, [uniqueLegExpirationDates, selectedExpirationDate]);
+  
+  const expirationsNeedingFetch = useMemo(() => {
+    return expirationsNeedingFetchKey ? expirationsNeedingFetchKey.split(',') : [];
+  }, [expirationsNeedingFetchKey]);
 
+  const multiChainFetchAbortRef = useRef<AbortController | null>(null);
+  
   useEffect(() => {
     if (!symbolInfo.symbol || expirationsNeedingFetch.length === 0) {
       if (multiChainData.size > 0) {
@@ -715,19 +728,29 @@ export default function Builder() {
     if (multiChainFetchRef.current === fetchKey) return;
     multiChainFetchRef.current = fetchKey;
 
+    if (multiChainFetchAbortRef.current) {
+      multiChainFetchAbortRef.current.abort();
+    }
+    const abortController = new AbortController();
+    multiChainFetchAbortRef.current = abortController;
+
     const fetchChains = async () => {
+      if (abortController.signal.aborted) return;
+      
       const newMap = new Map<string, MarketOptionChainSummary>();
       
       const results = await Promise.allSettled(
         expirationsNeedingFetch.map(async (expDate) => {
           const params = new URLSearchParams({ expiration: expDate });
           const url = `/api/options/chain/${encodeURIComponent(symbolInfo.symbol)}?${params}`;
-          const response = await fetch(url, { credentials: 'include' });
+          const response = await fetch(url, { credentials: 'include', signal: abortController.signal });
           if (!response.ok) return null;
           const data = await response.json();
           return { expDate, data };
         })
       );
+
+      if (abortController.signal.aborted) return;
 
       results.forEach((result) => {
         if (result.status === 'fulfilled' && result.value) {
@@ -741,7 +764,11 @@ export default function Builder() {
       }
     };
 
-    fetchChains();
+    const timer = setTimeout(fetchChains, 500);
+    return () => {
+      clearTimeout(timer);
+      abortController.abort();
+    };
   }, [symbolInfo.symbol, expirationsNeedingFetch]);
 
   // Helper: get the correct chain data for a leg based on its expiration
