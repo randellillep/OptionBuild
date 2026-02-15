@@ -551,10 +551,6 @@ export function OptionDetailsPanel({
       marketLast: undefined,
     });
     
-    if (onChangeGlobalExpiration) {
-      onChangeGlobalExpiration(diffDays, newExpirationDate);
-    }
-    
     setShowExpirationPicker(false);
   };
 

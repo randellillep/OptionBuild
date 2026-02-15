@@ -118,6 +118,9 @@ export default function Builder() {
   // Track the last processed symbolChangeId to gate effects
   const lastProcessedSymbolChangeIdRef = useRef(symbolChangeId);
   
+  // Track the most recently added leg so timeline clicks only change that leg
+  const [lastAddedLegId, setLastAddedLegId] = useState<string | null>(null);
+  
   // Color palette for multi-expiration visual coding (OptionStrat-style)
   // Each unique expiration gets a distinct color to help identify legs
   const EXPIRATION_COLORS = [
@@ -680,9 +683,15 @@ export default function Builder() {
     return Array.from(dates).sort();
   }, [legs]);
 
-  // Fetch chains for all unique expiration dates
+  // Fetch chains for leg expirations not covered by the primary chain query.
+  // The primary chain fetches for selectedExpirationDate; any leg with a different
+  // expiration needs its own chain data via this multi-chain mechanism.
+  const expirationsNeedingFetch = useMemo(() => {
+    return uniqueLegExpirationDates.filter(d => d !== selectedExpirationDate);
+  }, [uniqueLegExpirationDates, selectedExpirationDate]);
+
   useEffect(() => {
-    if (!symbolInfo.symbol || uniqueLegExpirationDates.length <= 1) {
+    if (!symbolInfo.symbol || expirationsNeedingFetch.length === 0) {
       if (multiChainData.size > 0) {
         setMultiChainData(new Map());
         multiChainFetchRef.current = '';
@@ -690,16 +699,15 @@ export default function Builder() {
       return;
     }
 
-    const fetchKey = `${symbolInfo.symbol}-${uniqueLegExpirationDates.join(',')}`;
+    const fetchKey = `${symbolInfo.symbol}-${expirationsNeedingFetch.join(',')}`;
     if (multiChainFetchRef.current === fetchKey) return;
     multiChainFetchRef.current = fetchKey;
 
     const fetchChains = async () => {
       const newMap = new Map<string, MarketOptionChainSummary>();
       
-      // Fetch all chains in parallel
       const results = await Promise.allSettled(
-        uniqueLegExpirationDates.map(async (expDate) => {
+        expirationsNeedingFetch.map(async (expDate) => {
           const params = new URLSearchParams({ expiration: expDate });
           const url = `/api/options/chain/${encodeURIComponent(symbolInfo.symbol)}?${params}`;
           const response = await fetch(url, { credentials: 'include' });
@@ -722,7 +730,7 @@ export default function Builder() {
     };
 
     fetchChains();
-  }, [symbolInfo.symbol, uniqueLegExpirationDates]);
+  }, [symbolInfo.symbol, expirationsNeedingFetch]);
 
   // Helper: get the correct chain data for a leg based on its expiration
   const getChainForLeg = (leg: OptionLeg): MarketOptionChainSummary | undefined => {
@@ -1359,7 +1367,7 @@ export default function Builder() {
       };
       return [...prevLegs, legWithLockedCostBasis];
     });
-    // Clear frozen P/L values so live calculations take over
+    setLastAddedLegId(newId);
     setInitialPLFromSavedTrade(null);
   };
 
@@ -1393,6 +1401,7 @@ export default function Builder() {
   };
 
   const removeLeg = (id: string) => {
+    if (lastAddedLegId === id) setLastAddedLegId(null);
     setLegs(prevLegs => prevLegs.filter((leg) => {
       if (leg.id !== id) return true; // Keep other legs
       
@@ -1427,18 +1436,26 @@ export default function Builder() {
   };
 
   // Handler for clicking a date on the main ExpirationTimeline
-  // Updates ALL option legs to the new expiration and recalculates prices
+  // - Single-expiration strategies (all legs same date): all legs move together
+  // - Multi-expiration strategies: only the most recently added leg changes
+  // - No tracked leg (e.g. after template load): all option legs change
   const handleTimelineExpirationChange = (days: number, dateStr: string) => {
-    // Update the global selected expiration
     setSelectedExpiration(days, dateStr);
     
-    // Update ALL option legs to the new expiration date
     setLegs(currentLegs => {
-      const hasOptionLegs = currentLegs.some(l => l.type !== "stock");
-      if (!hasOptionLegs) return currentLegs;
+      const optionLegs = currentLegs.filter(l => l.type !== "stock");
+      if (optionLegs.length === 0) return currentLegs;
+      
+      const uniqueExpDates = new Set(optionLegs.map(l => l.expirationDate).filter(Boolean));
+      const isSingleExpiration = uniqueExpDates.size <= 1;
+      const targetOnlyLastAdded = lastAddedLegId && !isSingleExpiration;
       
       return currentLegs.map(leg => {
         if (leg.type === "stock") return leg;
+        
+        if (targetOnlyLastAdded && leg.id !== lastAddedLegId) {
+          return leg;
+        }
         
         return deepCopyLeg(leg, {
           expirationDays: days,
@@ -1451,11 +1468,9 @@ export default function Builder() {
   const loadTemplate = (templateIndex: number) => {
     const template = strategyTemplates[templateIndex];
     const currentPrice = symbolInfo.price;
+    setLastAddedLegId(null);
     
-    // Validate price before proceeding
     if (!currentPrice || !isFinite(currentPrice) || currentPrice <= 0) {
-      // Fallback to template's original strikes if no valid price
-      // Still apply market prices where possible (uses fallback logic)
       const fallbackLegs = template.legs.map((leg, index) => deepCopyLeg(leg, { 
         id: Date.now().toString() + leg.id + index 
       }));
