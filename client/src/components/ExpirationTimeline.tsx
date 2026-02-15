@@ -8,7 +8,8 @@ interface ExpirationTimelineProps {
   onAutoSelect?: (days: number, date: string) => void;
   symbol?: string;
   activeLegsExpirations?: number[]; // Unique expiration days from active legs
-  expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
+  activeLegsExpirationDates?: string[]; // Expiration date strings from active legs (for unambiguous matching)
+  expirationColorMap?: Map<string, string>; // Color mapping keyed by expiration date string
 }
 
 interface OptionsExpirationsResponse {
@@ -60,6 +61,7 @@ export function ExpirationTimeline({
   onAutoSelect,
   symbol = "SPY",
   activeLegsExpirations = [],
+  activeLegsExpirationDates = [],
   expirationColorMap,
 }: ExpirationTimelineProps) {
   // Stabilize "today" to just the date (no time component) so memos don't bust on every render
@@ -187,8 +189,15 @@ export function ExpirationTimeline({
     return sorted.map(d => `${d}d`).join(', ');
   }, [activeLegsExpirations, selectedExpirationDays]);
 
-  // Check if a date has an active leg
-  const hasActiveLeg = (days: number) => activeLegsExpirations.includes(days);
+  // Build a set of active leg date strings for fast lookup
+  const activeLegsDateSet = useMemo(() => new Set(activeLegsExpirationDates), [activeLegsExpirationDates]);
+
+  // Check if a date has an active leg (using date string for unambiguous matching)
+  const hasActiveLeg = (days: number) => {
+    const dateStr = activeDaysToDateMap.get(days);
+    if (dateStr && activeLegsDateSet.has(dateStr)) return true;
+    return activeLegsExpirations.includes(days);
+  };
 
   return (
     <div className="bg-muted/30 rounded-md px-2 py-1.5 border border-border">
@@ -218,13 +227,13 @@ export function ExpirationTimeline({
                 const isSelected = selectedDays === days || (selectedDays === null && days === allDays[0]);
                 const hasLeg = hasActiveLeg(days);
                 
-                const expirationColor = expirationColorMap?.get(days);
+                const dateStr = activeDaysToDateMap.get(days) || '';
+                const expirationColor = dateStr ? expirationColorMap?.get(dateStr) : undefined;
                 
                 return (
                   <button
                     key={`${days}-${idx}`}
                     onClick={() => {
-                      const dateStr = activeDaysToDateMap.get(days) || '';
                       onSelectDays(days, dateStr);
                     }}
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${

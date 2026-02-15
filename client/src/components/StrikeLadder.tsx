@@ -23,7 +23,7 @@ interface StrikeLadderProps {
   } | null;
   allAvailableExpirations?: string[];
   onChangeGlobalExpiration?: (days: number, date: string) => void;
-  expirationColorMap?: Map<number, string>;
+  expirationColorMap?: Map<string, string>;
   getChainForLeg?: (leg: OptionLeg) => any;
 }
 
@@ -46,20 +46,8 @@ export function StrikeLadder({
 }: StrikeLadderProps) {
   const expirationDateColorMap = useMemo(() => {
     if (!expirationColorMap || expirationColorMap.size === 0) return undefined;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
-    const dateMap = new Map<string, string>();
-    legs.forEach(leg => {
-      if (leg.type !== 'stock' && leg.expirationDate) {
-        const expDate = new Date(leg.expirationDate + 'T00:00:00');
-        const roundedDays = Math.round((expDate.getTime() - todayMs) / (1000 * 60 * 60 * 24));
-        const color = expirationColorMap.get(roundedDays);
-        if (color) dateMap.set(leg.expirationDate, color);
-      }
-    });
-    return dateMap.size > 0 ? dateMap : undefined;
-  }, [legs, expirationColorMap]);
+    return expirationColorMap;
+  }, [expirationColorMap]);
 
   const [selectedLeg, setSelectedLeg] = useState<OptionLeg | null>(null);
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -499,16 +487,7 @@ export function StrikeLadder({
     })();
     
     // Get expiration color for multi-expiration visual coding (OptionStrat-style)
-    const legRoundedDays = (() => {
-      if (leg.expirationDate) {
-        const expD = new Date(leg.expirationDate + 'T00:00:00');
-        const todayMs2 = new Date();
-        todayMs2.setHours(0, 0, 0, 0);
-        return Math.round((expD.getTime() - todayMs2.getTime()) / (1000 * 60 * 60 * 24));
-      }
-      return Math.round(leg.expirationDays);
-    })();
-    const expirationColor = expirationColorMap?.get(legRoundedDays);
+    const expirationColor = leg.expirationDate ? expirationColorMap?.get(leg.expirationDate) : undefined;
     const hasMultipleExpirations = expirationColorMap && expirationColorMap.size > 1;
     
     // Format expiration date as short subscript (M/D format)

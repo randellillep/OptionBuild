@@ -143,10 +143,6 @@ export default function Builder() {
   // Create a mapping from expiration days to colors (sorted by days, earliest first)
   // ONLY color-code when 2+ legs have DIFFERENT expirations
   const expirationColorMap = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayMs = today.getTime();
-
     const activeOptionLegs = legs.filter(l => {
       if (l.type === "stock") return false;
       if (l.quantity <= 0) return false;
@@ -156,21 +152,36 @@ export default function Builder() {
       }
       return true;
     });
-    const uniqueDaysArr = Array.from(new Set(activeOptionLegs.map(l => {
-      if (l.expirationDate) {
-        const expDate = new Date(l.expirationDate + 'T00:00:00');
-        return Math.round((expDate.getTime() - todayMs) / (1000 * 60 * 60 * 24));
-      }
-      return Math.round(l.expirationDays);
-    })));
-    if (uniqueDaysArr.length < 2) return new Map<number, string>();
+    const uniqueDateStrs = Array.from(new Set(
+      activeOptionLegs
+        .map(l => l.expirationDate)
+        .filter((d): d is string => !!d)
+    ));
+    if (uniqueDateStrs.length < 2) return new Map<string, string>();
     
-    const sorted = uniqueDaysArr.sort((a, b) => a - b);
-    const map = new Map<number, string>();
-    sorted.forEach((days, idx) => {
-      map.set(days, EXPIRATION_COLORS[idx % EXPIRATION_COLORS.length]);
+    const sorted = uniqueDateStrs.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    const map = new Map<string, string>();
+    sorted.forEach((dateStr, idx) => {
+      map.set(dateStr, EXPIRATION_COLORS[idx % EXPIRATION_COLORS.length]);
     });
     return map;
+  }, [legs]);
+
+  const activeLegsExpirationDates = useMemo(() => {
+    const activeOptionLegs = legs.filter(l => {
+      if (l.type === "stock") return false;
+      if (l.quantity <= 0) return false;
+      if (l.closingTransaction?.isEnabled) {
+        const closedQty = (l.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
+        if (closedQty >= l.quantity) return false;
+      }
+      return true;
+    });
+    return Array.from(new Set(
+      activeOptionLegs
+        .map(l => l.expirationDate)
+        .filter((d): d is string => !!d)
+    ));
   }, [legs]);
 
   const volatilityPercent = Math.round(volatility * 100);
@@ -1811,6 +1822,7 @@ export default function Builder() {
                 onAutoSelect={setSelectedExpiration}
                 symbol={symbolInfo.symbol}
                 activeLegsExpirations={uniqueExpirationDays}
+                activeLegsExpirationDates={activeLegsExpirationDates}
                 expirationColorMap={expirationColorMap}
               />
 
