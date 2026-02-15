@@ -118,8 +118,8 @@ export default function Builder() {
   // Track the last processed symbolChangeId to gate effects
   const lastProcessedSymbolChangeIdRef = useRef(symbolChangeId);
   
-  // Track the most recently added leg so timeline clicks only change that leg
-  const [lastAddedLegId, setLastAddedLegId] = useState<string | null>(null);
+  // Track the leg whose expiration was most recently edited (added or changed via panel)
+  const [lastEditedLegId, setLastEditedLegId] = useState<string | null>(null);
   
   // Color palette for multi-expiration visual coding (OptionStrat-style)
   // Each unique expiration gets a distinct color to help identify legs
@@ -1379,11 +1379,14 @@ export default function Builder() {
       };
       return [...prevLegs, legWithLockedCostBasis];
     });
-    setLastAddedLegId(newId);
+    setLastEditedLegId(newId);
     setInitialPLFromSavedTrade(null);
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
+    if ('expirationDate' in updates || 'expirationDays' in updates) {
+      setLastEditedLegId(id);
+    }
     setLegs(prevLegs => prevLegs.map((leg) => {
       if (leg.id !== id) return leg;
       
@@ -1413,7 +1416,7 @@ export default function Builder() {
   };
 
   const removeLeg = (id: string) => {
-    if (lastAddedLegId === id) setLastAddedLegId(null);
+    if (lastEditedLegId === id) setLastEditedLegId(null);
     setLegs(prevLegs => prevLegs.filter((leg) => {
       if (leg.id !== id) return true; // Keep other legs
       
@@ -1460,12 +1463,12 @@ export default function Builder() {
       
       const uniqueExpDates = new Set(optionLegs.map(l => l.expirationDate).filter(Boolean));
       const isSingleExpiration = uniqueExpDates.size <= 1;
-      const targetOnlyLastAdded = lastAddedLegId && !isSingleExpiration;
+      const targetOnlyLastEdited = lastEditedLegId && !isSingleExpiration;
       
       return currentLegs.map(leg => {
         if (leg.type === "stock") return leg;
         
-        if (targetOnlyLastAdded && leg.id !== lastAddedLegId) {
+        if (targetOnlyLastEdited && leg.id !== lastEditedLegId) {
           return leg;
         }
         
@@ -1480,7 +1483,7 @@ export default function Builder() {
   const loadTemplate = (templateIndex: number) => {
     const template = strategyTemplates[templateIndex];
     const currentPrice = symbolInfo.price;
-    setLastAddedLegId(null);
+    setLastEditedLegId(null);
     
     if (!currentPrice || !isFinite(currentPrice) || currentPrice <= 0) {
       const fallbackLegs = template.legs.map((leg, index) => deepCopyLeg(leg, { 
