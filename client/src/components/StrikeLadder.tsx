@@ -561,6 +561,12 @@ export function StrikeLadder({
                   x{hasClosing ? remainingQty : quantity}
                 </div>
               )}
+              {position === 'long' && hasMultipleExpirations && expirationSubscript && (
+                <div
+                  className="text-[9px] font-bold text-white rounded-sm px-1 py-px mb-0.5 leading-tight"
+                  style={{ backgroundColor: expirationColor || 'rgba(255,255,255,0.3)' }}
+                >{expirationSubscript}</div>
+              )}
               {position === 'short' && (
                 <div 
                   className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent"
@@ -568,22 +574,13 @@ export function StrikeLadder({
                 />
               )}
               <div
-                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-0.5 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
                 style={{ 
                   backgroundColor: isExcluded ? undefined : badgeColor,
                   boxShadow: isBeingDragged ? '0 4px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.2)',
                 }}
               >
                 {strikeText}
-                {hasMultipleExpirations && expirationSubscript && (
-                  <span 
-                    className="text-[9px] font-bold rounded px-0.5 ml-0.5"
-                    style={{ 
-                      backgroundColor: expirationColor || 'rgba(255,255,255,0.3)',
-                      color: '#fff',
-                    }}
-                  >{expirationSubscript}</span>
-                )}
                 {isExpired && <Check className="w-3.5 h-3.5" />}
               </div>
               {position === 'long' && (
@@ -591,6 +588,12 @@ export function StrikeLadder({
                   className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-l-transparent border-r-transparent"
                   style={{ borderTopColor: isExcluded ? '#64748b' : badgeColor }}
                 />
+              )}
+              {position === 'short' && hasMultipleExpirations && expirationSubscript && (
+                <div
+                  className="text-[9px] font-bold text-white rounded-sm px-1 py-px mt-0.5 leading-tight"
+                  style={{ backgroundColor: expirationColor || 'rgba(255,255,255,0.3)' }}
+                >{expirationSubscript}</div>
               )}
             </button>
           </div>
