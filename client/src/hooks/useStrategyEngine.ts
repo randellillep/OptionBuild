@@ -35,42 +35,14 @@ const loadPersistedState = (): { symbolInfo: SymbolInfo; legs: OptionLeg[]; vola
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed.symbolInfo && Array.isArray(parsed.legs)) {
-        const now = Date.now();
-        
-        if (parsed.legs.length > 0) {
-          parsed.legs = parsed.legs.map((leg: OptionLeg) => ({
-            ...leg,
-            expirationDate: leg.expirationDate || parsed.expirationDate || undefined,
-          }));
-          
-          parsed.legs = parsed.legs.filter((leg: OptionLeg) => {
-            if (leg.type === 'stock') return true;
-            if (!leg.expirationDate) return false;
-            const legExpDate = new Date(leg.expirationDate + 'T21:00:00Z');
-            return legExpDate.getTime() >= now;
-          });
-        }
-        
-        if (parsed.legs.length === 0) {
-          parsed.expirationDate = '';
-          parsed.expirationDays = null;
-        } else if (parsed.expirationDate) {
+        if (parsed.expirationDate) {
           const expDate = new Date(parsed.expirationDate + 'T21:00:00Z');
-          if (expDate.getTime() < now) {
-            const futureLegDates = parsed.legs
-              .filter((l: OptionLeg) => l.expirationDate && l.type !== 'stock')
-              .map((l: OptionLeg) => l.expirationDate!)
-              .sort();
-            parsed.expirationDate = futureLegDates.length > 0 ? futureLegDates[0] : '';
-            if (parsed.expirationDate) {
-              const newExpDate = new Date(parsed.expirationDate + 'T21:00:00Z');
-              parsed.expirationDays = Math.max(1, Math.round((newExpDate.getTime() - now) / (1000 * 60 * 60 * 24)));
-            } else {
-              parsed.expirationDays = null;
-            }
+          if (expDate.getTime() < Date.now()) {
+            parsed.expirationDate = '';
+            parsed.expirationDays = null;
+            parsed.legs = [];
           }
         }
-        
         return parsed;
       }
     }
@@ -208,13 +180,9 @@ export function useStrategyEngine(rangePercent: number = 14) {
   
   // Persist strategy state to localStorage whenever it changes
   useEffect(() => {
-    const legsWithDates = legs.map(leg => ({
-      ...leg,
-      expirationDate: leg.expirationDate || selectedExpirationDate || undefined,
-    }));
     const stateToSave = {
       symbolInfo,
-      legs: legsWithDates,
+      legs,
       volatility,
       isManualVolatility,
       expirationDays: selectedExpirationDays,
@@ -315,7 +283,6 @@ export function useStrategyEngine(rangePercent: number = 14) {
   const uniqueExpirationDays = useMemo(() => {
     const activeLegs = legs.filter(leg => {
       if (leg.type === 'stock') return false;
-      if (leg.isExcluded) return false;
       if (leg.quantity <= 0) return false;
       if (leg.closingTransaction?.isEnabled) {
         const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);

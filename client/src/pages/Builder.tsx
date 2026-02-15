@@ -1220,17 +1220,25 @@ export default function Builder() {
   // Helper function to apply market prices to legs (with theoretical fallback)
   // Defined before addLeg so it can be used when adding new legs
   const applyMarketPrices = (legsToUpdate: OptionLeg[]): OptionLeg[] => {
-    const calculateDTEFromDate = (dateStr: string | undefined): number => {
-      if (!dateStr) return 30;
-      const expDate = new Date(dateStr);
+    // Calculate days to expiration from selected date
+    const calculateDTE = (): number => {
+      if (!selectedExpirationDate) return 30;
+      const expDate = new Date(selectedExpirationDate);
       const today = new Date();
       const expDateUTC = Date.UTC(expDate.getFullYear(), expDate.getMonth(), expDate.getDate());
       const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
       const diffTime = expDateUTC - todayUTC;
-      return Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      return Math.max(1, diffDays);
     };
 
-    const currentVol = volatility || 0.3;
+    const rawDTE = calculateDTE();
+    // Use ACTUAL DTE for IV calculation (critical for accuracy)
+    const actualDTE = rawDTE;
+    // Use minimum 14 days for THEORETICAL pricing only
+    // (very short DTE causes near-zero prices for OTM options in theoretical mode)
+    const theoreticalDTE = Math.max(14, rawDTE);
+    const currentVol = volatility || 0.3; // Default IV if not set
 
     return legsToUpdate.map(leg => {
       // Deep copy closing transaction to preserve immutable entry data
@@ -1241,8 +1249,6 @@ export default function Builder() {
       
       // Get the correct chain for THIS leg's expiration
       const legChain = getChainForLeg(leg);
-      
-      const legActualDTE = calculateDTEFromDate(leg.expirationDate || selectedExpirationDate);
 
       // For legs with locked cost basis, ONLY update market fields (never touch premium)
       if (leg.costBasisLocked || leg.premiumSource === 'saved') {
@@ -1251,7 +1257,7 @@ export default function Builder() {
         );
         
         if (matchingQuote) {
-          const effectiveDTE = Math.max(0.5, legActualDTE);
+          const effectiveDTE = Math.max(0.5, actualDTE);
           let currentIV = leg.impliedVolatility || 0.3;
           if (matchingQuote.mid > 0 && symbolInfo?.price) {
             currentIV = calculateImpliedVolatility(
@@ -1284,8 +1290,11 @@ export default function Builder() {
       if (matchingQuote && matchingQuote.mid > 0) {
         const newPremium = Number(matchingQuote.mid.toFixed(2));
         
-        const effectiveDTE = Math.max(0.5, legActualDTE);
-        let calculatedIV = 0.3;
+        // ALWAYS calculate IV from market price using European Black-Scholes
+        // API-provided IV is often unreliable and doesn't match industry standards (OptionStrat)
+        // Use at least 0.5 DTE for very short-dated options to avoid solver issues
+        const effectiveDTE = Math.max(0.5, actualDTE);
+        let calculatedIV = 0.3; // Default fallback
         
         if (matchingQuote.mid > 0 && symbolInfo?.price) {
           calculatedIV = calculateImpliedVolatility(
@@ -1297,10 +1306,12 @@ export default function Builder() {
           );
           
         } else if (matchingQuote.iv) {
+          // Fallback to API IV only if we can't calculate
           calculatedIV = matchingQuote.iv;
         }
         
-        const legExpDays = leg.expirationDays > 0 ? leg.expirationDays : legActualDTE;
+        // Preserve leg's own expirationDays if already set, otherwise use global DTE
+        const legExpDays = leg.expirationDays > 0 ? leg.expirationDays : actualDTE;
         
         return {
           ...leg,
@@ -1323,7 +1334,8 @@ export default function Builder() {
         };
       }
       
-      const legExpDays = leg.expirationDays > 0 ? leg.expirationDays : legActualDTE;
+      // Preserve leg's own expirationDays if already set, otherwise use global DTE
+      const legExpDays = leg.expirationDays > 0 ? leg.expirationDays : actualDTE;
       const legTheoreticalDTE = Math.max(14, legExpDays);
       
       // Use minimum 14 days for theoretical pricing to show realistic premiums

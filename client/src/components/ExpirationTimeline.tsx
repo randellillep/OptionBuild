@@ -217,19 +217,21 @@ export function ExpirationTimeline({
                       onSelectDays(days, dateStr);
                     }}
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
-                      isSelected
+                      hasLeg && expirationColor
+                        ? ''
+                        : hasLeg
                         ? 'bg-primary text-primary-foreground'
+                        : isSelected
+                        ? 'ring-1 ring-inset ring-primary text-foreground'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
+                    style={hasLeg && expirationColor ? {
+                      backgroundColor: expirationColor,
+                      color: 'white',
+                    } : undefined}
                     data-testid={`button-expiration-${days}`}
                   >
                     {day}
-                    {hasLeg && !isSelected && (
-                      <span
-                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
-                        style={{ backgroundColor: expirationColor || 'hsl(var(--primary))' }}
-                      />
-                    )}
                   </button>
                 );
               })}
