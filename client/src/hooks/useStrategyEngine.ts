@@ -261,7 +261,16 @@ export function useStrategyEngine(rangePercent: number = 14) {
   }, [legs, symbolInfo.price, volatility]);
 
   const uniqueExpirationDays = useMemo(() => {
-    const days = Array.from(new Set(legs.map(leg => leg.expirationDays))).sort((a, b) => a - b);
+    const activeLegs = legs.filter(leg => {
+      if (leg.type === 'stock') return false;
+      if (leg.quantity <= 0) return false;
+      if (leg.closingTransaction?.isEnabled) {
+        const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
+        if (closedQty >= leg.quantity) return false;
+      }
+      return true;
+    });
+    const days = Array.from(new Set(activeLegs.map(leg => leg.expirationDays))).sort((a, b) => a - b);
     return days.length > 0 ? days : [30];
   }, [legs]);
 

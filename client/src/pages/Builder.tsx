@@ -136,7 +136,16 @@ export default function Builder() {
   // Create a mapping from expiration days to colors (sorted by days, earliest first)
   // ONLY color-code when 2+ legs have DIFFERENT expirations
   const expirationColorMap = useMemo(() => {
-    const uniqueDaysArr = Array.from(new Set(legs.filter(l => l.type !== "stock").map(l => l.expirationDays)));
+    const activeOptionLegs = legs.filter(l => {
+      if (l.type === "stock") return false;
+      if (l.quantity <= 0) return false;
+      if (l.closingTransaction?.isEnabled) {
+        const closedQty = (l.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
+        if (closedQty >= l.quantity) return false;
+      }
+      return true;
+    });
+    const uniqueDaysArr = Array.from(new Set(activeOptionLegs.map(l => l.expirationDays)));
     if (uniqueDaysArr.length < 2) return new Map<number, string>();
     
     const sorted = uniqueDaysArr.sort((a, b) => a - b);
@@ -672,13 +681,16 @@ export default function Builder() {
   const [multiChainData, setMultiChainData] = useState<Map<string, MarketOptionChainSummary>>(new Map());
   const multiChainFetchRef = useRef<string>('');
   
-  // Compute unique expiration dates from legs (excluding stock legs)
+  // Compute unique expiration dates from active option legs only
   const uniqueLegExpirationDates = useMemo(() => {
     const dates = new Set<string>();
     legs.forEach(leg => {
-      if (leg.type !== 'stock' && leg.expirationDate) {
-        dates.add(leg.expirationDate);
+      if (leg.type === 'stock' || leg.quantity <= 0 || !leg.expirationDate) return;
+      if (leg.closingTransaction?.isEnabled) {
+        const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
+        if (closedQty >= leg.quantity) return;
       }
+      dates.add(leg.expirationDate);
     });
     return Array.from(dates).sort();
   }, [legs]);
