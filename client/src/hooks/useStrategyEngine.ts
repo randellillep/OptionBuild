@@ -56,11 +56,18 @@ export function useStrategyEngine(rangePercent: number = 14) {
     if (prevSymbolRef.current !== symbolInfo.symbol) {
       console.log('[SYMBOL-CHANGE] Detected symbol change:', prevSymbolRef.current, '->', symbolInfo.symbol);
       
-      if (!isLoadingSavedTradeRef.current) {
-        console.log('[SYMBOL-CHANGE] Clearing legs for new symbol');
-        setLegs([]);
-        setSelectedExpirationDays(null);
-        setSelectedExpirationDate("");
+      // Don't clear flags if loading a saved trade (user wants to keep saved pricing)
+      if (!isLoadingSavedTradeRef.current && legs.length > 0) {
+        console.log('[SYMBOL-CHANGE] Clearing pricing flags from', legs.length, 'legs');
+        
+        // Clear pricing flags so AUTO-ADJUST can set fresh theoretical prices
+        setLegs(currentLegs => currentLegs.map(leg => ({
+          ...leg,
+          costBasisLocked: false,
+          premiumSource: undefined, // Clear 'saved' or 'manual' to allow fresh pricing
+          closingTransaction: undefined,
+          isExcluded: false,
+        })));
       }
       
       // Reset the saved trade flag and update the ref

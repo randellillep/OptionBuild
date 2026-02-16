@@ -773,56 +773,6 @@ export default function Builder() {
     staleTime: 1000 * 60 * 60, // Cache for 1 hour
   });
 
-  // Auto-select nearest upcoming expiration when data loads and none is selected
-  useEffect(() => {
-    if (!optionsExpirationsData?.expirations?.length) return;
-    if (selectedExpirationDate && selectedExpirationDays !== null) return;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const firstFutureDate = optionsExpirationsData.expirations.find(dateStr => {
-      const d = new Date(dateStr);
-      d.setHours(0, 0, 0, 0);
-      return d >= today;
-    });
-    
-    if (firstFutureDate) {
-      const expDate = new Date(firstFutureDate);
-      const diffTime = expDate.getTime() - today.getTime();
-      const days = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-      setSelectedExpiration(days, firstFutureDate);
-    }
-  }, [optionsExpirationsData, selectedExpirationDate, selectedExpirationDays, setSelectedExpiration]);
-
-  // Add a default ATM call when we have price/expiration data but no legs
-  // This runs after symbol changes clear the legs, and after initial page load
-  const defaultLegAddedForSymbolRef = useRef<string>('');
-  useEffect(() => {
-    if (!symbolInfo.symbol || !symbolInfo.price || symbolInfo.price <= 0) return;
-    if (!selectedExpirationDate || selectedExpirationDays === null) return;
-    if (legs.length > 0) return;
-    if (defaultLegAddedForSymbolRef.current === symbolInfo.symbol) return;
-    
-    defaultLegAddedForSymbolRef.current = symbolInfo.symbol;
-    
-    const atmStrike = Math.round(symbolInfo.price);
-    const newId = Date.now().toString();
-    setLegs([{
-      id: newId,
-      type: 'call' as const,
-      position: 'long' as const,
-      strike: atmStrike,
-      premium: 0.01,
-      quantity: 1,
-      expirationDays: selectedExpirationDays,
-      expirationDate: selectedExpirationDate,
-      entryUnderlyingPrice: symbolInfo.price,
-      costBasisLocked: false,
-    }]);
-    setLastEditedLegId(newId);
-  }, [symbolInfo.symbol, symbolInfo.price, selectedExpirationDate, selectedExpirationDays, legs.length, setLegs]);
-
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
   // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration
   // This value is NEVER affected by IV slider or strategy changes - purely market data
