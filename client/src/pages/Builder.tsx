@@ -1452,8 +1452,8 @@ export default function Builder() {
 
   // Handler for clicking a date on the main ExpirationTimeline
   // - Single-expiration strategies (all legs same date): all legs move together
-  // - Multi-expiration strategies: only the most recently added leg changes
-  // - No tracked leg (e.g. after template load): all option legs change
+  // - Multi-expiration strategies with tracked leg: only the most recently edited leg changes
+  // - Multi-expiration strategies with no tracked leg: only update global selection (don't overwrite legs)
   const handleTimelineExpirationChange = (days: number, dateStr: string) => {
     setSelectedExpiration(days, dateStr);
     
@@ -1463,15 +1463,24 @@ export default function Builder() {
       
       const uniqueExpDates = new Set(optionLegs.map(l => l.expirationDate).filter(Boolean));
       const isSingleExpiration = uniqueExpDates.size <= 1;
-      const targetOnlyLastEdited = lastEditedLegId && !isSingleExpiration;
       
+      // Multi-expiration: only change a specific leg if we're tracking one
+      if (!isSingleExpiration) {
+        if (!lastEditedLegId) {
+          return currentLegs;
+        }
+        return currentLegs.map(leg => {
+          if (leg.type === "stock" || leg.id !== lastEditedLegId) return leg;
+          return deepCopyLeg(leg, {
+            expirationDays: days,
+            expirationDate: dateStr,
+          });
+        });
+      }
+      
+      // Single-expiration: move all legs together
       return currentLegs.map(leg => {
         if (leg.type === "stock") return leg;
-        
-        if (targetOnlyLastEdited && leg.id !== lastEditedLegId) {
-          return leg;
-        }
-        
         return deepCopyLeg(leg, {
           expirationDays: days,
           expirationDate: dateStr,

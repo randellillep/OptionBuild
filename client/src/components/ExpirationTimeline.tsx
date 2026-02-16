@@ -222,7 +222,7 @@ export function ExpirationTimeline({
                         : hasLeg
                         ? 'bg-primary text-primary-foreground'
                         : isSelected
-                        ? 'ring-1 ring-inset ring-primary text-foreground'
+                        ? 'bg-primary/20 text-primary font-bold'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
                     style={hasLeg && expirationColor ? {
