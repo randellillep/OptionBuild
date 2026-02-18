@@ -421,22 +421,10 @@ export function useStrategyEngine(rangePercent: number = 14) {
     setSelectedExpirationDate(date);
   };
 
-  // Auto-snap selected expiration to nearest active leg when current selection
-  // doesn't match any active leg (e.g. after removing a leg)
-  // Uses rounded comparison to avoid ping-pong between fractional leg days and integer timeline days
-  useEffect(() => {
-    if (uniqueExpirationDays.length === 0) return;
-    if (selectedExpirationDays !== null && 
-        uniqueExpirationDays.some(d => Math.round(d) === Math.round(selectedExpirationDays))) return;
-    
-    // Find the active leg whose expirationDays matches the first unique day
-    const targetDays = uniqueExpirationDays[0];
-    const matchingLeg = legs.find(l => l.type !== 'stock' && l.expirationDays === targetDays && l.expirationDate);
-    if (matchingLeg && matchingLeg.expirationDate) {
-      setSelectedExpirationDays(targetDays);
-      setSelectedExpirationDate(matchingLeg.expirationDate);
-    }
-  }, [uniqueExpirationDays, selectedExpirationDays, legs]);
+  // Note: Timeline selection is controlled solely by ExpirationTimeline's auto-select effect.
+  // The timeline snaps to the nearest valid API date when the current selection is invalid.
+  // A separate snap-to-nearest effect in Builder.tsx updates leg expirations to match
+  // available dates after symbol changes.
 
   return {
     symbolInfo,
