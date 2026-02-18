@@ -773,6 +773,75 @@ export default function Builder() {
     staleTime: 1000 * 60 * 60, // Cache for 1 hour
   });
 
+  // When symbol changes, snap leg expirations to nearest valid date for the new symbol
+  // e.g., AAPL has Feb 23 but JPM only has Feb 24 → update legs to Feb 24
+  useEffect(() => {
+    if (symbolChangeId <= lastProcessedSymbolChangeIdRef.current) return;
+    if (!optionsExpirationsData?.expirations || optionsExpirationsData.expirations.length === 0) return;
+    
+    const optionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
+    if (optionLegs.length === 0) {
+      lastProcessedSymbolChangeIdRef.current = symbolChangeId;
+      return;
+    }
+    
+    const availableDates = optionsExpirationsData.expirations;
+    const today = new Date();
+    
+    const findNearestDate = (targetDate: string): string => {
+      if (availableDates.includes(targetDate)) return targetDate;
+      
+      const targetTime = new Date(targetDate).getTime();
+      let nearest = availableDates[0];
+      let minDiff = Math.abs(new Date(nearest).getTime() - targetTime);
+      
+      for (const d of availableDates) {
+        const diff = Math.abs(new Date(d).getTime() - targetTime);
+        if (diff < minDiff) {
+          minDiff = diff;
+          nearest = d;
+        }
+      }
+      return nearest;
+    };
+    
+    const recalcDays = (dateStr: string): number => {
+      const dateOnly = dateStr.split('T')[0];
+      const [year, month, day] = dateOnly.split('-').map(Number);
+      const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
+      const diffMs = expDateUTC.getTime() - today.getTime();
+      return Math.max(0, diffMs / (1000 * 60 * 60 * 24));
+    };
+    
+    let anyChanged = false;
+    const updatedLegs = legs.map(leg => {
+      if (leg.type === 'stock' || !leg.expirationDate) return leg;
+      
+      const nearestDate = findNearestDate(leg.expirationDate.split('T')[0]);
+      if (nearestDate === leg.expirationDate.split('T')[0]) return leg;
+      
+      anyChanged = true;
+      return {
+        ...leg,
+        expirationDate: nearestDate,
+        expirationDays: recalcDays(nearestDate),
+      };
+    });
+    
+    if (anyChanged) {
+      setLegs(updatedLegs);
+      const firstOptionLeg = updatedLegs.find(l => l.type !== 'stock' && l.expirationDate);
+      if (firstOptionLeg?.expirationDate) {
+        setSelectedExpiration(
+          firstOptionLeg.expirationDays,
+          firstOptionLeg.expirationDate
+        );
+      }
+    }
+    
+    lastProcessedSymbolChangeIdRef.current = symbolChangeId;
+  }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration]);
+
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
   // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration
   // This value is NEVER affected by IV slider or strategy changes - purely market data

@@ -150,20 +150,32 @@ export function ExpirationTimeline({
   // Auto-select expiration when:
   // 1. Nothing is currently selected
   // 2. The currently selected expiration is not in the available list
+  // Snaps to nearest available date (not just first) to preserve user intent on symbol change
   // Uses onAutoSelect (which only updates global selection) to avoid overriding per-leg expirations
   useEffect(() => {
     if (allDays.length === 0) return;
-    
-    const firstDays = allDays[0];
-    const firstDateStr = activeDaysToDateMap.get(firstDays) || '';
     
     const shouldAutoSelect = 
       selectedDays === null || 
       (selectedDays !== null && !allDays.includes(selectedDays));
     
     if (shouldAutoSelect) {
+      let targetDays = allDays[0];
+      
+      if (selectedDays !== null) {
+        let minDiff = Math.abs(allDays[0] - selectedDays);
+        for (const d of allDays) {
+          const diff = Math.abs(d - selectedDays);
+          if (diff < minDiff) {
+            minDiff = diff;
+            targetDays = d;
+          }
+        }
+      }
+      
+      const targetDateStr = activeDaysToDateMap.get(targetDays) || '';
       const handler = onAutoSelect || onSelectDays;
-      handler(firstDays, firstDateStr);
+      handler(targetDays, targetDateStr);
     }
   }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect]);
 
@@ -219,10 +231,8 @@ export function ExpirationTimeline({
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
                       hasLeg && expirationColor
                         ? ''
-                        : hasLeg
+                        : (hasLeg || isSelected)
                         ? 'bg-primary text-primary-foreground'
-                        : isSelected
-                        ? 'bg-primary/20 text-primary font-bold'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
                     style={hasLeg && expirationColor ? {
