@@ -116,7 +116,8 @@ export default function Builder() {
   } = useStrategyEngine(range);
   
   // Track the last processed symbolChangeId to gate effects
-  const lastProcessedSymbolChangeIdRef = useRef(symbolChangeId);
+  // Using STATE (not ref) so auto-update re-fires after snap-to-nearest processes
+  const [lastProcessedSymbolChangeId, setLastProcessedSymbolChangeId] = useState(symbolChangeId);
   
   // Track the leg whose expiration was most recently edited (added or changed via panel)
   const [lastEditedLegId, setLastEditedLegId] = useState<string | null>(null);
@@ -746,12 +747,12 @@ export default function Builder() {
   // When symbol changes, snap leg expirations to nearest valid date for the new symbol
   // e.g., AAPL has Feb 23 but JPM only has Feb 24 → update legs to Feb 24
   useEffect(() => {
-    if (symbolChangeId <= lastProcessedSymbolChangeIdRef.current) return;
+    if (symbolChangeId <= lastProcessedSymbolChangeId) return;
     if (!optionsExpirationsData?.expirations || optionsExpirationsData.expirations.length === 0) return;
     
     const optionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
     if (optionLegs.length === 0) {
-      lastProcessedSymbolChangeIdRef.current = symbolChangeId;
+      setLastProcessedSymbolChangeId(symbolChangeId);
       return;
     }
     
@@ -816,7 +817,7 @@ export default function Builder() {
       );
     }
     
-    lastProcessedSymbolChangeIdRef.current = symbolChangeId;
+    setLastProcessedSymbolChangeId(symbolChangeId);
   }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration]);
 
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
@@ -964,7 +965,7 @@ export default function Builder() {
 
     // Skip if chain data might be stale from previous symbol
     // The snap-to-nearest effect must process the symbol change first
-    if (symbolChangeId > lastProcessedSymbolChangeIdRef.current) return;
+    if (symbolChangeId > lastProcessedSymbolChangeId) return;
 
     // Verify chain data belongs to the current symbol (prevents stale data from previous symbol)
     if (hasPrimaryChain && optionsChainData?.symbol && optionsChainData.symbol !== symbolInfo.symbol) return;
@@ -1110,7 +1111,7 @@ export default function Builder() {
 
       return updated ? newLegs : currentLegs;
     });
-  }, [optionsChainData, multiChainData, selectedExpirationDate, symbolInfo?.price, volatility, symbolChangeId]);
+  }, [optionsChainData, multiChainData, selectedExpirationDate, symbolInfo?.price, volatility, symbolChangeId, lastProcessedSymbolChangeId]);
 
   // Ensure all legs have valid premiums (fallback to theoretical even when chain data partial)
   // IMPORTANT: Use callback pattern to get current legs state and avoid race conditions
@@ -1523,16 +1524,21 @@ export default function Builder() {
           return deepCopyLeg(leg, {
             expirationDays: days,
             expirationDate: dateStr,
+            costBasisLocked: false,
+            premiumSource: undefined,
           });
         });
       }
       
       // Single-expiration: move all legs together
+      // Clear costBasisLocked so auto-update can refresh premiums for the new date
       return currentLegs.map(leg => {
         if (leg.type === "stock") return leg;
         return deepCopyLeg(leg, {
           expirationDays: days,
           expirationDate: dateStr,
+          costBasisLocked: false,
+          premiumSource: undefined,
         });
       });
     });
