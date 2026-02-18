@@ -182,10 +182,10 @@ export function ExpirationTimeline({
   // Format expirations label: "2d, 11d" for multiple, or "30d" for single
   const expirationsLabel = useMemo(() => {
     if (activeLegsExpirations.length === 0) {
-      return `${selectedExpirationDays}d`;
+      return `${Math.round(selectedExpirationDays)}d`;
     }
     const sorted = [...activeLegsExpirations].sort((a, b) => a - b);
-    return sorted.map(d => `${d}d`).join(', ');
+    return sorted.map(d => `${Math.round(d)}d`).join(', ');
   }, [activeLegsExpirations, selectedExpirationDays]);
 
   // Check if a date has an active leg
