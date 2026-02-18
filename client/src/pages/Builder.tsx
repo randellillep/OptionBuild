@@ -1831,7 +1831,7 @@ export default function Builder() {
                 onSelectDays={handleTimelineExpirationChange}
                 onAutoSelect={setSelectedExpiration}
                 symbol={symbolInfo.symbol}
-                activeLegsExpirations={uniqueExpirationDays}
+                activeLegsExpirations={legs.some(l => l.type !== 'stock' && l.quantity > 0) ? uniqueExpirationDays : []}
                 expirationColorMap={expirationColorMap}
               />
 
