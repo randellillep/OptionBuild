@@ -962,9 +962,12 @@ export default function Builder() {
     const hasMultiChain = multiChainData.size > 0;
     if (!hasPrimaryChain && !hasMultiChain) return;
 
-    if (symbolChangeId !== lastProcessedSymbolChangeIdRef.current) {
-      lastProcessedSymbolChangeIdRef.current = symbolChangeId;
-    }
+    // Skip if chain data might be stale from previous symbol
+    // The snap-to-nearest effect must process the symbol change first
+    if (symbolChangeId > lastProcessedSymbolChangeIdRef.current) return;
+
+    // Verify chain data belongs to the current symbol (prevents stale data from previous symbol)
+    if (hasPrimaryChain && optionsChainData?.symbol && optionsChainData.symbol !== symbolInfo.symbol) return;
 
     // Helper: calculate DTE from a date string
     const calcDTE = (dateStr: string | undefined): number => {
