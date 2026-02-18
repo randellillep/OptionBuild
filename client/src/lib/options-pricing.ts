@@ -772,19 +772,22 @@ export function calculateProfitLossAtDate(
       // Type narrowed to "call" | "put" after stock check above
       const optionType = leg.type as "call" | "put";
       
-      // At the exact entry point (daysFromNow <= 0): use MARKET price (premium)
-      // This ensures P/L = $0 at entry, not a theoretical discrepancy
-      // For ANY future time (even a few hours on day 0), use theoretical pricing
-      // to properly show theta decay and price sensitivity
-      const isAtOrBeforeEntry = daysFromNow <= 0; // Only at exact entry or before
+      // At the exact entry point (daysFromNow <= 0): decide between market vs theoretical
+      // If IV hasn't been changed from market levels, use MARKET price (P/L = $0 at entry)
+      // If IV has been manually adjusted, use theoretical pricing to show IV impact
+      const isAtOrBeforeEntry = daysFromNow <= 0;
       const priceDiffPercent = Math.abs(atPrice - underlyingPrice) / underlyingPrice;
       const isAtExactCurrentPrice = priceDiffPercent < 0.001; // Within 0.1% of current price
       
-      if (isAtOrBeforeEntry && isAtExactCurrentPrice) {
-        // Use actual market price - this gives P/L = 0 at entry
+      const legIV = leg.impliedVolatility || 0.3;
+      const ivDiff = Math.abs(scenarioVolatility - legIV);
+      const ivMatchesMarket = ivDiff < 0.005; // Within 0.5% absolute IV difference
+      
+      if (isAtOrBeforeEntry && isAtExactCurrentPrice && ivMatchesMarket) {
+        // IV at market levels - use actual premium for exact P/L = $0 at entry
         optionValue = Math.abs(leg.premium);
       } else {
-        // Use theoretical pricing for scenario analysis
+        // Use theoretical pricing for scenario analysis (IV changed, different price, or future time)
         optionValue = calculateOptionPrice(
           optionType,
           atPrice,
