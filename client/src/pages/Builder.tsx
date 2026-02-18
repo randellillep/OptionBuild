@@ -572,8 +572,8 @@ export default function Builder() {
     // Note: useStrategyEngine now handles clearing costBasisLocked/premiumSource
     // when symbol changes, so we don't need a manual flag here
     
-    // IMPORTANT: Use setLegs with function form to get current legs
-    // This avoids stale closure issues when legs is not in dependency array
+    // On symbol change, always reset to a single ATM call option
+    // Previous strategy should not carry over to the new symbol
     setLegs(currentLegs => {
       console.log('[AUTO-ADJUST] Current legs count:', currentLegs.length);
       
@@ -584,78 +584,26 @@ export default function Builder() {
         return currentLegs;
       }
       
-      // Check if current strategy matches a known template
-      const isKnownTemplate = isKnownStrategyTemplate(currentLegs);
+      // Reset to a single ATM call for the new symbol
+      const daysToExp = 30;
+      const newPremium = Math.max(0.01, Number(
+        calculateOptionPrice('call', current.price, atmStrike, daysToExp, 0.3).toFixed(2)
+      ));
       
-      // If strategy doesn't match any template, clear legs and let user rebuild
-      // This avoids pricing issues when market data doesn't have matching strikes
-      if (!isKnownTemplate && currentLegs.length > 0) {
-        console.log('[AUTO-ADJUST] Unknown strategy, clearing - user can add via Add button');
-        return [];
-      }
+      console.log(`[AUTO-ADJUST] Resetting to single ATM call: strike ${atmStrike}, premium ${newPremium}`);
       
-      // Skip if no legs - let user add via Add button
-      // This avoids pricing issues when market data doesn't have matching strikes
-      if (currentLegs.length === 0) {
-        console.log('[AUTO-ADJUST] No legs to adjust, user can add via Add button');
-        return currentLegs;
-      }
+      const newLeg: OptionLeg = {
+        id: `auto-${Date.now()}`,
+        type: 'call',
+        position: 'long',
+        strike: atmStrike,
+        quantity: 1,
+        premium: newPremium,
+        expirationDays: daysToExp,
+        visualOrder: 0,
+      };
       
-      // Adjust existing legs for the new symbol
-      // IMPORTANT: Calculate premium directly here to avoid race conditions
-      const adjustedLegs = currentLegs.map((leg) => {
-        // Reset all strikes to be close to the new ATM price
-        let newStrike: number;
-        
-        if (currentLegs.length === 1) {
-          // Single leg - just use ATM
-          newStrike = atmStrike;
-        } else {
-          // Multiple legs - maintain relative spacing
-          const avgStrike = currentLegs.reduce((sum, l) => sum + l.strike, 0) / currentLegs.length;
-          const relativePosition = (leg.strike - avgStrike) / prev.price;
-          
-          const offset = relativePosition * current.price;
-          const targetStrike = atmStrike + offset;
-          
-          const direction = leg.type === 'call' && offset > 0 ? 'up' : 
-                           leg.type === 'put' && offset < 0 ? 'down' : 'nearest';
-          newStrike = roundStrike(targetStrike, direction);
-        }
-        
-        // Calculate new theoretical premium using Black-Scholes
-        const daysToExp = leg.expirationDays || 30;
-        const theoreticalDTE = Math.max(14, daysToExp); // Use min 14 days for realistic premiums
-        const newPremium = leg.type === 'stock' ? leg.premium :
-          calculateOptionPrice(leg.type as 'call' | 'put', current.price, newStrike, theoreticalDTE, 0.3);
-        const finalPremium = leg.type === 'stock' ? leg.premium : Math.max(0.01, Number(newPremium.toFixed(2)));
-        
-        console.log(`[AUTO-ADJUST] Leg ${leg.type} ${leg.position}: strike ${leg.strike} -> ${newStrike}, premium ${leg.premium} -> ${finalPremium}`);
-        
-        // Return leg with all fields properly set for new symbol
-        return {
-          ...leg,
-          id: leg.id, // Keep same ID
-          strike: newStrike,
-          premium: finalPremium,
-          premiumSource: 'theoretical' as const,
-          entryUnderlyingPrice: current.price,
-          costBasisLocked: false,
-          marketQuoteId: undefined,
-          impliedVolatility: undefined,
-          // Clear closing transactions and exclusions for new symbol
-          closingTransaction: undefined,
-          isExcluded: false,
-          // Preserve these
-          type: leg.type,
-          position: leg.position,
-          quantity: leg.quantity,
-          expirationDays: leg.expirationDays,
-        };
-      });
-      
-      console.log('[AUTO-ADJUST] Returning adjusted legs:', adjustedLegs.map(l => ({ strike: l.strike, premium: l.premium })));
-      return adjustedLegs;
+      return [newLeg];
     });
     
     // Only update prevSymbolRef after successful adjustment
