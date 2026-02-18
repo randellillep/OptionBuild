@@ -785,28 +785,35 @@ export default function Builder() {
     
     let anyChanged = false;
     const updatedLegs = legs.map(leg => {
-      if (leg.type === 'stock' || !leg.expirationDate) return leg;
+      if (leg.type === 'stock') return leg;
       
-      const nearestDate = findNearestDate(leg.expirationDate.split('T')[0]);
-      if (nearestDate === leg.expirationDate.split('T')[0]) return leg;
+      // Handle legs without expiration date or with dates not in available list
+      const legDate = leg.expirationDate?.split('T')[0];
+      if (!legDate || !availableDates.includes(legDate)) {
+        const targetDate = legDate || availableDates[0];
+        const nearestDate = findNearestDate(targetDate);
+        anyChanged = true;
+        return {
+          ...leg,
+          expirationDate: nearestDate,
+          expirationDays: recalcDays(nearestDate),
+        };
+      }
       
-      anyChanged = true;
-      return {
-        ...leg,
-        expirationDate: nearestDate,
-        expirationDays: recalcDays(nearestDate),
-      };
+      return leg;
     });
     
     if (anyChanged) {
       setLegs(updatedLegs);
-      const firstOptionLeg = updatedLegs.find(l => l.type !== 'stock' && l.expirationDate);
-      if (firstOptionLeg?.expirationDate) {
-        setSelectedExpiration(
-          firstOptionLeg.expirationDays,
-          firstOptionLeg.expirationDate
-        );
-      }
+    }
+    
+    // Always sync the timeline selection with the first leg's expiration
+    const firstOptionLeg = updatedLegs.find(l => l.type !== 'stock' && l.expirationDate);
+    if (firstOptionLeg?.expirationDate) {
+      setSelectedExpiration(
+        firstOptionLeg.expirationDays,
+        firstOptionLeg.expirationDate
+      );
     }
     
     lastProcessedSymbolChangeIdRef.current = symbolChangeId;
