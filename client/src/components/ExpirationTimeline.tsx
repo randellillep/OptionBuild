@@ -155,9 +155,10 @@ export function ExpirationTimeline({
   useEffect(() => {
     if (allDays.length === 0) return;
     
+    const roundedSelected = selectedDays !== null ? Math.round(selectedDays) : null;
     const shouldAutoSelect = 
       selectedDays === null || 
-      (selectedDays !== null && !allDays.includes(selectedDays));
+      (roundedSelected !== null && !allDays.includes(roundedSelected));
     
     if (shouldAutoSelect) {
       let targetDays = allDays[0];
@@ -188,8 +189,8 @@ export function ExpirationTimeline({
     return sorted.map(d => `${Math.round(d)}d`).join(', ');
   }, [activeLegsExpirations, selectedExpirationDays]);
 
-  // Check if a date has an active leg
-  const hasActiveLeg = (days: number) => activeLegsExpirations.includes(days);
+  // Check if a date has an active leg (rounded comparison to handle fractional vs integer days)
+  const hasActiveLeg = (days: number) => activeLegsExpirations.some(d => Math.round(d) === days);
 
   return (
     <div className="bg-muted/30 rounded-md px-2 py-1.5 border border-border">
@@ -216,10 +217,17 @@ export function ExpirationTimeline({
             {/* Date buttons row */}
             <div className="flex items-stretch border-r border-border">
               {group.dates.map(({ day, days }, idx) => {
-                const isSelected = selectedDays === days || (selectedDays === null && days === allDays[0]);
+                const isSelected = (selectedDays !== null && Math.round(selectedDays) === days) || (selectedDays === null && days === allDays[0]);
                 const hasLeg = hasActiveLeg(days);
                 
-                const expirationColor = expirationColorMap?.get(days);
+                let expirationColor: string | undefined;
+                if (expirationColorMap) {
+                  expirationColorMap.forEach((color, key) => {
+                    if (Math.round(key) === days) {
+                      expirationColor = color;
+                    }
+                  });
+                }
                 
                 return (
                   <button

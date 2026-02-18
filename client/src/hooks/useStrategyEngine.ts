@@ -423,9 +423,11 @@ export function useStrategyEngine(rangePercent: number = 14) {
 
   // Auto-snap selected expiration to nearest active leg when current selection
   // doesn't match any active leg (e.g. after removing a leg)
+  // Uses rounded comparison to avoid ping-pong between fractional leg days and integer timeline days
   useEffect(() => {
     if (uniqueExpirationDays.length === 0) return;
-    if (selectedExpirationDays !== null && uniqueExpirationDays.includes(selectedExpirationDays)) return;
+    if (selectedExpirationDays !== null && 
+        uniqueExpirationDays.some(d => Math.round(d) === Math.round(selectedExpirationDays))) return;
     
     // Find the active leg whose expirationDays matches the first unique day
     const targetDays = uniqueExpirationDays[0];
