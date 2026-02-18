@@ -585,12 +585,29 @@ export default function Builder() {
       }
       
       // Reset to a single ATM call for the new symbol
-      const daysToExp = 30;
+      // Compute expiration ~30 days out, snapping to nearest Friday
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + 30);
+      // Snap to nearest Friday
+      const dayOfWeek = targetDate.getDay();
+      const daysToFriday = (5 - dayOfWeek + 7) % 7;
+      if (daysToFriday > 0 && daysToFriday <= 3) {
+        targetDate.setDate(targetDate.getDate() + daysToFriday);
+      } else if (daysToFriday > 3) {
+        targetDate.setDate(targetDate.getDate() - (7 - daysToFriday));
+      }
+      const expDateStr = targetDate.toISOString().split('T')[0];
+      
+      // Calculate fractional days to expiration (4pm ET close)
+      const [ey, em, ed] = expDateStr.split('-').map(Number);
+      const expDateUTC = new Date(Date.UTC(ey, em - 1, ed, 21, 0, 0));
+      const daysToExp = Math.max(1, (expDateUTC.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      
       const newPremium = Math.max(0.01, Number(
         calculateOptionPrice('call', current.price, atmStrike, daysToExp, 0.3).toFixed(2)
       ));
       
-      console.log(`[AUTO-ADJUST] Resetting to single ATM call: strike ${atmStrike}, premium ${newPremium}`);
+      console.log(`[AUTO-ADJUST] Resetting to single ATM call: strike ${atmStrike}, premium ${newPremium}, exp ${expDateStr}`);
       
       const newLeg: OptionLeg = {
         id: `auto-${Date.now()}`,
@@ -600,11 +617,16 @@ export default function Builder() {
         quantity: 1,
         premium: newPremium,
         expirationDays: daysToExp,
+        expirationDate: expDateStr,
         visualOrder: 0,
       };
       
       return [newLeg];
     });
+    
+    // Reset the timeline selection to match the new default leg
+    // This prevents the old symbol's selected date from lingering
+    setSelectedExpiration(30, '');
     
     // Only update prevSymbolRef after successful adjustment
     prevSymbolRef.current = current;
