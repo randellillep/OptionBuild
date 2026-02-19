@@ -1182,6 +1182,29 @@ export default function Builder() {
   // Heatmap calculates each leg based on its individual expiration
   // No automatic sync - legs maintain independent expirations for multi-expiration strategies
 
+  // Auto-sync selected expiration when it becomes orphaned (e.g., after deleting legs)
+  // This prevents phantom timeline highlights on dates that no longer have any legs
+  useEffect(() => {
+    const activeOptionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
+    if (activeOptionLegs.length === 0) return;
+    
+    const remainingDates = new Set(activeOptionLegs.map(l => l.expirationDate).filter(Boolean));
+    if (remainingDates.size === 0) return;
+    
+    // If the currently selected date still has a leg, no sync needed
+    if (remainingDates.has(selectedExpirationDate)) return;
+    
+    // Also check with rounded day comparison for fractional days
+    const remainingDayRounds = new Set(activeOptionLegs.map(l => Math.round(l.expirationDays)));
+    if (selectedExpirationDays !== null && remainingDayRounds.has(Math.round(selectedExpirationDays))) return;
+    
+    // Selected date is orphaned - sync to first remaining leg's expiration
+    const firstLeg = activeOptionLegs[0];
+    if (firstLeg.expirationDate) {
+      setSelectedExpiration(firstLeg.expirationDays, firstLeg.expirationDate);
+    }
+  }, [legs, selectedExpirationDate, selectedExpirationDays, setSelectedExpiration]);
+
   // Use only actual available strikes from API (no extrapolation)
   const availableStrikes = useMemo(() => {
     if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) return null;
@@ -1468,35 +1491,28 @@ export default function Builder() {
   const removeLeg = (id: string) => {
     if (lastEditedLegId === id) setLastEditedLegId(null);
     setLegs(prevLegs => prevLegs.filter((leg) => {
-      if (leg.id !== id) return true; // Keep other legs
+      if (leg.id !== id) return true;
       
-      // Check if this leg has closed entries
       const closedEntries = leg.closingTransaction?.entries || [];
       const hasClosedEntries = closedEntries.length > 0 && leg.closingTransaction?.isEnabled;
       const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
       
-      // For stock legs that are FULLY closed (sold), allow complete deletion
       if (leg.type === "stock" && hasClosedEntries && closedQty >= leg.quantity) {
-        return false; // Remove completely
+        return false;
       }
       
-      // For options with closed entries, don't remove - just zero out open position
       if (hasClosedEntries) {
-        // This case shouldn't happen with new architecture but keep for safety
         return true;
       }
       
-      // No closed entries - remove completely
       return false;
     }).map((leg) => {
       if (leg.id !== id) return leg;
       
-      // If we're here, it's an option with partial close - set quantity to closed qty
       const closedEntries = leg.closingTransaction?.entries || [];
       const closedQty = closedEntries.reduce((sum, e) => sum + e.quantity, 0);
       return deepCopyLeg(leg, { quantity: closedQty });
     }));
-    // Clear frozen P/L values so live calculations take over
     setInitialPLFromSavedTrade(null);
   };
 

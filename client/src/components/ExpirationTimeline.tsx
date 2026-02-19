@@ -239,8 +239,10 @@ export function ExpirationTimeline({
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
                       hasLeg && expirationColor
                         ? ''
-                        : (hasLeg || isSelected)
+                        : hasLeg
                         ? 'bg-primary text-primary-foreground'
+                        : isSelected
+                        ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/40'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
                     style={hasLeg && expirationColor ? {
