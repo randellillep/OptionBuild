@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import type { MarketOptionQuote, MarketOptionChainSummary, OptionType, BacktestRequest, BacktestConfigData } from "@shared/schema";
-import { setupGoogleAuth, isAuthenticated } from "./googleAuth";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { runBacktest, runTastyworksBacktest } from "./backtesting";
 import { 
   Backtester, 
@@ -121,14 +121,20 @@ async function fetchAlpacaSnapshots(symbol: string, options?: { expiration?: str
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup Google OAuth authentication
-  await setupGoogleAuth(app);
+  // Setup Replit Auth (supports Google, GitHub, email sign-in on any domain)
+  await setupAuth(app);
 
   // Auth routes - get current user
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      // With Google OAuth, user object is directly available from passport
-      const user = req.user;
+      const claims = req.user?.claims;
+      if (!claims) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const user = await storage.getUser(claims.sub);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -139,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Saved trades routes - user-specific trade storage
   app.get('/api/trades', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.claims?.sub;
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
@@ -153,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/trades', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.claims?.sub;
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
@@ -187,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/trades/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.claims?.sub;
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
