@@ -162,6 +162,28 @@ export default function Builder() {
     return map;
   }, [legs]);
 
+  // Build leg expiration info for timeline (includes expired/expiring-today dates)
+  const legExpirationDates = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const seen = new Set<string>();
+    return legs
+      .filter(l => l.type !== 'stock' && l.expirationDate && l.quantity > 0)
+      .map(l => {
+        const date = l.expirationDate!.split('T')[0];
+        if (seen.has(date)) return null;
+        seen.add(date);
+        const expDate = new Date(date + 'T00:00:00');
+        return {
+          date,
+          days: l.expirationDays,
+          isExpired: expDate < todayStart,
+          isToday: expDate.getTime() === todayStart.getTime(),
+        };
+      })
+      .filter(Boolean) as { date: string; days: number; isExpired: boolean; isToday: boolean }[];
+  }, [legs]);
+
   const volatilityPercent = Math.round(volatility * 100);
   const calculatedIVPercent = Math.round(calculatedIV * 100);
   
@@ -249,29 +271,63 @@ export default function Builder() {
             // IMPORTANT: Preserve marketBid/Ask/Mark/Last from SavedTrades for immediate P/L consistency
             // Lock cost basis so premium never updates - only market fields will update
             // CRITICAL: Backfill visualOrder for legacy legs to maintain position stability
-            const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => ({
-              id: leg.id || `saved-${Date.now()}-${index}`,
-              type: leg.type || 'call',
-              position: leg.position || 'long',
-              strike: leg.strike || trade.price || 100,
-              quantity: leg.quantity || 1,
-              premium: leg.premium || 0,
-              expirationDays: recalculateExpirationDays(leg.expirationDate, leg.expirationDays),
-              premiumSource: 'saved' as const,  // Preserve original cost basis
-              costBasisLocked: true,            // Lock so premium never updates
-              impliedVolatility: leg.impliedVolatility,
-              entryUnderlyingPrice: leg.entryUnderlyingPrice ?? trade.price,
-              expirationDate: leg.expirationDate,
-              isExcluded: leg.isExcluded,
-              closingTransaction: leg.closingTransaction,
-              // Preserve market data from SavedTrades for immediate consistency
-              marketBid: leg.marketBid,
-              marketAsk: leg.marketAsk,
-              marketMark: leg.marketMark,
-              marketLast: leg.marketLast,
-              // Backfill visualOrder for legacy legs - use index to preserve original order
-              visualOrder: leg.visualOrder ?? index,
-            }));
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+            
+            const normalizedLegs: OptionLeg[] = trade.legs.map((leg: Partial<OptionLeg>, index: number) => {
+              const expDate = leg.expirationDate?.split('T')[0];
+              const isLegExpired = expDate
+                ? new Date(expDate + 'T00:00:00') < todayDate
+                : false; // Legacy legs without expirationDate are not treated as expired
+              
+              const normalLeg: OptionLeg = {
+                id: leg.id || `saved-${Date.now()}-${index}`,
+                type: leg.type || 'call',
+                position: leg.position || 'long',
+                strike: leg.strike || trade.price || 100,
+                quantity: leg.quantity || 1,
+                premium: leg.premium || 0,
+                expirationDays: recalculateExpirationDays(leg.expirationDate, leg.expirationDays),
+                premiumSource: 'saved' as const,
+                costBasisLocked: true,
+                impliedVolatility: leg.impliedVolatility,
+                entryUnderlyingPrice: leg.entryUnderlyingPrice ?? trade.price,
+                expirationDate: leg.expirationDate,
+                isExcluded: leg.isExcluded,
+                closingTransaction: leg.closingTransaction,
+                marketBid: leg.marketBid,
+                marketAsk: leg.marketAsk,
+                marketMark: leg.marketMark,
+                marketLast: leg.marketLast,
+                visualOrder: leg.visualOrder ?? index,
+              };
+              
+              // Auto-close expired legs at $0 (expired worthless) if not already closed
+              // We use $0 as the closing price because we don't have the actual
+              // underlying price at expiration. User can edit the closing price
+              // in the leg details panel if the option expired with intrinsic value.
+              if (isLegExpired && !leg.closingTransaction?.isEnabled) {
+                normalLeg.closingTransaction = {
+                  quantity: normalLeg.quantity,
+                  closingPrice: 0,
+                  isEnabled: true,
+                  entries: [{
+                    id: `exp-${normalLeg.id}`,
+                    quantity: normalLeg.quantity,
+                    closingPrice: 0,
+                    strike: normalLeg.strike,
+                    openingPrice: normalLeg.premium,
+                    closedAt: expDate || new Date().toISOString().split('T')[0],
+                  }],
+                };
+                normalLeg.marketBid = 0;
+                normalLeg.marketAsk = 0;
+                normalLeg.marketMark = 0;
+                normalLeg.marketLast = 0;
+              }
+              
+              return normalLeg;
+            });
             
             setLegs(normalizedLegs);
             
@@ -807,6 +863,17 @@ export default function Builder() {
       
       // Handle legs without expiration date or with dates not in available list
       const legDate = leg.expirationDate?.split('T')[0];
+      
+      // Preserve expired/expiring-today dates for saved trades - don't snap them
+      if (legDate) {
+        const legDateTime = new Date(legDate + 'T00:00:00');
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        if (legDateTime <= todayStart && leg.premiumSource === 'saved') {
+          return leg;
+        }
+      }
+      
       if (!legDate || !availableDates.includes(legDate)) {
         const targetDate = legDate || availableDates[0];
         const nearestDate = findNearestDate(targetDate);
@@ -1008,8 +1075,16 @@ export default function Builder() {
 
     setLegs(currentLegs => {
       let updated = false;
+      const nowDate = new Date();
+      nowDate.setHours(0, 0, 0, 0);
       const newLegs = currentLegs.map(leg => {
         if (leg.type === "stock") return leg;
+        
+        // Skip expired legs - no market data to update
+        if (leg.expirationDate) {
+          const legExp = new Date(leg.expirationDate.split('T')[0] + 'T00:00:00');
+          if (legExp < nowDate) return leg;
+        }
 
         // Get the correct chain for THIS leg's expiration
         const legChain = getChainForLeg(leg);
@@ -1902,6 +1977,7 @@ export default function Builder() {
                 symbol={symbolInfo.symbol}
                 activeLegsExpirations={legs.some(l => l.type !== 'stock' && l.quantity > 0) ? uniqueExpirationDays : []}
                 expirationColorMap={expirationColorMap}
+                legExpirationDates={legExpirationDates}
               />
 
               <EquityPanel

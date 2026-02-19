@@ -1,6 +1,13 @@
 import { useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+interface LegExpirationInfo {
+  date: string;
+  days: number;
+  isExpired: boolean;
+  isToday?: boolean;
+}
+
 interface ExpirationTimelineProps {
   expirationDays: number[];
   selectedDays: number | null;
@@ -9,6 +16,7 @@ interface ExpirationTimelineProps {
   symbol?: string;
   activeLegsExpirations?: number[]; // Unique expiration days from active legs
   expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
+  legExpirationDates?: LegExpirationInfo[]; // Leg expiration dates to inject (including expired)
 }
 
 interface OptionsExpirationsResponse {
@@ -61,6 +69,7 @@ export function ExpirationTimeline({
   symbol = "SPY",
   activeLegsExpirations = [],
   expirationColorMap,
+  legExpirationDates = [],
 }: ExpirationTimelineProps) {
   const today = new Date();
   
@@ -73,6 +82,18 @@ export function ExpirationTimeline({
   
   // Generate standard options expiration dates as fallback
   const expirationDates = useMemo(() => getOptionsExpirationDates(), []);
+  
+  // Track which day counts are expired (from leg dates)
+  const expiredDaysSet = useMemo(() => {
+    const set = new Set<number>();
+    legExpirationDates.forEach(info => {
+      if (info.isExpired) {
+        const dayCount = Math.ceil((new Date(info.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        set.add(dayCount);
+      }
+    });
+    return set;
+  }, [legExpirationDates, today]);
   
   // Convert API expiration dates to days from today and create mapping
   const { apiExpirationDays, daysToDateMap } = useMemo(() => {
@@ -92,8 +113,22 @@ export function ExpirationTimeline({
       })
       .filter((days: number) => days >= 0);
     
+    // Inject expired/today leg dates that aren't in the API list
+    legExpirationDates.forEach(info => {
+      if (info.isExpired || info.isToday) {
+        const dayCount = Math.ceil((new Date(info.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (!days.includes(dayCount)) {
+          mapping.set(dayCount, info.date);
+          days.push(dayCount);
+        }
+      }
+    });
+    
+    // Re-sort after injecting expired dates
+    days.sort((a: number, b: number) => a - b);
+    
     return { apiExpirationDays: days, daysToDateMap: mapping };
-  }, [apiExpirations, today]);
+  }, [apiExpirations, today, legExpirationDates]);
   
   // Convert calculated dates to days from today (fallback) and create mapping
   const { calculatedExpirationDays, calculatedDaysToDateMap } = useMemo(() => {
@@ -161,11 +196,16 @@ export function ExpirationTimeline({
       (roundedSelected !== null && !allDays.includes(roundedSelected));
     
     if (shouldAutoSelect) {
-      let targetDays = allDays[0];
+      // Prefer first non-expired date when auto-selecting
+      const nonExpiredDays = allDays.filter((d: number) => !expiredDaysSet.has(d));
+      const defaultDays = nonExpiredDays.length > 0 ? nonExpiredDays[0] : allDays[0];
+      let targetDays = defaultDays;
       
       if (selectedDays !== null) {
-        let minDiff = Math.abs(allDays[0] - selectedDays);
-        for (const d of allDays) {
+        const searchPool = nonExpiredDays.length > 0 ? nonExpiredDays : allDays;
+        let minDiff = Math.abs(searchPool[0] - selectedDays);
+        targetDays = searchPool[0];
+        for (const d of searchPool) {
           const diff = Math.abs(d - selectedDays);
           if (diff < minDiff) {
             minDiff = diff;
@@ -181,16 +221,26 @@ export function ExpirationTimeline({
   }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect]);
 
   // Format expirations label: "2d, 11d" for multiple, or "30d" for single
+  // Show "0d" for expired legs (they have expirationDays capped at 0)
   const expirationsLabel = useMemo(() => {
     if (activeLegsExpirations.length === 0) {
       return `${Math.round(selectedExpirationDays)}d`;
     }
     const sorted = [...activeLegsExpirations].sort((a, b) => a - b);
-    return sorted.map(d => `${Math.round(d)}d`).join(', ');
+    return sorted.map(d => {
+      const rounded = Math.round(d);
+      return rounded <= 0 ? '0d' : `${rounded}d`;
+    }).join(', ');
   }, [activeLegsExpirations, selectedExpirationDays]);
 
   // Check if a date has an active leg (rounded comparison to handle fractional vs integer days)
-  const hasActiveLeg = (days: number) => activeLegsExpirations.some(d => Math.round(d) === days);
+  // Also check injected expired leg dates by matching the date string
+  const hasActiveLeg = (days: number) => {
+    if (activeLegsExpirations.some(d => Math.round(d) === days)) return true;
+    const dateStr = activeDaysToDateMap.get(days);
+    if (dateStr && legExpirationDates.some(info => info.date === dateStr)) return true;
+    return false;
+  };
 
   return (
     <div className="bg-muted/30 rounded-md px-2 py-1.5 border border-border">
@@ -219,6 +269,7 @@ export function ExpirationTimeline({
               {group.dates.map(({ day, days }, idx) => {
                 const isSelected = (selectedDays !== null && Math.round(selectedDays) === days) || (selectedDays === null && days === allDays[0]);
                 const hasLeg = hasActiveLeg(days);
+                const isExpiredDate = expiredDaysSet.has(days);
                 
                 let expirationColor: string | undefined;
                 if (expirationColorMap) {
@@ -237,7 +288,9 @@ export function ExpirationTimeline({
                       onSelectDays(days, dateStr);
                     }}
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
-                      hasLeg && expirationColor
+                      isExpiredDate && hasLeg
+                        ? 'bg-muted-foreground/60 text-muted line-through'
+                        : hasLeg && expirationColor
                         ? ''
                         : hasLeg
                         ? 'bg-primary text-primary-foreground'
@@ -245,10 +298,13 @@ export function ExpirationTimeline({
                         ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/40'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
-                    style={hasLeg && expirationColor ? {
-                      backgroundColor: expirationColor,
-                      color: 'white',
-                    } : undefined}
+                    style={
+                      isExpiredDate && hasLeg
+                        ? { opacity: 0.8 }
+                        : hasLeg && expirationColor
+                        ? { backgroundColor: expirationColor, color: 'white' }
+                        : undefined
+                    }
                     data-testid={`button-expiration-${days}`}
                   >
                     {day}
