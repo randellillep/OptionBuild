@@ -997,9 +997,46 @@ export default function Builder() {
         const theoreticalDTE = Math.max(14, legDTE);
 
         // Find matching market quote from this leg's chain
-        const matchingQuote = legChain.quotes.find(
+        let matchingQuote = legChain.quotes.find(
           q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
         );
+
+        // If no exact strike match, snap to nearest available strike
+        // This fixes cases where roundStrike produces strikes that don't exist (e.g., 187.5 when only 185/190 available)
+        if (!matchingQuote) {
+          const sameTypeQuotes = legChain.quotes.filter(q => q.side.toLowerCase() === leg.type);
+          if (sameTypeQuotes.length > 0) {
+            const nearestQuote = sameTypeQuotes.reduce((closest, q) =>
+              Math.abs(q.strike - leg.strike) < Math.abs(closest.strike - leg.strike) ? q : closest
+            );
+            if (Math.abs(nearestQuote.strike - leg.strike) > 0.01) {
+              updated = true;
+              const snappedStrike = nearestQuote.strike;
+              matchingQuote = nearestQuote;
+              return deepCopyLeg(leg, {
+                strike: snappedStrike,
+                premium: Number(Math.max(0.01, nearestQuote.mid).toFixed(2)),
+                marketQuoteId: nearestQuote.optionSymbol,
+                premiumSource: 'market' as const,
+                impliedVolatility: nearestQuote.mid > 0 && symbolInfo?.price
+                  ? calculateImpliedVolatility(
+                      nearestQuote.side as 'call' | 'put',
+                      symbolInfo.price,
+                      snappedStrike,
+                      effectiveDTE,
+                      nearestQuote.mid
+                    )
+                  : (nearestQuote.iv || 0.3),
+                entryUnderlyingPrice: symbolInfo.price,
+                marketBid: nearestQuote.bid,
+                marketAsk: nearestQuote.ask,
+                marketMark: nearestQuote.mid,
+                marketLast: nearestQuote.last,
+                costBasisLocked: true,
+              });
+            }
+          }
+        }
 
         const underlyingPriceChanged = (leg.entryUnderlyingPrice && symbolInfo?.price &&
           Math.abs(leg.entryUnderlyingPrice - symbolInfo.price) / symbolInfo.price > 0.20);
