@@ -49,12 +49,16 @@ async function fetchAlpacaSnapshots(symbol: string, options?: { expiration?: str
   let pageToken: string | null = null;
   let pageCount = 0;
   const maxPages = 10; // Limit to prevent infinite loops (1000 options max)
+  const todayStr = new Date().toISOString().split('T')[0];
   
   do {
     // Build URL with optional expiration filter and pagination
+    // Include expiration_date_gte=today to ensure same-day expirations are returned
     let url = `${ALPACA_BASE_URL}/options/snapshots/${symbol.toUpperCase()}?feed=indicative&limit=100`;
     if (options?.expiration) {
       url += `&expiration_date=${options.expiration}`;
+    } else {
+      url += `&expiration_date_gte=${todayStr}`;
     }
     if (pageToken) {
       url += `&page_token=${encodeURIComponent(pageToken)}`;
