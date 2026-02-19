@@ -119,6 +119,11 @@ export default function Builder() {
   // Using STATE (not ref) so auto-update re-fires after snap-to-nearest processes
   const [lastProcessedSymbolChangeId, setLastProcessedSymbolChangeId] = useState(symbolChangeId);
   
+  // Smooth transition when loading a saved trade - prevents flashing as
+  // dates/strikes snap to available values and chain data loads
+  const [savedTradeSettling, setSavedTradeSettling] = useState(false);
+  const savedTradeSettlingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
   // Track the leg whose expiration was most recently edited (added or changed via panel)
   const [lastEditedLegId, setLastEditedLegId] = useState<string | null>(null);
   
@@ -193,6 +198,12 @@ export default function Builder() {
         if (savedTradeData) {
           const trade = JSON.parse(savedTradeData);
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
+            // Start settling transition - hides intermediate flashing as dates/strikes snap
+            setSavedTradeSettling(true);
+            if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
+            // Safety fallback: clear after 2s max in case snap-to-nearest doesn't fire
+            savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 2000);
+            
             // Use the current price passed from SavedTrades (if available) for immediate consistency
             // This ensures the heatmap shows the EXACT same P/L as Total Return in Saved Trades
             const initialPrice = trade._currentPrice || trade.price || 100;
@@ -334,6 +345,10 @@ export default function Builder() {
         if (sharedData) {
           const strategy = JSON.parse(sharedData);
           if (strategy.symbol && strategy.legs && Array.isArray(strategy.legs)) {
+            setSavedTradeSettling(true);
+            if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
+            savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 2000);
+            
             // IMMEDIATELY fetch current price so heatmap shows accurate P/L from the start
             setSymbolInfoForSavedTrade({ symbol: strategy.symbol, price: strategy.price || 100 });
             
@@ -820,6 +835,15 @@ export default function Builder() {
     }
     
     setLastProcessedSymbolChangeId(symbolChangeId);
+    
+    // Clear the saved trade settling transition after snap completes
+    // Small delay allows chain-dependent premium updates to also settle
+    if (savedTradeSettling) {
+      if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
+      savedTradeSettlingTimerRef.current = setTimeout(() => {
+        setSavedTradeSettling(false);
+      }, 300);
+    }
   }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration]);
 
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
@@ -1844,7 +1868,7 @@ export default function Builder() {
         </div>
       </header>
 
-      <div className="container mx-auto px-3 md:px-4 py-2">
+      <div className={`container mx-auto px-3 md:px-4 py-2 transition-opacity duration-300 ${savedTradeSettling ? 'opacity-40' : 'opacity-100'}`}>
         <div className="space-y-2">
           <TradingViewSearch 
             symbolInfo={symbolInfo} 
