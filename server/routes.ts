@@ -237,17 +237,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stock quote endpoint - fetches real-time price for a symbol (using Alpaca)
+  // Known index symbols that don't have stock quotes in Alpaca
+  const INDEX_SYMBOLS = new Set(['SPX', 'NDX', 'RUT', 'DJX', 'VIX', 'OEX', 'XSP', 'SPXW']);
+  
+  // Infer index price from options chain using put-call parity at ATM
+  async function inferIndexPriceFromOptions(symbol: string): Promise<number | null> {
+    try {
+      const { snapshots } = await fetchAlpacaSnapshots(symbol);
+      const optionSymbols = Object.keys(snapshots);
+      if (optionSymbols.length === 0) return null;
+      
+      // Group options by strike and type
+      const strikeData: Record<number, { call?: { bid: number; ask: number }; put?: { bid: number; ask: number } }> = {};
+      
+      for (const sym of optionSymbols) {
+        const match = sym.match(/^[A-Z]+\d{6}([CP])(\d{8})$/);
+        if (!match) continue;
+        const type = match[1] === 'C' ? 'call' : 'put';
+        const strike = parseInt(match[2]) / 1000;
+        const snap = snapshots[sym];
+        const bid = snap?.latestQuote?.bp || 0;
+        const ask = snap?.latestQuote?.ap || 0;
+        if (bid <= 0 && ask <= 0) continue;
+        
+        if (!strikeData[strike]) strikeData[strike] = {};
+        strikeData[strike][type] = { bid, ask };
+      }
+      
+      // Find ATM using put-call parity: S ≈ Strike + CallMid - PutMid
+      let bestEstimate = 0;
+      let smallestDiff = Infinity;
+      
+      for (const [strikeStr, data] of Object.entries(strikeData)) {
+        if (!data.call || !data.put) continue;
+        const strike = parseFloat(strikeStr);
+        const callMid = (data.call.bid + data.call.ask) / 2;
+        const putMid = (data.put.bid + data.put.ask) / 2;
+        const diff = Math.abs(callMid - putMid);
+        
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          bestEstimate = strike + callMid - putMid;
+        }
+      }
+      
+      if (bestEstimate > 0) {
+        console.log(`[Index Price] Inferred ${symbol} price from options: $${bestEstimate.toFixed(2)}`);
+        return bestEstimate;
+      }
+      return null;
+    } catch (e) {
+      console.error(`[Index Price] Failed to infer price for ${symbol}:`, e);
+      return null;
+    }
+  }
+
   app.get("/api/stock/quote/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
+      const upperSymbol = symbol.toUpperCase();
       
       if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
         return res.status(500).json({ error: "Alpaca API keys not configured" });
       }
 
+      // For index symbols, skip the stock API and infer price from options
+      if (INDEX_SYMBOLS.has(upperSymbol)) {
+        const inferredPrice = await inferIndexPriceFromOptions(upperSymbol);
+        if (inferredPrice && inferredPrice > 0) {
+          return res.json({
+            symbol: upperSymbol,
+            price: Math.round(inferredPrice * 100) / 100,
+            previousClose: inferredPrice,
+            change: 0,
+            changePercent: 0,
+            high: inferredPrice,
+            low: inferredPrice,
+            open: inferredPrice,
+            timestamp: Date.now() / 1000,
+            isIndex: true,
+          });
+        }
+        return res.status(404).json({ error: `Unable to get price for index ${upperSymbol}` });
+      }
+
       // Fetch latest trade and previous day bar for change calculation
       // Use snapshot endpoint to get current price AND previous day's close
-      const snapshotRes = await fetch(`https://data.alpaca.markets/v2/stocks/${symbol.toUpperCase()}/snapshot?feed=iex`, {
+      const snapshotRes = await fetch(`https://data.alpaca.markets/v2/stocks/${upperSymbol}/snapshot?feed=iex`, {
         headers: {
           'APCA-API-KEY-ID': ALPACA_API_KEY,
           'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
@@ -255,6 +331,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!snapshotRes.ok) {
+        // If stock quote fails, try inferring from options (might be an unlisted index)
+        const inferredPrice = await inferIndexPriceFromOptions(upperSymbol);
+        if (inferredPrice && inferredPrice > 0) {
+          return res.json({
+            symbol: upperSymbol,
+            price: Math.round(inferredPrice * 100) / 100,
+            previousClose: inferredPrice,
+            change: 0,
+            changePercent: 0,
+            high: inferredPrice,
+            low: inferredPrice,
+            open: inferredPrice,
+            timestamp: Date.now() / 1000,
+            isIndex: true,
+          });
+        }
         throw new Error(`Alpaca API error: ${snapshotRes.status}`);
       }
 
@@ -273,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
 
       res.json({
-        symbol: symbol.toUpperCase(),
+        symbol: upperSymbol,
         price: currentPrice,
         previousClose: previousClose,
         change: change,
@@ -346,6 +438,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { symbol: 'IWM', name: 'iShares Russell 2000 ETF' },
     { symbol: 'GLD', name: 'SPDR Gold Trust' },
     { symbol: 'SLV', name: 'iShares Silver Trust' },
+    { symbol: 'SPX', name: 'S&P 500 Index' },
+    { symbol: 'NDX', name: 'Nasdaq-100 Index' },
+    { symbol: 'RUT', name: 'Russell 2000 Index' },
+    { symbol: 'DJX', name: 'Dow Jones Industrial Index' },
+    { symbol: 'VIX', name: 'CBOE Volatility Index' },
+    { symbol: 'XSP', name: 'S&P 500 Mini Index' },
   ];
 
   app.get("/api/stock/search", async (req, res) => {
