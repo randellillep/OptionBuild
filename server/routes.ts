@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import type { MarketOptionQuote, MarketOptionChainSummary, OptionType, BacktestRequest, BacktestConfigData } from "@shared/schema";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated as replitIsAuthenticated } from "./replitAuth";
+import { setupGoogleAuth, isGoogleAuthenticated } from "./googleAuth";
 import { runBacktest, runTastyworksBacktest } from "./backtesting";
 import { 
   Backtester, 
@@ -121,17 +122,36 @@ async function fetchAlpacaSnapshots(symbol: string, options?: { expiration?: str
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup Replit Auth (supports Google, GitHub, email sign-in on any domain)
-  await setupAuth(app);
+  // Detect environment: use Replit Auth when running in Replit, Google OAuth otherwise (e.g., Render)
+  const useReplitAuth = !!process.env.REPL_ID;
+  
+  if (useReplitAuth) {
+    console.log("[Auth] Using Replit Auth (Replit environment detected)");
+    await setupAuth(app);
+  } else {
+    console.log("[Auth] Using Google OAuth (external deployment detected)");
+    await setupGoogleAuth(app);
+  }
+
+  // Helper to get user ID from request (works with both auth systems)
+  const getUserId = (req: any): string | null => {
+    if (useReplitAuth) {
+      return req.user?.claims?.sub || null;
+    }
+    return req.user?.id || null;
+  };
+
+  // Use the appropriate auth middleware
+  const isAuthenticated = useReplitAuth ? replitIsAuthenticated : isGoogleAuthenticated;
 
   // Auth routes - get current user
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const claims = req.user?.claims;
-      if (!claims) {
+      const userId = getUserId(req);
+      if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      const user = await storage.getUser(claims.sub);
+      const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -145,7 +165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Saved trades routes - user-specific trade storage
   app.get('/api/trades', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
@@ -159,7 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/trades', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
@@ -193,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/trades/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = getUserId(req);
       if (!userId) {
         return res.status(401).json({ error: "User not authenticated" });
       }
