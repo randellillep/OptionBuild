@@ -486,6 +486,8 @@ export default function Builder() {
             return deepCopyLeg(leg, {
               strike: newStrike,
               id: Date.now().toString() + leg.id + index,
+              expirationDays: selectedExpirationDays || leg.expirationDays || 30,
+              expirationDate: selectedExpirationDate || undefined,
             });
           });
           
@@ -1567,7 +1569,9 @@ export default function Builder() {
     
     if (!currentPrice || !isFinite(currentPrice) || currentPrice <= 0) {
       const fallbackLegs = template.legs.map((leg, index) => deepCopyLeg(leg, { 
-        id: Date.now().toString() + leg.id + index 
+        id: Date.now().toString() + leg.id + index,
+        expirationDays: selectedExpirationDays || leg.expirationDays || 30,
+        expirationDate: selectedExpirationDate || undefined,
       }));
       setLegs(applyMarketPrices(fallbackLegs));
       return;
@@ -1635,6 +1639,8 @@ export default function Builder() {
       return deepCopyLeg(leg, {
         strike: newStrike,
         id: Date.now().toString() + leg.id + index,
+        expirationDays: selectedExpirationDays || leg.expirationDays || 30,
+        expirationDate: selectedExpirationDate || undefined,
       });
     });
     
