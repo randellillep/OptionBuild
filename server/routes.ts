@@ -462,10 +462,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { symbol } = req.params;
       
-      // Use shared helper to fetch snapshots and extract expirations
-      const { availableExpirations, count } = await fetchAlpacaSnapshots(symbol);
+      // Fetch general snapshots AND check today's date specifically in parallel
+      // The general fetch may miss today due to the 1000-option limit on popular stocks
+      const todayStr = new Date().toISOString().split('T')[0];
+      const [generalResult, todayResult] = await Promise.all([
+        fetchAlpacaSnapshots(symbol),
+        fetchAlpacaSnapshots(symbol, { expiration: todayStr }).catch(() => ({ availableExpirations: [], count: 0 })),
+      ]);
       
-      if (availableExpirations.length === 0) {
+      // Merge expirations: add today if it has options but wasn't in general results
+      const expirationSet = new Set(generalResult.availableExpirations);
+      todayResult.availableExpirations.forEach((exp: string) => expirationSet.add(exp));
+      const mergedExpirations = Array.from(expirationSet).sort();
+      
+      if (mergedExpirations.length === 0) {
         return res.status(404).json({ 
           error: `No options found for ${symbol.toUpperCase()}`,
           expirations: []
@@ -474,8 +484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         symbol: symbol.toUpperCase(),
-        expirations: availableExpirations,
-        count,
+        expirations: mergedExpirations,
+        count: generalResult.count + todayResult.count,
         updated: Date.now(),
       });
     } catch (error: any) {
@@ -537,9 +547,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use shared helper to fetch snapshots with pagination
       // Pass expiration to filter on server-side for better efficiency
-      const { snapshots, availableExpirations, count } = await fetchAlpacaSnapshots(symbol, 
+      const { snapshots, availableExpirations: rawExpirations, count } = await fetchAlpacaSnapshots(symbol, 
         expiration ? { expiration } : undefined
       );
+      
+      // When fetching without a specific expiration, also check today's date
+      // The 1000-option limit may cause today's expiration to be missed for popular stocks
+      let availableExpirations = rawExpirations;
+      if (!expiration) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (!rawExpirations.includes(todayStr)) {
+          try {
+            const todayCheck = await fetchAlpacaSnapshots(symbol, { expiration: todayStr });
+            if (todayCheck.count > 0) {
+              availableExpirations = Array.from(new Set([todayStr, ...rawExpirations])).sort();
+            }
+          } catch (e) {
+            // Today has no options for this symbol - that's fine
+          }
+        }
+      }
       
       console.log(`[Options Chain] Fetched ${count} snapshots for ${symbol.toUpperCase()}`);
       console.log(`[Options Chain] Available expirations:`, availableExpirations.slice(0, 5));
