@@ -73,12 +73,20 @@ export function StrikeLadder({
   const ladderRef = useRef<HTMLDivElement>(null);
   const prevSymbolRef = useRef<string>(symbol);
 
+  const calculateAdaptiveZoomFactor = (minStrike: number, maxStrike: number, increment: number) => {
+    const fullRangeCalc = maxStrike - minStrike;
+    if (fullRangeCalc <= 0 || increment <= 0) return 0.5;
+    const targetVisibleStrikes = 30;
+    const idealVisibleRange = targetVisibleStrikes * increment;
+    const adaptive = idealVisibleRange / fullRangeCalc;
+    return Math.max(0.03, Math.min(0.6, adaptive));
+  };
+
   // Calculate pan offset needed to center on current price
-  const calculateCenterPanOffset = (minStrike: number, maxStrike: number, price: number) => {
+  const calculateCenterPanOffset = (minStrike: number, maxStrike: number, price: number, zf: number) => {
     const fullRangeCalc = maxStrike - minStrike;
     if (fullRangeCalc <= 0) return 0;
-    const zoomFactorCalc = 0.5;
-    const baseRangeCalc = fullRangeCalc * zoomFactorCalc;
+    const baseRangeCalc = fullRangeCalc * zf;
     // Default center (when panOffset = 0) is the middle of the strike range
     const defaultCenter = (minStrike + maxStrike) / 2;
     // We want the center to be at currentPrice
@@ -88,23 +96,6 @@ export function StrikeLadder({
     const offset = ((price - defaultCenter) / baseRangeCalc) * 100;
     return offset;
   };
-
-  // Track when we need to recenter (symbol change or first data load)
-  const prevDataKeyRef = useRef<string>("");
-  
-  // Recenter on current price when symbol changes OR when strike data loads
-  useEffect(() => {
-    // Create a key that changes when symbol or strike range significantly changes
-    const dataKey = `${symbol}-${strikeRange.min.toFixed(0)}-${strikeRange.max.toFixed(0)}`;
-    
-    if (dataKey !== prevDataKeyRef.current) {
-      const centerOffset = calculateCenterPanOffset(strikeRange.min, strikeRange.max, currentPrice);
-      setPanOffset(centerOffset);
-      setLastMovedLeg(null);
-      prevDataKeyRef.current = dataKey;
-      prevSymbolRef.current = symbol;
-    }
-  }, [symbol, strikeRange.min, strikeRange.max, currentPrice]);
 
   const strikeIncrement = useMemo(() => {
     if (availableStrikes && availableStrikes.strikes.length > 1) {
@@ -136,8 +127,24 @@ export function StrikeLadder({
     return 10;
   }, [availableStrikes, currentPrice]);
 
+  // Track when we need to recenter (symbol change or first data load)
+  const prevDataKeyRef = useRef<string>("");
+  
+  useEffect(() => {
+    const dataKey = `${symbol}-${strikeRange.min.toFixed(0)}-${strikeRange.max.toFixed(0)}`;
+    
+    if (dataKey !== prevDataKeyRef.current) {
+      const zf = calculateAdaptiveZoomFactor(strikeRange.min, strikeRange.max, strikeIncrement);
+      const centerOff = calculateCenterPanOffset(strikeRange.min, strikeRange.max, currentPrice, zf);
+      setPanOffset(centerOff);
+      setLastMovedLeg(null);
+      prevDataKeyRef.current = dataKey;
+      prevSymbolRef.current = symbol;
+    }
+  }, [symbol, strikeRange.min, strikeRange.max, currentPrice, strikeIncrement]);
+
   const fullRange = strikeRange.max - strikeRange.min;
-  const zoomFactor = 0.5;
+  const zoomFactor = calculateAdaptiveZoomFactor(strikeRange.min, strikeRange.max, strikeIncrement);
   const baseRange = fullRange * zoomFactor;
   const centerOffset = (fullRange - baseRange) / 2;
   const panAdjustment = (panOffset / 100) * baseRange;
