@@ -805,6 +805,12 @@ export function StrikeLadder({
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
+    const closedExpirationSubscript = (() => {
+      if (!leg.expirationDate) return '';
+      const d = new Date(leg.expirationDate);
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    })();
+
     return (
       <Popover 
         key={`closed-${entry.id}`} 
@@ -827,7 +833,7 @@ export function StrikeLadder({
               transform: 'translateX(-50%)',
               top: topPosition,
               opacity: isExcluded ? 0.5 : (isOutOfView ? 0.7 : 1),
-              zIndex: 5, // Closed badges always below open badges
+              zIndex: 5,
             }}
           >
             <button
@@ -849,15 +855,23 @@ export function StrikeLadder({
                   style={{ borderBottomColor: isExcluded ? '#64748b' : closedBgColor }}
                 />
               )}
-              <div
-                className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
-                style={{ 
-                  backgroundColor: isExcluded ? undefined : closedBgColor,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                }}
-              >
-                {strikeText}
-                <Check className="h-3 w-3" />
+              <div className="relative">
+                <div
+                  className={`text-[14px] h-6 min-h-6 max-h-6 px-2 text-white font-bold whitespace-nowrap rounded flex items-center gap-1 ${isExcluded ? 'line-through bg-slate-500' : ''}`}
+                  style={{ 
+                    backgroundColor: isExcluded ? undefined : closedBgColor,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  {strikeText}
+                  <Check className="h-3 w-3" />
+                </div>
+                {closedExpirationSubscript && (
+                  <div
+                    className="absolute -top-2.5 -right-2 text-[8px] font-bold text-white rounded-sm px-1 py-px z-[100] leading-tight"
+                    style={{ backgroundColor: closedBgColor, border: '1px solid rgba(255,255,255,0.3)' }}
+                  >{closedExpirationSubscript}</div>
+                )}
               </div>
               {position === 'long' && (
                 <div 
