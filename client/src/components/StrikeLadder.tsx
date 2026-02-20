@@ -503,6 +503,8 @@ export function StrikeLadder({
     // Get expiration color for multi-expiration visual coding (OptionStrat-style)
     const expirationColor = expirationColorMap?.get(leg.expirationDays);
     const hasMultipleExpirations = expirationColorMap && expirationColorMap.size > 1;
+    const hasAnyClosedLegs = legs.some(l => l.type !== 'stock' && l.closingTransaction?.isEnabled && 
+      (l.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0) >= l.quantity);
     
     // Format expiration date as short subscript (M/D format)
     const formatExpirationSubscript = (date: string | undefined) => {
@@ -589,7 +591,7 @@ export function StrikeLadder({
                     x{hasClosing ? remainingQty : quantity}
                   </div>
                 )}
-                {hasMultipleExpirations && expirationSubscript && (
+                {(hasMultipleExpirations || hasAnyClosedLegs) && expirationSubscript && (
                   <div
                     className="absolute -top-2 -right-2 text-[8px] font-bold text-white rounded-sm px-1 py-px z-[100] leading-tight"
                     style={{ backgroundColor: expirationColor || 'rgba(255,255,255,0.3)' }}
