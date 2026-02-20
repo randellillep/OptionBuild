@@ -659,17 +659,10 @@ export default function Builder() {
       }
       
       // Reset to a single ATM call for the new symbol
-      // Compute expiration ~30 days out, snapping to nearest Friday
+      // Use a near-term placeholder date (tomorrow) - snap-to-nearest will
+      // update this to the actual nearest available expiration from the API
       const targetDate = new Date();
-      targetDate.setDate(targetDate.getDate() + 30);
-      // Snap to nearest Friday
-      const dayOfWeek = targetDate.getDay();
-      const daysToFriday = (5 - dayOfWeek + 7) % 7;
-      if (daysToFriday > 0 && daysToFriday <= 3) {
-        targetDate.setDate(targetDate.getDate() + daysToFriday);
-      } else if (daysToFriday > 3) {
-        targetDate.setDate(targetDate.getDate() - (7 - daysToFriday));
-      }
+      targetDate.setDate(targetDate.getDate() + 1);
       const expDateStr = targetDate.toISOString().split('T')[0];
       
       // Calculate fractional days to expiration (4pm ET close)
@@ -698,9 +691,9 @@ export default function Builder() {
       return [newLeg];
     });
     
-    // Reset the timeline selection to match the new default leg
-    // This prevents the old symbol's selected date from lingering
-    setSelectedExpiration(30, '');
+    // Don't clear selectedExpirationDate here - the snap-to-nearest effect
+    // will update it to the correct nearest future date for the new symbol.
+    // Clearing it disables the chain query and delays heatmap updates.
     
     // Only update prevSymbolRef after successful adjustment
     prevSymbolRef.current = current;
@@ -831,6 +824,10 @@ export default function Builder() {
     
     const availableDates = optionsExpirationsData.expirations;
     const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Find nearest future expiration (first date >= today, sorted ascending)
+    const nearestFutureDate = availableDates.find(d => d >= todayStr) || availableDates[0];
     
     const findNearestDate = (targetDate: string): string => {
       if (availableDates.includes(targetDate)) return targetDate;
@@ -874,9 +871,12 @@ export default function Builder() {
         }
       }
       
+      // For non-saved legs, default to nearest future expiration
+      // This ensures symbol changes always pick the closest available date
+      const isFreshLeg = !leg.premiumSource || leg.premiumSource === 'theoretical';
+      
       if (!legDate || !availableDates.includes(legDate)) {
-        const targetDate = legDate || availableDates[0];
-        const nearestDate = findNearestDate(targetDate);
+        const nearestDate = isFreshLeg ? nearestFutureDate : findNearestDate(legDate || availableDates[0]);
         anyChanged = true;
         return {
           ...leg,
