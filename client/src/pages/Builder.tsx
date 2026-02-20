@@ -168,12 +168,20 @@ export default function Builder() {
   }, [legs]);
 
   // Build leg expiration info for timeline (includes expired/expiring-today dates)
+  // Only include legs that are still active (not fully closed/sold)
   const legExpirationDates = useMemo(() => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const seen = new Set<string>();
     return legs
-      .filter(l => l.type !== 'stock' && l.expirationDate && l.quantity > 0)
+      .filter(l => {
+        if (l.type === 'stock' || !l.expirationDate || l.quantity <= 0) return false;
+        if (l.closingTransaction?.isEnabled) {
+          const closedQty = (l.closingTransaction.entries || []).reduce((sum: number, e: any) => sum + e.quantity, 0);
+          if (closedQty >= l.quantity) return false;
+        }
+        return true;
+      })
       .map(l => {
         const date = l.expirationDate!.split('T')[0];
         if (seen.has(date)) return null;
