@@ -123,6 +123,11 @@ export default function Builder() {
   // dates/strikes snap to available values and chain data loads
   const [savedTradeSettling, setSavedTradeSettling] = useState(false);
   const savedTradeSettlingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Smooth transition during symbol changes - prevents flickering as
+  // multiple effects fire sequentially (AUTO-ADJUST → snap-to-nearest → chain load → premium update)
+  const [symbolTransitioning, setSymbolTransitioning] = useState(false);
+  const symbolTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Track the leg whose expiration was most recently edited (added or changed via panel)
   const [lastEditedLegId, setLastEditedLegId] = useState<string | null>(null);
@@ -643,8 +648,9 @@ export default function Builder() {
     const atmStrike = roundStrike(current.price, 'nearest');
     console.log('[AUTO-ADJUST] Adjusting strikes, ATM:', atmStrike);
     
-    // Note: useStrategyEngine now handles clearing costBasisLocked/premiumSource
-    // when symbol changes, so we don't need a manual flag here
+    // Start smooth transition - dims UI while chain data loads
+    setSymbolTransitioning(true);
+    if (symbolTransitionTimerRef.current) clearTimeout(symbolTransitionTimerRef.current);
     
     // On symbol change, always reset to a single ATM call option
     // Previous strategy should not carry over to the new symbol
@@ -826,8 +832,25 @@ export default function Builder() {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     
-    // Find nearest future expiration (first date >= today, sorted ascending)
-    const nearestFutureDate = availableDates.find(d => d >= todayStr) || availableDates[0];
+    // Find a good default expiration: prefer ~2-3 weeks out for better premium/theta
+    // Rather than picking the absolute nearest (which may expire in 1-2 days),
+    // choose one that gives a reasonable trading window
+    const futureDates = availableDates.filter(d => d >= todayStr);
+    const targetDaysOut = 18; // ~2.5 weeks out
+    let preferredFutureDate = futureDates[0] || availableDates[0];
+    if (futureDates.length > 1) {
+      const targetTime = today.getTime() + targetDaysOut * 24 * 60 * 60 * 1000;
+      let bestDate = futureDates[0];
+      let bestDiff = Math.abs(new Date(futureDates[0]).getTime() - targetTime);
+      for (const d of futureDates) {
+        const diff = Math.abs(new Date(d).getTime() - targetTime);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestDate = d;
+        }
+      }
+      preferredFutureDate = bestDate;
+    }
     
     const findNearestDate = (targetDate: string): string => {
       if (availableDates.includes(targetDate)) return targetDate;
@@ -876,7 +899,7 @@ export default function Builder() {
       const isFreshLeg = !leg.premiumSource || leg.premiumSource === 'theoretical';
       
       if (!legDate || !availableDates.includes(legDate)) {
-        const nearestDate = isFreshLeg ? nearestFutureDate : findNearestDate(legDate || availableDates[0]);
+        const nearestDate = isFreshLeg ? preferredFutureDate : findNearestDate(legDate || availableDates[0]);
         anyChanged = true;
         return {
           ...leg,
@@ -904,12 +927,19 @@ export default function Builder() {
     setLastProcessedSymbolChangeId(symbolChangeId);
     
     // Clear the saved trade settling transition after snap completes
-    // Small delay allows chain-dependent premium updates to also settle
     if (savedTradeSettling) {
       if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
       savedTradeSettlingTimerRef.current = setTimeout(() => {
         setSavedTradeSettling(false);
       }, 300);
+    }
+    
+    // Set a safety timeout to clear symbol transition even if chain data never loads
+    // Normal flow: premium update effect clears it when market data arrives
+    if (symbolTransitioning) {
+      symbolTransitionTimerRef.current = setTimeout(() => {
+        setSymbolTransitioning(false);
+      }, 3000);
     }
   }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration]);
 
@@ -1249,6 +1279,14 @@ export default function Builder() {
 
       return updated ? newLegs : currentLegs;
     });
+    
+    // Chain data loaded for current symbol - clear symbol transition
+    // This fires whether or not legs were updated (handles case where
+    // chain data arrives but legs already have correct values)
+    if (symbolTransitioning) {
+      if (symbolTransitionTimerRef.current) clearTimeout(symbolTransitionTimerRef.current);
+      setTimeout(() => setSymbolTransitioning(false), 150);
+    }
   }, [optionsChainData, multiChainData, selectedExpirationDate, symbolInfo?.price, volatility, symbolChangeId, lastProcessedSymbolChangeId]);
 
   // Ensure all legs have valid premiums (fallback to theoretical even when chain data partial)
@@ -1943,7 +1981,7 @@ export default function Builder() {
         </div>
       </header>
 
-      <div className={`container mx-auto px-3 md:px-4 py-2 transition-opacity duration-300 ${savedTradeSettling ? 'opacity-40' : 'opacity-100'}`}>
+      <div className={`container mx-auto px-3 md:px-4 py-2 transition-opacity duration-300 ${(savedTradeSettling || symbolTransitioning) ? 'opacity-40' : 'opacity-100'}`}>
         <div className="space-y-2">
           <TradingViewSearch 
             symbolInfo={symbolInfo} 
