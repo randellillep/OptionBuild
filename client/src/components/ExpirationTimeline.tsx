@@ -17,6 +17,7 @@ interface ExpirationTimelineProps {
   activeLegsExpirations?: number[]; // Unique expiration days from active legs
   expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
   legExpirationDates?: LegExpirationInfo[]; // Leg expiration dates to inject (including expired)
+  suppressAutoSelect?: boolean; // Suppress auto-select during symbol transitions
 }
 
 interface OptionsExpirationsResponse {
@@ -70,6 +71,7 @@ export function ExpirationTimeline({
   activeLegsExpirations = [],
   expirationColorMap,
   legExpirationDates = [],
+  suppressAutoSelect = false,
 }: ExpirationTimelineProps) {
   const today = new Date();
   
@@ -189,6 +191,7 @@ export function ExpirationTimeline({
   // Uses onAutoSelect (which only updates global selection) to avoid overriding per-leg expirations
   useEffect(() => {
     if (allDays.length === 0) return;
+    if (suppressAutoSelect) return;
     
     const roundedSelected = selectedDays !== null ? Math.round(selectedDays) : null;
     const shouldAutoSelect = 
@@ -218,7 +221,7 @@ export function ExpirationTimeline({
       const handler = onAutoSelect || onSelectDays;
       handler(targetDays, targetDateStr);
     }
-  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect]);
+  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect, suppressAutoSelect]);
 
   // Format expirations label: "2d, 11d" for multiple, or "30d" for single
   // Show "0d" for expired legs (they have expirationDays capped at 0)
@@ -295,7 +298,7 @@ export function ExpirationTimeline({
                         : hasLeg
                         ? 'bg-primary text-primary-foreground'
                         : isSelected
-                        ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/40'
+                        ? 'bg-primary text-primary-foreground'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
                     style={

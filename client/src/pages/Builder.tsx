@@ -644,62 +644,23 @@ export default function Builder() {
       return; // Don't update prevSymbolRef - wait for valid price
     }
     
-    // Now we have: different symbol, valid prices, and legs to adjust
-    const atmStrike = roundStrike(current.price, 'nearest');
-    console.log('[AUTO-ADJUST] Adjusting strikes, ATM:', atmStrike);
+    console.log('[AUTO-ADJUST] Symbol changed, clearing legs for clean transition');
     
-    // Start smooth transition - dims UI while chain data loads
+    // Start smooth transition - dims UI while data loads
     setSymbolTransitioning(true);
     if (symbolTransitionTimerRef.current) clearTimeout(symbolTransitionTimerRef.current);
     
-    // On symbol change, always reset to a single ATM call option
-    // Previous strategy should not carry over to the new symbol
-    setLegs(currentLegs => {
-      console.log('[AUTO-ADJUST] Current legs count:', currentLegs.length);
-      
-      // Skip if these are saved/loaded legs - don't adjust their strikes
-      const hasSavedLegs = currentLegs.some(leg => leg.premiumSource === 'saved');
-      if (hasSavedLegs) {
-        console.log('[AUTO-ADJUST] Skipping - saved trade legs should keep original strikes');
-        return currentLegs;
-      }
-      
-      // Reset to a single ATM call for the new symbol
-      // Use a near-term placeholder date (tomorrow) - snap-to-nearest will
-      // update this to the actual nearest available expiration from the API
-      const targetDate = new Date();
-      targetDate.setDate(targetDate.getDate() + 1);
-      const expDateStr = targetDate.toISOString().split('T')[0];
-      
-      // Calculate fractional days to expiration (4pm ET close)
-      const [ey, em, ed] = expDateStr.split('-').map(Number);
-      const expDateUTC = new Date(Date.UTC(ey, em - 1, ed, 21, 0, 0));
-      const daysToExp = Math.max(1, (expDateUTC.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-      
-      const newPremium = Math.max(0.01, Number(
-        calculateOptionPrice('call', current.price, atmStrike, daysToExp, 0.3).toFixed(2)
-      ));
-      
-      console.log(`[AUTO-ADJUST] Resetting to single ATM call: strike ${atmStrike}, premium ${newPremium}, exp ${expDateStr}`);
-      
-      const newLeg: OptionLeg = {
-        id: `auto-${Date.now()}`,
-        type: 'call',
-        position: 'long',
-        strike: atmStrike,
-        quantity: 1,
-        premium: newPremium,
-        expirationDays: daysToExp,
-        expirationDate: expDateStr,
-        visualOrder: 0,
-      };
-      
-      return [newLeg];
-    });
+    // Skip if these are saved/loaded legs - don't adjust their strikes
+    const hasSavedLegs = legs.some(leg => leg.premiumSource === 'saved');
+    if (hasSavedLegs) {
+      console.log('[AUTO-ADJUST] Skipping - saved trade legs should keep original strikes');
+      prevSymbolRef.current = current;
+      return;
+    }
     
-    // Don't clear selectedExpirationDate here - the snap-to-nearest effect
-    // will update it to the correct nearest future date for the new symbol.
-    // Clearing it disables the chain query and delays heatmap updates.
+    // Clear legs entirely - snap-to-nearest will create the ATM leg
+    // with the correct expiration date in a single step (no intermediate dates)
+    setLegs([]);
     
     // Only update prevSymbolRef after successful adjustment
     prevSymbolRef.current = current;
@@ -817,26 +778,18 @@ export default function Builder() {
   });
 
   // When symbol changes, snap leg expirations to nearest valid date for the new symbol
-  // e.g., AAPL has Feb 23 but JPM only has Feb 24 → update legs to Feb 24
+  // If legs are empty (cleared by AUTO-ADJUST), create fresh ATM leg with correct date
   useEffect(() => {
     if (symbolChangeId <= lastProcessedSymbolChangeId) return;
     if (!optionsExpirationsData?.expirations || optionsExpirationsData.expirations.length === 0) return;
-    
-    const optionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
-    if (optionLegs.length === 0) {
-      setLastProcessedSymbolChangeId(symbolChangeId);
-      return;
-    }
     
     const availableDates = optionsExpirationsData.expirations;
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     
     // Find a good default expiration: prefer ~2-3 weeks out for better premium/theta
-    // Rather than picking the absolute nearest (which may expire in 1-2 days),
-    // choose one that gives a reasonable trading window
     const futureDates = availableDates.filter(d => d >= todayStr);
-    const targetDaysOut = 18; // ~2.5 weeks out
+    const targetDaysOut = 18;
     let preferredFutureDate = futureDates[0] || availableDates[0];
     if (futureDates.length > 1) {
       const targetTime = today.getTime() + targetDaysOut * 24 * 60 * 60 * 1000;
@@ -852,23 +805,6 @@ export default function Builder() {
       preferredFutureDate = bestDate;
     }
     
-    const findNearestDate = (targetDate: string): string => {
-      if (availableDates.includes(targetDate)) return targetDate;
-      
-      const targetTime = new Date(targetDate).getTime();
-      let nearest = availableDates[0];
-      let minDiff = Math.abs(new Date(nearest).getTime() - targetTime);
-      
-      for (const d of availableDates) {
-        const diff = Math.abs(new Date(d).getTime() - targetTime);
-        if (diff < minDiff) {
-          minDiff = diff;
-          nearest = d;
-        }
-      }
-      return nearest;
-    };
-    
     const recalcDays = (dateStr: string): number => {
       const dateOnly = dateStr.split('T')[0];
       const [year, month, day] = dateOnly.split('-').map(Number);
@@ -877,69 +813,97 @@ export default function Builder() {
       return Math.max(0, diffMs / (1000 * 60 * 60 * 24));
     };
     
+    const optionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
+    
+    // Legs cleared by AUTO-ADJUST: create fresh ATM leg with the correct date
+    // This avoids the flickering two-step process (placeholder date → snap)
+    if (optionLegs.length === 0 && symbolInfo.price > 0) {
+      const atmStrike = roundStrike(symbolInfo.price, 'nearest');
+      const expDays = recalcDays(preferredFutureDate);
+      const theoreticalDTE = Math.max(14, expDays);
+      const newPremium = Math.max(0.01, Number(
+        calculateOptionPrice('call', symbolInfo.price, atmStrike, theoreticalDTE, 0.3).toFixed(2)
+      ));
+      
+      console.log(`[SNAP] Creating ATM leg: ${atmStrike}C, exp ${preferredFutureDate}, premium $${newPremium}`);
+      
+      const newLeg: OptionLeg = {
+        id: `auto-${Date.now()}`,
+        type: 'call',
+        position: 'long',
+        strike: atmStrike,
+        quantity: 1,
+        premium: newPremium,
+        expirationDays: expDays,
+        expirationDate: preferredFutureDate,
+        visualOrder: 0,
+      };
+      
+      setLegs([newLeg]);
+      setSelectedExpiration(expDays, preferredFutureDate);
+      setLastProcessedSymbolChangeId(symbolChangeId);
+      
+      // Safety timeout - premium update effect will clear it sooner when chain loads
+      if (symbolTransitioning) {
+        symbolTransitionTimerRef.current = setTimeout(() => {
+          setSymbolTransitioning(false);
+        }, 3000);
+      }
+      return;
+    }
+    
+    // Existing legs: snap their dates to available dates for the new symbol
+    const findNearestDate = (targetDate: string): string => {
+      if (availableDates.includes(targetDate)) return targetDate;
+      const targetTime = new Date(targetDate).getTime();
+      let nearest = availableDates[0];
+      let minDiff = Math.abs(new Date(nearest).getTime() - targetTime);
+      for (const d of availableDates) {
+        const diff = Math.abs(new Date(d).getTime() - targetTime);
+        if (diff < minDiff) { minDiff = diff; nearest = d; }
+      }
+      return nearest;
+    };
+    
     let anyChanged = false;
     const updatedLegs = legs.map(leg => {
       if (leg.type === 'stock') return leg;
-      
-      // Handle legs without expiration date or with dates not in available list
       const legDate = leg.expirationDate?.split('T')[0];
       
-      // Preserve expired/expiring-today dates for saved trades - don't snap them
       if (legDate) {
         const legDateTime = new Date(legDate + 'T00:00:00');
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
-        if (legDateTime <= todayStart && leg.premiumSource === 'saved') {
-          return leg;
-        }
+        if (legDateTime <= todayStart && leg.premiumSource === 'saved') return leg;
       }
       
-      // For non-saved legs, default to nearest future expiration
-      // This ensures symbol changes always pick the closest available date
       const isFreshLeg = !leg.premiumSource || leg.premiumSource === 'theoretical';
       
       if (!legDate || !availableDates.includes(legDate)) {
         const nearestDate = isFreshLeg ? preferredFutureDate : findNearestDate(legDate || availableDates[0]);
         anyChanged = true;
-        return {
-          ...leg,
-          expirationDate: nearestDate,
-          expirationDays: recalcDays(nearestDate),
-        };
+        return { ...leg, expirationDate: nearestDate, expirationDays: recalcDays(nearestDate) };
       }
       
       return leg;
     });
     
-    if (anyChanged) {
-      setLegs(updatedLegs);
-    }
+    if (anyChanged) setLegs(updatedLegs);
     
-    // Always sync the timeline selection with the first leg's expiration
     const firstOptionLeg = updatedLegs.find(l => l.type !== 'stock' && l.expirationDate);
     if (firstOptionLeg?.expirationDate) {
-      setSelectedExpiration(
-        firstOptionLeg.expirationDays,
-        firstOptionLeg.expirationDate
-      );
+      setSelectedExpiration(firstOptionLeg.expirationDays, firstOptionLeg.expirationDate);
     }
     
     setLastProcessedSymbolChangeId(symbolChangeId);
     
-    // Clear the saved trade settling transition after snap completes
     if (savedTradeSettling) {
       if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
-      savedTradeSettlingTimerRef.current = setTimeout(() => {
-        setSavedTradeSettling(false);
-      }, 300);
+      savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 300);
     }
     
-    // Set a safety timeout to clear symbol transition even if chain data never loads
-    // Normal flow: premium update effect clears it when market data arrives
     if (symbolTransitioning) {
-      symbolTransitionTimerRef.current = setTimeout(() => {
-        setSymbolTransitioning(false);
-      }, 3000);
+      symbolTransitionTimerRef.current = setTimeout(() => setSymbolTransitioning(false), 3000);
     }
   }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration]);
 
@@ -2016,6 +1980,7 @@ export default function Builder() {
                 activeLegsExpirations={legs.some(l => l.type !== 'stock' && l.quantity > 0) ? uniqueExpirationDays : []}
                 expirationColorMap={expirationColorMap}
                 legExpirationDates={legExpirationDates}
+                suppressAutoSelect={symbolTransitioning}
               />
 
               <EquityPanel
