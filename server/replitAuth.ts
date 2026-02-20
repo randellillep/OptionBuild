@@ -21,8 +21,12 @@ const getOidcConfig = memoize(
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
+  const dbUrl = process.env.DATABASE_URL || "";
+  const isProduction = process.env.NODE_ENV === "production";
+  const needsSsl = isProduction || dbUrl.includes("render.com") || dbUrl.includes("neon.tech");
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
+    ...(needsSsl ? { conObject: { ssl: { rejectUnauthorized: false } } } : {}),
     createTableIfMissing: false,
     ttl: sessionTtl,
     tableName: "sessions",

@@ -1,13 +1,17 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const isProduction = process.env.NODE_ENV === "production";
+const dbUrl = process.env.DATABASE_URL || "";
+const needsSsl = isProduction || dbUrl.includes("render.com") || dbUrl.includes("neon.tech");
+
+const pool = new pg.Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  ssl: needsSsl ? { rejectUnauthorized: false } : false,
+});
 export const db = drizzle(pool, { schema });
