@@ -25,8 +25,10 @@ export function getSession() {
   const isProduction = process.env.NODE_ENV === "production";
   const needsSsl = isProduction || dbUrl.includes("render.com") || dbUrl.includes("neon.tech");
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    ...(needsSsl ? { conObject: { ssl: { rejectUnauthorized: false } } } : {}),
+    conObject: {
+      connectionString: process.env.DATABASE_URL,
+      ...(needsSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+    },
     createTableIfMissing: false,
     ttl: sessionTtl,
     tableName: "sessions",
