@@ -113,11 +113,13 @@ export default function Builder() {
     selectedExpirationDate,
     setSelectedExpiration,
     symbolChangeId, // Used to coordinate effects after symbol changes
+    hasFetchedInitialPrice,
   } = useStrategyEngine(range);
   
   // Track the last processed symbolChangeId to gate effects
   // Using STATE (not ref) so auto-update re-fires after snap-to-nearest processes
-  const [lastProcessedSymbolChangeId, setLastProcessedSymbolChangeId] = useState(symbolChangeId);
+  // Start at -1 so the initial symbolChangeId (0) triggers the first ATM leg creation
+  const [lastProcessedSymbolChangeId, setLastProcessedSymbolChangeId] = useState(-1);
   
   // Smooth transition when loading a saved trade - prevents flashing as
   // dates/strikes snap to available values and chain data loads
@@ -790,6 +792,8 @@ export default function Builder() {
   useEffect(() => {
     if (symbolChangeId <= lastProcessedSymbolChangeId) return;
     if (!optionsExpirationsData?.expirations || optionsExpirationsData.expirations.length === 0) return;
+    // Wait for real price before creating initial ATM leg (avoid using hardcoded default)
+    if (!hasFetchedInitialPrice && symbolChangeId === 0) return;
     
     const availableDates = optionsExpirationsData.expirations;
     const today = new Date();
@@ -913,7 +917,7 @@ export default function Builder() {
     if (symbolTransitioning) {
       symbolTransitionTimerRef.current = setTimeout(() => setSymbolTransitioning(false), 3000);
     }
-  }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration]);
+  }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration, hasFetchedInitialPrice]);
 
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
   // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration

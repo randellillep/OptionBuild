@@ -414,5 +414,6 @@ export function useStrategyEngine(rangePercent: number = 14) {
     selectedExpirationDate,
     setSelectedExpiration,
     symbolChangeId, // Used to coordinate effects after symbol changes
+    hasFetchedInitialPrice,
   };
 }
