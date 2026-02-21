@@ -13,35 +13,13 @@ export interface ScenarioPoint {
   pnl: number;
 }
 
-// Key for localStorage persistence
-const STRATEGY_STORAGE_KEY = 'currentStrategy';
-
-// Load initial state from localStorage if available
-const loadPersistedState = (): { symbolInfo: SymbolInfo; legs: OptionLeg[]; volatility: number; isManualVolatility: boolean; expirationDays: number | null; expirationDate: string } | null => {
-  try {
-    const saved = localStorage.getItem(STRATEGY_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.symbolInfo && Array.isArray(parsed.legs)) {
-        return parsed;
-      }
-    }
-  } catch {
-    // Silent fail
-  }
-  return null;
-};
-
 export function useStrategyEngine(rangePercent: number = 14) {
-  // Try to restore from localStorage on initial load
-  const persistedState = useRef(loadPersistedState());
-  
   const [symbolInfo, setSymbolInfo] = useState<SymbolInfo>(
-    persistedState.current?.symbolInfo ?? { symbol: "AAPL", price: 230 }
+    { symbol: "AAPL", price: 230 }
   );
   
-  const [legs, setLegs] = useState<OptionLeg[]>(persistedState.current?.legs ?? []);
-  const [hasFetchedInitialPrice, setHasFetchedInitialPrice] = useState(!!persistedState.current);
+  const [legs, setLegs] = useState<OptionLeg[]>([]);
+  const [hasFetchedInitialPrice, setHasFetchedInitialPrice] = useState(false);
   const prevSymbolRef = useRef<string>(symbolInfo.symbol);
   const isLoadingSavedTradeRef = useRef<boolean>(false);
   
@@ -141,10 +119,10 @@ export function useStrategyEngine(rangePercent: number = 14) {
     return () => clearInterval(intervalId);
   }, [symbolInfo.symbol]);
 
-  const [volatility, setVolatilityInternal] = useState(persistedState.current?.volatility ?? 0.3);
-  const [isManualVolatility, setIsManualVolatility] = useState(persistedState.current?.isManualVolatility ?? false);
-  const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(persistedState.current?.expirationDays ?? null);
-  const [selectedExpirationDate, setSelectedExpirationDate] = useState<string>(persistedState.current?.expirationDate ?? "");
+  const [volatility, setVolatilityInternal] = useState(0.3);
+  const [isManualVolatility, setIsManualVolatility] = useState(false);
+  const [selectedExpirationDays, setSelectedExpirationDays] = useState<number | null>(null);
+  const [selectedExpirationDate, setSelectedExpirationDate] = useState<string>("");
   
   // Set volatility without triggering manual lock (for internal/system use)
   const setVolatility = (value: number) => {
@@ -158,18 +136,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
     console.log('[IV-MANUAL] User set manual IV:', value, `(${(value * 100).toFixed(1)}%)`);
   };
   
-  // Persist strategy state to localStorage whenever it changes
-  useEffect(() => {
-    const stateToSave = {
-      symbolInfo,
-      legs,
-      volatility,
-      isManualVolatility,
-      expirationDays: selectedExpirationDays,
-      expirationDate: selectedExpirationDate,
-    };
-    localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [symbolInfo, legs, volatility, isManualVolatility, selectedExpirationDays, selectedExpirationDate]);
+
 
   // Calculate average implied volatility from legs first (needed for auto-sync)
   // Include ALL legs with IV (market, manual, saved) so saved trades use their saved IV
