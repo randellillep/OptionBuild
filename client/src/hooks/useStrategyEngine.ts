@@ -320,8 +320,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
         timeSteps.sort((a, b) => a - b);
       }
     } else {
-      // For longer-dated options, show daily intervals
-      const dateCount = 8;
+      // OptionStrat-style date columns: more columns for better granularity
+      // Scale column count based on DTE for optimal density
+      const dateCount = targetDays <= 14 ? 10 
+        : targetDays <= 30 ? 12 
+        : targetDays <= 60 ? 14 
+        : 16;
       const dayStep = targetDays / (dateCount - 1);
       for (let i = 0; i < dateCount; i++) {
         timeSteps.push(Math.max(0, Math.round(i * dayStep)));

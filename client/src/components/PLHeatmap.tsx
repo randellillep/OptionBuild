@@ -293,14 +293,14 @@ export function PLHeatmap({
                 <th
                   key={idx}
                   scope="col"
-                  className={`text-[10px] font-normal text-center p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
+                  className={`text-[9px] font-normal text-center px-0.5 py-0.5 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
                     isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
                   }`}
                   data-testid={`header-time-${idx}`}
                 >
-                  <div className="text-[10px] text-muted-foreground leading-tight">{getTimeLabel(day)}</div>
+                  <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
                   {getTimeSubLabel(day) && (
-                    <div className="text-[9px] text-muted-foreground/60 font-normal leading-tight">
+                    <div className="text-[8px] text-muted-foreground/60 font-normal leading-tight">
                       {getTimeSubLabel(day)}
                     </div>
                   )}
@@ -338,9 +338,9 @@ export function PLHeatmap({
                 : '';
               
               return (
-                <tr key={rowIdx} className={`h-[24px] ${currentPriceRowStyle}`}>
+                <tr key={rowIdx} className={`h-[22px] ${currentPriceRowStyle}`}>
                   <td
-                    className={`text-[11px] font-mono font-semibold px-2 py-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
                       isClosestToCurrentPrice ? 'text-foreground dark:text-white font-bold' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
@@ -348,7 +348,7 @@ export function PLHeatmap({
                     ${strikeDisplay}
                   </td>
                   <td
-                    className={`text-[11px] font-mono text-right pl-3 pr-2 py-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[10px] font-mono text-right pl-2 pr-1.5 py-0.5 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
                       percentChange > 0 ? 'text-green-600 dark:text-green-400' : 
                       percentChange < 0 ? 'text-red-600 dark:text-red-400' : 
                       'text-muted-foreground'
@@ -374,11 +374,12 @@ export function PLHeatmap({
                     const adjustedPnl = useActualPL
                       ? cellPnl
                       : adjustPnl(cellPnl);
-                    const displayValue = Math.round(adjustedPnl).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    const rawValue = Math.round(adjustedPnl);
+                    const displayValue = rawValue.toLocaleString('en-US', { maximumFractionDigits: 0 });
                     return (
                       <td
                         key={colIdx}
-                        className={`text-[11px] font-mono text-center p-1 border-b border-border transition-colors ${getPnlColor(cellPnl)} ${
+                        className={`text-[10px] font-mono text-center px-0.5 py-0.5 border-b border-border transition-colors ${getPnlColor(cellPnl)} ${
                           isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
                         }`}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
