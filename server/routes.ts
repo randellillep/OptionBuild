@@ -301,19 +301,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "Alpaca API keys not configured" });
       }
 
-      // For index symbols, skip the stock API and infer price from options
+      // For index symbols, infer price from options and get change from ETF proxy
       if (INDEX_SYMBOLS.has(upperSymbol)) {
         const inferredPrice = await inferIndexPriceFromOptions(upperSymbol);
         if (inferredPrice && inferredPrice > 0) {
+          // Use ETF proxy for price change data (SPX->SPY, NDX->QQQ, RUT->IWM, etc.)
+          const etfProxy: Record<string, string> = { SPX: 'SPY', SPXW: 'SPY', XSP: 'SPY', NDX: 'QQQ', RUT: 'IWM', DJX: 'DIA', VIX: 'VIXY' };
+          const proxySymbol = etfProxy[upperSymbol];
+          let changePercent = 0;
+          
+          if (proxySymbol && ALPACA_API_KEY && ALPACA_API_SECRET) {
+            try {
+              const proxyRes = await fetch(`https://data.alpaca.markets/v2/stocks/${proxySymbol}/snapshot?feed=iex`, {
+                headers: {
+                  'APCA-API-KEY-ID': ALPACA_API_KEY,
+                  'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+                },
+              });
+              if (proxyRes.ok) {
+                const proxyData = await proxyRes.json();
+                const proxyPrice = proxyData.latestTrade?.p || 0;
+                const proxyPrevClose = proxyData.prevDailyBar?.c || proxyPrice;
+                if (proxyPrevClose > 0) {
+                  changePercent = ((proxyPrice - proxyPrevClose) / proxyPrevClose) * 100;
+                }
+              }
+            } catch (e) {
+              console.error(`[Index Price] Failed to get ETF proxy change for ${upperSymbol}:`, e);
+            }
+          }
+          
+          const roundedPrice = Math.round(inferredPrice * 100) / 100;
+          const previousClose = roundedPrice / (1 + changePercent / 100);
+          const change = roundedPrice - previousClose;
+          
           return res.json({
             symbol: upperSymbol,
-            price: Math.round(inferredPrice * 100) / 100,
-            previousClose: inferredPrice,
-            change: 0,
-            changePercent: 0,
-            high: inferredPrice,
-            low: inferredPrice,
-            open: inferredPrice,
+            price: roundedPrice,
+            previousClose: Math.round(previousClose * 100) / 100,
+            change: Math.round(change * 100) / 100,
+            changePercent: Math.round(changePercent * 100) / 100,
+            high: roundedPrice,
+            low: roundedPrice,
+            open: Math.round(previousClose * 100) / 100,
             timestamp: Date.now() / 1000,
             isIndex: true,
           });
