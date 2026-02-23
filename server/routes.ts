@@ -473,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (results.length === 0 && /^[A-Z]{1,5}$/.test(query)) {
         results.push({
           symbol: query,
-          name: `${query} (Custom Symbol)`,
+          name: query,
           displaySymbol: query,
         });
       }
