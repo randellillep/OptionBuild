@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -108,21 +107,20 @@ export function OpenInterestChart({ symbol, currentPrice }: OpenInterestChartPro
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <Select
-            value={selectedExpiration || data.expiration || ""}
-            onValueChange={(val) => setSelectedExpiration(val)}
-          >
-            <SelectTrigger className="h-7 text-xs w-auto min-w-[160px]" data-testid="select-oi-expiration">
-              <SelectValue placeholder="Select expiration" />
-            </SelectTrigger>
-            <SelectContent>
-              {data.availableExpirations.map((exp) => (
-                <SelectItem key={exp} value={exp} data-testid={`option-exp-${exp}`}>
-                  {formatExpDate(exp)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-1 overflow-x-auto max-w-[50vw] scrollbar-thin" data-testid="select-oi-expiration">
+            {data.availableExpirations.map((exp) => (
+              <Button
+                key={exp}
+                size="sm"
+                variant={(selectedExpiration || data.expiration) === exp ? "default" : "outline"}
+                onClick={() => setSelectedExpiration(exp)}
+                className="text-xs whitespace-nowrap flex-shrink-0"
+                data-testid={`option-exp-${exp}`}
+              >
+                {formatExpDate(exp)}
+              </Button>
+            ))}
+          </div>
 
           <div className="flex gap-1">
             {[
