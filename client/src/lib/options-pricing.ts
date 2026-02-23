@@ -225,9 +225,12 @@ export function blackScholesPut(
   r: number,
   sigma: number
 ): number {
-  // Use Bjerksund-Stensland 2002 for American-style options (most US equity options)
-  // b = r assumes no dividends (standard for most equity options)
-  return bjerksundStensland2002Put(S, K, T, r, r, sigma);
+  // Use European Black-Scholes for puts
+  // The BS2002 put-call transformation (Call(K,S,T,r-b,-b,σ)) creates numerically
+  // unstable parameters (negative b, r=0) that produce garbage values for OTM puts.
+  // European pricing is standard for scenario analysis (used by OptionStrat, etc.)
+  // and is mathematically stable across all strike/price combinations.
+  return europeanPut(S, K, T, r, r, sigma);
 }
 
 // ============================================================================
