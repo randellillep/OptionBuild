@@ -710,11 +710,13 @@ export function StrikeLadder({
               data-testid={`badge-closed-${entry.id}`}
               style={{ pointerEvents: (isDragging || draggedLegRef.current) ? 'none' : 'auto' }}
             >
-              <div 
-                className={`absolute text-[8px] font-bold text-white bg-gray-600 rounded-sm px-1 py-px z-[100] leading-tight ${position === 'long' ? '-top-2 -left-2' : '-bottom-2 -left-2'}`}
-              >
-                x{entry.quantity}
-              </div>
+              {entry.quantity > 1 && (
+                <div 
+                  className={`absolute text-[8px] font-bold text-white bg-gray-600 rounded-sm px-1 py-px z-[100] leading-tight ${position === 'long' ? '-top-2 -left-2' : '-bottom-2 -left-2'}`}
+                >
+                  x{entry.quantity}
+                </div>
+              )}
               {position === 'short' && (
                 <div 
                   className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent"
@@ -842,11 +844,13 @@ export function StrikeLadder({
               data-testid={`badge-closed-${entry.id}`}
               style={{ pointerEvents: (isDragging || draggedLegRef.current) ? 'none' : 'auto' }}
             >
-              <div 
-                className={`absolute text-[8px] font-bold text-white bg-gray-600 rounded-sm px-1 py-px z-[100] leading-tight ${position === 'long' ? '-top-2 -left-2' : '-bottom-2 -left-2'}`}
-              >
-                x{entry.quantity}
-              </div>
+              {entry.quantity > 1 && (
+                <div 
+                  className={`absolute text-[8px] font-bold text-white bg-gray-600 rounded-sm px-1 py-px z-[100] leading-tight ${position === 'long' ? '-top-2 -left-2' : '-bottom-2 -left-2'}`}
+                >
+                  x{entry.quantity}
+                </div>
+              )}
               {position === 'short' && (
                 <div 
                   className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent"
