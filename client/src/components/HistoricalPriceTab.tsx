@@ -154,14 +154,15 @@ export function HistoricalPriceTab({
     staleTime: 60000,
   });
 
-  // Filter out stock legs — Historical tab shows only options strategy performance
-  // Stock legs cannot be accurately priced with Black-Scholes and distort results
+  // Filter out stock legs — when options exist, show only options strategy performance
+  // If ONLY stock legs exist (no options), show the stock's historical price movement
   const optionLegs = useMemo(() => legs.filter(l => l.type !== 'stock'), [legs]);
-  const isSingleLeg = optionLegs.length === 1;
+  const stockOnlyMode = optionLegs.length === 0 && legs.some(l => l.type === 'stock');
+  const isSingleLeg = stockOnlyMode ? true : optionLegs.length === 1;
 
   const chartData = useMemo(() => {
     if (!candleData?.candles?.length) return [];
-    if (optionLegs.length === 0) return [];
+    if (optionLegs.length === 0 && !stockOnlyMode) return [];
 
     const candles: Candle[] = candleData.candles;
     const lastCandle = candles[candles.length - 1];
@@ -171,6 +172,29 @@ export function HistoricalPriceTab({
     return candles.map((candle, index) => {
       const candleDate = new Date(candle.timestamp);
       const daysDiff = Math.ceil((referenceDate.getTime() - candleDate.getTime()) / (1000 * 60 * 60 * 24));
+      const isBullish = candle.close >= candle.open;
+
+      if (stockOnlyMode) {
+        return {
+          timestamp: candle.timestamp,
+          date: formatDate(candle.timestamp, timeRange),
+          stockOpen: candle.open,
+          stockHigh: candle.high,
+          stockLow: candle.low,
+          stockClose: candle.close,
+          strategyValue: candle.close,
+          optionOpen: candle.open,
+          optionHigh: candle.high,
+          optionLow: candle.low,
+          optionClose: candle.close,
+          optionIsBullish: isBullish,
+          optionCandleBody: [Math.min(candle.open, candle.close), Math.max(candle.open, candle.close)],
+          iv: null,
+          volume: candle.volume,
+          isBullish,
+          candleBody: [Math.min(candle.open, candle.close), Math.max(candle.open, candle.close)],
+        };
+      }
 
       let strategyValue = 0;
       let hasValidLegs = false;
@@ -273,7 +297,6 @@ export function HistoricalPriceTab({
       });
 
       const historicalIV = volatility * 100;
-      const isBullish = candle.close >= candle.open;
       
       const optionIsBullish = optionClose !== null && optionOpen !== null ? optionClose >= optionOpen : isBullish;
 
@@ -299,7 +322,7 @@ export function HistoricalPriceTab({
         candleBody: [Math.min(candle.open, candle.close), Math.max(candle.open, candle.close)],
       };
     });
-  }, [candleData, optionLegs, volatility, timeRange, isSingleLeg]);
+  }, [candleData, optionLegs, volatility, timeRange, isSingleLeg, stockOnlyMode]);
 
   const latestData = chartData[chartData.length - 1];
   const firstData = chartData[0];
@@ -326,13 +349,14 @@ export function HistoricalPriceTab({
   const isShortPosition = isSingleLeg && optionLegs.length === 1 && optionLegs[0]?.position === "short";
 
   const strategyLabel = useMemo(() => {
+    if (stockOnlyMode) return `${symbol} Stock`;
     if (optionLegs.length === 0) return "No option positions";
     if (optionLegs.length === 1) {
       const leg = optionLegs[0];
       return `${symbol} ${leg.strike}${leg.type === "call" ? "C" : "P"}`;
     }
     return `Options Strategy (${optionLegs.length} legs)`;
-  }, [optionLegs, symbol]);
+  }, [optionLegs, symbol, stockOnlyMode]);
 
   const priceRange = useMemo(() => {
     if (!chartData.length) return { min: 0, max: 100 };
