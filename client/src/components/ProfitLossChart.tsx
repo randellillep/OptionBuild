@@ -211,13 +211,13 @@ export function ProfitLossChart({
                   return (
                     <button
                       key={multiplier}
-                      className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer group"
+                      className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer group px-2 py-0.5"
                       style={{ left: `${markerPercent}%`, top: 0 }}
                       onClick={() => onVolatilityChange(markerValue)}
                       data-testid={`button-iv-${multiplier}x`}
                     >
-                      <span className="block w-px h-1.5 bg-muted-foreground/50 group-hover:bg-foreground transition-colors" />
-                      <span className="text-[9px] leading-tight text-muted-foreground group-hover:text-foreground transition-colors mt-px">
+                      <span className="block w-px h-2 bg-muted-foreground/50 group-hover:bg-foreground transition-colors" />
+                      <span className="text-[9px] leading-tight text-muted-foreground group-hover:text-foreground transition-colors mt-0.5">
                         x{multiplier}
                       </span>
                     </button>
