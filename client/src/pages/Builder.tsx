@@ -199,8 +199,8 @@ export default function Builder() {
       .filter(Boolean) as { date: string; days: number; isExpired: boolean; isToday: boolean }[];
   }, [legs]);
 
-  const volatilityPercent = Math.round(volatility * 100);
-  const calculatedIVPercent = Math.round(calculatedIV * 100);
+  const volatilityPercent = Math.round(volatility * 1000) / 10;
+  const calculatedIVPercent = Math.round(calculatedIV * 1000) / 10;
   
   // Calculate realized and unrealized P/L
   const { realizedPL, unrealizedPL, hasRealizedPL, hasUnrealizedPL } = useMemo(() => {

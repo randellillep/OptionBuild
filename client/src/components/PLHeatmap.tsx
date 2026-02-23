@@ -81,7 +81,7 @@ export function PLHeatmap({
     }
   }, [isDraggingIV, handlePointerUp]);
   const ivShift = calculatedIV ? impliedVolatility - calculatedIV : 0;
-  const ivShiftText = ivShift > 0 ? `+${ivShift}%` : `${ivShift}%`;
+  const ivShiftText = ivShift > 0 ? `+${ivShift.toFixed(1)}%` : `${ivShift.toFixed(1)}%`;
   const ivSliderPercent = ((impliedVolatility - 5) / (150 - 5)) * 100;
 
   // Calculate total commissions to subtract from P&L
@@ -426,7 +426,7 @@ export function PLHeatmap({
               onPointerDown={() => setIsDraggingIV(true)}
               min={5}
               max={150}
-              step={1}
+              step={0.1}
               className="flex-1"
               data-testid="slider-volatility"
             />
@@ -441,7 +441,7 @@ export function PLHeatmap({
               </div>
             )}
           </div>
-          <span className="font-mono w-8 text-right">{impliedVolatility}%</span>
+          <span className="font-mono w-10 text-right">{impliedVolatility.toFixed(1)}%</span>
           {isManualVolatility && (
             <Button
               variant="ghost"
