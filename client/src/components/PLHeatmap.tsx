@@ -425,7 +425,7 @@ export function PLHeatmap({
               data-testid="slider-volatility"
             />
             {calculatedIV > 0 && (
-              <div className="absolute left-0 right-0" style={{ top: '100%', marginTop: '2px', overflow: 'visible' }}>
+              <div className="absolute left-0 right-0" style={{ top: '100%', overflow: 'visible' }}>
                 {[1, 2, 3].map((multiplier) => {
                   const markerValue = calculatedIV * multiplier;
                   if (markerValue < 5 || markerValue > 150) return null;
@@ -433,12 +433,15 @@ export function PLHeatmap({
                   return (
                     <button
                       key={multiplier}
-                      className="absolute -translate-x-1/2 text-[9px] leading-none text-muted-foreground cursor-pointer hover:text-foreground transition-colors px-1"
-                      style={{ left: `${markerPercent}%` }}
+                      className="absolute -translate-x-1/2 flex flex-col items-center cursor-pointer group"
+                      style={{ left: `${markerPercent}%`, top: 0 }}
                       onClick={() => onVolatilityChange(markerValue)}
                       data-testid={`button-iv-${multiplier}x`}
                     >
-                      x{multiplier}
+                      <span className="block w-px h-1.5 bg-muted-foreground/50 group-hover:bg-foreground transition-colors" />
+                      <span className="text-[9px] leading-tight text-muted-foreground group-hover:text-foreground transition-colors mt-px">
+                        x{multiplier}
+                      </span>
                     </button>
                   );
                 })}
