@@ -374,8 +374,10 @@ export function PLHeatmap({
                     const adjustedPnl = useActualPL
                       ? cellPnl
                       : adjustPnl(cellPnl);
-                    // Format: all cells show rounded whole numbers for consistency
-                    const displayValue = Math.round(adjustedPnl).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    const absVal = Math.abs(adjustedPnl);
+                    const displayValue = absVal < 1 && absVal > 0
+                      ? adjustedPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      : Math.round(adjustedPnl).toLocaleString('en-US', { maximumFractionDigits: 0 });
                     return (
                       <td
                         key={colIdx}
