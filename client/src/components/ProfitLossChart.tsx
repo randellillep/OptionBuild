@@ -3,7 +3,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { OptionLeg, StrategyMetrics } from "@shared/schema";
 import { calculateProfitLoss } from "@/lib/options-pricing";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Table, BarChart3, RotateCcw } from "lucide-react";
@@ -192,11 +191,6 @@ export function ProfitLossChart({
         </div>
         <div className="flex items-center gap-2 flex-1">
           <span className="text-muted-foreground whitespace-nowrap">IV</span>
-          {isManualVolatility && (
-            <Badge variant="outline" className="h-4 text-[8px] px-1 bg-amber-500/10 text-amber-600 border-amber-500/30">
-              Manual
-            </Badge>
-          )}
           <div className="relative flex-1" style={{ overflow: 'visible' }}>
             <Slider
               value={[impliedVolatility]}
@@ -211,27 +205,45 @@ export function ProfitLossChart({
             {isDraggingIV && calculatedIV > 0 && ivShift !== 0 && (
               <div
                 className="absolute -translate-x-1/2 px-2 py-1 rounded text-xs font-bold text-white bg-primary whitespace-nowrap pointer-events-none shadow-md"
-                style={{ left: `${ivSliderPercent}%`, top: '100%', marginTop: '8px', zIndex: 9999 }}
+                style={{ left: `${ivSliderPercent}%`, top: '100%', marginTop: '18px', zIndex: 9999 }}
                 data-testid="tooltip-iv-shift"
               >
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-primary" />
                 {ivShiftText}
               </div>
             )}
+            {calculatedIV > 0 && (
+              <div className="relative w-full h-3 mt-0.5">
+                {[1, 2, 3].map((multiplier) => {
+                  const markerValue = calculatedIV * multiplier;
+                  if (markerValue < 5 || markerValue > 150) return null;
+                  const markerPercent = ((markerValue - 5) / (150 - 5)) * 100;
+                  return (
+                    <button
+                      key={multiplier}
+                      className="absolute -translate-x-1/2 text-[9px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                      style={{ left: `${markerPercent}%`, top: 0 }}
+                      onClick={() => onVolatilityChange(markerValue)}
+                      data-testid={`button-iv-${multiplier}x`}
+                    >
+                      x{multiplier}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <span className="font-mono w-10 text-right">{impliedVolatility.toFixed(1)}%</span>
-          {isManualVolatility && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 w-5 p-0"
-              onClick={onResetIV}
-              title="Reset to market IV"
-              data-testid="button-reset-iv"
-            >
-              <RotateCcw className="h-3 w-3" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-5 w-5 p-0 ${isManualVolatility ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            onClick={onResetIV}
+            title="Reset to market IV"
+            data-testid="button-reset-iv"
+          >
+            <RotateCcw className="h-3 w-3" />
+          </Button>
         </div>
       </div>
     </Card>
