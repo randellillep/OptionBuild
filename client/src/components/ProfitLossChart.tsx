@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import type { OptionLeg, StrategyMetrics } from "@shared/schema";
 import { calculateProfitLoss } from "@/lib/options-pricing";
@@ -36,6 +37,18 @@ export function ProfitLossChart({
   isManualVolatility = false,
   metrics,
 }: ProfitLossChartProps) {
+  const [isDraggingIV, setIsDraggingIV] = useState(false);
+  const handlePointerUp = useCallback(() => setIsDraggingIV(false), []);
+  useEffect(() => {
+    if (isDraggingIV) {
+      window.addEventListener("pointerup", handlePointerUp);
+      return () => window.removeEventListener("pointerup", handlePointerUp);
+    }
+  }, [isDraggingIV, handlePointerUp]);
+  const ivShift = calculatedIV ? impliedVolatility - calculatedIV : 0;
+  const ivShiftText = ivShift > 0 ? `+${ivShift}%` : `${ivShift}%`;
+  const ivSliderPercent = ((impliedVolatility - 5) / (150 - 5)) * 100;
+
   const minPrice = underlyingPrice * 0.7;
   const maxPrice = underlyingPrice * 1.3;
   const points = 100;
@@ -184,15 +197,28 @@ export function ProfitLossChart({
               Manual
             </Badge>
           )}
-          <Slider
-            value={[impliedVolatility]}
-            onValueChange={(v) => onVolatilityChange(v[0])}
-            min={5}
-            max={150}
-            step={1}
-            className="flex-1"
-            data-testid="slider-volatility"
-          />
+          <div className="relative flex-1" style={{ overflow: 'visible' }}>
+            <Slider
+              value={[impliedVolatility]}
+              onValueChange={(v) => onVolatilityChange(v[0])}
+              onPointerDown={() => setIsDraggingIV(true)}
+              min={5}
+              max={150}
+              step={1}
+              className="flex-1"
+              data-testid="slider-volatility"
+            />
+            {isDraggingIV && calculatedIV > 0 && ivShift !== 0 && (
+              <div
+                className="absolute -translate-x-1/2 px-2 py-1 rounded text-xs font-bold text-white bg-primary whitespace-nowrap pointer-events-none shadow-md"
+                style={{ left: `${ivSliderPercent}%`, top: '100%', marginTop: '8px', zIndex: 9999 }}
+                data-testid="tooltip-iv-shift"
+              >
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-primary" />
+                {ivShiftText}
+              </div>
+            )}
+          </div>
           <span className="font-mono w-8 text-right">{impliedVolatility}%</span>
           {isManualVolatility && (
             <Button
