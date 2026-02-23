@@ -335,8 +335,6 @@ export function HistoricalPriceTab({
     ? ((latestData.strategyValue - firstData.strategyValue) / firstData.strategyValue) * 100
     : 0;
 
-  const hasStockLegs = useMemo(() => legs.some(l => l.type === 'stock'), [legs]);
-
   const isNetCredit = useMemo(() => {
     let netPremium = 0;
     optionLegs.forEach((leg) => {
@@ -522,9 +520,6 @@ export function HistoricalPriceTab({
               )}
               {!isSingleLeg && optionLegs.length > 1 && (
                 <Badge variant="outline" className="text-[9px]">Combined</Badge>
-              )}
-              {hasStockLegs && (
-                <Badge variant="outline" className="text-[9px]">Options Only</Badge>
               )}
             </div>
             {latestData?.strategyValue !== null && latestData?.strategyValue !== undefined && (
