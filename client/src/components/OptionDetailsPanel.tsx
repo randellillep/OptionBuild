@@ -1260,9 +1260,29 @@ export function OptionDetailsPanel({
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
-                        <span className="flex-1 text-center font-mono text-xs font-semibold min-w-[24px]">
-                          {closingQty === leg.quantity ? 'All' : closingQty}
-                        </span>
+                        <input
+                          type="number"
+                          className="flex-1 text-center font-mono text-xs font-semibold min-w-[32px] w-12 bg-transparent border border-border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          value={closingQty}
+                          min={1}
+                          max={(() => {
+                            const alreadyClosed = leg.closingTransaction?.entries
+                              ?.filter(e => !e.isExcluded)
+                              .reduce((sum: number, e: any) => sum + e.quantity, 0) || 0;
+                            return Math.max(1, leg.quantity - alreadyClosed);
+                          })()}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            if (isNaN(val)) return;
+                            const alreadyClosed = leg.closingTransaction?.entries
+                              ?.filter(e => !e.isExcluded)
+                              .reduce((sum: number, e: any) => sum + e.quantity, 0) || 0;
+                            const maxClosable = Math.max(1, leg.quantity - alreadyClosed);
+                            const clamped = Math.max(1, Math.min(maxClosable, val));
+                            setClosingQty(clamped);
+                          }}
+                          data-testid="input-closing-qty"
+                        />
                         <Button
                           size="icon"
                           variant="outline"
