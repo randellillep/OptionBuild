@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,23 @@ export function RangeVolatilitySliders({
   calculatedIV,
   onResetIV,
 }: RangeVolatilitySlidersProps) {
+  const [isDraggingIV, setIsDraggingIV] = useState(false);
+
+  const handlePointerUp = useCallback(() => {
+    setIsDraggingIV(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDraggingIV) {
+      window.addEventListener("pointerup", handlePointerUp);
+      return () => window.removeEventListener("pointerup", handlePointerUp);
+    }
+  }, [isDraggingIV, handlePointerUp]);
+
+  const ivShift = calculatedIV ? impliedVolatility - calculatedIV : 0;
+  const ivShiftText = ivShift > 0 ? `+${ivShift}%` : `${ivShift}%`;
+  const sliderPercent = ((impliedVolatility - 10) / (100 - 10)) * 100;
+
   return (
     <Card className="p-3">
       <div className="flex items-center gap-6">
@@ -52,15 +70,27 @@ export function RangeVolatilitySliders({
               </span>
             )}
           </div>
-          <Slider
-            value={[impliedVolatility]}
-            onValueChange={([value]) => onVolatilityChange(value)}
-            min={10}
-            max={100}
-            step={1}
-            className="flex-1"
-            data-testid="slider-volatility"
-          />
+          <div className="relative flex-1">
+            <Slider
+              value={[impliedVolatility]}
+              onValueChange={([value]) => onVolatilityChange(value)}
+              onPointerDown={() => setIsDraggingIV(true)}
+              min={10}
+              max={100}
+              step={1}
+              className="flex-1"
+              data-testid="slider-volatility"
+            />
+            {isDraggingIV && calculatedIV && ivShift !== 0 && (
+              <div
+                className="absolute -bottom-7 -translate-x-1/2 px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-primary whitespace-nowrap z-50 pointer-events-none"
+                style={{ left: `${sliderPercent}%` }}
+                data-testid="tooltip-iv-shift"
+              >
+                {ivShiftText}
+              </div>
+            )}
+          </div>
           <span className="text-xs font-mono font-semibold w-8 text-right" data-testid="text-current-iv">{impliedVolatility}%</span>
           {onResetIV && (
             <Button
