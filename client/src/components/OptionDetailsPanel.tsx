@@ -379,6 +379,7 @@ export function OptionDetailsPanel({
     .reduce((sum, e) => sum + e.quantity, 0) || 0;
   const remainingToClose = Math.max(0, leg.quantity - existingClosedQty);
   const [closingQty, setClosingQty] = useState(Math.min(1, Math.max(1, remainingToClose)));
+  const [closingQtyInput, setClosingQtyInput] = useState(String(Math.min(1, Math.max(1, remainingToClose))));
   const [closingPriceText, setClosingPriceText] = useState(
     (leg.closingTransaction?.closingPrice || marketData?.ask || leg.premium).toFixed(2)
   );
@@ -400,7 +401,9 @@ export function OptionDetailsPanel({
       ?.filter(e => !e.isExcluded)
       .reduce((sum, e) => sum + e.quantity, 0) || 0;
     const remaining = Math.max(0, leg.quantity - closedQty);
-    setClosingQty(Math.min(1, Math.max(1, remaining)));
+    const newQtyVal = Math.min(1, Math.max(1, remaining));
+    setClosingQty(newQtyVal);
+    setClosingQtyInput(String(newQtyVal));
     // Reset closing price
     const defaultPrice = marketData?.ask || leg.premium;
     setClosingPriceText(defaultPrice.toFixed(2));
@@ -426,7 +429,9 @@ export function OptionDetailsPanel({
         ?.filter(e => !e.isExcluded)
         .reduce((sum, e) => sum + e.quantity, 0) || 0;
       const remaining = Math.max(0, leg.quantity - alreadyClosed);
-      setClosingQty(Math.min(1, Math.max(1, remaining))); // Default to 1 contract (or less if only 1 remaining)
+      const resetQty = Math.min(1, Math.max(1, remaining));
+      setClosingQty(resetQty);
+      setClosingQtyInput(String(resetQty));
     }
   };
 
@@ -497,6 +502,7 @@ export function OptionDetailsPanel({
     const maxClosable = Math.max(1, leg.quantity - alreadyClosed);
     const newQty = Math.max(1, Math.min(maxClosable, closingQty + delta));
     setClosingQty(newQty);
+    setClosingQtyInput(String(newQty));
     if (leg.closingTransaction?.isEnabled && onUpdateLeg) {
       onUpdateLeg({ 
         closingTransaction: { 
@@ -1261,25 +1267,24 @@ export function OptionDetailsPanel({
                           <Minus className="h-3 w-3" />
                         </Button>
                         <input
-                          type="number"
-                          className="flex-1 text-center font-mono text-xs font-semibold min-w-[32px] w-12 bg-transparent border border-border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          value={closingQty}
-                          min={1}
-                          max={(() => {
-                            const alreadyClosed = leg.closingTransaction?.entries
-                              ?.filter(e => !e.isExcluded)
-                              .reduce((sum: number, e: any) => sum + e.quantity, 0) || 0;
-                            return Math.max(1, leg.quantity - alreadyClosed);
-                          })()}
+                          type="text"
+                          inputMode="numeric"
+                          className="flex-1 text-center font-mono text-xs font-semibold min-w-[32px] w-12 bg-transparent border border-border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-ring"
+                          value={closingQtyInput}
                           onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            if (isNaN(val)) return;
-                            const alreadyClosed = leg.closingTransaction?.entries
-                              ?.filter(e => !e.isExcluded)
-                              .reduce((sum: number, e: any) => sum + e.quantity, 0) || 0;
-                            const maxClosable = Math.max(1, leg.quantity - alreadyClosed);
-                            const clamped = Math.max(1, Math.min(maxClosable, val));
-                            setClosingQty(clamped);
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            setClosingQtyInput(raw);
+                            if (raw !== '') {
+                              const val = parseInt(raw);
+                              const alreadyClosed = leg.closingTransaction?.entries
+                                ?.filter(e => !e.isExcluded)
+                                .reduce((sum: number, e: any) => sum + e.quantity, 0) || 0;
+                              const maxClosable = Math.max(1, leg.quantity - alreadyClosed);
+                              setClosingQty(Math.max(1, Math.min(maxClosable, val)));
+                            }
+                          }}
+                          onBlur={() => {
+                            setClosingQtyInput(String(closingQty));
                           }}
                           data-testid="input-closing-qty"
                         />
