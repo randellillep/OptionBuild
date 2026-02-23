@@ -911,6 +911,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Open Interest endpoint - fetches OI data from Alpaca contracts API
+  app.get("/api/options/open-interest/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const expiration = req.query.expiration as string | undefined;
+
+      if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+        return res.status(500).json({ error: "Alpaca API credentials not configured" });
+      }
+
+      const cacheKey = `oi-${symbol.toUpperCase()}-${expiration || 'nearest'}`;
+      const cachedData = await storage.getOptionsChainCache(cacheKey);
+      if (cachedData) {
+        return res.json(cachedData);
+      }
+
+      // Fetch contracts with OI from Alpaca Trading API
+      const ALPACA_TRADING_URL = process.env.ALPACA_TRADING_URL || "https://paper-api.alpaca.markets/v2";
+      
+      const allContracts: any[] = [];
+      let pageToken: string | null = null;
+      let pageCount = 0;
+      const maxPages = expiration ? 10 : 5;
+
+      do {
+        let url = `${ALPACA_TRADING_URL}/options/contracts?underlying_symbols=${symbol.toUpperCase()}&status=active&limit=100`;
+        if (expiration) {
+          url += `&expiration_date=${expiration}`;
+        } else {
+          // Get contracts for the nearest expiration by default
+          const today = new Date().toISOString().split('T')[0];
+          url += `&expiration_date_gte=${today}`;
+        }
+        if (pageToken) {
+          url += `&page_token=${encodeURIComponent(pageToken)}`;
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            'APCA-API-KEY-ID': ALPACA_API_KEY!,
+            'APCA-API-SECRET-KEY': ALPACA_API_SECRET!,
+          }
+        });
+
+        if (response.status === 429) {
+          return res.status(429).json({ error: "Rate limit exceeded", retryAfter: response.headers.get("Retry-After") || "60" });
+        }
+        if (!response.ok) {
+          console.error(`[Open Interest] Alpaca contracts API error: ${response.status}`);
+          const text = await response.text();
+          console.error(`[Open Interest] Response: ${text}`);
+          return res.status(response.status).json({ error: `Alpaca API error: ${response.status}`, details: text });
+        }
+
+        const data = await response.json();
+        const contracts = data.option_contracts || [];
+        allContracts.push(...contracts);
+        
+        pageToken = data.next_page_token || null;
+        pageCount++;
+      } while (pageToken && pageCount < maxPages);
+
+      console.log(`[Open Interest] Fetched ${allContracts.length} contracts for ${symbol.toUpperCase()}`);
+
+      // Group by expiration date and extract available expirations
+      const expirationSet = new Set<string>();
+      const oiData: Array<{
+        strike: number;
+        type: string;
+        openInterest: number;
+        expiration: string;
+        closePrice: number;
+      }> = [];
+
+      for (const contract of allContracts) {
+        const oi = parseInt(contract.open_interest) || 0;
+        const strike = parseFloat(contract.strike_price) || 0;
+        const type = contract.type; // "call" or "put"
+        const exp = contract.expiration_date;
+        const closePrice = parseFloat(contract.close_price) || 0;
+
+        expirationSet.add(exp);
+        oiData.push({
+          strike,
+          type,
+          openInterest: oi,
+          expiration: exp,
+          closePrice,
+        });
+      }
+
+      const availableExpirations = Array.from(expirationSet).sort();
+      
+      // If no specific expiration requested, filter to nearest one
+      let filteredData = oiData;
+      if (!expiration && availableExpirations.length > 0) {
+        const nearestExp = availableExpirations[0];
+        filteredData = oiData.filter(d => d.expiration === nearestExp);
+      }
+
+      // Aggregate by strike
+      const strikeMap = new Map<number, { callOI: number; putOI: number }>();
+      for (const item of filteredData) {
+        const existing = strikeMap.get(item.strike) || { callOI: 0, putOI: 0 };
+        if (item.type === 'call') {
+          existing.callOI += item.openInterest;
+        } else {
+          existing.putOI += item.openInterest;
+        }
+        strikeMap.set(item.strike, existing);
+      }
+
+      const strikes = Array.from(strikeMap.entries())
+        .map(([strike, data]) => ({ strike, callOI: data.callOI, putOI: data.putOI }))
+        .sort((a, b) => a.strike - b.strike);
+
+      const totalCallOI = strikes.reduce((sum, s) => sum + s.callOI, 0);
+      const totalPutOI = strikes.reduce((sum, s) => sum + s.putOI, 0);
+      const totalOI = totalCallOI + totalPutOI;
+      const putCallRatio = totalCallOI > 0 ? (totalPutOI / totalCallOI) : 0;
+
+      const result = {
+        symbol: symbol.toUpperCase(),
+        expiration: expiration || (availableExpirations[0] ?? null),
+        availableExpirations,
+        strikes,
+        stats: {
+          totalCallOI,
+          totalPutOI,
+          totalOI,
+          putCallRatio: Math.round(putCallRatio * 100) / 100,
+        },
+      };
+
+      // Cache for 5 minutes (cast to any since this is a different shape than MarketOptionChainSummary)
+      await storage.setOptionsChainCache(cacheKey, result as any, 5 * 60 * 1000);
+      res.json(result);
+    } catch (error: any) {
+      console.error("[Open Interest] Error:", error);
+      res.status(500).json({ error: "Failed to fetch open interest data" });
+    }
+  });
+
   // Company logo proxy endpoint to avoid CORS issues
   const symbolToDomain: Record<string, string> = {
     AAPL: "apple.com",

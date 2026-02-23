@@ -7,6 +7,7 @@ import type { Greeks, MarketOptionChainSummary, OptionLeg, StrategyMetrics } fro
 import { GreeksDashboard } from "./GreeksDashboard";
 import { HistoricalPriceTab } from "./HistoricalPriceTab";
 import { WhatIfScenario } from "./WhatIfScenario";
+import { OpenInterestChart } from "./OpenInterestChart";
 import { 
   Line, 
   XAxis, 
@@ -464,10 +465,13 @@ export function AnalysisTabs({
 
       <TabsContent value="open-interest" className="mt-2">
         <Card className="p-3">
-          <h3 className="text-sm font-semibold mb-2">Open Interest</h3>
-          <div className="h-32 flex items-center justify-center bg-muted/30 rounded-md">
-            <p className="text-xs text-muted-foreground">Open interest chart</p>
-          </div>
+          {symbol ? (
+            <OpenInterestChart symbol={symbol} currentPrice={currentPrice} />
+          ) : (
+            <div className="h-32 flex items-center justify-center">
+              <p className="text-xs text-muted-foreground">Enter a symbol to view open interest</p>
+            </div>
+          )}
         </Card>
       </TabsContent>
 
