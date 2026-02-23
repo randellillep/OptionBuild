@@ -1071,17 +1071,18 @@ export function OptionDetailsPanel({
               <Minus className="h-4 w-4" />
             </Button>
             <input
-              type="number"
-              min="1"
-              value={leg.quantity}
+              type="text"
+              inputMode="numeric"
+              value={leg.position === "short" ? `-${leg.quantity}` : `${leg.quantity}`}
               onChange={(e) => {
-                const val = parseInt(e.target.value);
+                const raw = e.target.value.replace(/[^0-9]/g, '');
+                const val = parseInt(raw);
                 if (!isNaN(val) && val >= 1) {
                   if (onUpdateQuantity) onUpdateQuantity(val);
                   if (onUpdateLeg) onUpdateLeg({ quantity: val });
                 }
               }}
-              className="flex-1 text-center font-mono font-semibold bg-transparent border rounded-md h-8 w-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="flex-1 text-center font-mono font-semibold bg-transparent border rounded-md h-8 w-12"
               data-testid="input-quantity"
             />
             <Button
