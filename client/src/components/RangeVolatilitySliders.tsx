@@ -40,7 +40,7 @@ export function RangeVolatilitySliders({
   const sliderPercent = ((impliedVolatility - 10) / (100 - 10)) * 100;
 
   return (
-    <Card className="p-3">
+    <Card className="p-3" style={{ overflow: 'visible' }}>
       <div className="flex items-center gap-6">
         {/* Range slider */}
         <div className="flex items-center gap-3 flex-1">
@@ -70,7 +70,7 @@ export function RangeVolatilitySliders({
               </span>
             )}
           </div>
-          <div className="relative flex-1">
+          <div className="relative flex-1" style={{ overflow: 'visible' }}>
             <Slider
               value={[impliedVolatility]}
               onValueChange={([value]) => onVolatilityChange(value)}
@@ -83,11 +83,12 @@ export function RangeVolatilitySliders({
             />
             {isDraggingIV && calculatedIV && ivShift !== 0 && (
               <div
-                className="absolute -bottom-7 -translate-x-1/2 px-1.5 py-0.5 rounded text-[10px] font-bold text-white bg-primary whitespace-nowrap z-50 pointer-events-none"
-                style={{ left: `${sliderPercent}%` }}
+                className="absolute -translate-x-1/2 px-2 py-1 rounded text-xs font-bold text-white bg-primary whitespace-nowrap pointer-events-none shadow-md"
+                style={{ left: `${sliderPercent}%`, bottom: '100%', marginBottom: '8px', zIndex: 9999 }}
                 data-testid="tooltip-iv-shift"
               >
                 {ivShiftText}
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-primary" />
               </div>
             )}
           </div>
