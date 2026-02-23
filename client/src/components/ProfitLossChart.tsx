@@ -191,7 +191,7 @@ export function ProfitLossChart({
         </div>
         <div className="flex items-center gap-2 flex-1">
           <span className="text-muted-foreground whitespace-nowrap">IV</span>
-          <div className="relative flex-1" style={{ overflow: 'visible' }}>
+          <div className="relative flex-1">
             <Slider
               value={[impliedVolatility]}
               onValueChange={(v) => onVolatilityChange(v[0])}
@@ -202,18 +202,8 @@ export function ProfitLossChart({
               className="flex-1"
               data-testid="slider-volatility"
             />
-            {isDraggingIV && calculatedIV > 0 && ivShift !== 0 && (
-              <div
-                className="absolute -translate-x-1/2 px-2 py-1 rounded text-xs font-bold text-white bg-primary whitespace-nowrap pointer-events-none shadow-md"
-                style={{ left: `${ivSliderPercent}%`, top: '100%', marginTop: '18px', zIndex: 9999 }}
-                data-testid="tooltip-iv-shift"
-              >
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-primary" />
-                {ivShiftText}
-              </div>
-            )}
             {calculatedIV > 0 && (
-              <div className="relative w-full h-3 mt-0.5">
+              <div className="absolute left-0 right-0" style={{ top: '100%', marginTop: '2px', overflow: 'visible' }}>
                 {[1, 2, 3].map((multiplier) => {
                   const markerValue = calculatedIV * multiplier;
                   if (markerValue < 5 || markerValue > 150) return null;
@@ -221,8 +211,8 @@ export function ProfitLossChart({
                   return (
                     <button
                       key={multiplier}
-                      className="absolute -translate-x-1/2 text-[9px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-                      style={{ left: `${markerPercent}%`, top: 0 }}
+                      className="absolute -translate-x-1/2 text-[9px] leading-none text-muted-foreground cursor-pointer hover:text-foreground transition-colors px-1"
+                      style={{ left: `${markerPercent}%` }}
                       onClick={() => onVolatilityChange(markerValue)}
                       data-testid={`button-iv-${multiplier}x`}
                     >
@@ -230,6 +220,16 @@ export function ProfitLossChart({
                     </button>
                   );
                 })}
+              </div>
+            )}
+            {isDraggingIV && calculatedIV > 0 && ivShift !== 0 && (
+              <div
+                className="absolute -translate-x-1/2 px-2 py-1 rounded text-xs font-bold text-white bg-primary whitespace-nowrap pointer-events-none shadow-md"
+                style={{ left: `${ivSliderPercent}%`, top: '100%', marginTop: '16px', zIndex: 9999, overflow: 'visible' }}
+                data-testid="tooltip-iv-shift"
+              >
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-primary" />
+                {ivShiftText}
               </div>
             )}
           </div>
