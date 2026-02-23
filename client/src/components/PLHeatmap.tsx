@@ -255,10 +255,10 @@ export function PLHeatmap({
             {dateGroups.length > 0 && (
               <tr>
                 <th 
-                  colSpan={1} 
+                  colSpan={2} 
                   rowSpan={1}
                   className="text-[9px] font-semibold text-center p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
-                  style={{ width: '42px' }}
+                  style={{ width: '97px' }}
                 />
                 {dateGroups.map((group, idx) => (
                   <th
@@ -276,7 +276,14 @@ export function PLHeatmap({
             {/* Time/day column row */}
             <tr>
               <th 
-                className="text-[10px] font-semibold text-right pl-1 pr-1.5 py-1 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
+                className="text-[10px] font-semibold text-left px-1.5 py-1 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
+                scope="col"
+                style={{ width: '55px' }}
+              >
+                Strike
+              </th>
+              <th 
+                className="text-[10px] font-semibold text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
                 scope="col"
                 style={{ width: '42px' }}
               >
@@ -333,14 +340,22 @@ export function PLHeatmap({
               return (
                 <tr key={rowIdx} className={`h-[24px] ${currentPriceRowStyle}`}>
                   <td
-                    className={`text-[10px] font-mono text-right pl-1 pr-1.5 py-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[10px] font-mono font-semibold px-1.5 py-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
+                      isClosestToCurrentPrice ? 'text-foreground dark:text-white font-bold' : ''
+                    }`}
+                    data-testid={`strike-${strike.toFixed(2)}`}
+                  >
+                    ${strikeDisplay}
+                  </td>
+                  <td
+                    className={`text-[10px] font-mono text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
                       percentChange > 0 ? 'text-green-600 dark:text-green-400' : 
                       percentChange < 0 ? 'text-red-600 dark:text-red-400' : 
                       'text-muted-foreground'
-                    } ${isClosestToCurrentPrice ? 'font-bold' : ''}`}
+                    }`}
                     data-testid={`percent-${strike.toFixed(2)}`}
                   >
-                    {Math.round(percentChange)}%
+                    {Math.abs(percentChange) < 1 ? percentChange.toFixed(2) : percentChange.toFixed(1)}%
                   </td>
                   {row.map((cell, colIdx) => {
                     // For the "current scenario" cell (current price row, day 0):
