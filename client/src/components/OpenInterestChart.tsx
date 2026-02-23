@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,10 @@ function formatExpDate(dateStr: string): string {
 export function OpenInterestChart({ symbol, currentPrice }: OpenInterestChartProps) {
   const [selectedExpiration, setSelectedExpiration] = useState<string | null>(null);
   const [strikeRange, setStrikeRange] = useState<string>("20");
+
+  useEffect(() => {
+    setSelectedExpiration(null);
+  }, [symbol]);
 
   const { data, isLoading, error } = useQuery<OpenInterestData>({
     queryKey: ["/api/options/open-interest", symbol, selectedExpiration],
