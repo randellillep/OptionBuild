@@ -43,9 +43,11 @@ function formatExpDate(dateStr: string): string {
 export function OpenInterestChart({ symbol, currentPrice }: OpenInterestChartProps) {
   const [selectedExpiration, setSelectedExpiration] = useState<string | null>(null);
   const [strikeRange, setStrikeRange] = useState<string>("20");
+  const [allExpirations, setAllExpirations] = useState<string[]>([]);
 
   useEffect(() => {
     setSelectedExpiration(null);
+    setAllExpirations([]);
   }, [symbol]);
 
   const { data, isLoading, error } = useQuery<OpenInterestData>({
@@ -57,11 +59,17 @@ export function OpenInterestChart({ symbol, currentPrice }: OpenInterestChartPro
       }
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch open interest");
-      return res.json();
+      const result = await res.json();
+      if (!selectedExpiration && result.availableExpirations?.length > 0) {
+        setAllExpirations(result.availableExpirations);
+      }
+      return result;
     },
     enabled: !!symbol,
     staleTime: 60000,
   });
+
+  const displayExpirations = allExpirations.length > 0 ? allExpirations : (data?.availableExpirations || []);
 
   const filteredStrikes = useMemo(() => {
     if (!data?.strikes) return [];
@@ -116,7 +124,7 @@ export function OpenInterestChart({ symbol, currentPrice }: OpenInterestChartPro
               <SelectValue placeholder="Select expiration" />
             </SelectTrigger>
             <SelectContent>
-              {data.availableExpirations.map((exp) => (
+              {displayExpirations.map((exp) => (
                 <SelectItem key={exp} value={exp} data-testid={`option-exp-${exp}`}>
                   {formatExpDate(exp)}
                 </SelectItem>
