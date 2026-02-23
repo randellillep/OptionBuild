@@ -30,6 +30,7 @@ interface WhatIfScenarioProps {
   volatility: number;
   greeks: Greeks;
   metrics: StrategyMetrics | null;
+  calculatedIV?: number;
 }
 
 export function WhatIfScenario({
@@ -38,6 +39,7 @@ export function WhatIfScenario({
   volatility,
   greeks,
   metrics,
+  calculatedIV,
 }: WhatIfScenarioProps) {
   const [priceChange, setPriceChange] = useState(0);
   const [ivChange, setIvChange] = useState(0);
@@ -58,13 +60,13 @@ export function WhatIfScenario({
 
   const currentPL = useMemo(() => {
     if (!hasLegs) return 0;
-    return calculateProfitLossAtDate(legs, currentPrice, currentPrice, 0, volatility);
-  }, [legs, currentPrice, volatility, hasLegs]);
+    return calculateProfitLossAtDate(legs, currentPrice, currentPrice, 0, volatility, 0.05, calculatedIV);
+  }, [legs, currentPrice, volatility, hasLegs, calculatedIV]);
 
   const scenarioPL = useMemo(() => {
     if (!hasLegs) return 0;
-    return calculateProfitLossAtDate(legs, currentPrice, scenarioPrice, daysForward, scenarioIV);
-  }, [legs, currentPrice, scenarioPrice, daysForward, scenarioIV, hasLegs]);
+    return calculateProfitLossAtDate(legs, currentPrice, scenarioPrice, daysForward, scenarioIV, 0.05, calculatedIV);
+  }, [legs, currentPrice, scenarioPrice, daysForward, scenarioIV, hasLegs, calculatedIV]);
 
   const scenarioGreeks = useMemo(() => {
     if (!hasLegs) return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
@@ -81,7 +83,7 @@ export function WhatIfScenario({
       ...leg,
       expirationDays: Math.max(0, leg.expirationDays - daysForward),
     }));
-    return calculateStrategyMetrics(adjustedLegs, scenarioPrice, scenarioIV);
+    return calculateStrategyMetrics(adjustedLegs, scenarioPrice, scenarioIV, calculatedIV);
   }, [legs, scenarioPrice, scenarioIV, daysForward, hasLegs]);
 
   const plChange = scenarioPL - currentPL;

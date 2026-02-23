@@ -49,6 +49,7 @@ interface AnalysisTabsProps {
   legs?: OptionLeg[];
   metrics?: StrategyMetrics | null;
   frozenExpectedMove?: FrozenExpectedMove | null;
+  calculatedIV?: number;
 }
 
 export function AnalysisTabs({ 
@@ -60,7 +61,8 @@ export function AnalysisTabs({
   optionsChainData,
   legs = [],
   metrics,
-  frozenExpectedMove
+  frozenExpectedMove,
+  calculatedIV
 }: AnalysisTabsProps) {
   
   // Expected Move is passed in as frozen data from Builder
@@ -194,6 +196,7 @@ export function AnalysisTabs({
             volatility={volatility}
             greeks={greeks}
             metrics={metrics ?? null}
+            calculatedIV={calculatedIV}
           />
         </div>
       </TabsContent>

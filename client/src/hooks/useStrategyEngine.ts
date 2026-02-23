@@ -227,8 +227,8 @@ export function useStrategyEngine(rangePercent: number = 14) {
   }, [legs, symbolInfo.price, volatility]);
 
   const metrics: StrategyMetrics = useMemo(() => {
-    return calculateStrategyMetrics(legs, symbolInfo.price, volatility);
-  }, [legs, symbolInfo.price, volatility]);
+    return calculateStrategyMetrics(legs, symbolInfo.price, volatility, calculatedIV);
+  }, [legs, symbolInfo.price, volatility, calculatedIV]);
 
   const uniqueExpirationDays = useMemo(() => {
     const activeLegs = legs.filter(leg => {
@@ -372,7 +372,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       timeSteps.map(daysFromNow => ({
         strike,
         daysToExpiration: daysFromNow,
-        pnl: calculateProfitLossAtDate(legs, symbolInfo.price, strike, daysFromNow, volatility),
+        pnl: calculateProfitLossAtDate(legs, symbolInfo.price, strike, daysFromNow, volatility, 0.05, calculatedIV),
       }))
     );
 
@@ -384,7 +384,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       targetDays,
       dateGroups,
     };
-  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, selectedExpirationDays]);
+  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, selectedExpirationDays, calculatedIV]);
 
   const setSelectedExpiration = (days: number, date: string) => {
     setSelectedExpirationDays(days);

@@ -696,7 +696,8 @@ export function calculateProfitLossAtDate(
   atPrice: number,
   daysFromNow: number,
   volatility: number = 0.3,
-  riskFreeRate: number = 0.05
+  riskFreeRate: number = 0.05,
+  calculatedIV?: number
 ): number {
   let pnl = 0;
   
@@ -757,9 +758,11 @@ export function calculateProfitLossAtDate(
     // meaningful time intervals for visualization. This keeps current P/L accurate.
     const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
     
-    // Use slider volatility for scenario valuation (what-if analysis)
-    // This applies to ALL cells including "current" - the heatmap is a what-if tool
-    const scenarioVolatility = volatility;
+    // Per-leg volatility: apply the IV shift from the slider relative to each leg's own IV
+    // This preserves volatility skew across strikes instead of flattening all legs to one IV
+    const legIV = leg.impliedVolatility || 0.3;
+    const ivShift = calculatedIV && calculatedIV > 0 ? (volatility - calculatedIV) : 0;
+    const scenarioVolatility = Math.max(0.01, legIV + ivShift);
     
     let optionValue: number;
     
@@ -779,7 +782,6 @@ export function calculateProfitLossAtDate(
       const priceDiffPercent = Math.abs(atPrice - underlyingPrice) / underlyingPrice;
       const isAtExactCurrentPrice = priceDiffPercent < 0.001; // Within 0.1% of current price
       
-      const legIV = leg.impliedVolatility || 0.3;
       const ivDiff = Math.abs(scenarioVolatility - legIV);
       const ivMatchesMarket = ivDiff < 0.005; // Within 0.5% absolute IV difference
       
@@ -884,7 +886,8 @@ export function calculateProfitLossAtDate(
 export function calculateStrategyMetrics(
   legs: OptionLeg[],
   underlyingPrice: number,
-  volatility: number = 0.30
+  volatility: number = 0.30,
+  calculatedIV?: number
 ): StrategyMetrics {
   // For strike range calculation, use legs that have active positions or closed trades
   const legsWithActivity = legs.filter(leg => !leg.isExcluded || 
@@ -999,7 +1002,7 @@ export function calculateStrategyMetrics(
   
   for (const daysFromNow of timePoints) {
     for (const price of priceRange) {
-      const pnl = calculateProfitLossAtDate(legs, underlyingPrice, price, daysFromNow, volatility);
+      const pnl = calculateProfitLossAtDate(legs, underlyingPrice, price, daysFromNow, volatility, 0.05, calculatedIV);
       allPnlValues.push(pnl);
     }
   }

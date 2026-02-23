@@ -2102,6 +2102,7 @@ export default function Builder() {
                 legs={legs}
                 metrics={metrics}
                 frozenExpectedMove={frozenExpectedMove}
+                calculatedIV={calculatedIV}
               />
             </div>
 
