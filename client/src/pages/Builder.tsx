@@ -1358,8 +1358,10 @@ export default function Builder() {
   }, [legs, selectedExpirationDate, selectedExpirationDays, setSelectedExpiration]);
 
   // Use only actual available strikes from API (no extrapolation)
+  // Ignore stale chain data from a previous symbol during transitions
   const availableStrikes = useMemo(() => {
     if (!optionsChainData?.quotes || optionsChainData.quotes.length === 0) return null;
+    if (optionsChainData.symbol && optionsChainData.symbol.toUpperCase() !== symbolInfo.symbol.toUpperCase()) return null;
     
     // Use strikes array from API if available, otherwise extract from quotes
     const strikes = optionsChainData.strikes || 
@@ -1370,7 +1372,7 @@ export default function Builder() {
       max: optionsChainData.maxStrike,
       strikes: strikes as number[],
     };
-  }, [optionsChainData]);
+  }, [optionsChainData, symbolInfo.symbol]);
   
   // Helper to constrain strike to market limits
   const constrainToMarketLimits = (strike: number): number => {
