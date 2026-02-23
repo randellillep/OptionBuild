@@ -154,21 +154,22 @@ export function HistoricalPriceTab({
     staleTime: 60000,
   });
 
-  const isSingleLeg = legs.length === 1;
+  // Filter out stock legs — Historical tab shows only options strategy performance
+  // Stock legs cannot be accurately priced with Black-Scholes and distort results
+  const optionLegs = useMemo(() => legs.filter(l => l.type !== 'stock'), [legs]);
+  const isSingleLeg = optionLegs.length === 1;
 
   const chartData = useMemo(() => {
     if (!candleData?.candles?.length) return [];
+    if (optionLegs.length === 0) return [];
 
     const candles: Candle[] = candleData.candles;
-    // Use the LAST candle's timestamp as reference date (not new Date())
-    // This prevents the chart from "moving" on every render due to time passing
     const lastCandle = candles[candles.length - 1];
     const referenceDate = new Date(lastCandle.timestamp);
     const isLatestCandle = (idx: number) => idx === candles.length - 1;
 
     return candles.map((candle, index) => {
       const candleDate = new Date(candle.timestamp);
-      // Calculate days from this candle to the reference (last) candle
       const daysDiff = Math.ceil((referenceDate.getTime() - candleDate.getTime()) / (1000 * 60 * 60 * 24));
 
       let strategyValue = 0;
@@ -179,8 +180,9 @@ export function HistoricalPriceTab({
       let optionLow: number | null = null;
       let optionClose: number | null = null;
 
-      legs.forEach((leg) => {
+      optionLegs.forEach((leg) => {
         if (leg.expirationDays <= 0) return;
+        const legType = leg.type as 'call' | 'put';
         
         const daysRemainingAtCandle = leg.expirationDays + daysDiff;
         
@@ -195,21 +197,17 @@ export function HistoricalPriceTab({
         if (isLatestCandle(index)) {
           const marketPrice = getLegMarketPrice(leg);
           valueAtClose = marketPrice ?? leg.premium ?? calculateOptionPrice(
-            leg.type,
+            legType,
             candle.close,
             leg.strike,
             daysRemainingAtCandle,
             volatility
           );
         } else {
-          // For historical calculations, use a typical/average IV rather than current IV
-          // Current IV reflects today's market conditions, not historical ones
-          // OptionStrat likely uses historical volatility data; we approximate with typical IV
-          // AAPL typical IV is around 25-30%, mega-caps usually 20-35%
-          const HISTORICAL_IV_ESTIMATE = 0.28; // 28% - typical for large-cap stocks
+          const HISTORICAL_IV_ESTIMATE = 0.28;
           
           valueAtClose = calculateOptionPrice(
-            leg.type,
+            legType,
             candle.close,
             leg.strike,
             daysRemainingAtCandle,
@@ -221,7 +219,7 @@ export function HistoricalPriceTab({
         // - If all quantities are equal (e.g., 10+10): show per-contract value (same as 1+1)
         // - If quantities differ (e.g., 1+2): use actual quantities to reflect asymmetric ratio
         // This matches user expectation: scaling equally shouldn't change displayed price
-        const allQuantitiesEqual = legs.every(l => Math.abs(l.quantity) === Math.abs(legs[0].quantity));
+        const allQuantitiesEqual = optionLegs.every(l => Math.abs(l.quantity) === Math.abs(optionLegs[0].quantity));
         const quantityMultiplier = isSingleLeg || allQuantitiesEqual 
           ? 1 
           : Math.abs(leg.quantity);
@@ -242,21 +240,21 @@ export function HistoricalPriceTab({
             const HISTORICAL_IV_ESTIMATE = 0.28; // 28% - typical for large-cap stocks
             
             const valueAtOpen = calculateOptionPrice(
-              leg.type,
+              legType,
               candle.open,
               leg.strike,
               daysRemainingAtCandle,
               HISTORICAL_IV_ESTIMATE
             );
             const valueAtHigh = calculateOptionPrice(
-              leg.type,
+              legType,
               candle.high,
               leg.strike,
               daysRemainingAtCandle,
               HISTORICAL_IV_ESTIMATE
             );
             const valueAtLow = calculateOptionPrice(
-              leg.type,
+              legType,
               candle.low,
               leg.strike,
               daysRemainingAtCandle,
@@ -301,7 +299,7 @@ export function HistoricalPriceTab({
         candleBody: [Math.min(candle.open, candle.close), Math.max(candle.open, candle.close)],
       };
     });
-  }, [candleData, legs, volatility, timeRange, isSingleLeg]);
+  }, [candleData, optionLegs, volatility, timeRange, isSingleLeg]);
 
   const latestData = chartData[chartData.length - 1];
   const firstData = chartData[0];
@@ -314,28 +312,27 @@ export function HistoricalPriceTab({
     ? ((latestData.strategyValue - firstData.strategyValue) / firstData.strategyValue) * 100
     : 0;
 
+  const hasStockLegs = useMemo(() => legs.some(l => l.type === 'stock'), [legs]);
+
   const isNetCredit = useMemo(() => {
     let netPremium = 0;
-    legs.forEach((leg) => {
-      // Long = pay premium (negative), Short = receive premium (positive)
+    optionLegs.forEach((leg) => {
       const positionMultiplier = leg.position === "long" ? -1 : 1;
-      // Use Math.abs to avoid double-negation when short legs have negative quantities
       netPremium += leg.premium * positionMultiplier * Math.abs(leg.quantity);
     });
     return netPremium > 0;
-  }, [legs]);
+  }, [optionLegs]);
 
-  // Detect if this is a single short position (for Y-axis inversion)
-  const isShortPosition = isSingleLeg && legs.length === 1 && legs[0]?.position === "short";
+  const isShortPosition = isSingleLeg && optionLegs.length === 1 && optionLegs[0]?.position === "short";
 
   const strategyLabel = useMemo(() => {
-    if (legs.length === 0) return "No positions";
-    if (legs.length === 1) {
-      const leg = legs[0];
+    if (optionLegs.length === 0) return "No option positions";
+    if (optionLegs.length === 1) {
+      const leg = optionLegs[0];
       return `${symbol} ${leg.strike}${leg.type === "call" ? "C" : "P"}`;
     }
-    return `Strategy (${legs.length} legs)`;
-  }, [legs, symbol]);
+    return `Options Strategy (${optionLegs.length} legs)`;
+  }, [optionLegs, symbol]);
 
   const priceRange = useMemo(() => {
     if (!chartData.length) return { min: 0, max: 100 };
@@ -499,8 +496,11 @@ export function HistoricalPriceTab({
                   Net Credit
                 </Badge>
               )}
-              {!isSingleLeg && legs.length > 1 && (
+              {!isSingleLeg && optionLegs.length > 1 && (
                 <Badge variant="outline" className="text-[9px]">Combined</Badge>
+              )}
+              {hasStockLegs && (
+                <Badge variant="outline" className="text-[9px]">Options Only</Badge>
               )}
             </div>
             {latestData?.strategyValue !== null && latestData?.strategyValue !== undefined && (
