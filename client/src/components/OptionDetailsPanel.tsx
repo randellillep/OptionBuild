@@ -1008,7 +1008,7 @@ export function OptionDetailsPanel({
             data-testid="button-delete-closing-entry"
           >
             <Trash2 className="h-3 w-3" />
-            Delete This Sale
+            Delete This Trade
           </Button>
         </div>
       </div>
@@ -1064,9 +1064,20 @@ export function OptionDetailsPanel({
             >
               <Minus className="h-4 w-4" />
             </Button>
-            <div className="flex-1 text-center font-mono font-semibold" data-testid="text-quantity">
-              {displayQuantity}
-            </div>
+            <input
+              type="number"
+              min="1"
+              value={leg.quantity}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                if (!isNaN(val) && val >= 1) {
+                  if (onUpdateQuantity) onUpdateQuantity(val);
+                  if (onUpdateLeg) onUpdateLeg({ quantity: val });
+                }
+              }}
+              className="flex-1 text-center font-mono font-semibold bg-transparent border rounded-md h-8 w-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              data-testid="input-quantity"
+            />
             <Button
               size="icon"
               variant="outline"
