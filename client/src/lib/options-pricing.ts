@@ -767,67 +767,54 @@ export function calculateProfitLossAtDate(
     const ivShift = calculatedIV && calculatedIV > 0 ? (volatility - calculatedIV) : 0;
     const scenarioVolatility = Math.max(0.01, legIV + ivShift);
     
-    let optionValue: number;
+    const optionType = leg.type as "call" | "put";
+    
+    // OptionStrat-style P/L: compute CHANGE in theoretical value from entry conditions.
+    // This eliminates market-vs-model mismatch by using the same BS model for both
+    // entry and scenario pricing. Absolute model errors cancel out in the difference.
+    
+    let scenarioValue: number;
+    let entryValue: number;
     
     if (daysRemaining <= 0) {
-      // At or past expiration - use intrinsic value
-      optionValue = leg.type === "call" 
+      // At or past expiration - scenario uses intrinsic value
+      scenarioValue = leg.type === "call" 
         ? Math.max(atPrice - leg.strike, 0)
         : Math.max(leg.strike - atPrice, 0);
     } else {
-      // Type narrowed to "call" | "put" after stock check above
-      const optionType = leg.type as "call" | "put";
-      
-      // At the exact entry point (daysFromNow <= 0): decide between market vs theoretical
-      // If IV hasn't been changed from market levels, use MARKET price (P/L = $0 at entry)
-      // If IV has been manually adjusted, use theoretical pricing to show IV impact
-      const isAtOrBeforeEntry = daysFromNow <= 0;
-      const priceDiffPercent = Math.abs(atPrice - underlyingPrice) / underlyingPrice;
-      const isAtExactCurrentPrice = priceDiffPercent < 0.001; // Within 0.1% of current price
-      
-      const ivDiff = Math.abs(scenarioVolatility - legIV);
-      const ivMatchesMarket = ivDiff < 0.005; // Within 0.5% absolute IV difference
-      
-      if (isAtOrBeforeEntry && isAtExactCurrentPrice && ivMatchesMarket) {
-        // IV at market levels - use actual premium for exact P/L = $0 at entry
-        optionValue = Math.abs(leg.premium);
-      } else {
-        // Use theoretical pricing for scenario analysis (IV changed, different price, or future time)
-        optionValue = calculateOptionPrice(
-          optionType,
-          atPrice,
-          leg.strike,
-          daysRemaining,
-          scenarioVolatility,
-          riskFreeRate
-        );
-      }
+      scenarioValue = calculateOptionPrice(
+        optionType, atPrice, leg.strike, daysRemaining, scenarioVolatility, riskFreeRate
+      );
     }
     
-    // Normalize premium to always be positive (absolute value)
-    const premium = Math.abs(leg.premium);
+    // Entry value: theoretical price at current conditions (current price, full DTE, leg's own IV)
+    // Using the same model for entry ensures P/L = 0 at current price/time when IV unchanged
+    if (leg.expirationDays <= 0) {
+      entryValue = leg.type === "call"
+        ? Math.max(underlyingPrice - leg.strike, 0)
+        : Math.max(leg.strike - underlyingPrice, 0);
+    } else {
+      entryValue = calculateOptionPrice(
+        optionType, underlyingPrice, leg.strike, leg.expirationDays, legIV, riskFreeRate
+      );
+    }
     
-    // Always use premium as baseline - this is the actual cost/credit for the position
-    // This ensures:
-    // - P/L = 0 when option is worth the same as when position was opened
-    // - Max profit for short positions = premium received (can't profit more than credit)
-    // - Max loss for long positions = premium paid (can't lose more than debit)
-    const baselineValue = premium;
+    // The P/L is the change in value from entry to scenario
+    // For long: profit when value increases, loss when value decreases
+    // For short: profit when value decreases, loss when value increases
+    const valueChange = scenarioValue - entryValue;
+    
+    // Normalize premium for closing transaction calculations
+    const premium = Math.abs(leg.premium);
     
     // Handle closing transaction if present and enabled
     const closing = leg.closingTransaction;
     if (closing?.isEnabled && closing.entries && closing.entries.length > 0) {
-      // Calculate realized P/L from non-excluded entries only
       let totalClosedPnl = 0;
-      // Calculate total closed quantity from ALL entries (for remaining qty calculation)
       const allClosedQty = closing.entries.reduce((sum, e) => sum + e.quantity, 0);
       
       for (const entry of closing.entries) {
-        // Skip excluded entries for P/L calculation (but they still count toward closed quantity)
         if (entry.isExcluded) continue;
-        
-        // Use entry's IMMUTABLE openingPrice (cost basis captured at close time)
-        // Fall back to leg.premium only for legacy entries that don't have openingPrice
         const entryCostBasis = entry.openingPrice ?? premium;
         
         const entryPnl = leg.position === "long"
@@ -837,47 +824,37 @@ export function calculateProfitLossAtDate(
         totalClosedPnl += entryPnl;
       }
       
-      // Remaining quantity is based on ALL closed entries (excluded or not)
       const remainingQty = leg.quantity - allClosedQty;
       
-      // Unrealized P/L for remaining quantity (only if leg is NOT excluded)
-      // Use baselineValue for proper anchoring so P/L = 0 at entry point
       const remainingPnl = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long"
-            ? (optionValue - baselineValue) * remainingQty * 100
-            : (baselineValue - optionValue) * remainingQty * 100)
+            ? valueChange * remainingQty * 100
+            : -valueChange * remainingQty * 100)
         : 0;
       
       pnl += totalClosedPnl + remainingPnl;
     } else if (closing?.isEnabled && closing.quantity > 0) {
-      // Legacy: aggregated closing transaction
       const closedQty = Math.min(closing.quantity, leg.quantity);
       const remainingQty = leg.quantity - closedQty;
       
-      // Realized P/L from closed portion (ALWAYS included - closed trades always count)
       const closingPrice = closing.closingPrice;
       const closedPnl = leg.position === "long"
         ? (closingPrice - premium) * closedQty * 100
         : (premium - closingPrice) * closedQty * 100;
       
-      // Unrealized P/L for remaining quantity (only if leg is NOT excluded)
-      // Use baselineValue for proper anchoring so P/L = 0 at entry point
       const remainingPnl = (remainingQty > 0 && !leg.isExcluded)
         ? (leg.position === "long"
-            ? (optionValue - baselineValue) * remainingQty * 100
-            : (baselineValue - optionValue) * remainingQty * 100)
+            ? valueChange * remainingQty * 100
+            : -valueChange * remainingQty * 100)
         : 0;
       
       pnl += closedPnl + remainingPnl;
     } else {
-      // Skip excluded legs for standard calculation (no closing transactions)
       if (leg.isExcluded) continue;
       
-      // Standard calculation for full quantity
-      // Use baselineValue for proper anchoring so P/L = 0 at entry point
       const legPnl = leg.position === "long"
-        ? (optionValue - baselineValue) * Math.abs(leg.quantity) * 100
-        : (baselineValue - optionValue) * Math.abs(leg.quantity) * 100;
+        ? valueChange * Math.abs(leg.quantity) * 100
+        : -valueChange * Math.abs(leg.quantity) * 100;
       
       pnl += legPnl;
     }
