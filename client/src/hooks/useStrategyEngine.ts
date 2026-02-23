@@ -52,6 +52,9 @@ export function useStrategyEngine(rangePercent: number = 14) {
       isLoadingSavedTradeRef.current = false;
       prevSymbolRef.current = symbolInfo.symbol;
       
+      // Reset manual IV lock so the new symbol's market IV is used
+      setIsManualVolatility(false);
+      
       // Increment symbol change ID to signal other effects
       setSymbolChangeId(prev => prev + 1);
     }
