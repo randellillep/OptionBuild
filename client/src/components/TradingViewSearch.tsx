@@ -252,7 +252,6 @@ export function TradingViewSearch({
             <div className="text-xs text-muted-foreground">{name}</div>
           </div>
         </div>
-        <Star className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
     );
   };
@@ -479,15 +478,6 @@ export function TradingViewSearch({
               )}
             </div>
 
-            <div className="p-3 border-t border-border bg-muted/30">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↑</kbd> <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↓</kbd> to navigate</span>
-                  <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> to select</span>
-                  <span><kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Esc</kbd> to close</span>
-                </div>
-              </div>
-            </div>
           </Card>
         </div>
       )}
