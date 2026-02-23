@@ -156,8 +156,9 @@ export function HistoricalPriceTab({
 
   // Filter out stock legs — when options exist, show only options strategy performance
   // If ONLY stock legs exist (no options), show the stock's historical price movement
-  const optionLegs = useMemo(() => legs.filter(l => l.type !== 'stock'), [legs]);
-  const stockOnlyMode = optionLegs.length === 0 && legs.some(l => l.type === 'stock');
+  const activeLeg = useMemo(() => legs.filter(l => !l.isExcluded), [legs]);
+  const optionLegs = useMemo(() => activeLeg.filter(l => l.type !== 'stock'), [activeLeg]);
+  const stockOnlyMode = optionLegs.length === 0 && activeLeg.some(l => l.type === 'stock');
   const isSingleLeg = stockOnlyMode ? true : optionLegs.length === 1;
 
   const chartData = useMemo(() => {
