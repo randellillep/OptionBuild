@@ -322,7 +322,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
     } else {
       // OptionStrat-style: show more date columns for better time resolution
       // Scale column count based on DTE for a dense but readable heatmap
-      const dateCount = targetDays <= 14 ? 10 : targetDays <= 30 ? 12 : targetDays <= 60 ? 14 : 16;
+      const dateCount = targetDays <= 14 ? 12 : targetDays <= 30 ? 14 : targetDays <= 60 ? 16 : 18;
       const dayStep = targetDays / (dateCount - 1);
       for (let i = 0; i < dateCount; i++) {
         timeSteps.push(Math.max(0, Math.round(i * dayStep)));
