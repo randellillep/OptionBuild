@@ -711,7 +711,7 @@ export function StrikeLadder({
               style={{ pointerEvents: (isDragging || draggedLegRef.current) ? 'none' : 'auto' }}
             >
               <div 
-                className={`absolute text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-[100] ${position === 'long' ? '-top-2.5 -right-2.5' : '-bottom-2.5 -right-2.5'}`}
+                className={`absolute text-[8px] font-bold text-white bg-gray-600 rounded-sm px-1 py-px z-[100] leading-tight ${position === 'long' ? '-top-2 -left-2' : '-bottom-2 -left-2'}`}
               >
                 x{entry.quantity}
               </div>
@@ -843,7 +843,7 @@ export function StrikeLadder({
               style={{ pointerEvents: (isDragging || draggedLegRef.current) ? 'none' : 'auto' }}
             >
               <div 
-                className={`absolute text-[8px] font-semibold text-white bg-gray-500 px-1 py-0.5 rounded-sm z-[100] ${position === 'long' ? '-top-2.5 -right-2.5' : '-bottom-2.5 -right-2.5'}`}
+                className={`absolute text-[8px] font-bold text-white bg-gray-600 rounded-sm px-1 py-px z-[100] leading-tight ${position === 'long' ? '-top-2 -left-2' : '-bottom-2 -left-2'}`}
               >
                 x{entry.quantity}
               </div>
