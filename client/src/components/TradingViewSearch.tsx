@@ -315,8 +315,8 @@ export function TradingViewSearch({
       </Card>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/50">
-          <Card className="w-full max-w-2xl mx-4 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/50" onClick={() => setIsOpen(false)}>
+          <Card className="w-full max-w-2xl mx-4 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-border">
               <div className="flex items-center gap-3">
                 <Search className="h-5 w-5 text-muted-foreground" />
