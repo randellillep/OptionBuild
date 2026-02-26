@@ -105,9 +105,9 @@ export function PLHeatmap({
       const b = Math.round(15 + (1 - intensity) * 45);
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     } else if (pnl < 0) {
-      const r = Math.round(100 + intensity * 90);
-      const g = Math.round(15 + (1 - intensity) * 45);
-      const b = Math.round(25 + (1 - intensity) * 35);
+      const r = Math.round(60 + intensity * 160);
+      const g = Math.round(20 * (1 - intensity));
+      const b = Math.round(25 * (1 - intensity));
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     }
     
@@ -301,12 +301,10 @@ export function PLHeatmap({
               });
               return (
                 <tr>
-                  <th className="border-b border-border bg-slate-100 dark:bg-slate-800/50 sticky left-0 z-10" style={{ width: '55px' }} />
-                  <th className="border-b border-border bg-slate-100 dark:bg-slate-800/50" style={{ width: '42px' }} />
                   {monthGroups.map((group, idx) => (
                     <th
                       key={idx}
-                      colSpan={group.count}
+                      colSpan={idx === 0 ? group.count + 2 : group.count}
                       className={`text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 ${
                         idx > 0 ? 'border-l-2 border-l-slate-400 dark:border-l-slate-500' : ''
                       }`}
