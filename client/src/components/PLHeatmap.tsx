@@ -105,10 +105,10 @@ export function PLHeatmap({
       const b = Math.round(15 + (1 - intensity) * 45);
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     } else if (pnl < 0) {
-      const r = Math.round(100 + intensity * 90);
-      const g = Math.round(15 + (1 - intensity) * 45);
-      const b = Math.round(25 + (1 - intensity) * 35);
-      return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
+      const r = Math.round(80 + intensity * 150);
+      const g = Math.round(10 + (1 - intensity) * 30);
+      const b = Math.round(15 + (1 - intensity) * 25);
+      return { backgroundColor: `rgb(${Math.min(r, 230)}, ${g}, ${b})` };
     }
     
     return { backgroundColor: 'rgb(55, 55, 60)' };
@@ -344,12 +344,16 @@ export function PLHeatmap({
                 className="text-[10px] font-semibold text-left px-1.5 py-1 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
                 scope="col"
                 style={{ width: '55px' }}
-              />
+              >
+                Price
+              </th>
               <th 
                 className="text-[10px] font-semibold text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
                 scope="col"
                 style={{ width: '42px' }}
-              />
+              >
+                %
+              </th>
               {days.map((day, idx) => {
                 const today = new Date();
                 const targetDate = new Date(today);
@@ -452,9 +456,7 @@ export function PLHeatmap({
                     return (
                       <td
                         key={colIdx}
-                        className={`text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell ${
-                          getColumnSeparatorClass(colIdx)
-                        }`}
+                        className="text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell"
                         style={getPnlStyle(cellPnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
