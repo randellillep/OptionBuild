@@ -301,10 +301,12 @@ export function PLHeatmap({
               });
               return (
                 <tr>
+                  <th style={{ width: '55px' }} className="sticky left-0 z-10" />
+                  <th style={{ width: '42px' }} />
                   {monthGroups.map((group, idx) => (
                     <th
                       key={idx}
-                      colSpan={idx === 0 ? group.count + 2 : group.count}
+                      colSpan={group.count}
                       className={`text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 ${
                         idx > 0 ? 'border-l-2 border-l-slate-400 dark:border-l-slate-500' : ''
                       }`}
