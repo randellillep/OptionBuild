@@ -51,3 +51,15 @@ Preferred communication style: Simple, everyday language.
 **Development Tools**: Vite, TypeScript, ESBuild.
 **Utilities**: `date-fns`, `nanoid`, `embla-carousel`.
 **Integrations**: Finnhub API (live stock prices, search, historical data, fundamentals), PostgreSQL (user authentication, session storage), Replit Auth (Google sign-in).
+
+## Backtesting Engine (tastytrade-aligned)
+
+**Key Design Decisions**:
+- Expiration dates snap to Fridays (standard equity options expiration)
+- Strike prices use realistic increments ($0.50 for <$25, $1 for <$50, $2.50 for <$200, $5 for $200+)
+- Duplicate trade avoidance: skips entry if same strike/expiration combo already active
+- Volatility estimation uses 30-day lookback with 1.15x VRP (Volatility Risk Premium) multiplier to approximate implied volatility
+- Buying power uses tastytrade-style BPR: max(20% underlying - OTM amount + premium, 10% strike + premium)
+- Open P/L calculated per-trade individually (not averaged across positions)
+- Capital tracking: max concurrent BPR sum represents "used capital"
+- Drawdown: dollar-based from peak, expressed as percentage of current total BPR

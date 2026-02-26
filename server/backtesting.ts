@@ -104,7 +104,8 @@ function findStrikeByDelta(
     const delta = Math.abs(calculateDelta(type, underlyingPrice, mid, daysToExpiration, volatility));
     
     if (Math.abs(delta - targetDeltaAbs) < 0.001) {
-      return Math.round(mid * 2) / 2;
+      const increment = getStrikeIncrement(underlyingPrice);
+      return snapToStrikeIncrement(mid, increment, type);
     }
     
     if (type === "call") {
@@ -116,7 +117,24 @@ function findStrikeByDelta(
     }
   }
   
-  return Math.round(((low + high) / 2) * 2) / 2;
+  const rawStrike = (low + high) / 2;
+  const increment = getStrikeIncrement(underlyingPrice);
+  return snapToStrikeIncrement(rawStrike, increment, type);
+}
+
+function getStrikeIncrement(underlyingPrice: number): number {
+  if (underlyingPrice < 25) return 0.5;
+  if (underlyingPrice < 50) return 1;
+  if (underlyingPrice < 200) return 2.5;
+  return 5;
+}
+
+function snapToStrikeIncrement(rawStrike: number, increment: number, type: "call" | "put"): number {
+  if (type === "put") {
+    return Math.floor(rawStrike / increment) * increment;
+  } else {
+    return Math.ceil(rawStrike / increment) * increment;
+  }
 }
 
 function findStrikeByPercentOTM(
@@ -125,10 +143,11 @@ function findStrikeByPercentOTM(
   type: "call" | "put"
 ): number {
   const offset = underlyingPrice * (percentOTM / 100);
-  let strike = type === "call" 
+  let rawStrike = type === "call" 
     ? underlyingPrice + offset 
     : underlyingPrice - offset;
-  return Math.round(strike * 2) / 2;
+  const increment = getStrikeIncrement(underlyingPrice);
+  return snapToStrikeIncrement(rawStrike, increment, type);
 }
 
 function findStrikeByPriceOffset(
@@ -136,10 +155,11 @@ function findStrikeByPriceOffset(
   priceOffset: number,
   type: "call" | "put"
 ): number {
-  let strike = type === "call"
+  let rawStrike = type === "call"
     ? underlyingPrice + priceOffset
     : underlyingPrice - priceOffset;
-  return Math.round(strike * 2) / 2;
+  const increment = getStrikeIncrement(underlyingPrice);
+  return snapToStrikeIncrement(rawStrike, increment, type);
 }
 
 interface HistoricalBar {
@@ -266,7 +286,7 @@ async function fetchHistoricalPrices(
   return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function estimateVolatility(priceHistory: HistoricalBar[], lookback: number = 20): number {
+function estimateVolatility(priceHistory: HistoricalBar[], lookback: number = 30): number {
   if (priceHistory.length < 2) return 0.3;
   
   const returns: number[] = [];
@@ -284,7 +304,15 @@ function estimateVolatility(priceHistory: HistoricalBar[], lookback: number = 20
   const dailyVol = Math.sqrt(variance);
   
   const annualizedVol = dailyVol * Math.sqrt(252);
-  return Math.max(0.1, Math.min(1.5, annualizedVol));
+  
+  // Apply Volatility Risk Premium (VRP): implied volatility is typically 15-20%
+  // higher than realized/historical volatility. This better approximates actual 
+  // market option prices which embed this premium.
+  // tastytrade mid prices reflect IV, so we need to approximate that.
+  const vrpMultiplier = 1.15;
+  const impliedVolApprox = annualizedVol * vrpMultiplier;
+  
+  return Math.max(0.1, Math.min(1.5, impliedVolApprox));
 }
 
 function calculateBuyingPower(
@@ -293,45 +321,66 @@ function calculateBuyingPower(
   premiums: number[],
   underlyingPrice: number
 ): number {
-  let totalPremium = 0;
-  let maxRisk = 0;
+  // tastytrade-style BPR (Buying Power Reduction) for naked options
+  // Standard margin formula: max(Method A, Method B)
+  // Method A: 20% of underlying - OTM amount + premium
+  // Method B: 10% of strike price + premium
+  // Minimum: $50 per contract (not modeled here as it's negligible)
+  
+  let totalBPR = 0;
+  const widthRisk = calculateSpreadWidth(legs, strikes);
+  
+  if (widthRisk > 0) {
+    // For spreads, BPR = spread width * 100 * quantity
+    return widthRisk;
+  }
   
   for (let i = 0; i < legs.length; i++) {
     const leg = legs[i];
     const premium = premiums[i] * leg.quantity * 100;
     
     if (leg.direction === "sell") {
-      totalPremium += premium;
-      
       if (leg.optionType === "put") {
-        maxRisk += strikes[i] * leg.quantity * 100;
+        const otmAmount = Math.max(0, underlyingPrice - strikes[i]) * leg.quantity * 100;
+        const methodA = (underlyingPrice * 0.20 * leg.quantity * 100) - otmAmount + premium;
+        const methodB = (strikes[i] * 0.10 * leg.quantity * 100) + premium;
+        totalBPR += Math.max(methodA, methodB);
       } else {
-        maxRisk += underlyingPrice * 0.2 * leg.quantity * 100;
+        const otmAmount = Math.max(0, strikes[i] - underlyingPrice) * leg.quantity * 100;
+        const methodA = (underlyingPrice * 0.20 * leg.quantity * 100) - otmAmount + premium;
+        const methodB = (underlyingPrice * 0.10 * leg.quantity * 100) + premium;
+        totalBPR += Math.max(methodA, methodB);
       }
-    } else {
-      totalPremium -= premium;
     }
   }
   
-  const widthRisk = calculateSpreadWidth(legs, strikes);
-  
-  return Math.max(widthRisk, maxRisk) - Math.max(0, totalPremium);
+  return totalBPR;
 }
 
 function calculateSpreadWidth(legs: BacktestLegConfig[], strikes: number[]): number {
-  const puts = legs.map((l, i) => ({ ...l, strike: strikes[i] })).filter(l => l.optionType === "put");
-  const calls = legs.map((l, i) => ({ ...l, strike: strikes[i] })).filter(l => l.optionType === "call");
+  // Only treat as a spread if we have both buy and sell legs of the same type
+  const legsWithStrikes = legs.map((l, i) => ({ ...l, strike: strikes[i] }));
+  const puts = legsWithStrikes.filter(l => l.optionType === "put");
+  const calls = legsWithStrikes.filter(l => l.optionType === "call");
   
   let width = 0;
   
-  if (puts.length >= 2) {
+  // Check for vertical put spreads (has both buy and sell puts)
+  const putBuys = puts.filter(p => p.direction === "buy");
+  const putSells = puts.filter(p => p.direction === "sell");
+  if (putBuys.length > 0 && putSells.length > 0) {
     const putStrikes = puts.map(p => p.strike).sort((a, b) => a - b);
-    width = Math.max(width, putStrikes[putStrikes.length - 1] - putStrikes[0]);
+    const qty = Math.min(...puts.map(p => p.quantity));
+    width = Math.max(width, (putStrikes[putStrikes.length - 1] - putStrikes[0]) * qty);
   }
   
-  if (calls.length >= 2) {
+  // Check for vertical call spreads (has both buy and sell calls)
+  const callBuys = calls.filter(c => c.direction === "buy");
+  const callSells = calls.filter(c => c.direction === "sell");
+  if (callBuys.length > 0 && callSells.length > 0) {
     const callStrikes = calls.map(c => c.strike).sort((a, b) => a - b);
-    width = Math.max(width, callStrikes[callStrikes.length - 1] - callStrikes[0]);
+    const qty = Math.min(...calls.map(c => c.quantity));
+    width = Math.max(width, (callStrikes[callStrikes.length - 1] - callStrikes[0]) * qty);
   }
   
   return width * 100;
@@ -355,6 +404,25 @@ interface ActiveTrade {
 function calculateExpirationDate(entryDate: string, dte: number): string {
   const date = new Date(entryDate);
   date.setDate(date.getDate() + dte);
+  
+  // Snap to nearest Friday (standard equity options expire on Fridays)
+  // tastytrade uses actual Friday expirations
+  const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+  if (dayOfWeek !== 5) {
+    // Find the nearest Friday: go backwards for Sat/Sun, forwards for Mon-Thu
+    if (dayOfWeek === 6) {
+      // Saturday -> previous Friday
+      date.setDate(date.getDate() - 1);
+    } else if (dayOfWeek === 0) {
+      // Sunday -> previous Friday
+      date.setDate(date.getDate() - 2);
+    } else {
+      // Mon-Thu -> next Friday
+      const daysUntilFriday = 5 - dayOfWeek;
+      date.setDate(date.getDate() + daysUntilFriday);
+    }
+  }
+  
   return date.toISOString().split('T')[0];
 }
 
@@ -547,7 +615,7 @@ export async function runTastyworksBacktest(
       const currentDate = bar.date;
       
       const historicalSlice = priceHistory.slice(0, i + 1);
-      const volatility = estimateVolatility(historicalSlice, 20);
+      const volatility = estimateVolatility(historicalSlice, 30);
       
       for (const trade of activeTrades) {
         trade.daysInTrade++;
@@ -570,8 +638,6 @@ export async function runTastyworksBacktest(
       }
       
       if (shouldEnterTrade(currentDate, config, activeTrades)) {
-        tradeNumber++;
-        
         const strikes: number[] = [];
         const premiums: number[] = [];
         
@@ -600,57 +666,76 @@ export async function runTastyworksBacktest(
           premiums.push(premium);
         }
         
-        let netPremium = 0;
-        for (let j = 0; j < config.legs.length; j++) {
-          const leg = config.legs[j];
-          const legPremium = premiums[j] * leg.quantity * 100;
-          if (leg.direction === "sell") {
-            netPremium += legPremium;
-          } else {
-            netPremium -= legPremium;
-          }
-        }
-        
-        const buyingPower = calculateBuyingPower(config.legs, strikes, premiums, currentPrice);
-        totalCapitalUsed = Math.max(totalCapitalUsed, buyingPower);
-        
         const expirationDate = calculateExpirationDate(currentDate, config.legs[0].dte);
         
-        const newTrade: ActiveTrade = {
-          tradeNumber,
-          openedDate: currentDate,
-          expirationDate,
-          legs: config.legs.map((leg, j) => ({
-            leg,
-            strike: strikes[j],
-            entryPrice: premiums[j],
-            dte: leg.dte,
-          })),
-          premium: netPremium,
-          buyingPower,
-          daysInTrade: 0,
-        };
+        // tastytrade-style: avoid duplicate positions on the same strike/expiration/type/direction
+        // If an active trade already has the exact same option combo, skip entry
+        const isDuplicate = activeTrades.some(existingTrade => {
+          if (existingTrade.expirationDate !== expirationDate) return false;
+          if (existingTrade.legs.length !== config.legs.length) return false;
+          return existingTrade.legs.every((el, idx) => 
+            idx < strikes.length && 
+            el.strike === strikes[idx] &&
+            el.leg.optionType === config.legs[idx].optionType &&
+            el.leg.direction === config.legs[idx].direction
+          );
+        });
         
-        activeTrades.push(newTrade);
+        if (!isDuplicate) {
+          tradeNumber++;
+          
+          let netPremium = 0;
+          for (let j = 0; j < config.legs.length; j++) {
+            const leg = config.legs[j];
+            const legPremium = premiums[j] * leg.quantity * 100;
+            if (leg.direction === "sell") {
+              netPremium += legPremium;
+            } else {
+              netPremium -= legPremium;
+            }
+          }
+          
+          const buyingPower = calculateBuyingPower(config.legs, strikes, premiums, currentPrice);
+          
+          const newTrade: ActiveTrade = {
+            tradeNumber,
+            openedDate: currentDate,
+            expirationDate,
+            legs: config.legs.map((leg, j) => ({
+              leg,
+              strike: strikes[j],
+              entryPrice: premiums[j],
+              dte: leg.dte,
+            })),
+            premium: netPremium,
+            buyingPower,
+            daysInTrade: 0,
+          };
+          
+          activeTrades.push(newTrade);
+        }
       }
       
-      let openPositionValue = 0;
+      // Calculate open P/L for each active trade individually
+      let openPnL = 0;
+      let currentTotalBPR = 0;
       for (const trade of activeTrades) {
         const dte = getDTE(currentDate, trade.expirationDate);
+        let currentValue = 0;
         for (const { leg, strike } of trade.legs) {
           const price = calculateOptionPrice(leg.optionType, currentPrice, strike, Math.max(0, dte), volatility);
           if (leg.direction === "sell") {
-            openPositionValue += price * leg.quantity * 100;
+            currentValue += price * leg.quantity * 100;
           } else {
-            openPositionValue -= price * leg.quantity * 100;
+            currentValue -= price * leg.quantity * 100;
           }
         }
+        openPnL += trade.premium - currentValue;
+        currentTotalBPR += trade.buyingPower;
       }
       
-      let openPnL = 0;
-      for (const trade of activeTrades) {
-        openPnL += trade.premium - openPositionValue / activeTrades.length;
-      }
+      // Track max capital used as sum of all concurrent BPR (tastytrade "used capital")
+      totalCapitalUsed = Math.max(totalCapitalUsed, currentTotalBPR);
       
       const totalPnL = cumulativePnL + openPnL;
       
@@ -658,7 +743,9 @@ export async function runTastyworksBacktest(
         peakValue = totalPnL;
       }
       
-      const currentDrawdown = peakValue > 0 ? ((peakValue - totalPnL) / peakValue) * 100 : 0;
+      // tastytrade-style drawdown: dollar drawdown from peak, expressed as percentage of used capital
+      const drawdownDollars = peakValue - totalPnL;
+      const currentDrawdown = currentTotalBPR > 0 ? (drawdownDollars / currentTotalBPR) * 100 : 0;
       if (currentDrawdown > maxDrawdown) {
         maxDrawdown = currentDrawdown;
         maxDrawdownDate = currentDate;
@@ -687,7 +774,7 @@ export async function runTastyworksBacktest(
     
     for (const trade of activeTrades) {
       const lastBar = priceHistory[priceHistory.length - 1];
-      const volatility = estimateVolatility(priceHistory, 20);
+      const volatility = estimateVolatility(priceHistory, 30);
       const closedTrade = closeTrade(trade, lastBar.date, lastBar.close, volatility, "endOfBacktest", feePerContract);
       trades.push(closedTrade);
       cumulativePnL += closedTrade.profitLoss;
