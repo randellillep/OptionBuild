@@ -193,8 +193,8 @@ export function PLHeatmap({
   return (
     <Card className="p-2" data-testid="pl-heatmap">
       {/* Header with metrics and tab buttons */}
-      <div className="mb-1.5 flex items-center justify-between">
-        <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-4 flex-wrap" style={{ paddingLeft: '97px' }} data-testid="strategy-metrics-bar">
           {metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
             <span className="text-sm text-muted-foreground italic">
               This strategy has no enabled items (add options from the Add button)
@@ -301,8 +301,8 @@ export function PLHeatmap({
               });
               return (
                 <tr>
-                  <th style={{ width: '55px' }} className="sticky left-0 z-10" />
-                  <th style={{ width: '42px' }} />
+                  <th style={{ width: '55px' }} className="sticky left-0 z-10 bg-card" />
+                  <th style={{ width: '42px' }} className="bg-card" />
                   {monthGroups.map((group, idx) => (
                     <th
                       key={idx}
