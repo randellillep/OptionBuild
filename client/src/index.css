@@ -517,14 +517,13 @@
   .heatmap-cell {
     position: relative;
     cursor: crosshair;
-    transition: none;
   }
   
   .heatmap-cell:hover {
-    outline: 2px solid white;
+    outline: 1px solid rgba(255, 255, 255, 0.6);
     outline-offset: -1px;
     z-index: 5;
-    filter: brightness(1.25);
+    filter: brightness(1.12);
   }
 
   /* Hide scrollbar utility */

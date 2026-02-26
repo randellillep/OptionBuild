@@ -95,23 +95,53 @@ export function PLHeatmap({
 
   const getPnlStyle = (rawPnl: number): React.CSSProperties => {
     const pnl = adjustPnl(rawPnl);
-    if (maxAbsPnl === 0) return { backgroundColor: 'rgb(64, 64, 64)' };
+    if (maxAbsPnl === 0) return { backgroundColor: 'rgb(55, 55, 60)' };
     
     const intensity = Math.min(Math.abs(pnl) / maxAbsPnl, 1);
     
     if (pnl > 0) {
-      const r = Math.round(20 + (1 - intensity) * 40);
-      const g = Math.round(80 + intensity * 90);
-      const b = Math.round(20 + (1 - intensity) * 30);
+      const r = Math.round(15 + (1 - intensity) * 50);
+      const g = Math.round(90 + intensity * 80);
+      const b = Math.round(15 + (1 - intensity) * 45);
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     } else if (pnl < 0) {
-      const r = Math.round(80 + intensity * 110);
-      const g = Math.round(30 + (1 - intensity) * 30);
-      const b = Math.round(30 + (1 - intensity) * 20);
+      const r = Math.round(100 + intensity * 90);
+      const g = Math.round(15 + (1 - intensity) * 45);
+      const b = Math.round(25 + (1 - intensity) * 35);
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     }
     
-    return { backgroundColor: 'rgb(64, 64, 64)' };
+    return { backgroundColor: 'rgb(55, 55, 60)' };
+  };
+
+  const isNewWeek = (idx: number): boolean => {
+    if (idx === 0) return false;
+    const today = new Date();
+    const prevDate = new Date(today);
+    prevDate.setDate(prevDate.getDate() + days[idx - 1]);
+    const currDate = new Date(today);
+    currDate.setDate(currDate.getDate() + days[idx]);
+    const getWeek = (d: Date) => {
+      const jan1 = new Date(d.getFullYear(), 0, 1);
+      return Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+    };
+    return getWeek(prevDate) !== getWeek(currDate);
+  };
+
+  const isNewMonth = (idx: number): boolean => {
+    if (idx === 0) return false;
+    const today = new Date();
+    const prevDate = new Date(today);
+    prevDate.setDate(prevDate.getDate() + days[idx - 1]);
+    const currDate = new Date(today);
+    currDate.setDate(currDate.getDate() + days[idx]);
+    return prevDate.getMonth() !== currDate.getMonth();
+  };
+
+  const getColumnSeparatorClass = (idx: number): string => {
+    if (isNewMonth(idx)) return 'border-l-2 border-l-slate-400 dark:border-l-slate-500';
+    if (isNewWeek(idx)) return 'border-l border-l-slate-300 dark:border-l-slate-600';
+    return '';
   };
 
   const getTimeLabel = (daysValue: number) => {
@@ -276,7 +306,9 @@ export function PLHeatmap({
                     <th
                       key={idx}
                       colSpan={group.count}
-                      className="text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200"
+                      className={`text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 ${
+                        idx > 0 ? 'border-l-2 border-l-slate-400 dark:border-l-slate-500' : ''
+                      }`}
                     >
                       {group.label}
                     </th>
@@ -324,18 +356,13 @@ export function PLHeatmap({
                 targetDate.setDate(targetDate.getDate() + day);
                 const dateDay = targetDate.getDate();
                 const weekdayLabel = getTimeSubLabel(day);
-                const isNewMonth = idx === 0 || (() => {
-                  const prevDate = new Date(today);
-                  prevDate.setDate(prevDate.getDate() + days[idx - 1]);
-                  return prevDate.getMonth() !== targetDate.getMonth();
-                })();
                 return (
                   <th
                     key={idx}
                     scope="col"
                     className={`text-[9px] font-normal text-center px-0.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
-                      isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
-                    } ${isNewMonth && idx > 0 ? 'border-l border-l-border' : ''}`}
+                      getColumnSeparatorClass(idx)
+                    }`}
                     data-testid={`header-time-${idx}`}
                   >
                     {useHours ? (
@@ -425,8 +452,8 @@ export function PLHeatmap({
                     return (
                       <td
                         key={colIdx}
-                        className={`text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/30 text-white heatmap-cell ${
-                          isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
+                        className={`text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell ${
+                          getColumnSeparatorClass(colIdx)
                         }`}
                         style={getPnlStyle(cellPnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
