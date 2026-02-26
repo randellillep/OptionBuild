@@ -109,7 +109,7 @@ function getDefaultConfig(): BacktestConfigData {
       takeProfitPercent: 50,
     },
     capitalMethod: "auto",
-    feePerContract: 0.65,
+    feePerContract: 0,
   };
 }
 
@@ -1205,56 +1205,66 @@ function BacktestResults({
         <TabsContent value="details" className="mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Trade Details</CardTitle>
+              <CardTitle className="text-base">Trade Log</CardTitle>
               <CardDescription>Individual trade performance</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-96">
-                <div className="space-y-2">
-                  {trades.length > 0 ? trades.map((trade, i) => (
-                    <div 
-                      key={i}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          {trade.profitLoss >= 0 ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <AlertTriangle className="h-4 w-4 text-red-500" />
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            #{trade.tradeNumber}
-                          </span>
-                        </div>
-                        <div className="text-xs">
-                          <span className="text-muted-foreground">Entry: </span>
-                          <span>{new Date(trade.openedDate).toLocaleDateString()}</span>
-                        </div>
-                        <div className="text-xs">
-                          <span className="text-muted-foreground">Exit: </span>
-                          <span>{new Date(trade.closedDate).toLocaleDateString()}</span>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {trade.closeReason}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right text-xs">
-                          <span className="text-muted-foreground">Premium: </span>
-                          <span className="font-mono">{formatCurrency(trade.premium)}</span>
-                        </div>
-                        <span className={`font-mono font-semibold ${trade.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {trade.profitLoss >= 0 ? '+' : ''}{formatCurrency(trade.profitLoss)}
-                        </span>
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No trade data available
-                    </div>
-                  )}
-                </div>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[500px]">
+                <table className="w-full text-sm" data-testid="table-trade-log">
+                  <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                    <tr className="border-b text-xs text-muted-foreground uppercase tracking-wider">
+                      <th className="px-3 py-2 text-left font-medium">#</th>
+                      <th className="px-3 py-2 text-left font-medium">Opened</th>
+                      <th className="px-3 py-2 text-left font-medium">Closed</th>
+                      <th className="px-3 py-2 text-right font-medium">Premium</th>
+                      <th className="px-3 py-2 text-right font-medium">Buying Power</th>
+                      <th className="px-3 py-2 text-right font-medium">Profit/Loss</th>
+                      <th className="px-3 py-2 text-center font-medium">Close Reason</th>
+                      <th className="px-3 py-2 text-right font-medium">ROI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trades.length > 0 ? trades.map((trade, i) => {
+                      const isProfit = trade.profitLoss >= 0;
+                      const formattedDate = (dateStr: string) => {
+                        const d = new Date(dateStr);
+                        return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+                      };
+                      return (
+                        <tr
+                          key={i}
+                          className="border-b border-border/50 hover-elevate"
+                          data-testid={`row-trade-${trade.tradeNumber}`}
+                        >
+                          <td className="px-3 py-2.5 font-mono text-muted-foreground">{trade.tradeNumber}</td>
+                          <td className="px-3 py-2.5" data-testid={`text-opened-${trade.tradeNumber}`}>{formattedDate(trade.openedDate)}</td>
+                          <td className="px-3 py-2.5" data-testid={`text-closed-${trade.tradeNumber}`}>{formattedDate(trade.closedDate)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono" data-testid={`text-premium-${trade.tradeNumber}`}>
+                            ${Math.round(trade.premium)}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono" data-testid={`text-bp-${trade.tradeNumber}`}>
+                            ${trade.buyingPower.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`} data-testid={`text-pnl-${trade.tradeNumber}`}>
+                            ${trade.profitLoss.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-2.5 text-center text-muted-foreground" data-testid={`text-reason-${trade.tradeNumber}`}>
+                            {trade.closeReason}
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono ${isProfit ? 'text-green-500' : 'text-red-500'}`} data-testid={`text-roi-${trade.tradeNumber}`}>
+                            {trade.roi.toFixed(2)}%
+                          </td>
+                        </tr>
+                      );
+                    }) : (
+                      <tr>
+                        <td colSpan={8} className="text-center py-8 text-muted-foreground">
+                          No trade data available
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </ScrollArea>
             </CardContent>
           </Card>

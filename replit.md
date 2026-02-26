@@ -55,11 +55,15 @@ Preferred communication style: Simple, everyday language.
 ## Backtesting Engine (tastytrade-aligned)
 
 **Key Design Decisions**:
-- Expiration dates snap to Fridays (standard equity options expiration)
-- Strike prices use realistic increments ($0.50 for <$25, $1 for <$50, $2.50 for <$200, $5 for $200+)
+- Expiration dates snap to the **closest** Friday (before or after the DTE target)
+- Strike prices use realistic increments ($0.50 for <$25, $1 for <$50, $2.50 for <$200, $5 for $200+) and round to **nearest** increment (Math.round, not floor/ceil)
 - Duplicate trade avoidance: skips entry if same strike/expiration combo already active
 - Volatility estimation uses 30-day lookback with 1.15x VRP (Volatility Risk Premium) multiplier to approximate implied volatility
 - Buying power uses tastytrade-style BPR: max(20% underlying - OTM amount + premium, 10% strike + premium)
+- Default fee per contract: $0 (matching tastytrade's no-fee display preference)
 - Open P/L calculated per-trade individually (not averaged across positions)
 - Capital tracking: max concurrent BPR sum represents "used capital"
 - Drawdown: dollar-based from peak, expressed as percentage of current total BPR
+- Close reason distinguishes "expired" (OTM at expiration) from "exercised" (ITM at expiration)
+- Trade data includes `underlyingPriceAtOpen` and `underlyingPriceAtClose` for reference
+- Trade log UI matches tastytrade's table format: #, Opened, Closed, Premium, Buying Power, Profit/Loss, Close Reason, ROI

@@ -271,7 +271,7 @@ export interface BacktestConfigData {
   exitConditions: BacktestExitConditions;
   capitalMethod: CapitalMethod;
   manualCapital?: number;        // If capitalMethod is 'manual'
-  feePerContract?: number;       // Trading fees per contract (default $0.65)
+  feePerContract?: number;       // Trading fees per contract (default $0)
 }
 
 // Individual trade in a backtest
@@ -295,6 +295,8 @@ export interface BacktestTradeData {
   closeReason: TradeCloseReason;
   roi: number;                   // Return on investment (%)
   daysInTrade: number;
+  underlyingPriceAtOpen: number;
+  underlyingPriceAtClose: number;
 }
 
 // Daily log entry

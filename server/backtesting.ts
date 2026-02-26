@@ -17,7 +17,7 @@ import type {
 const ALPACA_API_KEY = process.env.ALPACA_API_KEY;
 const ALPACA_API_SECRET = process.env.ALPACA_API_SECRET;
 const RISK_FREE_RATE = 0.05;
-const DEFAULT_FEE_PER_CONTRACT = 0.65;
+const DEFAULT_FEE_PER_CONTRACT = 0;
 
 function cumulativeNormalDistribution(x: number): number {
   const t = 1 / (1 + 0.2316419 * Math.abs(x));
@@ -130,11 +130,7 @@ function getStrikeIncrement(underlyingPrice: number): number {
 }
 
 function snapToStrikeIncrement(rawStrike: number, increment: number, type: "call" | "put"): number {
-  if (type === "put") {
-    return Math.floor(rawStrike / increment) * increment;
-  } else {
-    return Math.ceil(rawStrike / increment) * increment;
-  }
+  return Math.round(rawStrike / increment) * increment;
 }
 
 function findStrikeByPercentOTM(
@@ -399,27 +395,21 @@ interface ActiveTrade {
   premium: number;
   buyingPower: number;
   daysInTrade: number;
+  underlyingPriceAtOpen: number;
 }
 
 function calculateExpirationDate(entryDate: string, dte: number): string {
   const date = new Date(entryDate);
   date.setDate(date.getDate() + dte);
   
-  // Snap to nearest Friday (standard equity options expire on Fridays)
-  // tastytrade uses actual Friday expirations
   const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
   if (dayOfWeek !== 5) {
-    // Find the nearest Friday: go backwards for Sat/Sun, forwards for Mon-Thu
-    if (dayOfWeek === 6) {
-      // Saturday -> previous Friday
-      date.setDate(date.getDate() - 1);
-    } else if (dayOfWeek === 0) {
-      // Sunday -> previous Friday
-      date.setDate(date.getDate() - 2);
+    const daysToNextFriday = (5 - dayOfWeek + 7) % 7;
+    const daysToPrevFriday = (dayOfWeek - 5 + 7) % 7;
+    if (daysToNextFriday <= daysToPrevFriday) {
+      date.setDate(date.getDate() + daysToNextFriday);
     } else {
-      // Mon-Thu -> next Friday
-      const daysUntilFriday = 5 - dayOfWeek;
-      date.setDate(date.getDate() + daysUntilFriday);
+      date.setDate(date.getDate() - daysToPrevFriday);
     }
   }
   
@@ -521,6 +511,7 @@ function closeTrade(
 ): BacktestTradeData {
   const dte = Math.max(0, getDTE(currentDate, trade.expirationDate));
   
+  let isExercised = false;
   const closedLegs = trade.legs.map(({ leg, strike, entryPrice, dte: originalDte }) => {
     let exitPrice: number;
     
@@ -529,6 +520,9 @@ function closeTrade(
         exitPrice = Math.max(0, currentPrice - strike);
       } else {
         exitPrice = Math.max(0, strike - currentPrice);
+      }
+      if (exitPrice > 0) {
+        isExercised = true;
       }
     } else {
       exitPrice = calculateOptionPrice(leg.optionType, currentPrice, strike, dte, volatility);
@@ -562,6 +556,8 @@ function closeTrade(
   const profitLoss = trade.premium - exitValue - fees;
   const roi = trade.buyingPower > 0 ? (profitLoss / trade.buyingPower) * 100 : 0;
   
+  const finalReason = (reason === "expired" && isExercised) ? "exercised" as TradeCloseReason : reason;
+  
   return {
     tradeNumber: trade.tradeNumber,
     openedDate: trade.openedDate,
@@ -571,9 +567,11 @@ function closeTrade(
     fees,
     buyingPower: trade.buyingPower,
     profitLoss,
-    closeReason: reason,
+    closeReason: finalReason,
     roi,
     daysInTrade: trade.daysInTrade,
+    underlyingPriceAtOpen: trade.underlyingPriceAtOpen,
+    underlyingPriceAtClose: currentPrice,
   };
 }
 
@@ -710,6 +708,7 @@ export async function runTastyworksBacktest(
             premium: netPremium,
             buyingPower,
             daysInTrade: 0,
+            underlyingPriceAtOpen: currentPrice,
           };
           
           activeTrades.push(newTrade);
