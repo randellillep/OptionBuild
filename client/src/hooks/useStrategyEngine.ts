@@ -320,24 +320,23 @@ export function useStrategyEngine(rangePercent: number = 14) {
         timeSteps.sort((a, b) => a - b);
       }
     } else {
-      // OptionStrat-style: show more date columns for better time resolution
-      // Scale column count based on DTE for a dense but readable heatmap
+      const today = new Date();
       const dateCount = targetDays <= 14 ? 10 : targetDays <= 30 ? 12 : targetDays <= 60 ? 14 : 16;
       const dayStep = targetDays / (dateCount - 1);
+      const candidateSteps: number[] = [];
       for (let i = 0; i < dateCount; i++) {
-        timeSteps.push(Math.max(0, Math.round(i * dayStep)));
+        candidateSteps.push(Math.max(0, Math.round(i * dayStep)));
       }
-      // Deduplicate (rounding can cause duplicates for short DTE)
       const seen = new Set<number>();
-      const dedupedSteps: number[] = [];
-      for (const step of timeSteps) {
-        if (!seen.has(step)) {
-          seen.add(step);
-          dedupedSteps.push(step);
-        }
+      for (const step of candidateSteps) {
+        if (seen.has(step)) continue;
+        const targetDate = new Date(today);
+        targetDate.setDate(targetDate.getDate() + step);
+        const dayOfWeek = targetDate.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+        seen.add(step);
+        timeSteps.push(step);
       }
-      timeSteps.length = 0;
-      timeSteps.push(...dedupedSteps);
     }
 
     // Compute date groupings for hour mode

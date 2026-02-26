@@ -513,6 +513,20 @@
     background-color: hsl(220 15% 55% / 0.15);
   }
   
+  /* Heatmap cell hover effect */
+  .heatmap-cell {
+    position: relative;
+    cursor: crosshair;
+    transition: none;
+  }
+  
+  .heatmap-cell:hover {
+    outline: 2px solid white;
+    outline-offset: -1px;
+    z-index: 5;
+    filter: brightness(1.25);
+  }
+
   /* Hide scrollbar utility */
   .scrollbar-hide {
     -ms-overflow-style: none;

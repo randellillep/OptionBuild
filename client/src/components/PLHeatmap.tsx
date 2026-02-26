@@ -93,25 +93,25 @@ export function PLHeatmap({
   const allPnlValues = grid.flatMap(row => row.map(cell => adjustPnl(cell.pnl)));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
 
-  const getPnlColor = (rawPnl: number) => {
+  const getPnlStyle = (rawPnl: number): React.CSSProperties => {
     const pnl = adjustPnl(rawPnl);
-    if (maxAbsPnl === 0) return 'bg-muted';
+    if (maxAbsPnl === 0) return { backgroundColor: 'rgb(64, 64, 64)' };
     
-    const intensity = Math.abs(pnl) / maxAbsPnl;
+    const intensity = Math.min(Math.abs(pnl) / maxAbsPnl, 1);
     
     if (pnl > 0) {
-      if (intensity > 0.7) return 'bg-green-600 text-white dark:bg-green-600';
-      if (intensity > 0.4) return 'bg-green-500 text-white dark:bg-green-500';
-      if (intensity > 0.2) return 'bg-green-400 text-white dark:bg-green-400';
-      return 'bg-green-200 text-green-900 dark:bg-green-900/30 dark:text-green-300';
+      const r = Math.round(20 + (1 - intensity) * 40);
+      const g = Math.round(80 + intensity * 90);
+      const b = Math.round(20 + (1 - intensity) * 30);
+      return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     } else if (pnl < 0) {
-      if (intensity > 0.7) return 'bg-red-600 text-white dark:bg-red-600';
-      if (intensity > 0.4) return 'bg-red-500 text-white dark:bg-red-500';
-      if (intensity > 0.2) return 'bg-red-400 text-white dark:bg-red-400';
-      return 'bg-red-200 text-red-900 dark:bg-red-900/30 dark:text-red-300';
+      const r = Math.round(80 + intensity * 110);
+      const g = Math.round(30 + (1 - intensity) * 30);
+      const b = Math.round(30 + (1 - intensity) * 20);
+      return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     }
     
-    return 'bg-muted text-foreground';
+    return { backgroundColor: 'rgb(64, 64, 64)' };
   };
 
   const getTimeLabel = (daysValue: number) => {
@@ -130,7 +130,6 @@ export function PLHeatmap({
       
       return `${displayHours}:${displayMinutes}${ampm}`;
     } else {
-      // Show date (e.g., "Nov 21")
       const today = new Date();
       const targetDate = new Date(today);
       targetDate.setDate(targetDate.getDate() + daysValue);
@@ -144,10 +143,13 @@ export function PLHeatmap({
 
   const getTimeSubLabel = (daysValue: number) => {
     if (useHours) {
-      // No sub-label needed for hourly mode - time is already shown above
       return '';
     } else {
-      return `${Math.round(daysValue)}d`;
+      const today = new Date();
+      const targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + daysValue);
+      const weekdays = ['Su', 'M', 'T', 'w', 'Th', 'F', 'Sa'];
+      return weekdays[targetDate.getDay()];
     }
   };
 
@@ -251,8 +253,39 @@ export function PLHeatmap({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse" style={{ tableLayout: 'fixed', minWidth: 0 }}>
           <thead>
+            {/* Month group row for non-hourly mode */}
+            {!useHours && (() => {
+              const today = new Date();
+              const monthGroups: Array<{ label: string; count: number }> = [];
+              let lastMonth = '';
+              days.forEach((day) => {
+                const targetDate = new Date(today);
+                targetDate.setDate(targetDate.getDate() + day);
+                const monthLabel = targetDate.toLocaleString('default', { month: 'short' });
+                if (monthLabel !== lastMonth) {
+                  monthGroups.push({ label: monthLabel, count: 1 });
+                  lastMonth = monthLabel;
+                } else {
+                  monthGroups[monthGroups.length - 1].count++;
+                }
+              });
+              return (
+                <tr>
+                  <th colSpan={2} className="border-b border-border bg-slate-100 dark:bg-slate-800/50" style={{ width: '97px' }} />
+                  {monthGroups.map((group, idx) => (
+                    <th
+                      key={idx}
+                      colSpan={group.count}
+                      className="text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200"
+                    >
+                      {group.label}
+                    </th>
+                  ))}
+                </tr>
+              );
+            })()}
             {/* Date group row (only shown when useHours is true) */}
-            {dateGroups.length > 0 && (
+            {useHours && dateGroups.length > 0 && (
               <tr>
                 <th 
                   colSpan={2} 
@@ -279,33 +312,47 @@ export function PLHeatmap({
                 className="text-[10px] font-semibold text-left px-1.5 py-1 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
                 scope="col"
                 style={{ width: '55px' }}
-              >
-                Strike
-              </th>
+              />
               <th 
                 className="text-[10px] font-semibold text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
                 scope="col"
                 style={{ width: '42px' }}
-              >
-                %
-              </th>
-              {days.map((day, idx) => (
-                <th
-                  key={idx}
-                  scope="col"
-                  className={`text-[9px] font-normal text-center px-0.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
-                    isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
-                  }`}
-                  data-testid={`header-time-${idx}`}
-                >
-                  <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
-                  {getTimeSubLabel(day) && (
-                    <div className="text-[8px] text-muted-foreground/60 font-normal leading-tight">
-                      {getTimeSubLabel(day)}
-                    </div>
-                  )}
-                </th>
-              ))}
+              />
+              {days.map((day, idx) => {
+                const today = new Date();
+                const targetDate = new Date(today);
+                targetDate.setDate(targetDate.getDate() + day);
+                const dateDay = targetDate.getDate();
+                const weekdayLabel = getTimeSubLabel(day);
+                const isNewMonth = idx === 0 || (() => {
+                  const prevDate = new Date(today);
+                  prevDate.setDate(prevDate.getDate() + days[idx - 1]);
+                  return prevDate.getMonth() !== targetDate.getMonth();
+                })();
+                return (
+                  <th
+                    key={idx}
+                    scope="col"
+                    className={`text-[9px] font-normal text-center px-0.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
+                      isDateGroupStart(idx) ? 'border-l-2 border-l-border' : ''
+                    } ${isNewMonth && idx > 0 ? 'border-l border-l-border' : ''}`}
+                    data-testid={`header-time-${idx}`}
+                  >
+                    {useHours ? (
+                      <>
+                        <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
+                        {weekdayLabel && (
+                          <div className="text-[8px] text-muted-foreground/60 font-normal leading-tight">{weekdayLabel}</div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{dateDay} {weekdayLabel}</div>
+                      </>
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -378,12 +425,13 @@ export function PLHeatmap({
                     return (
                       <td
                         key={colIdx}
-                        className={`text-[10px] font-mono text-center px-0.5 py-1 border-b border-border transition-colors ${getPnlColor(cellPnl)} ${
+                        className={`text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/30 text-white heatmap-cell ${
                           isDateGroupStart(colIdx) ? 'border-l-2 border-l-border' : ''
                         }`}
+                        style={getPnlStyle(cellPnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
-                        ${displayValue}
+                        {displayValue}
                       </td>
                     );
                   })}
