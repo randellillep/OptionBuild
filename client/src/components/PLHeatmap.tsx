@@ -301,7 +301,8 @@ export function PLHeatmap({
               });
               return (
                 <tr>
-                  <th colSpan={2} className="border-b border-border bg-slate-100 dark:bg-slate-800/50" style={{ width: '97px' }} />
+                  <th className="border-b border-border bg-slate-100 dark:bg-slate-800/50 sticky left-0 z-10" style={{ width: '55px' }} />
+                  <th className="border-b border-border bg-slate-100 dark:bg-slate-800/50" style={{ width: '42px' }} />
                   {monthGroups.map((group, idx) => (
                     <th
                       key={idx}
@@ -452,9 +453,7 @@ export function PLHeatmap({
                     return (
                       <td
                         key={colIdx}
-                        className={`text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell ${
-                          getColumnSeparatorClass(colIdx)
-                        }`}
+                        className="text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell"
                         style={getPnlStyle(cellPnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
