@@ -105,9 +105,9 @@ export function PLHeatmap({
       const b = Math.round(15 + (1 - intensity) * 45);
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     } else if (pnl < 0) {
-      const r = Math.round(60 + intensity * 160);
-      const g = Math.round(20 * (1 - intensity));
-      const b = Math.round(25 * (1 - intensity));
+      const r = Math.round(100 + intensity * 90);
+      const g = Math.round(15 + (1 - intensity) * 45);
+      const b = Math.round(25 + (1 - intensity) * 35);
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     }
     
@@ -193,8 +193,8 @@ export function PLHeatmap({
   return (
     <Card className="p-2" data-testid="pl-heatmap">
       {/* Header with metrics and tab buttons */}
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-4 flex-wrap" style={{ paddingLeft: '97px' }} data-testid="strategy-metrics-bar">
+      <div className="mb-1.5 flex items-center justify-between">
+        <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
           {metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
             <span className="text-sm text-muted-foreground italic">
               This strategy has no enabled items (add options from the Add button)
@@ -301,8 +301,7 @@ export function PLHeatmap({
               });
               return (
                 <tr>
-                  <th style={{ width: '55px' }} className="sticky left-0 z-10 bg-card" />
-                  <th style={{ width: '42px' }} className="bg-card" />
+                  <th colSpan={2} className="border-b border-border bg-slate-100 dark:bg-slate-800/50" style={{ width: '97px' }} />
                   {monthGroups.map((group, idx) => (
                     <th
                       key={idx}
@@ -453,7 +452,9 @@ export function PLHeatmap({
                     return (
                       <td
                         key={colIdx}
-                        className="text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell"
+                        className={`text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell ${
+                          getColumnSeparatorClass(colIdx)
+                        }`}
                         style={getPnlStyle(cellPnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
