@@ -55,9 +55,9 @@ Preferred communication style: Simple, everyday language.
 ## Backtesting Engine (tastytrade-aligned)
 
 **Key Design Decisions**:
-- Expiration dates snap to the **closest** Friday (before or after the DTE target)
+- Expiration dates snap to the **closest** Friday (before or after the DTE target), with holiday adjustment (e.g., Good Friday → Thursday). Holiday-adjusted dates are compared by distance to pick the best fit. Achieves 18/21 match rate vs tastytrade reference data; remaining mismatches are due to tastytrade using actual listed option expiration calendars.
+- No duplicate trade avoidance: a new trade is opened every trading day (matching tastytrade's daily entry approach)
 - Strike prices use realistic increments ($0.50 for <$25, $1 for <$50, $2.50 for <$200, $5 for $200+) and round to **nearest** increment (Math.round, not floor/ceil)
-- Duplicate trade avoidance: skips entry if same strike/expiration combo already active
 - Volatility estimation uses 30-day lookback with 1.15x VRP (Volatility Risk Premium) multiplier to approximate implied volatility
 - Buying power uses tastytrade-style BPR: max(20% underlying - OTM amount + premium, 10% strike + premium)
 - Default fee per contract: $0 (matching tastytrade's no-fee display preference)

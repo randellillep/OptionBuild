@@ -398,22 +398,55 @@ interface ActiveTrade {
   underlyingPriceAtOpen: number;
 }
 
-function calculateExpirationDate(entryDate: string, dte: number): string {
-  const date = new Date(entryDate);
-  date.setDate(date.getDate() + dte);
-  
-  const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
-  if (dayOfWeek !== 5) {
-    const daysToNextFriday = (5 - dayOfWeek + 7) % 7;
-    const daysToPrevFriday = (dayOfWeek - 5 + 7) % 7;
-    if (daysToNextFriday <= daysToPrevFriday) {
-      date.setDate(date.getDate() + daysToNextFriday);
-    } else {
-      date.setDate(date.getDate() - daysToPrevFriday);
-    }
+const US_MARKET_HOLIDAYS: Set<string> = new Set([
+  '2024-01-01', '2024-01-15', '2024-02-19', '2024-03-29', '2024-05-27',
+  '2024-06-19', '2024-07-04', '2024-09-02', '2024-11-28', '2024-12-25',
+  '2025-01-01', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26',
+  '2025-06-19', '2025-07-04', '2025-09-01', '2025-11-27', '2025-12-25',
+  '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
+  '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
+  '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31',
+  '2027-06-18', '2027-07-05', '2027-09-06', '2027-11-25', '2027-12-24',
+]);
+
+function isMarketHoliday(dateStr: string): boolean {
+  return US_MARKET_HOLIDAYS.has(dateStr);
+}
+
+function adjustForHoliday(date: Date): Date {
+  const dateStr = date.toISOString().split('T')[0];
+  if (isMarketHoliday(dateStr)) {
+    date.setDate(date.getDate() - 1);
+    const dow = date.getDay();
+    if (dow === 0) date.setDate(date.getDate() - 2);
+    if (dow === 6) date.setDate(date.getDate() - 1);
   }
+  return date;
+}
+
+function calculateExpirationDate(entryDate: string, dte: number): string {
+  const target = new Date(entryDate);
+  target.setDate(target.getDate() + dte);
+  const targetTime = target.getTime();
   
-  return date.toISOString().split('T')[0];
+  const dayOfWeek = target.getDay();
+  
+  const nextFri = new Date(target);
+  const daysToNext = dayOfWeek === 5 ? 0 : (5 - dayOfWeek + 7) % 7;
+  nextFri.setDate(nextFri.getDate() + daysToNext);
+  
+  const prevFri = new Date(target);
+  const daysToPrev = dayOfWeek === 5 ? 0 : (dayOfWeek - 5 + 7) % 7;
+  prevFri.setDate(prevFri.getDate() - daysToPrev);
+  
+  adjustForHoliday(nextFri);
+  adjustForHoliday(prevFri);
+  
+  const distNext = Math.abs(nextFri.getTime() - targetTime);
+  const distPrev = Math.abs(prevFri.getTime() - targetTime);
+  
+  const result = distNext <= distPrev ? nextFri : prevFri;
+  return result.toISOString().split('T')[0];
 }
 
 function getDTE(currentDate: string, expirationDate: string): number {
@@ -667,53 +700,38 @@ export async function runTastyworksBacktest(
         
         const expirationDate = calculateExpirationDate(currentDate, config.legs[0].dte);
         
-        // tastytrade-style: avoid duplicate positions on the same strike/expiration/type/direction
-        // If an active trade already has the exact same option combo, skip entry
-        const isDuplicate = activeTrades.some(existingTrade => {
-          if (existingTrade.expirationDate !== expirationDate) return false;
-          if (existingTrade.legs.length !== config.legs.length) return false;
-          return existingTrade.legs.every((el, idx) => 
-            idx < strikes.length && 
-            el.strike === strikes[idx] &&
-            el.leg.optionType === config.legs[idx].optionType &&
-            el.leg.direction === config.legs[idx].direction
-          );
-        });
+        tradeNumber++;
         
-        if (!isDuplicate) {
-          tradeNumber++;
-          
-          let netPremium = 0;
-          for (let j = 0; j < config.legs.length; j++) {
-            const leg = config.legs[j];
-            const legPremium = premiums[j] * leg.quantity * 100;
-            if (leg.direction === "sell") {
-              netPremium += legPremium;
-            } else {
-              netPremium -= legPremium;
-            }
+        let netPremium = 0;
+        for (let j = 0; j < config.legs.length; j++) {
+          const leg = config.legs[j];
+          const legPremium = premiums[j] * leg.quantity * 100;
+          if (leg.direction === "sell") {
+            netPremium += legPremium;
+          } else {
+            netPremium -= legPremium;
           }
-          
-          const buyingPower = calculateBuyingPower(config.legs, strikes, premiums, currentPrice);
-          
-          const newTrade: ActiveTrade = {
-            tradeNumber,
-            openedDate: currentDate,
-            expirationDate,
-            legs: config.legs.map((leg, j) => ({
-              leg,
-              strike: strikes[j],
-              entryPrice: premiums[j],
-              dte: leg.dte,
-            })),
-            premium: netPremium,
-            buyingPower,
-            daysInTrade: 0,
-            underlyingPriceAtOpen: currentPrice,
-          };
-          
-          activeTrades.push(newTrade);
         }
+        
+        const buyingPower = calculateBuyingPower(config.legs, strikes, premiums, currentPrice);
+        
+        const newTrade: ActiveTrade = {
+          tradeNumber,
+          openedDate: currentDate,
+          expirationDate,
+          legs: config.legs.map((leg, j) => ({
+            leg,
+            strike: strikes[j],
+            entryPrice: premiums[j],
+            dte: leg.dte,
+          })),
+          premium: netPremium,
+          buyingPower,
+          daysInTrade: 0,
+          underlyingPriceAtOpen: currentPrice,
+        };
+        
+        activeTrades.push(newTrade);
       }
       
       // Calculate open P/L for each active trade individually
