@@ -887,6 +887,211 @@ function BacktestProgress({
   );
 }
 
+function LogsSection({ 
+  trades, 
+  config 
+}: { 
+  trades: BacktestRunResult['trades']; 
+  config: BacktestConfigData;
+}) {
+  const [logsSubTab, setLogsSubTab] = useState<"trades" | "transactions">("trades");
+  const tradeList = trades || [];
+
+  const formattedDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  };
+
+  const transactions = tradeList.flatMap((trade) => {
+    const entries: {
+      rowNum: number;
+      date: string;
+      tradeNo: number;
+      type: string;
+      instrument: string;
+      price: number;
+      quantity: number;
+      value: number;
+      effect: "credit" | "debit";
+    }[] = [];
+
+    trade.legs.forEach((leg) => {
+      const typeLabel = `${leg.direction === "sell" ? "sell" : "buy"} to open`;
+      const expDate = trade.expirationDate || trade.closedDate;
+      const instrument = `${config.symbol} $${leg.strike} ${leg.optionType} exp. ${formattedDate(expDate)}`;
+
+      entries.push({
+        rowNum: 0,
+        date: trade.openedDate,
+        tradeNo: trade.tradeNumber,
+        type: typeLabel,
+        instrument,
+        price: Math.round(leg.entryPrice * 100),
+        quantity: leg.quantity,
+        value: Math.round(leg.entryPrice * 100 * leg.quantity),
+        effect: leg.direction === "sell" ? "credit" : "debit",
+      });
+
+      const closeType = `${leg.direction === "sell" ? "buy" : "sell"} to close`;
+      entries.push({
+        rowNum: 0,
+        date: trade.closedDate,
+        tradeNo: trade.tradeNumber,
+        type: trade.closeReason === "expired" || trade.closeReason === "exercised" ? trade.closeReason : closeType,
+        instrument,
+        price: Math.round(leg.exitPrice * 100),
+        quantity: leg.quantity,
+        value: Math.round(leg.exitPrice * 100 * leg.quantity),
+        effect: leg.direction === "sell" ? "debit" : "credit",
+      });
+    });
+
+    return entries;
+  });
+
+  transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  transactions.forEach((t, i) => { t.rowNum = i + 1; });
+
+  return (
+    <Card>
+      <CardContent className="pt-4">
+        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            <Button
+              variant={logsSubTab === "trades" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setLogsSubTab("trades")}
+              data-testid="button-logs-trades"
+            >
+              Trades
+            </Button>
+            <Button
+              variant={logsSubTab === "transactions" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setLogsSubTab("transactions")}
+              data-testid="button-logs-transactions"
+            >
+              Transactions
+            </Button>
+          </div>
+        </div>
+
+        {logsSubTab === "trades" && (
+          <ScrollArea className="h-[500px]">
+            <table className="w-full text-sm" data-testid="table-trade-log">
+              <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                <tr className="border-b text-xs text-muted-foreground uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left font-medium">#</th>
+                  <th className="px-3 py-2 text-left font-medium">Opened</th>
+                  <th className="px-3 py-2 text-left font-medium">Closed</th>
+                  <th className="px-3 py-2 text-right font-medium">Premium</th>
+                  <th className="px-3 py-2 text-right font-medium">Profit/Loss</th>
+                  <th className="px-3 py-2 text-center font-medium">Close Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tradeList.length > 0 ? tradeList.map((trade, i) => {
+                  const isProfit = trade.profitLoss >= 0;
+                  return (
+                    <tr
+                      key={i}
+                      className="border-b border-border/50 hover-elevate"
+                      data-testid={`row-trade-${trade.tradeNumber}`}
+                    >
+                      <td className="px-3 py-2.5 font-mono text-muted-foreground">{trade.tradeNumber}</td>
+                      <td className="px-3 py-2.5" data-testid={`text-opened-${trade.tradeNumber}`}>{formattedDate(trade.openedDate)}</td>
+                      <td className="px-3 py-2.5" data-testid={`text-closed-${trade.tradeNumber}`}>{formattedDate(trade.closedDate)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono" data-testid={`text-premium-${trade.tradeNumber}`}>
+                        ${Math.round(trade.premium)}
+                      </td>
+                      <td className={`px-3 py-2.5 text-right font-mono font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`} data-testid={`text-pnl-${trade.tradeNumber}`}>
+                        ${trade.profitLoss.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-muted-foreground" data-testid={`text-reason-${trade.tradeNumber}`}>
+                        {trade.closeReason}
+                      </td>
+                    </tr>
+                  );
+                }) : (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No trade data available
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {tradeList.length > 0 && (
+              <p className="text-xs text-muted-foreground text-center py-3">
+                Trades (entries and exits) are executed at the mid price, once per day, 15 minutes before market close.
+              </p>
+            )}
+          </ScrollArea>
+        )}
+
+        {logsSubTab === "transactions" && (
+          <ScrollArea className="h-[500px]">
+            <table className="w-full text-sm" data-testid="table-transactions">
+              <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                <tr className="border-b text-xs text-muted-foreground uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left font-medium">#</th>
+                  <th className="px-3 py-2 text-left font-medium">Date</th>
+                  <th className="px-3 py-2 text-center font-medium">Trade No.</th>
+                  <th className="px-3 py-2 text-left font-medium">Type</th>
+                  <th className="px-3 py-2 text-left font-medium">Instrument</th>
+                  <th className="px-3 py-2 text-right font-medium">Price</th>
+                  <th className="px-3 py-2 text-center font-medium">Quantity</th>
+                  <th className="px-3 py-2 text-right font-medium">Value</th>
+                  <th className="px-3 py-2 text-center font-medium">Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.length > 0 ? transactions.map((tx) => (
+                  <tr
+                    key={tx.rowNum}
+                    className="border-b border-border/50 hover-elevate"
+                    data-testid={`row-tx-${tx.rowNum}`}
+                  >
+                    <td className="px-3 py-2.5 font-mono text-muted-foreground">{tx.rowNum}</td>
+                    <td className="px-3 py-2.5" data-testid={`text-tx-date-${tx.rowNum}`}>{formattedDate(tx.date)}</td>
+                    <td className="px-3 py-2.5 text-center font-mono">{tx.tradeNo}</td>
+                    <td className={`px-3 py-2.5 font-medium ${
+                      tx.type.startsWith("sell to open") ? 'text-red-500' : 
+                      tx.type.startsWith("buy to") ? 'text-green-500' : 
+                      tx.type === "expired" ? 'text-muted-foreground' :
+                      tx.type === "exercised" ? 'text-amber-500' : 'text-foreground'
+                    }`} data-testid={`text-tx-type-${tx.rowNum}`}>
+                      {tx.type}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground" data-testid={`text-tx-instrument-${tx.rowNum}`}>{tx.instrument}</td>
+                    <td className="px-3 py-2.5 text-right font-mono">${tx.price}</td>
+                    <td className="px-3 py-2.5 text-center font-mono">{tx.quantity}</td>
+                    <td className="px-3 py-2.5 text-right font-mono">${tx.value}</td>
+                    <td className={`px-3 py-2.5 text-center font-medium ${tx.effect === "credit" ? 'text-green-500' : 'text-red-500'}`}>
+                      {tx.effect}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={9} className="text-center py-8 text-muted-foreground">
+                      No transaction data available
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {transactions.length > 0 && (
+              <p className="text-xs text-muted-foreground text-center py-3">
+                Trades (entries and exits) are executed at the mid price, once per day, 15 minutes before market close.
+              </p>
+            )}
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function BacktestResults({ 
   result 
 }: { 
@@ -895,7 +1100,6 @@ function BacktestResults({
   const summary = result.summary;
   const details = result.details;
   const trades = result.trades || [];
-  const dailyLogs = result.dailyLogs || [];
   const pnlHistory = result.pnlHistory || [];
 
   if (!summary || !details) {
@@ -1205,112 +1409,68 @@ function BacktestResults({
         <TabsContent value="details" className="mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Trade Log</CardTitle>
-              <CardDescription>Individual trade performance</CardDescription>
+              <CardTitle className="text-base">Performance Details</CardTitle>
+              <CardDescription>Statistical breakdown of backtest results</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[500px]">
-                <table className="w-full text-sm" data-testid="table-trade-log">
-                  <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                    <tr className="border-b text-xs text-muted-foreground uppercase tracking-wider">
-                      <th className="px-3 py-2 text-left font-medium">#</th>
-                      <th className="px-3 py-2 text-left font-medium">Opened</th>
-                      <th className="px-3 py-2 text-left font-medium">Closed</th>
-                      <th className="px-3 py-2 text-right font-medium">Premium</th>
-                      <th className="px-3 py-2 text-right font-medium">Buying Power</th>
-                      <th className="px-3 py-2 text-right font-medium">Profit/Loss</th>
-                      <th className="px-3 py-2 text-center font-medium">Close Reason</th>
-                      <th className="px-3 py-2 text-right font-medium">ROI</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trades.length > 0 ? trades.map((trade, i) => {
-                      const isProfit = trade.profitLoss >= 0;
-                      const formattedDate = (dateStr: string) => {
-                        const d = new Date(dateStr);
-                        return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
-                      };
-                      return (
-                        <tr
-                          key={i}
-                          className="border-b border-border/50 hover-elevate"
-                          data-testid={`row-trade-${trade.tradeNumber}`}
-                        >
-                          <td className="px-3 py-2.5 font-mono text-muted-foreground">{trade.tradeNumber}</td>
-                          <td className="px-3 py-2.5" data-testid={`text-opened-${trade.tradeNumber}`}>{formattedDate(trade.openedDate)}</td>
-                          <td className="px-3 py-2.5" data-testid={`text-closed-${trade.tradeNumber}`}>{formattedDate(trade.closedDate)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono" data-testid={`text-premium-${trade.tradeNumber}`}>
-                            ${Math.round(trade.premium)}
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-mono" data-testid={`text-bp-${trade.tradeNumber}`}>
-                            ${trade.buyingPower.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                          </td>
-                          <td className={`px-3 py-2.5 text-right font-mono font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`} data-testid={`text-pnl-${trade.tradeNumber}`}>
-                            ${trade.profitLoss.toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2.5 text-center text-muted-foreground" data-testid={`text-reason-${trade.tradeNumber}`}>
-                            {trade.closeReason}
-                          </td>
-                          <td className={`px-3 py-2.5 text-right font-mono ${isProfit ? 'text-green-500' : 'text-red-500'}`} data-testid={`text-roi-${trade.tradeNumber}`}>
-                            {trade.roi.toFixed(2)}%
-                          </td>
-                        </tr>
-                      );
-                    }) : (
-                      <tr>
-                        <td colSpan={8} className="text-center py-8 text-muted-foreground">
-                          No trade data available
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </ScrollArea>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Total Trades</p>
+                  <p className="text-lg font-semibold font-mono">{details.numberOfTrades}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Winning Trades</p>
+                  <p className="text-lg font-semibold font-mono text-green-600">{details.tradesWithProfits}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Losing Trades</p>
+                  <p className="text-lg font-semibold font-mono text-red-600">{details.tradesWithLosses}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Win Rate</p>
+                  <p className="text-lg font-semibold font-mono">{details.profitRate.toFixed(1)}%</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Avg Win</p>
+                  <p className="text-lg font-semibold font-mono text-green-600">{formatCurrency(details.avgWinSize)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Avg Loss</p>
+                  <p className="text-lg font-semibold font-mono text-red-600">{formatCurrency(details.avgLossSize)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Largest Profit</p>
+                  <p className="text-lg font-semibold font-mono text-green-600">{formatCurrency(details.largestProfit)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Largest Loss</p>
+                  <p className="text-lg font-semibold font-mono text-red-600">{formatCurrency(details.largestLoss)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Avg Days in Trade</p>
+                  <p className="text-lg font-semibold font-mono">{details.avgDaysInTrade.toFixed(0)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Avg Premium</p>
+                  <p className="text-lg font-semibold font-mono">{formatCurrency(details.avgPremium)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Total Premium</p>
+                  <p className="text-lg font-semibold font-mono">{formatCurrency(details.totalPremium)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Avg P/L per Trade</p>
+                  <p className={`text-lg font-semibold font-mono ${details.avgProfitLossPerTrade >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(details.avgProfitLossPerTrade)}
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="logs" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Daily Logs</CardTitle>
-              <CardDescription>Day-by-day activity log</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-96">
-                <div className="space-y-1 font-mono text-xs">
-                  {dailyLogs.length > 0 ? dailyLogs.map((log, i) => (
-                    <div 
-                      key={i}
-                      className="p-2 rounded bg-muted/30 flex flex-wrap gap-2 items-center"
-                    >
-                      <span className="text-muted-foreground">
-                        {new Date(log.date).toLocaleDateString()}
-                      </span>
-                      <span className="mx-1">|</span>
-                      <span>Price: ${log.underlyingPrice.toFixed(2)}</span>
-                      <span className="mx-1">|</span>
-                      <span className={log.totalProfitLoss >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        P/L: {log.totalProfitLoss >= 0 ? '+' : ''}${log.totalProfitLoss.toFixed(2)}
-                      </span>
-                      <span className="mx-1">|</span>
-                      <span>Active: {log.activeTrades}</span>
-                      {log.drawdown > 0 && (
-                        <>
-                          <span className="mx-1">|</span>
-                          <span className="text-red-500">DD: -{log.drawdown.toFixed(1)}%</span>
-                        </>
-                      )}
-                    </div>
-                  )) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No log data available
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+          <LogsSection trades={trades} config={result.config} />
         </TabsContent>
       </Tabs>
     </div>

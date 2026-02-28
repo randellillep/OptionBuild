@@ -572,6 +572,7 @@ function closeTrade(
     daysInTrade: trade.daysInTrade,
     underlyingPriceAtOpen: trade.underlyingPriceAtOpen,
     underlyingPriceAtClose: currentPrice,
+    expirationDate: trade.expirationDate,
   };
 }
 

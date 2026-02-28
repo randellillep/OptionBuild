@@ -297,6 +297,7 @@ export interface BacktestTradeData {
   daysInTrade: number;
   underlyingPriceAtOpen: number;
   underlyingPriceAtClose: number;
+  expirationDate: string;        // YYYY-MM-DD - actual option expiration date
 }
 
 // Daily log entry
