@@ -787,9 +787,9 @@ export function calculateProfitLossAtDate(
       );
     }
     
-    // Entry value: theoretical price at current conditions (current price, full DTE, leg's own IV)
-    // Using the same model for entry ensures P/L = 0 at current price/time when IV unchanged
-    if (leg.expirationDays <= 0) {
+    if (leg.costBasisLocked && leg.premium > 0) {
+      entryValue = leg.premium;
+    } else if (leg.expirationDays <= 0) {
       entryValue = leg.type === "call"
         ? Math.max(underlyingPrice - leg.strike, 0)
         : Math.max(leg.strike - underlyingPrice, 0);
