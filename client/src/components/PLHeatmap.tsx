@@ -105,9 +105,10 @@ export function PLHeatmap({
       const b = Math.round(15 + (1 - intensity) * 45);
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     } else if (pnl < 0) {
-      const r = Math.round(120 + intensity * 115);
-      const g = Math.round(20 * (1 - intensity));
-      const b = Math.round(20 * (1 - intensity));
+      const curved = intensity * intensity;
+      const r = Math.round(60 + curved * 175);
+      const g = Math.round(30 * (1 - curved));
+      const b = Math.round(30 * (1 - curved));
       return { backgroundColor: `rgb(${Math.min(r, 235)}, ${g}, ${b})` };
     }
     
@@ -421,8 +422,8 @@ export function PLHeatmap({
                   </td>
                   <td
                     className={`text-[10px] font-mono text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
-                      percentChange > 0 ? 'text-green-600 dark:text-green-400' : 
-                      percentChange < 0 ? 'text-red-600 dark:text-red-400' : 
+                      percentChange > 0 ? 'text-emerald-600 dark:text-emerald-400' : 
+                      percentChange < 0 ? 'text-red-500 dark:text-red-400' : 
                       'text-muted-foreground'
                     }`}
                     data-testid={`percent-${strike.toFixed(2)}`}
