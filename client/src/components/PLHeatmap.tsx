@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Table, BarChart3, RotateCcw, TrendingUp, TrendingDown, Target, DollarSign, CheckCircle, Clock } from "lucide-react";
+import { Table, BarChart3, RotateCcw } from "lucide-react";
 import type { ScenarioPoint } from "@/hooks/useStrategyEngine";
 import type { StrategyMetrics } from "@shared/schema";
 
@@ -105,10 +105,10 @@ export function PLHeatmap({
       const b = Math.round(15 + (1 - intensity) * 45);
       return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
     } else if (pnl < 0) {
-      const r = Math.round(80 + intensity * 150);
-      const g = Math.round(10 + (1 - intensity) * 30);
-      const b = Math.round(15 + (1 - intensity) * 25);
-      return { backgroundColor: `rgb(${Math.min(r, 230)}, ${g}, ${b})` };
+      const r = Math.round(120 + intensity * 115);
+      const g = Math.round(20 * (1 - intensity));
+      const b = Math.round(20 * (1 - intensity));
+      return { backgroundColor: `rgb(${Math.min(r, 235)}, ${g}, ${b})` };
     }
     
     return { backgroundColor: 'rgb(55, 55, 60)' };
@@ -202,23 +202,20 @@ export function PLHeatmap({
           ) : metrics ? (
             <>
               <div className="flex items-center gap-1">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                <span className="text-xs text-muted-foreground">Max Profit:</span>
-                <span className="text-base font-bold font-mono text-foreground" data-testid="text-max-profit">
+                <span className="text-[11px] text-muted-foreground">Max Profit:</span>
+                <span className="text-sm font-bold font-mono text-emerald-500" data-testid="text-max-profit">
                   {metrics.maxProfit !== null ? `$${Math.abs(metrics.maxProfit).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : "∞"}
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <TrendingDown className="h-3.5 w-3.5 text-rose-500" />
-                <span className="text-xs text-muted-foreground">Max Loss:</span>
-                <span className="text-base font-bold font-mono text-foreground" data-testid="text-max-loss">
+                <span className="text-[11px] text-muted-foreground">Max Loss:</span>
+                <span className="text-sm font-bold font-mono text-rose-500" data-testid="text-max-loss">
                   {metrics.maxLoss !== null ? `$${Math.abs(metrics.maxLoss).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : "∞"}
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <Target className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-xs text-muted-foreground">Breakeven:</span>
-                <span className="text-base font-semibold font-mono text-foreground" data-testid="text-breakeven">
+                <span className="text-[11px] text-muted-foreground">Breakeven:</span>
+                <span className="text-sm font-semibold font-mono text-foreground" data-testid="text-breakeven">
                   {metrics.breakeven.length > 0 
                     ? metrics.breakeven.slice(0, 2).map(p => `$${p.toLocaleString('en-US', { maximumFractionDigits: 0 })}`).join(', ')
                     : "N/A"
@@ -226,29 +223,26 @@ export function PLHeatmap({
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Net:</span>
-                <span className="text-base font-bold font-mono text-foreground" data-testid="text-net-premium">
+                <span className="text-[11px] text-muted-foreground">Net:</span>
+                <span className="text-sm font-bold font-mono text-foreground" data-testid="text-net-premium">
                   ${Math.abs(metrics.netPremium).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 </span>
-                <span className="text-xs text-muted-foreground/70">
+                <span className="text-[10px] text-muted-foreground/70">
                   {metrics.netPremium >= 0 ? "(credit)" : "(debit)"}
                 </span>
               </div>
               {hasRealizedPL && (
                 <div className="flex items-center gap-1">
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-xs text-muted-foreground">Realized:</span>
-                  <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
+                  <span className="text-[11px] text-muted-foreground">Realized:</span>
+                  <span className={`text-sm font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-realized-pl">
                     {realizedPL >= 0 ? '' : '-'}${Math.abs(Math.round(realizedPL)).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </span>
                 </div>
               )}
               {hasUnrealizedPL && (
                 <div className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-xs text-muted-foreground">Unrealized:</span>
-                  <span className={`text-base font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
+                  <span className="text-[11px] text-muted-foreground">Unrealized:</span>
+                  <span className={`text-sm font-bold font-mono ${unrealizedPL >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`} data-testid="text-unrealized-pl">
                     {unrealizedPL >= 0 ? '' : '-'}${Math.abs(Math.round(unrealizedPL)).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </span>
                 </div>
