@@ -99,6 +99,10 @@ export function PLHeatmap({
     
     const intensity = Math.min(Math.abs(pnl) / maxAbsPnl, 1);
     
+    if (intensity < 0.005) {
+      return { backgroundColor: 'rgb(55, 55, 60)' };
+    }
+    
     if (pnl > 0) {
       const r = Math.round(15 + (1 - intensity) * 50);
       const g = Math.round(90 + intensity * 80);

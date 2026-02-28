@@ -296,9 +296,9 @@ export function ExpirationTimeline({
                         : hasLeg && expirationColor
                         ? ''
                         : hasLeg
-                        ? 'bg-primary text-primary-foreground'
+                        ? 'bg-slate-500 dark:bg-slate-400 text-white dark:text-slate-900'
                         : isSelected
-                        ? 'bg-primary text-primary-foreground'
+                        ? 'bg-slate-500 dark:bg-slate-400 text-white dark:text-slate-900'
                         : 'hover:bg-muted/60 active:bg-muted'
                     }`}
                     style={
