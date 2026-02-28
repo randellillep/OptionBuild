@@ -37,8 +37,10 @@ import {
   X,
   Search,
   Loader2,
-  CalendarIcon
+  CalendarIcon,
+  Download
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { 
   LineChart, 
   Line, 
@@ -902,6 +904,31 @@ function LogsSection({
     return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
   };
 
+  const xlsxDate = (dateStr: string) => {
+    return dateStr.replace(/-/g, '/').split('T')[0] + ' 00:00:00';
+  };
+
+  const downloadTradesXlsx = () => {
+    const rows = tradeList.map((trade) => ({
+      "No.": trade.tradeNumber,
+      "Opened": trade.openedDate ? xlsxDate(trade.openedDate) : "",
+      "Closed": trade.closedDate ? xlsxDate(trade.closedDate) : "",
+      "Premium": Math.round(trade.premium * 100) / 100,
+      "Profit/loss": Math.round(trade.profitLoss * 100) / 100,
+      "Underlying Price at Open": trade.underlyingPriceAtOpen ? Math.round(trade.underlyingPriceAtOpen * 100) / 100 : "",
+      "Underlying Price at Close": trade.underlyingPriceAtClose ? Math.round(trade.underlyingPriceAtClose * 100) / 100 : "",
+      "Close reason": trade.closeReason,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const colWidths = [6, 22, 22, 12, 12, 24, 24, 14];
+    ws['!cols'] = colWidths.map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    const startDate = config.startDate?.replace(/-/g, '-') || '';
+    const endDate = config.endDate?.replace(/-/g, '-') || '';
+    XLSX.writeFile(wb, `${config.symbol}_${startDate}_${endDate}_Trades.xlsx`);
+  };
+
   const transactions = tradeList.flatMap((trade) => {
     const entries: {
       rowNum: number;
@@ -952,6 +979,28 @@ function LogsSection({
   transactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   transactions.forEach((t, i) => { t.rowNum = i + 1; });
 
+  const downloadTransactionsXlsx = () => {
+    const rows = transactions.map((tx) => ({
+      "#": tx.rowNum,
+      "Date": tx.date ? xlsxDate(tx.date) : "",
+      "Trade No.": tx.tradeNo,
+      "Type": tx.type,
+      "Instrument": tx.instrument,
+      "Price": tx.price,
+      "Quantity": tx.quantity,
+      "Value": tx.value,
+      "Effect": tx.effect,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const colWidths = [6, 22, 10, 16, 36, 10, 10, 10, 10];
+    ws['!cols'] = colWidths.map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    const startDate = config.startDate?.replace(/-/g, '-') || '';
+    const endDate = config.endDate?.replace(/-/g, '-') || '';
+    XLSX.writeFile(wb, `${config.symbol}_${startDate}_${endDate}_Transactions.xlsx`);
+  };
+
   return (
     <Card>
       <CardContent className="pt-4">
@@ -974,6 +1023,17 @@ function LogsSection({
               Transactions
             </Button>
           </div>
+          {tradeList.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => logsSubTab === "trades" ? downloadTradesXlsx() : downloadTransactionsXlsx()}
+              data-testid="button-download-trades"
+            >
+              <Download className="w-4 h-4 mr-1.5" />
+              Download {logsSubTab === "trades" ? "trades" : "transactions"}
+            </Button>
+          )}
         </div>
 
         {logsSubTab === "trades" && (
