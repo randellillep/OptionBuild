@@ -435,28 +435,13 @@ export function PLHeatmap({
                     {Math.abs(percentChange) < 1 ? percentChange.toFixed(2) : percentChange.toFixed(1)}%
                   </td>
                   {row.map((cell, colIdx) => {
-                    // For the "current scenario" cell (current price row, day 0):
-                    // - If IV slider is at original value: show actual Realized + Unrealized (matches header)
-                    // - If IV slider has been adjusted: show theoretical P/L (what-if analysis)
-                    // This gives users both actual P/L and IV what-if capability
-                    const isCurrentScenarioCell = isClosestToCurrentPrice && colIdx === 0;
-                    const ivIsAtOriginal = Math.abs(impliedVolatility - calculatedIV) < 0.5; // Within 0.5% tolerance
-                    const useActualPL = isCurrentScenarioCell && hasUnrealizedPL && ivIsAtOriginal;
-                    
-                    const cellPnl = useActualPL
-                      ? (realizedPL + unrealizedPL)  // Actual P/L from header (IV at original)
-                      : cell.pnl;                     // Theoretical P/L with slider IV
-                    // Don't apply commission adjustment when using actual P/L 
-                    // (it already includes commissions in the realized/unrealized calculation)
-                    const adjustedPnl = useActualPL
-                      ? cellPnl
-                      : adjustPnl(cellPnl);
+                    const adjustedPnl = adjustPnl(cell.pnl);
                     const displayValue = Math.round(adjustedPnl).toLocaleString('en-US', { maximumFractionDigits: 0 });
                     return (
                       <td
                         key={colIdx}
                         className="text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell"
-                        style={getPnlStyle(cellPnl)}
+                        style={getPnlStyle(cell.pnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
                         {displayValue}
