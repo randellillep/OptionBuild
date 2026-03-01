@@ -473,11 +473,10 @@ export function PLHeatmap({
                   {row.map((cell, colIdx) => {
                     const adjustedPnl = adjustPnl(cell.pnl);
                     const displayValue = formatPnl(adjustedPnl);
-                    const sepClass = getColumnSeparatorClass(colIdx);
                     return (
                       <td
                         key={colIdx}
-                        className={`text-[10px] font-mono text-center px-0 py-1 border-b border-border/20 text-white heatmap-cell ${sepClass}`}
+                        className="text-[10px] font-mono text-center px-0 py-1 border-b border-border/20 text-white heatmap-cell"
                         style={getPnlStyle(cell.pnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >

@@ -277,21 +277,49 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const timeSteps: number[] = [];
     
     if (useHours) {
-      // OptionStrat-style: evenly distribute ~20-25 time columns across the
-      // total hours until expiration so the heatmap fills its full width.
       const totalHours = Math.max(0, targetDays * 24);
       
       if (totalHours <= 0) {
         timeSteps.push(0);
       } else {
-        // Target ~20-25 columns regardless of how many days remain
-        const targetColumns = Math.min(25, Math.max(12, Math.round(totalHours / 4)));
-        const hourStep = totalHours / (targetColumns - 1);
+        const now = new Date();
+        const expirationTime = new Date(now.getTime() + totalHours * 3600000);
         
-        for (let i = 0; i < targetColumns; i++) {
-          const h = i * hourStep;
-          if (h <= totalHours) {
-            timeSteps.push(h / 24);
+        const weekdays: Array<{ dayStart: number; dayEnd: number }> = [];
+        let d = new Date(now);
+        while (d.getTime() < expirationTime.getTime()) {
+          const dow = d.getDay();
+          if (dow !== 0 && dow !== 6) {
+            const dayStartMs = d.getTime();
+            const nextDay = new Date(d);
+            nextDay.setDate(nextDay.getDate() + 1);
+            nextDay.setHours(0, 0, 0, 0);
+            const dayEndMs = Math.min(nextDay.getTime(), expirationTime.getTime());
+            const startH = (dayStartMs - now.getTime()) / 3600000 / 24;
+            const endH = (dayEndMs - now.getTime()) / 3600000 / 24;
+            if (endH > startH) {
+              weekdays.push({ dayStart: startH, dayEnd: endH });
+            }
+          }
+          const next = new Date(d);
+          next.setDate(next.getDate() + 1);
+          next.setHours(0, 0, 0, 0);
+          d = next;
+        }
+        
+        if (weekdays.length === 0) {
+          timeSteps.push(0);
+        } else {
+          const slotsPerDay = Math.max(1, Math.min(5, Math.round(20 / weekdays.length)));
+          for (const wd of weekdays) {
+            const span = wd.dayEnd - wd.dayStart;
+            if (slotsPerDay === 1) {
+              timeSteps.push(wd.dayStart + span / 2);
+            } else {
+              for (let s = 0; s < slotsPerDay; s++) {
+                timeSteps.push(wd.dayStart + (span * s) / (slotsPerDay - 1));
+              }
+            }
           }
         }
       }
