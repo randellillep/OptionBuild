@@ -298,17 +298,24 @@ function estimateVolatility(priceHistory: HistoricalBar[], lookback: number = 30
   const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
   const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / (returns.length - 1);
   const dailyVol = Math.sqrt(variance);
-  
   const annualizedVol = dailyVol * Math.sqrt(252);
   
-  // Apply Volatility Risk Premium (VRP): implied volatility is typically 15-20%
-  // higher than realized/historical volatility. This better approximates actual 
-  // market option prices which embed this premium.
-  // tastytrade mid prices reflect IV, so we need to approximate that.
-  const vrpMultiplier = 1.15;
-  const impliedVolApprox = annualizedVol * vrpMultiplier;
+  const ewmaLambda = 0.94;
+  let ewmaVariance = returns[0] * returns[0];
+  for (let i = 1; i < returns.length; i++) {
+    ewmaVariance = ewmaLambda * ewmaVariance + (1 - ewmaLambda) * returns[i] * returns[i];
+  }
+  const ewmaVol = Math.sqrt(ewmaVariance) * Math.sqrt(252);
   
-  return Math.max(0.1, Math.min(1.5, impliedVolApprox));
+  const blendedVol = annualizedVol * 0.5 + ewmaVol * 0.5;
+  
+  const longTermIV = 0.25;
+  const meanRevertedVol = blendedVol * 0.65 + longTermIV * 0.35;
+  
+  const vrpMultiplier = 1.30;
+  const impliedVolApprox = meanRevertedVol * vrpMultiplier;
+  
+  return Math.max(0.15, Math.min(0.80, impliedVolApprox));
 }
 
 function calculateBuyingPower(
@@ -425,28 +432,27 @@ function adjustForHoliday(date: Date): Date {
 }
 
 function calculateExpirationDate(entryDate: string, dte: number): string {
-  const target = new Date(entryDate);
+  const entry = new Date(entryDate);
+  const target = new Date(entry);
   target.setDate(target.getDate() + dte);
-  const targetTime = target.getTime();
   
-  const dayOfWeek = target.getDay();
-  
-  const nextFri = new Date(target);
-  const daysToNext = dayOfWeek === 5 ? 0 : (5 - dayOfWeek + 7) % 7;
-  nextFri.setDate(nextFri.getDate() + daysToNext);
-  
-  const prevFri = new Date(target);
-  const daysToPrev = dayOfWeek === 5 ? 0 : (dayOfWeek - 5 + 7) % 7;
-  prevFri.setDate(prevFri.getDate() - daysToPrev);
-  
-  adjustForHoliday(nextFri);
-  adjustForHoliday(prevFri);
-  
-  const distNext = Math.abs(nextFri.getTime() - targetTime);
-  const distPrev = Math.abs(prevFri.getTime() - targetTime);
-  
-  const result = distNext <= distPrev ? nextFri : prevFri;
-  return result.toISOString().split('T')[0];
+  const candidates: { date: string; dte: number; dist: number }[] = [];
+  for (let offset = -14; offset <= 14; offset++) {
+    const d = new Date(target);
+    d.setDate(d.getDate() + offset);
+    if (d.getDay() === 5) {
+      const adj = new Date(d);
+      adjustForHoliday(adj);
+      const candidateDTE = Math.round((adj.getTime() - entry.getTime()) / 86400000);
+      candidates.push({
+        date: adj.toISOString().split('T')[0],
+        dte: candidateDTE,
+        dist: Math.abs(candidateDTE - dte),
+      });
+    }
+  }
+  candidates.sort((a, b) => a.dist - b.dist || a.dte - b.dte);
+  return candidates[0]?.date || target.toISOString().split('T')[0];
 }
 
 function getDTE(currentDate: string, expirationDate: string): number {
@@ -670,6 +676,11 @@ export async function runTastyworksBacktest(
       }
       
       if (shouldEnterTrade(currentDate, config, activeTrades)) {
+        const maxDTE = Math.max(...config.legs.map(l => l.dte));
+        const wouldExpire = calculateExpirationDate(currentDate, maxDTE);
+        if (wouldExpire > config.endDate) {
+          // Skip: expiration would fall after backtest end date
+        } else {
         const strikes: number[] = [];
         const premiums: number[] = [];
         
@@ -732,7 +743,8 @@ export async function runTastyworksBacktest(
         };
         
         activeTrades.push(newTrade);
-      }
+      } // end else (expiration within backtest range)
+      } // end shouldEnterTrade
       
       // Calculate open P/L for each active trade individually
       let openPnL = 0;
