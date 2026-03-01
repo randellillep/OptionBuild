@@ -27,9 +27,10 @@ interface BrokerageConnection {
 }
 
 export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice }: ExecuteTradeModalProps) {
-  const [orderType, setOrderType] = useState<"market" | "limit">("limit");
+  const [orderType, setOrderType] = useState<"limit" | "market">("limit");
   const [timeInForce, setTimeInForce] = useState<"day" | "gtc">("day");
   const [limitPrice, setLimitPrice] = useState<string>("");
+  const [limitPriceInitialized, setLimitPriceInitialized] = useState(false);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string>("");
   const [orderResult, setOrderResult] = useState<{ success: boolean; message: string; orderId?: string } | null>(null);
 
@@ -47,6 +48,14 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice 
     const val = leg.premium * leg.quantity * 100;
     return leg.position === "short" ? sum + val : sum - val;
   }, 0);
+
+  if (isOpen && !limitPriceInitialized && optionLegs.length > 0) {
+    const perContractPremium = Math.abs(netPremium) / (optionLegs.reduce((sum, l) => sum + l.quantity, 0) * 100);
+    if (perContractPremium > 0) {
+      setLimitPrice(perContractPremium.toFixed(2));
+    }
+    setLimitPriceInitialized(true);
+  }
 
   const hasInvalidLegs = optionLegs.some(leg => !leg.expirationDate || leg.strike <= 0);
 
@@ -96,6 +105,7 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice 
 
   const handleClose = () => {
     setOrderResult(null);
+    setLimitPriceInitialized(false);
     onClose();
   };
 
@@ -218,13 +228,13 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Order Type</Label>
-                  <Select value={orderType} onValueChange={(v) => setOrderType(v as "market" | "limit")}>
+                  <Select value={orderType} onValueChange={(v) => setOrderType(v as "limit" | "market")}>
                     <SelectTrigger data-testid="select-order-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="market">Market</SelectItem>
                       <SelectItem value="limit">Limit</SelectItem>
+                      <SelectItem value="market">Market</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -242,6 +252,10 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice 
                 </div>
               </div>
 
+              {orderType === "market" && (
+                <p className="text-[10px] text-amber-500">Market orders for options are only accepted during market hours (9:30 AM - 4:00 PM ET). Use Limit orders to submit anytime.</p>
+              )}
+
               {orderType === "limit" && (
                 <div className="space-y-1.5">
                   <Label className="text-xs">Limit Price (per contract)</Label>
@@ -253,6 +267,7 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice 
                     placeholder="0.00"
                     data-testid="input-limit-price"
                   />
+                  <p className="text-[10px] text-muted-foreground">Pre-filled with the current mid-price. Adjust as needed.</p>
                 </div>
               )}
 
