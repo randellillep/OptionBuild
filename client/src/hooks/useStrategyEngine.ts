@@ -277,47 +277,23 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const timeSteps: number[] = [];
     
     if (useHours) {
-      // OptionStrat-style: show ~3 time slots per day for near-term options
-      // This lets traders see intraday P/L movement throughout today and future days
-      const actualHours = Math.max(0, targetDays * 24);
+      // OptionStrat-style: evenly distribute ~20-25 time columns across the
+      // total hours until expiration so the heatmap fills its full width.
+      const totalHours = Math.max(0, targetDays * 24);
       
-      if (actualHours <= 0) {
-        // Option is expired - show expiration value
+      if (totalHours <= 0) {
         timeSteps.push(0);
       } else {
-        // Generate time steps day by day, ~3 columns per day like OptionStrat
-        // Ensures TODAY has multiple time slots showing intraday movement
-        const now = new Date();
-        const currentHour = now.getHours() + now.getMinutes() / 60;
+        // Target ~20-25 columns regardless of how many days remain
+        const targetColumns = Math.min(25, Math.max(12, Math.round(totalHours / 4)));
+        const hourStep = totalHours / (targetColumns - 1);
         
-        // Hours remaining today (until midnight)
-        const hoursLeftToday = 24 - currentHour;
-        
-        // Generate 3 time slots for TODAY (now, +4h, +8h or until midnight)
-        const todaySlots = Math.min(3, Math.ceil(hoursLeftToday / 3));
-        const todayHourStep = hoursLeftToday / todaySlots;
-        for (let i = 0; i < todaySlots; i++) {
-          timeSteps.push((i * todayHourStep) / 24);
-        }
-        
-        // Then add time slots for subsequent days (3 per day: morning, afternoon, evening)
-        // Starting from tomorrow morning
-        let dayOffset = 1;
-        const numDays = Math.ceil(targetDays);
-        while (timeSteps.length < 30 && dayOffset <= numDays) {
-          // Add 3 time slots per day: ~9am, ~3pm, ~9pm (relative to day start)
-          const dailyHours = [9, 15, 21]; // 9am, 3pm, 9pm
-          for (const hour of dailyHours) {
-            const hoursFromNow = (dayOffset * 24) - currentHour + hour;
-            if (hoursFromNow > 0 && hoursFromNow <= actualHours && timeSteps.length < 30) {
-              timeSteps.push(hoursFromNow / 24);
-            }
+        for (let i = 0; i < targetColumns; i++) {
+          const h = i * hourStep;
+          if (h <= totalHours) {
+            timeSteps.push(h / 24);
           }
-          dayOffset++;
         }
-        
-        // Sort time steps to ensure proper order
-        timeSteps.sort((a, b) => a - b);
       }
     } else {
       const today = new Date();
