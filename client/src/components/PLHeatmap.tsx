@@ -163,17 +163,14 @@ export function PLHeatmap({
     return '';
   };
 
-  const isColumnHourly = (colIdx: number): boolean => {
-    const group = dateGroups.find(g => colIdx >= g.startIdx && colIdx < g.startIdx + g.count);
-    return group ? group.count > 1 : false;
-  };
-
-  const getTimeLabel = (daysValue: number, colIdx: number) => {
-    if (isColumnHourly(colIdx)) {
+  const getTimeLabel = (daysValue: number) => {
+    if (useHours) {
+      // Convert fractional days to hours
       const totalHours = Math.round(daysValue * 24);
       const now = new Date();
       const targetTime = new Date(now.getTime() + totalHours * 60 * 60 * 1000);
       
+      // Format as time (e.g., "4:30pm")
       const hours = targetTime.getHours();
       const minutes = targetTime.getMinutes();
       const ampm = hours >= 12 ? 'pm' : 'am';
@@ -182,12 +179,27 @@ export function PLHeatmap({
       
       return `${displayHours}:${displayMinutes}${ampm}`;
     } else {
-      return '';
+      const today = new Date();
+      const targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + daysValue);
+      
+      const month = targetDate.toLocaleString('default', { month: 'short' });
+      const day = targetDate.getDate();
+      
+      return `${month} ${day}`;
     }
   };
 
-  const getTimeSubLabel = (_daysValue: number) => {
-    return '';
+  const getTimeSubLabel = (daysValue: number) => {
+    if (useHours) {
+      return '';
+    } else {
+      const today = new Date();
+      const targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + daysValue);
+      const weekdays = ['Su', 'M', 'T', 'w', 'Th', 'F', 'Sa'];
+      return weekdays[targetDate.getDay()];
+    }
   };
 
   // Helper to check if a column index starts a new date group
@@ -356,7 +368,11 @@ export function PLHeatmap({
                 %
               </th>
               {days.map((day, idx) => {
-                const timeLabel = getTimeLabel(day, idx);
+                const today = new Date();
+                const targetDate = new Date(today);
+                targetDate.setDate(targetDate.getDate() + day);
+                const dateDay = targetDate.getDate();
+                const weekdayLabel = getTimeSubLabel(day);
                 return (
                   <th
                     key={idx}
@@ -366,9 +382,18 @@ export function PLHeatmap({
                     }`}
                     data-testid={`header-time-${idx}`}
                   >
-                    <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">
-                      {timeLabel}
-                    </div>
+                    {useHours ? (
+                      <>
+                        <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
+                        {weekdayLabel && (
+                          <div className="text-[8px] text-muted-foreground/60 font-normal leading-tight">{weekdayLabel}</div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{dateDay} {weekdayLabel}</div>
+                      </>
+                    )}
                   </th>
                 );
               })}

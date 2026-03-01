@@ -271,105 +271,73 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const maxLegExpiration = Math.max(...uniqueExpirationDays);
     const targetDays = minLegExpiration;
     
-    // OptionStrat-style hybrid approach:
-    // - Near-term days get multiple hourly columns per day
-    // - Further-out days get one column per day
-    // - Always uses date group headers and time sub-labels
-    // - Targets ~20-30 total columns so cells are narrow
-    const useHours = true; // always use hybrid mode with date group headers
+    // Match OptionStrat: show hourly intervals for options with 7 days or less
+    // This gives traders better visibility into theta decay for weekly options
+    const useHours = targetDays <= 7;
     const timeSteps: number[] = [];
     
-    const now = new Date();
-    const currentHour = now.getHours() + now.getMinutes() / 60;
-    const totalHours = Math.max(0, targetDays * 24);
-    
-    if (totalHours <= 0) {
-      timeSteps.push(0);
-    } else {
-      // Decide how many days get hourly detail vs daily columns
-      // Short expirations (<=3d): all hourly
-      // Medium (4-14d): first 2-3 days hourly, rest daily
-      // Long (15-60d): first 1-2 days hourly, rest daily
-      // Very long (60d+): all daily (1 column per day, skip weekends)
-      const totalDays = Math.ceil(targetDays);
+    if (useHours) {
+      // OptionStrat-style: evenly distribute ~20-25 time columns across the
+      // total hours until expiration so the heatmap fills its full width.
+      const totalHours = Math.max(0, targetDays * 24);
       
-      let hourlyDays: number; // how many days from now get hourly detail
-      if (targetDays <= 3) {
-        hourlyDays = totalDays;
-      } else if (targetDays <= 14) {
-        hourlyDays = Math.min(3, totalDays);
-      } else if (targetDays <= 60) {
-        hourlyDays = Math.min(2, totalDays);
+      if (totalHours <= 0) {
+        timeSteps.push(0);
       } else {
-        hourlyDays = 0; // all daily for very long expirations
-      }
-      
-      // Phase 1: Hourly columns for near-term days
-      // ~3-4 time slots per day (morning, midday, afternoon, evening)
-      const hourlySlots = [9, 13, 15.5, 21]; // 9am, 1pm, 3:30pm, 9pm
-      
-      // Today's remaining slots
-      for (const slot of hourlySlots) {
-        const hoursFromNow = slot - currentHour;
-        if (hoursFromNow > 0 && hoursFromNow / 24 < targetDays) {
-          timeSteps.push(hoursFromNow / 24);
-        }
-      }
-      
-      // Subsequent hourly days
-      for (let d = 1; d < hourlyDays; d++) {
-        for (const slot of hourlySlots) {
-          const hoursFromNow = (d * 24) - currentHour + slot;
-          if (hoursFromNow > 0 && hoursFromNow / 24 < targetDays) {
-            timeSteps.push(hoursFromNow / 24);
+        // Target ~20-25 columns regardless of how many days remain
+        const targetColumns = Math.min(25, Math.max(12, Math.round(totalHours / 4)));
+        const hourStep = totalHours / (targetColumns - 1);
+        
+        for (let i = 0; i < targetColumns; i++) {
+          const h = i * hourStep;
+          if (h <= totalHours) {
+            timeSteps.push(h / 24);
           }
         }
       }
-      
-      // Phase 2: Daily columns for remaining days (weekdays only, use 12pm)
+    } else {
       const today = new Date();
-      for (let d = hourlyDays; d <= totalDays; d++) {
-        const dayDate = new Date(today);
-        dayDate.setDate(dayDate.getDate() + d);
-        const dow = dayDate.getDay();
-        if (dow === 0 || dow === 6) continue; // skip weekends
-        
-        // Use noon of that day
-        const hoursFromNow = (d * 24) - currentHour + 12;
-        if (hoursFromNow > 0 && hoursFromNow / 24 <= targetDays) {
-          timeSteps.push(hoursFromNow / 24);
-        }
+      const dateCount = targetDays <= 7 ? 6 : targetDays <= 14 ? 14 : targetDays <= 30 ? 22 : targetDays <= 60 ? 30 : 36;
+      const dayStep = targetDays / (dateCount - 1);
+      const candidateSteps: number[] = [];
+      for (let i = 0; i < dateCount; i++) {
+        candidateSteps.push(Math.max(0, Math.round(i * dayStep)));
       }
-      
-      // Ensure we always include a point near expiration
-      const lastStep = timeSteps.length > 0 ? timeSteps[timeSteps.length - 1] : 0;
-      if (targetDays - lastStep > 0.5) {
-        timeSteps.push(targetDays);
+      const seen = new Set<number>();
+      for (const step of candidateSteps) {
+        if (seen.has(step)) continue;
+        const targetDate = new Date(today);
+        targetDate.setDate(targetDate.getDate() + step);
+        const dayOfWeek = targetDate.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+        seen.add(step);
+        timeSteps.push(step);
       }
-      
-      // Sort and deduplicate
-      timeSteps.sort((a, b) => a - b);
     }
 
-    // Compute date groupings — group columns by calendar date
+    // Compute date groupings for hour mode
     const dateGroups: Array<{ dateLabel: string; startIdx: number; count: number }> = [];
-    {
+    if (useHours) {
+      const now = new Date();
       let lastDateKey = '';
       
       timeSteps.forEach((daysValue, idx) => {
-        const hoursFromNow = Math.round(daysValue * 24);
-        const targetTime = new Date(now.getTime() + hoursFromNow * 60 * 60 * 1000);
+        const totalHours = Math.round(daysValue * 24);
+        const targetTime = new Date(now.getTime() + totalHours * 60 * 60 * 1000);
         const dateKey = `${targetTime.getMonth()}-${targetTime.getDate()}`;
         
         if (dateKey !== lastDateKey) {
+          // Generate OptionStrat-style date label: "26 M", "27 T", "28 w", etc.
           const day = targetTime.getDate();
           const weekdayFull = targetTime.toLocaleString('default', { weekday: 'short' });
+          // Get weekday initial: Mon->M, Tue->T, Wed->w, Thu->Th, Fri->F, Sat->Sa, Sun->Su
           const weekdayInitial = weekdayFull === 'Wed' ? 'w' : 
                                   weekdayFull === 'Thu' ? 'Th' : 
                                   weekdayFull === 'Sat' ? 'Sa' : 
                                   weekdayFull === 'Sun' ? 'Su' : 
                                   weekdayFull.charAt(0);
           
+          // Start new group
           dateGroups.push({
             dateLabel: `${day} ${weekdayInitial}`,
             startIdx: idx,
@@ -377,6 +345,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
           });
           lastDateKey = dateKey;
         } else {
+          // Increment count of current group
           if (dateGroups.length > 0) {
             dateGroups[dateGroups.length - 1].count++;
           }
