@@ -294,7 +294,7 @@ export function PLHeatmap({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse" style={{ tableLayout: 'fixed', minWidth: 0 }}>
+        <table className="border-collapse" style={{ tableLayout: 'fixed' }}>
           <thead>
             {/* Month group row for non-hourly mode */}
             {!useHours && (() => {
@@ -380,7 +380,7 @@ export function PLHeatmap({
                     className={`text-[9px] font-normal text-center px-0.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
                       getColumnSeparatorClass(idx)
                     }`}
-                    style={{ width: '46px' }}
+                    style={{ width: '56px' }}
                     data-testid={`header-time-${idx}`}
                   >
                     {useHours ? (
