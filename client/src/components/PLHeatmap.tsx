@@ -90,6 +90,20 @@ export function PLHeatmap({
   // Adjust P&L values by subtracting commissions
   const adjustPnl = (pnl: number) => pnl - totalCommissions;
   
+  const formatPnl = (value: number): string => {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    if (abs >= 1_000_000) {
+      const m = abs / 1_000_000;
+      return sign + (m >= 100 ? `${Math.round(m)}M` : m >= 10 ? `${m.toFixed(1).replace(/\.0$/, '')}M` : `${m.toFixed(2).replace(/\.?0+$/, '')}M`);
+    }
+    if (abs >= 10_000) {
+      const k = abs / 1000;
+      return sign + (k >= 100 ? `${Math.round(k)}k` : `${k.toFixed(1).replace(/\.0$/, '')}k`);
+    }
+    return Math.round(value).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  };
+
   const allPnlValues = grid.flatMap(row => row.map(cell => adjustPnl(cell.pnl)));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
 
@@ -300,7 +314,7 @@ export function PLHeatmap({
               });
               return (
                 <tr>
-                  <th colSpan={2} className="border-b border-border bg-slate-100 dark:bg-slate-800/50" style={{ width: '97px' }} />
+                  <th colSpan={2} className="border-b border-border bg-slate-100 dark:bg-slate-800/50" style={{ width: '88px' }} />
                   {monthGroups.map((group, idx) => (
                     <th
                       key={idx}
@@ -322,7 +336,7 @@ export function PLHeatmap({
                   colSpan={2} 
                   rowSpan={1}
                   className="text-[9px] font-semibold text-center p-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
-                  style={{ width: '97px' }}
+                  style={{ width: '88px' }}
                 />
                 {dateGroups.map((group, idx) => (
                   <th
@@ -340,16 +354,16 @@ export function PLHeatmap({
             {/* Time/day column row */}
             <tr>
               <th 
-                className="text-[10px] font-semibold text-left px-1.5 py-1 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
+                className="text-[9px] font-semibold text-left px-1 py-0.5 border-b border-border sticky left-0 bg-slate-100 dark:bg-slate-800/50 z-10"
                 scope="col"
-                style={{ width: '55px' }}
+                style={{ width: '50px' }}
               >
                 Price
               </th>
               <th 
-                className="text-[10px] font-semibold text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50"
+                className="text-[9px] font-semibold text-right pl-1 pr-1 py-0.5 border-b border-border bg-slate-100 dark:bg-slate-800/50"
                 scope="col"
-                style={{ width: '42px' }}
+                style={{ width: '38px' }}
               >
                 %
               </th>
@@ -363,21 +377,21 @@ export function PLHeatmap({
                   <th
                     key={idx}
                     scope="col"
-                    className={`text-[9px] font-normal text-center px-0.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
+                    className={`text-[8px] font-normal text-center px-0 py-0.5 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
                       getColumnSeparatorClass(idx)
                     }`}
                     data-testid={`header-time-${idx}`}
                   >
                     {useHours ? (
                       <>
-                        <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
+                        <div className="text-[8px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
                         {weekdayLabel && (
-                          <div className="text-[8px] text-muted-foreground/60 font-normal leading-tight">{weekdayLabel}</div>
+                          <div className="text-[7px] text-muted-foreground/60 font-normal leading-tight">{weekdayLabel}</div>
                         )}
                       </>
                     ) : (
                       <>
-                        <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{dateDay} {weekdayLabel}</div>
+                        <div className="text-[8px] text-muted-foreground leading-tight whitespace-nowrap">{dateDay} {weekdayLabel}</div>
                       </>
                     )}
                   </th>
@@ -415,9 +429,9 @@ export function PLHeatmap({
                 : '';
               
               return (
-                <tr key={rowIdx} className={`h-[24px] ${currentPriceRowStyle}`}>
+                <tr key={rowIdx} className={`h-[20px] ${currentPriceRowStyle}`}>
                   <td
-                    className={`text-[10px] font-mono font-semibold px-1.5 py-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[9px] font-mono font-semibold px-1 py-0.5 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
                       isClosestToCurrentPrice ? 'text-foreground dark:text-white font-bold' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
@@ -425,7 +439,7 @@ export function PLHeatmap({
                     ${strikeDisplay}
                   </td>
                   <td
-                    className={`text-[10px] font-mono text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[9px] font-mono text-right pl-1 pr-1 py-0.5 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
                       percentChange > 0 ? 'text-emerald-600 dark:text-emerald-400' : 
                       percentChange < 0 ? 'text-red-500 dark:text-red-400' : 
                       'text-muted-foreground'
@@ -436,11 +450,11 @@ export function PLHeatmap({
                   </td>
                   {row.map((cell, colIdx) => {
                     const adjustedPnl = adjustPnl(cell.pnl);
-                    const displayValue = Math.round(adjustedPnl).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    const displayValue = formatPnl(adjustedPnl);
                     return (
                       <td
                         key={colIdx}
-                        className="text-[10px] font-mono text-center px-0.5 py-1 border-b border-border/20 text-white heatmap-cell"
+                        className="text-[9px] font-mono text-center px-0 py-0.5 border-b border-border/20 text-white heatmap-cell"
                         style={getPnlStyle(cell.pnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >

@@ -304,12 +304,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
         // Starting from tomorrow morning
         let dayOffset = 1;
         const numDays = Math.ceil(targetDays);
-        while (timeSteps.length < 15 && dayOffset <= numDays) {
+        while (timeSteps.length < 20 && dayOffset <= numDays) {
           // Add 3 time slots per day: ~9am, ~3pm, ~9pm (relative to day start)
           const dailyHours = [9, 15, 21]; // 9am, 3pm, 9pm
           for (const hour of dailyHours) {
             const hoursFromNow = (dayOffset * 24) - currentHour + hour;
-            if (hoursFromNow > 0 && hoursFromNow <= actualHours && timeSteps.length < 15) {
+            if (hoursFromNow > 0 && hoursFromNow <= actualHours && timeSteps.length < 20) {
               timeSteps.push(hoursFromNow / 24);
             }
           }
@@ -321,7 +321,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       }
     } else {
       const today = new Date();
-      const dateCount = targetDays <= 14 ? 10 : targetDays <= 30 ? 12 : targetDays <= 60 ? 14 : 16;
+      const dateCount = targetDays <= 14 ? 12 : targetDays <= 30 ? 16 : targetDays <= 60 ? 20 : 24;
       const dayStep = targetDays / (dateCount - 1);
       const candidateSteps: number[] = [];
       for (let i = 0; i < dateCount; i++) {
