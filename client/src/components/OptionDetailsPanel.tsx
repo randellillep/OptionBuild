@@ -1392,7 +1392,7 @@ export function OptionDetailsPanel({
                                   `}
                                   style={
                                     isCurrent
-                                      ? { backgroundColor: legColor || 'hsl(var(--primary))', color: '#fff' }
+                                      ? { backgroundColor: legColor || '#64748b', color: '#fff' }
                                       : legColor
                                       ? { backgroundColor: legColor, color: '#fff', opacity: 0.7 }
                                       : undefined
