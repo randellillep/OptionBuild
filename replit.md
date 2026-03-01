@@ -58,7 +58,7 @@ Preferred communication style: Simple, everyday language.
 **Supported Brokers**: Alpaca (paper + live trading). Extensible to other brokers via `broker` field.
 **API Routes**: `/api/brokerage/*` — connect, disconnect, status, account info, order submission, order history, order cancellation.
 **Frontend Components**: `ExecuteTradeModal` (order preview + submission), `TradeTab` (connection management, account info, order history in AnalysisTabs).
-**OCC Symbol Generation**: Builds standard OCC option symbols (e.g., `AAPL  260320C00265000`) for Alpaca order submission.
+**OCC Symbol Generation**: Builds Alpaca-format option symbols without space padding (e.g., `AAPL260320C00265000`) for order submission.
 **Security**: API keys stored server-side only; frontend only sees last 4 chars. Credentials verified against Alpaca on connect.
 
 ## Backtesting Engine (tastytrade-aligned)

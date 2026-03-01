@@ -1754,7 +1754,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   function buildOccSymbol(underlying: string, expirationDate: string, optionType: "call" | "put", strike: number): string {
-    const root = underlying.toUpperCase().padEnd(6, ' ');
+    const root = underlying.toUpperCase();
     const exp = expirationDate.replace(/-/g, '').slice(2);
     const side = optionType === "call" ? "C" : "P";
     const strikeInt = Math.round(strike * 1000);
