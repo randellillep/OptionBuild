@@ -160,10 +160,10 @@ export function PLHeatmap({
   const getColumnSeparatorClass = (idx: number): string => {
     if (useHours) {
       if (idx === 0) return '';
-      if (isDateGroupStart(idx)) return 'border-l-2 border-l-slate-400 dark:border-l-slate-500';
+      if (isDateGroupStart(idx)) return 'border-l border-l-slate-300 dark:border-l-slate-600';
       return '';
     }
-    if (isNewMonth(idx)) return 'border-l-2 border-l-slate-400 dark:border-l-slate-500';
+    if (isNewMonth(idx)) return 'border-l border-l-slate-300 dark:border-l-slate-600';
     if (isNewWeek(idx)) return 'border-l border-l-slate-300 dark:border-l-slate-600';
     return '';
   };
@@ -175,10 +175,8 @@ export function PLHeatmap({
 
   const getTimeLabel = (daysValue: number) => {
     if (useHours) {
-      // Convert fractional days to hours
-      const totalHours = Math.round(daysValue * 24);
       const now = new Date();
-      const targetTime = new Date(now.getTime() + totalHours * 60 * 60 * 1000);
+      const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
       
       // Format as time (e.g., "4:30pm")
       const hours = targetTime.getHours();
@@ -308,8 +306,7 @@ export function PLHeatmap({
               
               if (useHours) {
                 days.forEach((daysValue) => {
-                  const totalHours = Math.round(daysValue * 24);
-                  const targetTime = new Date(now.getTime() + totalHours * 60 * 60 * 1000);
+                  const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
                   const monthLabel = targetTime.toLocaleString('default', { month: 'short' });
                   if (monthLabel !== lastMonth) {
                     monthGroups.push({ label: monthLabel, count: 1 });
@@ -340,7 +337,7 @@ export function PLHeatmap({
                       key={idx}
                       colSpan={group.count}
                       className={`text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 ${
-                        idx > 0 ? 'border-l-2 border-l-slate-400 dark:border-l-slate-500' : ''
+                        idx > 0 ? 'border-l border-l-slate-300 dark:border-l-slate-600' : ''
                       }`}
                     >
                       {group.label}
@@ -364,7 +361,7 @@ export function PLHeatmap({
                     colSpan={group.count}
                     scope="colgroup"
                     className={`text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 ${
-                      idx > 0 ? 'border-l-2 border-l-slate-400 dark:border-l-slate-500' : ''
+                      idx > 0 ? 'border-l border-l-slate-300 dark:border-l-slate-600' : ''
                     }`}
                     data-testid={`header-dategroup-${idx}`}
                   >

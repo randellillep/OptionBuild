@@ -350,8 +350,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       let lastDateKey = '';
       
       timeSteps.forEach((daysValue, idx) => {
-        const totalHours = Math.round(daysValue * 24);
-        const targetTime = new Date(now.getTime() + totalHours * 60 * 60 * 1000);
+        const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
         const dateKey = `${targetTime.getMonth()}-${targetTime.getDate()}`;
         
         if (dateKey !== lastDateKey) {
