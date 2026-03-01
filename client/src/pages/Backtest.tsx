@@ -960,33 +960,22 @@ function LogsSection({
       });
 
       if (trade.closeReason === "exercised") {
-        const shareInstrument = `${config.symbol} shares`;
-        const strikePrice = Math.round(leg.strike * 100) / 100;
-        const closingPrice = Math.round((trade.underlyingPriceAtClose || 0) * 100) / 100;
-        const sharesQty = leg.quantity * 100;
+        const intrinsicPerShare = leg.optionType === "put"
+          ? Math.max(0, leg.strike - (trade.underlyingPriceAtClose || 0))
+          : Math.max(0, (trade.underlyingPriceAtClose || 0) - leg.strike);
+        const intrinsicPrice = Math.round(intrinsicPerShare * 100);
+        const intrinsicValue = Math.round(intrinsicPerShare * 100 * leg.quantity);
 
         entries.push({
           rowNum: 0,
           date: trade.closedDate,
           tradeNo: trade.tradeNumber,
-          type: "assignment",
-          instrument: shareInstrument,
-          price: strikePrice,
-          quantity: sharesQty,
-          value: Math.round(strikePrice * sharesQty * 100) / 100,
+          type: "exercised",
+          instrument,
+          price: intrinsicPrice,
+          quantity: leg.quantity,
+          value: intrinsicValue,
           effect: "debit",
-        });
-
-        entries.push({
-          rowNum: 0,
-          date: trade.closedDate,
-          tradeNo: trade.tradeNumber,
-          type: "sell to close",
-          instrument: shareInstrument,
-          price: closingPrice,
-          quantity: sharesQty,
-          value: Math.round(closingPrice * sharesQty * 100) / 100,
-          effect: "credit",
         });
       } else if (trade.closeReason === "expired") {
         // TT does not show a transaction row for expired (OTM) trades
@@ -1151,8 +1140,7 @@ function LogsSection({
                     <td className={`px-3 py-2.5 font-medium ${
                       tx.type === "sell to open" ? 'text-red-500' : 
                       tx.type.startsWith("buy to") ? 'text-green-500' : 
-                      tx.type === "assignment" ? 'text-amber-500' :
-                      tx.type === "sell to close" ? 'text-green-500' : 'text-foreground'
+                      tx.type === "exercised" ? 'text-amber-500' : 'text-foreground'
                     }`} data-testid={`text-tx-type-${tx.rowNum}`}>
                       {tx.type}
                     </td>

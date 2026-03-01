@@ -647,6 +647,8 @@ export async function runTastyworksBacktest(
     let maxDrawdownDate = config.startDate;
     let totalCapitalUsed = 0;
     
+    const lastPriceDate = priceHistory[priceHistory.length - 1].date;
+    
     for (let i = 0; i < priceHistory.length; i++) {
       const bar = priceHistory[i];
       const currentPrice = bar.close;
@@ -678,8 +680,8 @@ export async function runTastyworksBacktest(
       if (shouldEnterTrade(currentDate, config, activeTrades)) {
         const maxLegDTE = Math.max(...config.legs.map(l => l.dte));
         const wouldExpire = calculateExpirationDate(currentDate, maxLegDTE);
-        if (wouldExpire > config.endDate) {
-          // Skip: expiration would fall after backtest end date (matches tastytrade behavior)
+        if (wouldExpire > lastPriceDate) {
+          // Skip: expiration would fall after available price data (matches tastytrade behavior)
         } else {
         const strikes: number[] = [];
         const premiums: number[] = [];

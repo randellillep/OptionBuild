@@ -67,4 +67,5 @@ Preferred communication style: Simple, everyday language.
 - Close reason distinguishes "expired" (OTM at expiration) from "exercised" (ITM at expiration)
 - Trade data includes `underlyingPriceAtOpen` and `underlyingPriceAtClose` for reference
 - Trade log UI matches tastytrade's table format: #, Opened, Closed, Premium, Buying Power, Profit/Loss, Close Reason, ROI
-- Transaction log matches tastytrade format: assignment (buy shares at strike, debit) + sell to close (sell shares at market, credit) for exercised trades; no row for expired trades; sell to open for entries
+- Transaction log matches tastytrade format: single "exercised" row with intrinsic value (strike - price for puts, price - strike for calls) for exercised trades; no row for expired trades; sell to open for entries
+- Trade entry cutoff uses last available price data date (not config.endDate) to determine if a trade's expiration is trackable
