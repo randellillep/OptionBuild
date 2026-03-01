@@ -63,8 +63,8 @@ Preferred communication style: Simple, everyday language.
 - Default fee per contract: $0 (matching tastytrade's no-fee display preference)
 - Open P/L calculated per-trade individually (not averaged across positions)
 - Capital tracking: max concurrent BPR sum represents "used capital"
-- Drawdown: dollar-based from peak, expressed as percentage of current total BPR
+- Drawdown: dollar-based from peak, expressed as percentage of total used capital (max concurrent BPR sum)
 - Close reason distinguishes "expired" (OTM at expiration) from "exercised" (ITM at expiration)
 - Trade data includes `underlyingPriceAtOpen` and `underlyingPriceAtClose` for reference
 - Trade log UI matches tastytrade's table format: #, Opened, Closed, Premium, Buying Power, Profit/Loss, Close Reason, ROI
-- Transaction log matches tastytrade format: single row per exercised trade (type="exercised", price=intrinsic*100), expired trades have price=0, both use effect="debit"
+- Transaction log matches tastytrade format: assignment (buy shares at strike, debit) + sell to close (sell shares at market, credit) for exercised trades; no row for expired trades; sell to open for entries

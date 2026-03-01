@@ -622,13 +622,7 @@ export async function runTastyworksBacktest(
   try {
     await storage.updateBacktestRun(backtestId, { status: "running", progress: 0 });
     
-    const maxDTE = Math.max(...config.legs.map(l => l.dte));
-    const extendedEndDate = (() => {
-      const end = new Date(config.endDate);
-      end.setDate(end.getDate() + maxDTE + 21);
-      return end.toISOString().split('T')[0];
-    })();
-    const priceHistory = await fetchHistoricalPrices(config.symbol, config.startDate, extendedEndDate);
+    const priceHistory = await fetchHistoricalPrices(config.symbol, config.startDate, config.endDate);
     
     if (priceHistory.length === 0) {
       await storage.updateBacktestRun(backtestId, {
@@ -681,8 +675,12 @@ export async function runTastyworksBacktest(
         activeTrades = activeTrades.filter(t => t.tradeNumber !== trade.tradeNumber);
       }
       
-      const canOpenTrades = currentDate <= config.endDate;
-      if (canOpenTrades && shouldEnterTrade(currentDate, config, activeTrades)) {
+      if (shouldEnterTrade(currentDate, config, activeTrades)) {
+        const maxLegDTE = Math.max(...config.legs.map(l => l.dte));
+        const wouldExpire = calculateExpirationDate(currentDate, maxLegDTE);
+        if (wouldExpire > config.endDate) {
+          // Skip: expiration would fall after backtest end date (matches tastytrade behavior)
+        } else {
         const strikes: number[] = [];
         const premiums: number[] = [];
         
@@ -745,6 +743,7 @@ export async function runTastyworksBacktest(
         };
         
         activeTrades.push(newTrade);
+      } // end else (expiration within backtest range)
       } // end shouldEnterTrade
       
       // Calculate open P/L for each active trade individually
@@ -774,9 +773,9 @@ export async function runTastyworksBacktest(
         peakValue = totalPnL;
       }
       
-      // tastytrade-style drawdown: dollar drawdown from peak, expressed as percentage of used capital
+      // tastytrade-style drawdown: dollar drawdown from peak, expressed as percentage of total used capital
       const drawdownDollars = peakValue - totalPnL;
-      const currentDrawdown = currentTotalBPR > 0 ? (drawdownDollars / currentTotalBPR) * 100 : 0;
+      const currentDrawdown = totalCapitalUsed > 0 ? (drawdownDollars / totalCapitalUsed) * 100 : 0;
       if (currentDrawdown > maxDrawdown) {
         maxDrawdown = currentDrawdown;
         maxDrawdownDate = currentDate;

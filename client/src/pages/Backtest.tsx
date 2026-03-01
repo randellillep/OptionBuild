@@ -960,30 +960,36 @@ function LogsSection({
       });
 
       if (trade.closeReason === "exercised") {
-        const intrinsicValue = Math.round(leg.exitPrice * 100);
+        const shareInstrument = `${config.symbol} shares`;
+        const strikePrice = Math.round(leg.strike * 100) / 100;
+        const closingPrice = Math.round((trade.underlyingPriceAtClose || 0) * 100) / 100;
+        const sharesQty = leg.quantity * 100;
+
         entries.push({
           rowNum: 0,
           date: trade.closedDate,
           tradeNo: trade.tradeNumber,
-          type: "exercised",
-          instrument,
-          price: intrinsicValue,
-          quantity: leg.quantity,
-          value: intrinsicValue * leg.quantity,
+          type: "assignment",
+          instrument: shareInstrument,
+          price: strikePrice,
+          quantity: sharesQty,
+          value: Math.round(strikePrice * sharesQty * 100) / 100,
           effect: "debit",
+        });
+
+        entries.push({
+          rowNum: 0,
+          date: trade.closedDate,
+          tradeNo: trade.tradeNumber,
+          type: "sell to close",
+          instrument: shareInstrument,
+          price: closingPrice,
+          quantity: sharesQty,
+          value: Math.round(closingPrice * sharesQty * 100) / 100,
+          effect: "credit",
         });
       } else if (trade.closeReason === "expired") {
-        entries.push({
-          rowNum: 0,
-          date: trade.closedDate,
-          tradeNo: trade.tradeNumber,
-          type: "expired",
-          instrument,
-          price: 0,
-          quantity: leg.quantity,
-          value: 0,
-          effect: "debit",
-        });
+        // TT does not show a transaction row for expired (OTM) trades
       } else {
         const closeType = `${leg.direction === "sell" ? "buy" : "sell"} to close`;
         entries.push({
@@ -1143,10 +1149,10 @@ function LogsSection({
                     <td className="px-3 py-2.5" data-testid={`text-tx-date-${tx.rowNum}`}>{formattedDate(tx.date)}</td>
                     <td className="px-3 py-2.5 text-center font-mono">{tx.tradeNo}</td>
                     <td className={`px-3 py-2.5 font-medium ${
-                      tx.type.startsWith("sell to open") ? 'text-red-500' : 
+                      tx.type === "sell to open" ? 'text-red-500' : 
                       tx.type.startsWith("buy to") ? 'text-green-500' : 
-                      tx.type === "expired" ? 'text-muted-foreground' :
-                      tx.type === "exercised" ? 'text-amber-500' : 'text-foreground'
+                      tx.type === "assignment" ? 'text-amber-500' :
+                      tx.type === "sell to close" ? 'text-green-500' : 'text-foreground'
                     }`} data-testid={`text-tx-type-${tx.rowNum}`}>
                       {tx.type}
                     </td>
