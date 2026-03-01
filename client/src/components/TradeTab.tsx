@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plug, Unplug, RefreshCw, DollarSign, ShieldCheck, AlertTriangle, Trash2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Plug, Unplug, RefreshCw, DollarSign, ShieldCheck, AlertTriangle, Trash2, Eye, EyeOff, X } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -190,19 +190,19 @@ export function TradeTab() {
               <div>
                 <div className="text-[10px] text-muted-foreground">Buying Power</div>
                 <div className="text-sm font-mono font-medium" data-testid="text-buying-power">
-                  ${accountData.buyingPower.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${Number(accountData.buyingPower).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
               <div>
                 <div className="text-[10px] text-muted-foreground">Cash</div>
                 <div className="text-sm font-mono font-medium" data-testid="text-cash">
-                  ${accountData.cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${Number(accountData.cash).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
               <div>
                 <div className="text-[10px] text-muted-foreground">Equity</div>
                 <div className="text-sm font-mono font-medium" data-testid="text-equity">
-                  ${accountData.equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${Number(accountData.equity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
               <div>
