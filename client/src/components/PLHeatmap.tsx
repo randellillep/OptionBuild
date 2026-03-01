@@ -158,9 +158,19 @@ export function PLHeatmap({
   };
 
   const getColumnSeparatorClass = (idx: number): string => {
+    if (useHours) {
+      if (idx === 0) return '';
+      if (isDateGroupStart(idx)) return 'border-l-2 border-l-slate-400 dark:border-l-slate-500';
+      return '';
+    }
     if (isNewMonth(idx)) return 'border-l-2 border-l-slate-400 dark:border-l-slate-500';
     if (isNewWeek(idx)) return 'border-l border-l-slate-300 dark:border-l-slate-600';
     return '';
+  };
+
+  const isDateGroupStart = (colIdx: number) => {
+    if (colIdx === 0) return false;
+    return dateGroups.some(group => group.startIdx === colIdx);
   };
 
   const getTimeLabel = (daysValue: number) => {
@@ -202,12 +212,6 @@ export function PLHeatmap({
     }
   };
 
-  // Helper to check if a column index starts a new date group
-  // Show separator for all date groups except the very first column
-  const isDateGroupStart = (colIdx: number) => {
-    if (colIdx === 0) return false;
-    return dateGroups.some(group => group.startIdx === colIdx);
-  };
 
   return (
     <Card className="p-2" data-testid="pl-heatmap">
@@ -296,22 +300,38 @@ export function PLHeatmap({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse" style={{ tableLayout: 'fixed', minWidth: 0 }}>
           <thead>
-            {/* Month group row for non-hourly mode */}
-            {!useHours && (() => {
-              const today = new Date();
+            {/* Month group row — shown for both hourly and daily modes */}
+            {(() => {
+              const now = new Date();
               const monthGroups: Array<{ label: string; count: number }> = [];
               let lastMonth = '';
-              days.forEach((day) => {
-                const targetDate = new Date(today);
-                targetDate.setDate(targetDate.getDate() + day);
-                const monthLabel = targetDate.toLocaleString('default', { month: 'short' });
-                if (monthLabel !== lastMonth) {
-                  monthGroups.push({ label: monthLabel, count: 1 });
-                  lastMonth = monthLabel;
-                } else {
-                  monthGroups[monthGroups.length - 1].count++;
-                }
-              });
+              
+              if (useHours) {
+                days.forEach((daysValue) => {
+                  const totalHours = Math.round(daysValue * 24);
+                  const targetTime = new Date(now.getTime() + totalHours * 60 * 60 * 1000);
+                  const monthLabel = targetTime.toLocaleString('default', { month: 'short' });
+                  if (monthLabel !== lastMonth) {
+                    monthGroups.push({ label: monthLabel, count: 1 });
+                    lastMonth = monthLabel;
+                  } else {
+                    monthGroups[monthGroups.length - 1].count++;
+                  }
+                });
+              } else {
+                days.forEach((day) => {
+                  const targetDate = new Date(now);
+                  targetDate.setDate(targetDate.getDate() + day);
+                  const monthLabel = targetDate.toLocaleString('default', { month: 'short' });
+                  if (monthLabel !== lastMonth) {
+                    monthGroups.push({ label: monthLabel, count: 1 });
+                    lastMonth = monthLabel;
+                  } else {
+                    monthGroups[monthGroups.length - 1].count++;
+                  }
+                });
+              }
+              
               return (
                 <tr>
                   <th colSpan={2} className="border-b border-border bg-slate-100 dark:bg-slate-800/50" style={{ width: '97px' }} />
@@ -329,7 +349,7 @@ export function PLHeatmap({
                 </tr>
               );
             })()}
-            {/* Date group row (only shown when useHours is true) */}
+            {/* Date group row (only shown when useHours is true — day labels spanning their hourly columns) */}
             {useHours && dateGroups.length > 0 && (
               <tr>
                 <th 
@@ -343,7 +363,9 @@ export function PLHeatmap({
                     key={idx}
                     colSpan={group.count}
                     scope="colgroup"
-                    className="text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200"
+                    className={`text-[10px] font-bold text-center p-1 border-b border-border bg-slate-200/70 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 ${
+                      idx > 0 ? 'border-l-2 border-l-slate-400 dark:border-l-slate-500' : ''
+                    }`}
                     data-testid={`header-dategroup-${idx}`}
                   >
                     {group.dateLabel}
@@ -451,10 +473,11 @@ export function PLHeatmap({
                   {row.map((cell, colIdx) => {
                     const adjustedPnl = adjustPnl(cell.pnl);
                     const displayValue = formatPnl(adjustedPnl);
+                    const sepClass = getColumnSeparatorClass(colIdx);
                     return (
                       <td
                         key={colIdx}
-                        className="text-[10px] font-mono text-center px-0 py-1 border-b border-border/20 text-white heatmap-cell"
+                        className={`text-[10px] font-mono text-center px-0 py-1 border-b border-border/20 text-white heatmap-cell ${sepClass}`}
                         style={getPnlStyle(cell.pnl)}
                         data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
                       >
