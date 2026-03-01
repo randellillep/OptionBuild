@@ -138,6 +138,23 @@ export function TradeTab() {
 
   const orders = ordersData?.orders || [];
 
+  const parseOptionSymbol = (symbol: string) => {
+    const match = symbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
+    if (!match) return null;
+    const [, root, dateStr, side, strikeStr] = match;
+    const year = 2000 + parseInt(dateStr.substring(0, 2));
+    const month = parseInt(dateStr.substring(2, 4));
+    const day = parseInt(dateStr.substring(4, 6));
+    const strike = parseInt(strikeStr) / 1000;
+    const expDate = new Date(year, month - 1, day);
+    return {
+      root,
+      expiration: expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }),
+      type: side === 'C' ? 'Call' : 'Put',
+      strike,
+    };
+  };
+
   const formatOrderStatus = (status: string) => {
     const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
       new: { label: "New", variant: "outline" },
@@ -302,41 +319,58 @@ export function TradeTab() {
                 {orders.slice(0, 20).map((order) => {
                   const statusInfo = formatOrderStatus(order.status);
                   const orderDate = new Date(order.submitted_at || order.created_at);
+                  const parsed = parseOptionSymbol(order.symbol);
                   return (
                     <div
                       key={order.id}
-                      className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/30 text-xs"
+                      className="p-2 rounded-md bg-muted/30 text-xs space-y-1"
                       data-testid={`row-order-${order.id}`}
                     >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Badge
-                          variant={order.side === "sell" ? "destructive" : "default"}
-                          className="text-[10px] px-1.5 py-0 shrink-0"
-                        >
-                          {order.side?.toUpperCase()}
-                        </Badge>
-                        <span className="font-mono truncate">{order.symbol}</span>
-                        <span className="text-muted-foreground shrink-0">x{order.qty}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Badge variant={statusInfo.variant} className="text-[10px]">
-                          {statusInfo.label}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground">
-                          {orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                        {(order.status === "new" || order.status === "accepted" || order.status === "pending_new") && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => cancelOrderMutation.mutate(order.id)}
-                            disabled={cancelOrderMutation.isPending}
-                            data-testid={`button-cancel-order-${order.id}`}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] px-1.5 py-0 shrink-0 border-0 ${order.side === "sell" ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"}`}
                           >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        )}
+                            {order.side?.toUpperCase()}
+                          </Badge>
+                          <span className="font-mono font-medium">{parsed?.root || order.symbol}</span>
+                          <span className="text-muted-foreground shrink-0">x{order.qty}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant={statusInfo.variant} className="text-[10px]">
+                            {statusInfo.label}
+                          </Badge>
+                          {(order.status === "new" || order.status === "accepted" || order.status === "pending_new") && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => cancelOrderMutation.mutate(order.id)}
+                              disabled={cancelOrderMutation.isPending}
+                              data-testid={`button-cancel-order-${order.id}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
+                      {parsed && (
+                        <div className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
+                          <span className="font-mono">${parsed.strike.toFixed(2)} {parsed.type}</span>
+                          <span>Exp {parsed.expiration}</span>
+                          <span className="uppercase">{order.type}</span>
+                          {order.filled_avg_price && parseFloat(order.filled_avg_price) > 0 && (
+                            <span className="text-foreground font-mono">Fill: ${parseFloat(order.filled_avg_price).toFixed(2)}</span>
+                          )}
+                          <span>{orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        </div>
+                      )}
+                      {!parsed && (
+                        <div className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
+                          <span className="font-mono">{order.symbol}</span>
+                          <span>{orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
