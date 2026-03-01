@@ -135,10 +135,10 @@ export default function Builder() {
   const [lastEditedLegId, setLastEditedLegId] = useState<string | null>(null);
   
   // Color palette for multi-expiration visual coding (OptionStrat-style)
-  // Each unique expiration gets a distinct color to help identify legs
+  // Colors for additional expirations beyond the first (first keeps default grey)
   const EXPIRATION_COLORS = [
-    '#a855f7', // Purple (first expiration)
-    '#22c55e', // Green (second expiration)
+    '#a855f7', // Purple
+    '#22c55e', // Green
     '#3b82f6', // Blue
     '#f97316', // Orange
     '#ec4899', // Pink
@@ -147,7 +147,7 @@ export default function Builder() {
   ];
   
   // Create a mapping from expiration days to colors (sorted by days, earliest first)
-  // ONLY color-code when 2+ legs have DIFFERENT expirations
+  // The FIRST expiration keeps its default grey styling; only 2nd+ get distinct colors
   const expirationColorMap = useMemo(() => {
     const activeOptionLegs = legs.filter(l => {
       if (l.type === "stock") return false;
@@ -164,7 +164,8 @@ export default function Builder() {
     const sorted = uniqueDaysArr.sort((a, b) => a - b);
     const map = new Map<number, string>();
     sorted.forEach((days, idx) => {
-      map.set(days, EXPIRATION_COLORS[idx % EXPIRATION_COLORS.length]);
+      if (idx === 0) return;
+      map.set(days, EXPIRATION_COLORS[(idx - 1) % EXPIRATION_COLORS.length]);
     });
     return map;
   }, [legs]);

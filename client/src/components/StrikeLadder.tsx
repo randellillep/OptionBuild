@@ -502,7 +502,7 @@ export function StrikeLadder({
     
     // Get expiration color for multi-expiration visual coding (OptionStrat-style)
     const expirationColor = expirationColorMap?.get(leg.expirationDays);
-    const hasMultipleExpirations = expirationColorMap && expirationColorMap.size > 1;
+    const hasMultipleExpirations = expirationColorMap && expirationColorMap.size > 0;
     const hasAnyClosedLegs = legs.some(l => l.type !== 'stock' && l.closingTransaction?.isEnabled && 
       (l.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0) >= l.quantity);
     
