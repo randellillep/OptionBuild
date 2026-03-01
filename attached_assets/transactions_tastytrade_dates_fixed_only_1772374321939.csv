@@ -1,0 +1,507 @@
+Date,Time,Trade No.,Type,Instrument,Price,Quantity,Value,Effect
+2/28/2025,10:45:00 PM GMT+2,1,sell to open,AAPL $230 put exp. 4/17/2025,455,1,455,credit
+3/3/2025,10:45:00 PM GMT+2,2,sell to open,AAPL $225 put exp. 4/17/2025,450,1,450,credit
+3/4/2025,10:45:00 PM GMT+2,3,sell to open,AAPL $225 put exp. 4/17/2025,430,1,430,credit
+3/5/2025,10:45:00 PM GMT+2,4,sell to open,AAPL $225 put exp. 4/17/2025,440,1,440,credit
+3/6/2025,10:45:00 PM GMT+2,5,sell to open,AAPL $225 put exp. 4/17/2025,507,1,507,credit
+3/7/2025,10:45:00 PM GMT+2,6,sell to open,AAPL $225 put exp. 4/25/2025,482,1,482,credit
+3/10/2025,9:45:00 PM GMT+2,7,sell to open,AAPL $215 put exp. 4/25/2025,555,1,555,credit
+3/11/2025,9:45:00 PM GMT+2,8,sell to open,AAPL $210 put exp. 4/25/2025,522,1,522,credit
+3/12/2025,9:45:00 PM GMT+2,9,sell to open,AAPL $205 put exp. 4/25/2025,497,1,497,credit
+3/13/2025,9:45:00 PM GMT+2,10,sell to open,AAPL $200 put exp. 4/25/2025,555,1,555,credit
+3/14/2025,9:45:00 PM GMT+2,11,sell to open,AAPL $200 put exp. 4/25/2025,360,1,360,credit
+3/17/2025,9:45:00 PM GMT+2,12,sell to open,AAPL $205 put exp. 5/2/2025,510,1,510,credit
+3/18/2025,9:45:00 PM GMT+2,13,sell to open,AAPL $200 put exp. 5/2/2025,447,1,447,credit
+3/19/2025,9:45:00 PM GMT+2,14,sell to open,AAPL $205 put exp. 5/2/2025,467,1,467,credit
+3/20/2025,9:45:00 PM GMT+2,15,sell to open,AAPL $205 put exp. 5/2/2025,512,1,512,credit
+3/21/2025,9:45:00 PM GMT+2,16,sell to open,AAPL $205 put exp. 5/2/2025,437,1,437,credit
+3/24/2025,9:45:00 PM GMT+2,17,sell to open,AAPL $210 put exp. 5/2/2025,397,1,397,credit
+3/25/2025,9:45:00 PM GMT+2,18,sell to open,AAPL $215 put exp. 5/16/2025,515,1,515,credit
+3/26/2025,9:45:00 PM GMT+2,19,sell to open,AAPL $210 put exp. 5/16/2025,480,1,480,credit
+3/27/2025,9:45:00 PM GMT+2,20,sell to open,AAPL $215 put exp. 5/9/2025,445,1,445,credit
+3/28/2025,9:45:00 PM GMT+2,21,sell to open,AAPL $205 put exp. 5/9/2025,402,1,402,credit
+3/31/2025,10:45:00 PM GMT+3,22,sell to open,AAPL $210 put exp. 5/16/2025,460,1,460,credit
+4/1/2025,10:45:00 PM GMT+3,23,sell to open,AAPL $210 put exp. 5/16/2025,455,1,455,credit
+4/2/2025,10:45:00 PM GMT+3,24,sell to open,AAPL $215 put exp. 5/16/2025,515,1,515,credit
+4/3/2025,10:45:00 PM GMT+3,25,sell to open,AAPL $190 put exp. 5/16/2025,640,1,640,credit
+4/4/2025,10:45:00 PM GMT+3,26,sell to open,AAPL $180 put exp. 5/16/2025,792,1,792,credit
+4/7/2025,10:45:00 PM GMT+3,27,sell to open,AAPL $170 put exp. 5/23/2025,932,1,932,credit
+4/8/2025,10:45:00 PM GMT+3,28,sell to open,AAPL $160 put exp. 5/23/2025,1010,1,1010,credit
+4/9/2025,10:45:00 PM GMT+3,29,sell to open,AAPL $185 put exp. 5/23/2025,645,1,645,credit
+4/10/2025,10:45:00 PM GMT+3,30,sell to open,AAPL $180 put exp. 5/23/2025,940,1,940,credit
+4/11/2025,10:45:00 PM GMT+3,31,sell to open,AAPL $190 put exp. 5/23/2025,900,1,900,credit
+4/14/2025,10:45:00 PM GMT+3,32,sell to open,AAPL $195 put exp. 5/30/2025,712,1,712,credit
+4/15/2025,10:45:00 PM GMT+3,33,sell to open,AAPL $190 put exp. 5/30/2025,580,1,580,credit
+4/16/2025,10:45:00 PM GMT+3,34,sell to open,AAPL $185 put exp. 5/30/2025,757,1,757,credit
+4/17/2025,10:45:00 PM GMT+3,35,sell to open,AAPL $185 put exp. 5/30/2025,592,1,592,credit
+4/17/2025,11:00:00 PM GMT+3,1,exercise,AAPL $230 put exp. 4/17/2025,0,1,0,debit
+4/17/2025,11:00:00 PM GMT+3,1,assignment,AAPL shares,230,100,23000,debit
+4/17/2025,11:00:00 PM GMT+3,1,sell to close,AAPL shares,196.98,100,19698,credit
+4/17/2025,11:00:00 PM GMT+3,2,exercise,AAPL $225 put exp. 4/17/2025,0,1,0,debit
+4/17/2025,11:00:00 PM GMT+3,2,assignment,AAPL shares,225,100,22500,debit
+4/17/2025,11:00:00 PM GMT+3,2,sell to close,AAPL shares,196.98,100,19698,credit
+4/17/2025,11:00:00 PM GMT+3,3,exercise,AAPL $225 put exp. 4/17/2025,0,1,0,debit
+4/17/2025,11:00:00 PM GMT+3,3,assignment,AAPL shares,225,100,22500,debit
+4/17/2025,11:00:00 PM GMT+3,3,sell to close,AAPL shares,196.98,100,19698,credit
+4/17/2025,11:00:00 PM GMT+3,4,exercise,AAPL $225 put exp. 4/17/2025,0,1,0,debit
+4/17/2025,11:00:00 PM GMT+3,4,assignment,AAPL shares,225,100,22500,debit
+4/17/2025,11:00:00 PM GMT+3,4,sell to close,AAPL shares,196.98,100,19698,credit
+4/17/2025,11:00:00 PM GMT+3,5,exercise,AAPL $225 put exp. 4/17/2025,0,1,0,debit
+4/17/2025,11:00:00 PM GMT+3,5,assignment,AAPL shares,225,100,22500,debit
+4/17/2025,11:00:00 PM GMT+3,5,sell to close,AAPL shares,196.98,100,19698,credit
+4/21/2025,10:45:00 PM GMT+3,36,sell to open,AAPL $180 put exp. 5/30/2025,602,1,602,credit
+4/22/2025,10:45:00 PM GMT+3,37,sell to open,AAPL $190 put exp. 5/30/2025,637,1,637,credit
+4/23/2025,10:45:00 PM GMT+3,38,sell to open,AAPL $195 put exp. 5/30/2025,602,1,602,credit
+4/24/2025,10:45:00 PM GMT+3,39,sell to open,AAPL $200 put exp. 6/6/2025,642,1,642,credit
+4/25/2025,10:45:00 PM GMT+3,40,sell to open,AAPL $200 put exp. 6/6/2025,590,1,590,credit
+4/25/2025,11:00:00 PM GMT+3,6,exercise,AAPL $225 put exp. 4/25/2025,0,1,0,debit
+4/25/2025,11:00:00 PM GMT+3,6,assignment,AAPL shares,225,100,22500,debit
+4/25/2025,11:00:00 PM GMT+3,6,sell to close,AAPL shares,209.28,100,20928,credit
+4/25/2025,11:00:00 PM GMT+3,7,exercise,AAPL $215 put exp. 4/25/2025,0,1,0,debit
+4/25/2025,11:00:00 PM GMT+3,7,assignment,AAPL shares,215,100,21500,debit
+4/25/2025,11:00:00 PM GMT+3,7,sell to close,AAPL shares,209.28,100,20928,credit
+4/25/2025,11:00:00 PM GMT+3,8,exercise,AAPL $210 put exp. 4/25/2025,0,1,0,debit
+4/25/2025,11:00:00 PM GMT+3,8,assignment,AAPL shares,210,100,21000,debit
+4/25/2025,11:00:00 PM GMT+3,8,sell to close,AAPL shares,209.28,100,20928,credit
+4/25/2025,11:00:00 PM GMT+3,9,expiration,AAPL $205 put exp. 4/25/2025,0,1,0,debit
+4/25/2025,11:00:00 PM GMT+3,10,expiration,AAPL $200 put exp. 4/25/2025,0,1,0,debit
+4/25/2025,11:00:00 PM GMT+3,11,expiration,AAPL $200 put exp. 4/25/2025,0,1,0,debit
+4/28/2025,10:45:00 PM GMT+3,41,sell to open,AAPL $200 put exp. 6/6/2025,500,1,500,credit
+4/29/2025,10:45:00 PM GMT+3,42,sell to open,AAPL $200 put exp. 6/20/2025,580,1,580,credit
+4/30/2025,10:45:00 PM GMT+3,43,sell to open,AAPL $200 put exp. 6/20/2025,610,1,610,credit
+5/1/2025,10:45:00 PM GMT+3,44,sell to open,AAPL $205 put exp. 6/13/2025,647,1,647,credit
+5/2/2025,10:45:00 PM GMT+3,45,sell to open,AAPL $195 put exp. 6/13/2025,467,1,467,credit
+5/2/2025,11:00:00 PM GMT+3,12,expiration,AAPL $205 put exp. 5/2/2025,0,1,0,debit
+5/2/2025,11:00:00 PM GMT+3,13,expiration,AAPL $200 put exp. 5/2/2025,0,1,0,debit
+5/2/2025,11:00:00 PM GMT+3,14,expiration,AAPL $205 put exp. 5/2/2025,0,1,0,debit
+5/2/2025,11:00:00 PM GMT+3,15,expiration,AAPL $205 put exp. 5/2/2025,0,1,0,debit
+5/2/2025,11:00:00 PM GMT+3,16,expiration,AAPL $205 put exp. 5/2/2025,0,1,0,debit
+5/2/2025,11:00:00 PM GMT+3,17,exercise,AAPL $210 put exp. 5/2/2025,0,1,0,debit
+5/2/2025,11:00:00 PM GMT+3,17,assignment,AAPL shares,210,100,21000,debit
+5/2/2025,11:00:00 PM GMT+3,17,sell to close,AAPL shares,205.35,100,20535,credit
+5/5/2025,10:45:00 PM GMT+3,46,sell to open,AAPL $190 put exp. 6/20/2025,525,1,525,credit
+5/6/2025,10:45:00 PM GMT+3,47,sell to open,AAPL $190 put exp. 6/20/2025,490,1,490,credit
+5/7/2025,10:45:00 PM GMT+3,48,sell to open,AAPL $185 put exp. 6/20/2025,462,1,462,credit
+5/8/2025,10:45:00 PM GMT+3,49,sell to open,AAPL $190 put exp. 6/20/2025,505,1,505,credit
+5/9/2025,10:45:00 PM GMT+3,50,sell to open,AAPL $190 put exp. 6/20/2025,477,1,477,credit
+5/9/2025,11:00:00 PM GMT+3,20,exercise,AAPL $215 put exp. 5/9/2025,0,1,0,debit
+5/9/2025,11:00:00 PM GMT+3,20,assignment,AAPL shares,215,100,21500,debit
+5/9/2025,11:00:00 PM GMT+3,20,sell to close,AAPL shares,198.53,100,19853,credit
+5/9/2025,11:00:00 PM GMT+3,21,exercise,AAPL $205 put exp. 5/9/2025,0,1,0,debit
+5/9/2025,11:00:00 PM GMT+3,21,assignment,AAPL shares,205,100,20500,debit
+5/9/2025,11:00:00 PM GMT+3,21,sell to close,AAPL shares,198.53,100,19853,credit
+5/12/2025,10:45:00 PM GMT+3,51,sell to open,AAPL $200 put exp. 6/27/2025,385,1,385,credit
+5/13/2025,10:45:00 PM GMT+3,52,sell to open,AAPL $200 put exp. 6/27/2025,305,1,305,credit
+5/14/2025,10:45:00 PM GMT+3,53,sell to open,AAPL $200 put exp. 6/27/2025,365,1,365,credit
+5/15/2025,10:45:00 PM GMT+3,54,sell to open,AAPL $200 put exp. 6/27/2025,360,1,360,credit
+5/16/2025,10:45:00 PM GMT+3,55,sell to open,AAPL $200 put exp. 6/27/2025,320,1,320,credit
+5/16/2025,11:00:00 PM GMT+3,18,exercise,AAPL $215 put exp. 5/16/2025,0,1,0,debit
+5/16/2025,11:00:00 PM GMT+3,18,assignment,AAPL shares,215,100,21500,debit
+5/16/2025,11:00:00 PM GMT+3,18,sell to close,AAPL shares,211.26,100,21126,credit
+5/16/2025,11:00:00 PM GMT+3,19,expiration,AAPL $210 put exp. 5/16/2025,0,1,0,debit
+5/16/2025,11:00:00 PM GMT+3,22,expiration,AAPL $210 put exp. 5/16/2025,0,1,0,debit
+5/16/2025,11:00:00 PM GMT+3,23,expiration,AAPL $210 put exp. 5/16/2025,0,1,0,debit
+5/16/2025,11:00:00 PM GMT+3,24,exercise,AAPL $215 put exp. 5/16/2025,0,1,0,debit
+5/16/2025,11:00:00 PM GMT+3,24,assignment,AAPL shares,215,100,21500,debit
+5/16/2025,11:00:00 PM GMT+3,24,sell to close,AAPL shares,211.26,100,21126,credit
+5/16/2025,11:00:00 PM GMT+3,25,expiration,AAPL $190 put exp. 5/16/2025,0,1,0,debit
+5/16/2025,11:00:00 PM GMT+3,26,expiration,AAPL $180 put exp. 5/16/2025,0,1,0,debit
+5/19/2025,10:45:00 PM GMT+3,56,sell to open,AAPL $200 put exp. 6/27/2025,395,1,395,credit
+5/20/2025,10:45:00 PM GMT+3,57,sell to open,AAPL $195 put exp. 6/27/2025,332,1,332,credit
+5/21/2025,10:45:00 PM GMT+3,58,sell to open,AAPL $190 put exp. 6/27/2025,362,1,362,credit
+5/22/2025,10:45:00 PM GMT+3,59,sell to open,AAPL $190 put exp. 7/3/2025,417,1,417,credit
+5/23/2025,10:45:00 PM GMT+3,60,sell to open,AAPL $185 put exp. 7/3/2025,450,1,450,credit
+5/23/2025,11:00:00 PM GMT+3,27,expiration,AAPL $170 put exp. 5/23/2025,0,1,0,debit
+5/23/2025,11:00:00 PM GMT+3,28,expiration,AAPL $160 put exp. 5/23/2025,0,1,0,debit
+5/23/2025,11:00:00 PM GMT+3,29,expiration,AAPL $185 put exp. 5/23/2025,0,1,0,debit
+5/23/2025,11:00:00 PM GMT+3,30,expiration,AAPL $180 put exp. 5/23/2025,0,1,0,debit
+5/23/2025,11:00:00 PM GMT+3,31,expiration,AAPL $190 put exp. 5/23/2025,0,1,0,debit
+5/27/2025,10:45:00 PM GMT+3,61,sell to open,AAPL $190 put exp. 7/18/2025,480,1,480,credit
+5/28/2025,10:45:00 PM GMT+3,62,sell to open,AAPL $190 put exp. 7/18/2025,430,1,430,credit
+5/29/2025,10:45:00 PM GMT+3,63,sell to open,AAPL $190 put exp. 7/11/2025,430,1,430,credit
+5/30/2025,10:45:00 PM GMT+3,64,sell to open,AAPL $190 put exp. 7/11/2025,400,1,400,credit
+5/30/2025,11:00:00 PM GMT+3,32,expiration,AAPL $195 put exp. 5/30/2025,0,1,0,debit
+5/30/2025,11:00:00 PM GMT+3,33,expiration,AAPL $190 put exp. 5/30/2025,0,1,0,debit
+5/30/2025,11:00:00 PM GMT+3,34,expiration,AAPL $185 put exp. 5/30/2025,0,1,0,debit
+5/30/2025,11:00:00 PM GMT+3,35,expiration,AAPL $185 put exp. 5/30/2025,0,1,0,debit
+5/30/2025,11:00:00 PM GMT+3,36,expiration,AAPL $180 put exp. 5/30/2025,0,1,0,debit
+5/30/2025,11:00:00 PM GMT+3,37,expiration,AAPL $190 put exp. 5/30/2025,0,1,0,debit
+5/30/2025,11:00:00 PM GMT+3,38,expiration,AAPL $195 put exp. 5/30/2025,0,1,0,debit
+6/2/2025,10:45:00 PM GMT+3,65,sell to open,AAPL $190 put exp. 7/18/2025,377,1,377,credit
+6/3/2025,10:45:00 PM GMT+3,66,sell to open,AAPL $195 put exp. 7/18/2025,440,1,440,credit
+6/4/2025,10:45:00 PM GMT+3,67,sell to open,AAPL $195 put exp. 7/18/2025,427,1,427,credit
+6/5/2025,10:45:00 PM GMT+3,68,sell to open,AAPL $190 put exp. 7/18/2025,360,1,360,credit
+6/6/2025,10:45:00 PM GMT+3,69,sell to open,AAPL $195 put exp. 7/18/2025,360,1,360,credit
+6/6/2025,11:00:00 PM GMT+3,39,expiration,AAPL $200 put exp. 6/6/2025,0,1,0,debit
+6/6/2025,11:00:00 PM GMT+3,40,expiration,AAPL $200 put exp. 6/6/2025,0,1,0,debit
+6/6/2025,11:00:00 PM GMT+3,41,expiration,AAPL $200 put exp. 6/6/2025,0,1,0,debit
+6/9/2025,10:45:00 PM GMT+3,70,sell to open,AAPL $190 put exp. 7/25/2025,370,1,370,credit
+6/10/2025,10:45:00 PM GMT+3,71,sell to open,AAPL $195 put exp. 7/25/2025,425,1,425,credit
+6/11/2025,10:45:00 PM GMT+3,72,sell to open,AAPL $190 put exp. 7/25/2025,405,1,405,credit
+6/12/2025,10:45:00 PM GMT+3,73,sell to open,AAPL $190 put exp. 7/25/2025,392,1,392,credit
+6/13/2025,10:45:00 PM GMT+3,74,sell to open,AAPL $185 put exp. 7/25/2025,345,1,345,credit
+6/13/2025,11:00:00 PM GMT+3,44,exercise,AAPL $205 put exp. 6/13/2025,0,1,0,debit
+6/13/2025,11:00:00 PM GMT+3,44,assignment,AAPL shares,205,100,20500,debit
+6/13/2025,11:00:00 PM GMT+3,44,sell to close,AAPL shares,196.45,100,19645,credit
+6/13/2025,11:00:00 PM GMT+3,45,expiration,AAPL $195 put exp. 6/13/2025,0,1,0,debit
+6/16/2025,10:45:00 PM GMT+3,75,sell to open,AAPL $190 put exp. 8/1/2025,472,1,472,credit
+6/17/2025,10:45:00 PM GMT+3,76,sell to open,AAPL $185 put exp. 8/1/2025,420,1,420,credit
+6/18/2025,10:45:00 PM GMT+3,77,sell to open,AAPL $185 put exp. 8/1/2025,375,1,375,credit
+6/20/2025,10:45:00 PM GMT+3,78,sell to open,AAPL $190 put exp. 8/1/2025,400,1,400,credit
+6/20/2025,11:00:00 PM GMT+3,42,expiration,AAPL $200 put exp. 6/20/2025,0,1,0,debit
+6/20/2025,11:00:00 PM GMT+3,43,expiration,AAPL $200 put exp. 6/20/2025,0,1,0,debit
+6/20/2025,11:00:00 PM GMT+3,46,expiration,AAPL $190 put exp. 6/20/2025,0,1,0,debit
+6/20/2025,11:00:00 PM GMT+3,47,expiration,AAPL $190 put exp. 6/20/2025,0,1,0,debit
+6/20/2025,11:00:00 PM GMT+3,48,expiration,AAPL $185 put exp. 6/20/2025,0,1,0,debit
+6/20/2025,11:00:00 PM GMT+3,49,expiration,AAPL $190 put exp. 6/20/2025,0,1,0,debit
+6/20/2025,11:00:00 PM GMT+3,50,expiration,AAPL $190 put exp. 6/20/2025,0,1,0,debit
+6/23/2025,10:45:00 PM GMT+3,79,sell to open,AAPL $190 put exp. 8/1/2025,325,1,325,credit
+6/24/2025,10:45:00 PM GMT+3,80,sell to open,AAPL $190 put exp. 8/15/2025,417,1,417,credit
+6/25/2025,10:45:00 PM GMT+3,81,sell to open,AAPL $190 put exp. 8/15/2025,402,1,402,credit
+6/26/2025,10:45:00 PM GMT+3,82,sell to open,AAPL $190 put exp. 8/8/2025,352,1,352,credit
+6/27/2025,10:45:00 PM GMT+3,83,sell to open,AAPL $190 put exp. 8/8/2025,357,1,357,credit
+6/27/2025,11:00:00 PM GMT+3,51,expiration,AAPL $200 put exp. 6/27/2025,0,1,0,debit
+6/27/2025,11:00:00 PM GMT+3,52,expiration,AAPL $200 put exp. 6/27/2025,0,1,0,debit
+6/27/2025,11:00:00 PM GMT+3,53,expiration,AAPL $200 put exp. 6/27/2025,0,1,0,debit
+6/27/2025,11:00:00 PM GMT+3,54,expiration,AAPL $200 put exp. 6/27/2025,0,1,0,debit
+6/27/2025,11:00:00 PM GMT+3,55,expiration,AAPL $200 put exp. 6/27/2025,0,1,0,debit
+6/27/2025,11:00:00 PM GMT+3,56,expiration,AAPL $200 put exp. 6/27/2025,0,1,0,debit
+6/27/2025,11:00:00 PM GMT+3,57,expiration,AAPL $195 put exp. 6/27/2025,0,1,0,debit
+6/27/2025,11:00:00 PM GMT+3,58,expiration,AAPL $190 put exp. 6/27/2025,0,1,0,debit
+6/30/2025,10:45:00 PM GMT+3,84,sell to open,AAPL $195 put exp. 8/15/2025,402,1,402,credit
+7/1/2025,10:45:00 PM GMT+3,85,sell to open,AAPL $195 put exp. 8/15/2025,352,1,352,credit
+7/2/2025,10:45:00 PM GMT+3,86,sell to open,AAPL $200 put exp. 8/15/2025,357,1,357,credit
+7/3/2025,10:45:00 PM GMT+3,87,sell to open,AAPL $205 put exp. 8/15/2025,422,1,422,credit
+7/3/2025,11:00:00 PM GMT+3,59,expiration,AAPL $190 put exp. 7/3/2025,0,1,0,debit
+7/3/2025,11:00:00 PM GMT+3,60,expiration,AAPL $185 put exp. 7/3/2025,0,1,0,debit
+7/7/2025,10:45:00 PM GMT+3,88,sell to open,AAPL $200 put exp. 8/22/2025,465,1,465,credit
+7/8/2025,10:45:00 PM GMT+3,89,sell to open,AAPL $200 put exp. 8/22/2025,437,1,437,credit
+7/9/2025,10:45:00 PM GMT+3,90,sell to open,AAPL $200 put exp. 8/22/2025,405,1,405,credit
+7/10/2025,10:45:00 PM GMT+3,91,sell to open,AAPL $200 put exp. 8/22/2025,315,1,315,credit
+7/11/2025,10:45:00 PM GMT+3,92,sell to open,AAPL $200 put exp. 8/22/2025,355,1,355,credit
+7/11/2025,11:00:00 PM GMT+3,63,expiration,AAPL $190 put exp. 7/11/2025,0,1,0,debit
+7/11/2025,11:00:00 PM GMT+3,64,expiration,AAPL $190 put exp. 7/11/2025,0,1,0,debit
+7/14/2025,10:45:00 PM GMT+3,93,sell to open,AAPL $200 put exp. 8/29/2025,455,1,455,credit
+7/15/2025,10:45:00 PM GMT+3,94,sell to open,AAPL $200 put exp. 8/29/2025,425,1,425,credit
+7/16/2025,10:45:00 PM GMT+3,95,sell to open,AAPL $200 put exp. 8/29/2025,385,1,385,credit
+7/17/2025,10:45:00 PM GMT+3,96,sell to open,AAPL $200 put exp. 8/29/2025,385,1,385,credit
+7/18/2025,10:45:00 PM GMT+3,97,sell to open,AAPL $200 put exp. 8/29/2025,357,1,357,credit
+7/18/2025,11:00:00 PM GMT+3,61,expiration,AAPL $190 put exp. 7/18/2025,0,1,0,debit
+7/18/2025,11:00:00 PM GMT+3,62,expiration,AAPL $190 put exp. 7/18/2025,0,1,0,debit
+7/18/2025,11:00:00 PM GMT+3,65,expiration,AAPL $190 put exp. 7/18/2025,0,1,0,debit
+7/18/2025,11:00:00 PM GMT+3,66,expiration,AAPL $195 put exp. 7/18/2025,0,1,0,debit
+7/18/2025,11:00:00 PM GMT+3,67,expiration,AAPL $195 put exp. 7/18/2025,0,1,0,debit
+7/18/2025,11:00:00 PM GMT+3,68,expiration,AAPL $190 put exp. 7/18/2025,0,1,0,debit
+7/18/2025,11:00:00 PM GMT+3,69,expiration,AAPL $195 put exp. 7/18/2025,0,1,0,debit
+7/21/2025,10:45:00 PM GMT+3,98,sell to open,AAPL $200 put exp. 8/29/2025,307,1,307,credit
+7/22/2025,10:45:00 PM GMT+3,99,sell to open,AAPL $205 put exp. 8/29/2025,400,1,400,credit
+7/23/2025,10:45:00 PM GMT+3,100,sell to open,AAPL $205 put exp. 8/29/2025,400,1,400,credit
+7/24/2025,10:45:00 PM GMT+3,101,sell to open,AAPL $205 put exp. 9/5/2025,387,1,387,credit
+7/25/2025,10:45:00 PM GMT+3,102,sell to open,AAPL $205 put exp. 9/5/2025,402,1,402,credit
+7/25/2025,11:00:00 PM GMT+3,70,expiration,AAPL $190 put exp. 7/25/2025,0,1,0,debit
+7/25/2025,11:00:00 PM GMT+3,71,expiration,AAPL $195 put exp. 7/25/2025,0,1,0,debit
+7/25/2025,11:00:00 PM GMT+3,72,expiration,AAPL $190 put exp. 7/25/2025,0,1,0,debit
+7/25/2025,11:00:00 PM GMT+3,73,expiration,AAPL $190 put exp. 7/25/2025,0,1,0,debit
+7/25/2025,11:00:00 PM GMT+3,74,expiration,AAPL $185 put exp. 7/25/2025,0,1,0,debit
+7/28/2025,10:45:00 PM GMT+3,103,sell to open,AAPL $205 put exp. 9/5/2025,392,1,392,credit
+7/29/2025,10:45:00 PM GMT+3,104,sell to open,AAPL $200 put exp. 9/19/2025,420,1,420,credit
+7/30/2025,10:45:00 PM GMT+3,105,sell to open,AAPL $200 put exp. 9/19/2025,515,1,515,credit
+7/31/2025,10:45:00 PM GMT+3,106,sell to open,AAPL $200 put exp. 9/12/2025,472,1,472,credit
+8/1/2025,10:45:00 PM GMT+3,107,sell to open,AAPL $190 put exp. 9/12/2025,298,1,298,credit
+8/1/2025,11:00:00 PM GMT+3,75,expiration,AAPL $190 put exp. 8/1/2025,0,1,0,debit
+8/1/2025,11:00:00 PM GMT+3,76,expiration,AAPL $185 put exp. 8/1/2025,0,1,0,debit
+8/1/2025,11:00:00 PM GMT+3,77,expiration,AAPL $185 put exp. 8/1/2025,0,1,0,debit
+8/1/2025,11:00:00 PM GMT+3,78,expiration,AAPL $190 put exp. 8/1/2025,0,1,0,debit
+8/1/2025,11:00:00 PM GMT+3,79,expiration,AAPL $190 put exp. 8/1/2025,0,1,0,debit
+8/4/2025,10:45:00 PM GMT+3,108,sell to open,AAPL $190 put exp. 9/19/2025,317,1,317,credit
+8/5/2025,10:45:00 PM GMT+3,109,sell to open,AAPL $195 put exp. 9/19/2025,425,1,425,credit
+8/6/2025,10:45:00 PM GMT+3,110,sell to open,AAPL $205 put exp. 9/19/2025,402,1,402,credit
+8/7/2025,10:45:00 PM GMT+3,111,sell to open,AAPL $210 put exp. 9/19/2025,360,1,360,credit
+8/8/2025,10:45:00 PM GMT+3,112,sell to open,AAPL $220 put exp. 9/19/2025,390,1,390,credit
+8/8/2025,11:00:00 PM GMT+3,82,expiration,AAPL $190 put exp. 8/8/2025,0,1,0,debit
+8/8/2025,11:00:00 PM GMT+3,83,expiration,AAPL $190 put exp. 8/8/2025,0,1,0,debit
+8/11/2025,10:45:00 PM GMT+3,113,sell to open,AAPL $215 put exp. 9/26/2025,327,1,327,credit
+8/12/2025,10:45:00 PM GMT+3,114,sell to open,AAPL $220 put exp. 9/26/2025,382,1,382,credit
+8/13/2025,10:45:00 PM GMT+3,115,sell to open,AAPL $220 put exp. 9/26/2025,269,1,269,credit
+8/14/2025,10:45:00 PM GMT+3,116,sell to open,AAPL $220 put exp. 9/26/2025,277,1,277,credit
+8/15/2025,10:45:00 PM GMT+3,117,sell to open,AAPL $220 put exp. 9/26/2025,291,1,291,credit
+8/15/2025,11:00:00 PM GMT+3,80,expiration,AAPL $190 put exp. 8/15/2025,0,1,0,debit
+8/15/2025,11:00:00 PM GMT+3,81,expiration,AAPL $190 put exp. 8/15/2025,0,1,0,debit
+8/15/2025,11:00:00 PM GMT+3,84,expiration,AAPL $195 put exp. 8/15/2025,0,1,0,debit
+8/15/2025,11:00:00 PM GMT+3,85,expiration,AAPL $195 put exp. 8/15/2025,0,1,0,debit
+8/15/2025,11:00:00 PM GMT+3,86,expiration,AAPL $200 put exp. 8/15/2025,0,1,0,debit
+8/15/2025,11:00:00 PM GMT+3,87,expiration,AAPL $205 put exp. 8/15/2025,0,1,0,debit
+8/18/2025,10:45:00 PM GMT+3,118,sell to open,AAPL $220 put exp. 9/26/2025,286,1,286,credit
+8/19/2025,10:45:00 PM GMT+3,119,sell to open,AAPL $220 put exp. 9/26/2025,305,1,305,credit
+8/20/2025,10:45:00 PM GMT+3,120,sell to open,AAPL $215 put exp. 9/26/2025,268,1,268,credit
+8/21/2025,10:45:00 PM GMT+3,121,sell to open,AAPL $215 put exp. 10/3/2025,365,1,365,credit
+8/22/2025,10:45:00 PM GMT+3,122,sell to open,AAPL $215 put exp. 10/3/2025,255,1,255,credit
+8/22/2025,11:00:00 PM GMT+3,88,expiration,AAPL $200 put exp. 8/22/2025,0,1,0,debit
+8/22/2025,11:00:00 PM GMT+3,89,expiration,AAPL $200 put exp. 8/22/2025,0,1,0,debit
+8/22/2025,11:00:00 PM GMT+3,90,expiration,AAPL $200 put exp. 8/22/2025,0,1,0,debit
+8/22/2025,11:00:00 PM GMT+3,91,expiration,AAPL $200 put exp. 8/22/2025,0,1,0,debit
+8/22/2025,11:00:00 PM GMT+3,92,expiration,AAPL $200 put exp. 8/22/2025,0,1,0,debit
+8/25/2025,10:45:00 PM GMT+3,123,sell to open,AAPL $215 put exp. 10/3/2025,264,1,264,credit
+8/26/2025,10:45:00 PM GMT+3,124,sell to open,AAPL $215 put exp. 10/17/2025,320,1,320,credit
+8/27/2025,10:45:00 PM GMT+3,125,sell to open,AAPL $220 put exp. 10/17/2025,382,1,382,credit
+8/28/2025,10:45:00 PM GMT+3,126,sell to open,AAPL $220 put exp. 10/10/2025,274,1,274,credit
+8/29/2025,10:45:00 PM GMT+3,127,sell to open,AAPL $220 put exp. 10/10/2025,276,1,276,credit
+8/29/2025,11:00:00 PM GMT+3,93,expiration,AAPL $200 put exp. 8/29/2025,0,1,0,debit
+8/29/2025,11:00:00 PM GMT+3,94,expiration,AAPL $200 put exp. 8/29/2025,0,1,0,debit
+8/29/2025,11:00:00 PM GMT+3,95,expiration,AAPL $200 put exp. 8/29/2025,0,1,0,debit
+8/29/2025,11:00:00 PM GMT+3,96,expiration,AAPL $200 put exp. 8/29/2025,0,1,0,debit
+8/29/2025,11:00:00 PM GMT+3,97,expiration,AAPL $200 put exp. 8/29/2025,0,1,0,debit
+8/29/2025,11:00:00 PM GMT+3,98,expiration,AAPL $200 put exp. 8/29/2025,0,1,0,debit
+8/29/2025,11:00:00 PM GMT+3,99,expiration,AAPL $205 put exp. 8/29/2025,0,1,0,debit
+8/29/2025,11:00:00 PM GMT+3,100,expiration,AAPL $205 put exp. 8/29/2025,0,1,0,debit
+9/2/2025,10:45:00 PM GMT+3,128,sell to open,AAPL $220 put exp. 10/17/2025,400,1,400,credit
+9/3/2025,10:45:00 PM GMT+3,129,sell to open,AAPL $225 put exp. 10/17/2025,286,1,286,credit
+9/4/2025,10:45:00 PM GMT+3,130,sell to open,AAPL $225 put exp. 10/17/2025,252,1,252,credit
+9/5/2025,10:45:00 PM GMT+3,131,sell to open,AAPL $230 put exp. 10/17/2025,312,1,312,credit
+9/5/2025,11:00:00 PM GMT+3,101,expiration,AAPL $205 put exp. 9/5/2025,0,1,0,debit
+9/5/2025,11:00:00 PM GMT+3,102,expiration,AAPL $205 put exp. 9/5/2025,0,1,0,debit
+9/5/2025,11:00:00 PM GMT+3,103,expiration,AAPL $205 put exp. 9/5/2025,0,1,0,debit
+9/8/2025,10:45:00 PM GMT+3,132,sell to open,AAPL $225 put exp. 10/24/2025,280,1,280,credit
+9/9/2025,10:45:00 PM GMT+3,133,sell to open,AAPL $220 put exp. 10/24/2025,261,1,261,credit
+9/10/2025,10:45:00 PM GMT+3,134,sell to open,AAPL $215 put exp. 10/24/2025,315,1,315,credit
+9/11/2025,10:45:00 PM GMT+3,135,sell to open,AAPL $220 put exp. 10/24/2025,301,1,301,credit
+9/12/2025,10:45:00 PM GMT+3,136,sell to open,AAPL $220 put exp. 10/24/2025,233,1,233,credit
+9/12/2025,11:00:00 PM GMT+3,106,expiration,AAPL $200 put exp. 9/12/2025,0,1,0,debit
+9/12/2025,11:00:00 PM GMT+3,107,expiration,AAPL $190 put exp. 9/12/2025,0,1,0,debit
+9/15/2025,10:45:00 PM GMT+3,137,sell to open,AAPL $225 put exp. 10/31/2025,410,1,410,credit
+9/16/2025,10:45:00 PM GMT+3,138,sell to open,AAPL $225 put exp. 10/31/2025,330,1,330,credit
+9/17/2025,10:45:00 PM GMT+3,139,sell to open,AAPL $225 put exp. 10/31/2025,315,1,315,credit
+9/18/2025,10:45:00 PM GMT+3,140,sell to open,AAPL $225 put exp. 10/31/2025,335,1,335,credit
+9/19/2025,10:45:00 PM GMT+3,141,sell to open,AAPL $235 put exp. 10/31/2025,412,1,412,credit
+9/19/2025,11:00:00 PM GMT+3,104,expiration,AAPL $200 put exp. 9/19/2025,0,1,0,debit
+9/19/2025,11:00:00 PM GMT+3,105,expiration,AAPL $200 put exp. 9/19/2025,0,1,0,debit
+9/19/2025,11:00:00 PM GMT+3,108,expiration,AAPL $190 put exp. 9/19/2025,0,1,0,debit
+9/19/2025,11:00:00 PM GMT+3,109,expiration,AAPL $195 put exp. 9/19/2025,0,1,0,debit
+9/19/2025,11:00:00 PM GMT+3,110,expiration,AAPL $205 put exp. 9/19/2025,0,1,0,debit
+9/19/2025,11:00:00 PM GMT+3,111,expiration,AAPL $210 put exp. 9/19/2025,0,1,0,debit
+9/19/2025,11:00:00 PM GMT+3,112,expiration,AAPL $220 put exp. 9/19/2025,0,1,0,debit
+9/22/2025,10:45:00 PM GMT+3,142,sell to open,AAPL $245 put exp. 10/31/2025,425,1,425,credit
+9/23/2025,10:45:00 PM GMT+3,143,sell to open,AAPL $240 put exp. 10/31/2025,340,1,340,credit
+9/24/2025,10:45:00 PM GMT+3,144,sell to open,AAPL $240 put exp. 10/31/2025,375,1,375,credit
+9/25/2025,10:45:00 PM GMT+3,145,sell to open,AAPL $245 put exp. 11/7/2025,497,1,497,credit
+9/26/2025,10:45:00 PM GMT+3,146,sell to open,AAPL $240 put exp. 11/7/2025,335,1,335,credit
+9/26/2025,11:00:00 PM GMT+3,113,expiration,AAPL $215 put exp. 9/26/2025,0,1,0,debit
+9/26/2025,11:00:00 PM GMT+3,114,expiration,AAPL $220 put exp. 9/26/2025,0,1,0,debit
+9/26/2025,11:00:00 PM GMT+3,115,expiration,AAPL $220 put exp. 9/26/2025,0,1,0,debit
+9/26/2025,11:00:00 PM GMT+3,116,expiration,AAPL $220 put exp. 9/26/2025,0,1,0,debit
+9/26/2025,11:00:00 PM GMT+3,117,expiration,AAPL $220 put exp. 9/26/2025,0,1,0,debit
+9/26/2025,11:00:00 PM GMT+3,118,expiration,AAPL $220 put exp. 9/26/2025,0,1,0,debit
+9/26/2025,11:00:00 PM GMT+3,119,expiration,AAPL $220 put exp. 9/26/2025,0,1,0,debit
+9/26/2025,11:00:00 PM GMT+3,120,expiration,AAPL $215 put exp. 9/26/2025,0,1,0,debit
+9/29/2025,10:45:00 PM GMT+3,147,sell to open,AAPL $240 put exp. 11/7/2025,325,1,325,credit
+9/30/2025,10:45:00 PM GMT+3,148,sell to open,AAPL $240 put exp. 11/21/2025,410,1,410,credit
+10/1/2025,10:45:00 PM GMT+3,149,sell to open,AAPL $245 put exp. 11/21/2025,517,1,517,credit
+10/2/2025,10:45:00 PM GMT+3,150,sell to open,AAPL $245 put exp. 11/14/2025,410,1,410,credit
+10/3/2025,10:45:00 PM GMT+3,151,sell to open,AAPL $245 put exp. 11/14/2025,382,1,382,credit
+10/3/2025,11:00:00 PM GMT+3,121,expiration,AAPL $215 put exp. 10/3/2025,0,1,0,debit
+10/3/2025,11:00:00 PM GMT+3,122,expiration,AAPL $215 put exp. 10/3/2025,0,1,0,debit
+10/3/2025,11:00:00 PM GMT+3,123,expiration,AAPL $215 put exp. 10/3/2025,0,1,0,debit
+10/6/2025,10:45:00 PM GMT+3,152,sell to open,AAPL $245 put exp. 11/21/2025,460,1,460,credit
+10/7/2025,10:45:00 PM GMT+3,153,sell to open,AAPL $245 put exp. 11/21/2025,445,1,445,credit
+10/8/2025,10:45:00 PM GMT+3,154,sell to open,AAPL $245 put exp. 11/21/2025,395,1,395,credit
+10/9/2025,10:45:00 PM GMT+3,155,sell to open,AAPL $240 put exp. 11/21/2025,380,1,380,credit
+10/10/2025,10:45:00 PM GMT+3,156,sell to open,AAPL $235 put exp. 11/21/2025,497,1,497,credit
+10/10/2025,11:00:00 PM GMT+3,126,expiration,AAPL $220 put exp. 10/10/2025,0,1,0,debit
+10/10/2025,11:00:00 PM GMT+3,127,expiration,AAPL $220 put exp. 10/10/2025,0,1,0,debit
+10/13/2025,10:45:00 PM GMT+3,157,sell to open,AAPL $235 put exp. 11/28/2025,420,1,420,credit
+10/14/2025,10:45:00 PM GMT+3,158,sell to open,AAPL $235 put exp. 11/28/2025,457,1,457,credit
+10/15/2025,10:45:00 PM GMT+3,159,sell to open,AAPL $235 put exp. 11/28/2025,402,1,402,credit
+10/16/2025,10:45:00 PM GMT+3,160,sell to open,AAPL $235 put exp. 11/28/2025,495,1,495,credit
+10/17/2025,10:45:00 PM GMT+3,161,sell to open,AAPL $240 put exp. 11/28/2025,427,1,427,credit
+10/17/2025,11:00:00 PM GMT+3,124,expiration,AAPL $215 put exp. 10/17/2025,0,1,0,debit
+10/17/2025,11:00:00 PM GMT+3,125,expiration,AAPL $220 put exp. 10/17/2025,0,1,0,debit
+10/17/2025,11:00:00 PM GMT+3,128,expiration,AAPL $220 put exp. 10/17/2025,0,1,0,debit
+10/17/2025,11:00:00 PM GMT+3,129,expiration,AAPL $225 put exp. 10/17/2025,0,1,0,debit
+10/17/2025,11:00:00 PM GMT+3,130,expiration,AAPL $225 put exp. 10/17/2025,0,1,0,debit
+10/17/2025,11:00:00 PM GMT+3,131,expiration,AAPL $230 put exp. 10/17/2025,0,1,0,debit
+10/20/2025,10:45:00 PM GMT+3,162,sell to open,AAPL $250 put exp. 11/28/2025,410,1,410,credit
+10/21/2025,10:45:00 PM GMT+3,163,sell to open,AAPL $250 put exp. 11/28/2025,395,1,395,credit
+10/22/2025,10:45:00 PM GMT+3,164,sell to open,AAPL $245 put exp. 11/28/2025,410,1,410,credit
+10/23/2025,10:45:00 PM GMT+3,165,sell to open,AAPL $245 put exp. 12/5/2025,292,1,292,credit
+10/24/2025,10:45:00 PM GMT+3,166,sell to open,AAPL $250 put exp. 12/5/2025,377,1,377,credit
+10/24/2025,11:00:00 PM GMT+3,132,expiration,AAPL $225 put exp. 10/24/2025,0,1,0,debit
+10/24/2025,11:00:00 PM GMT+3,133,expiration,AAPL $220 put exp. 10/24/2025,0,1,0,debit
+10/24/2025,11:00:00 PM GMT+3,134,expiration,AAPL $215 put exp. 10/24/2025,0,1,0,debit
+10/24/2025,11:00:00 PM GMT+3,135,expiration,AAPL $220 put exp. 10/24/2025,0,1,0,debit
+10/24/2025,11:00:00 PM GMT+3,136,expiration,AAPL $220 put exp. 10/24/2025,0,1,0,debit
+10/27/2025,9:45:00 PM GMT+2,167,sell to open,AAPL $255 put exp. 12/5/2025,400,1,400,credit
+10/28/2025,9:45:00 PM GMT+2,168,sell to open,AAPL $255 put exp. 12/19/2025,440,1,440,credit
+10/29/2025,9:45:00 PM GMT+2,169,sell to open,AAPL $255 put exp. 12/19/2025,435,1,435,credit
+10/30/2025,9:45:00 PM GMT+2,170,sell to open,AAPL $260 put exp. 12/12/2025,460,1,460,credit
+10/31/2025,9:45:00 PM GMT+2,171,sell to open,AAPL $260 put exp. 12/12/2025,370,1,370,credit
+10/31/2025,10:00:00 PM GMT+2,137,expiration,AAPL $225 put exp. 10/31/2025,0,1,0,debit
+10/31/2025,10:00:00 PM GMT+2,138,expiration,AAPL $225 put exp. 10/31/2025,0,1,0,debit
+10/31/2025,10:00:00 PM GMT+2,139,expiration,AAPL $225 put exp. 10/31/2025,0,1,0,debit
+10/31/2025,10:00:00 PM GMT+2,140,expiration,AAPL $225 put exp. 10/31/2025,0,1,0,debit
+10/31/2025,10:00:00 PM GMT+2,141,expiration,AAPL $235 put exp. 10/31/2025,0,1,0,debit
+10/31/2025,10:00:00 PM GMT+2,142,expiration,AAPL $245 put exp. 10/31/2025,0,1,0,debit
+10/31/2025,10:00:00 PM GMT+2,143,expiration,AAPL $240 put exp. 10/31/2025,0,1,0,debit
+10/31/2025,10:00:00 PM GMT+2,144,expiration,AAPL $240 put exp. 10/31/2025,0,1,0,debit
+11/3/2025,10:45:00 PM GMT+2,172,sell to open,AAPL $255 put exp. 12/19/2025,375,1,375,credit
+11/4/2025,10:45:00 PM GMT+2,173,sell to open,AAPL $255 put exp. 12/19/2025,330,1,330,credit
+11/5/2025,10:45:00 PM GMT+2,174,sell to open,AAPL $255 put exp. 12/19/2025,330,1,330,credit
+11/6/2025,10:45:00 PM GMT+2,175,sell to open,AAPL $255 put exp. 12/19/2025,317,1,317,credit
+11/7/2025,10:45:00 PM GMT+2,176,sell to open,AAPL $255 put exp. 12/19/2025,360,1,360,credit
+11/7/2025,11:00:00 PM GMT+2,145,expiration,AAPL $245 put exp. 11/7/2025,0,1,0,debit
+11/7/2025,11:00:00 PM GMT+2,146,expiration,AAPL $240 put exp. 11/7/2025,0,1,0,debit
+11/7/2025,11:00:00 PM GMT+2,147,expiration,AAPL $240 put exp. 11/7/2025,0,1,0,debit
+11/10/2025,10:45:00 PM GMT+2,177,sell to open,AAPL $255 put exp. 12/26/2025,340,1,340,credit
+11/11/2025,10:45:00 PM GMT+2,178,sell to open,AAPL $260 put exp. 12/26/2025,294,1,294,credit
+11/12/2025,10:45:00 PM GMT+2,179,sell to open,AAPL $260 put exp. 12/26/2025,327,1,327,credit
+11/13/2025,10:45:00 PM GMT+2,180,sell to open,AAPL $260 put exp. 12/26/2025,380,1,380,credit
+11/14/2025,10:45:00 PM GMT+2,181,sell to open,AAPL $260 put exp. 12/26/2025,357,1,357,credit
+11/14/2025,11:00:00 PM GMT+2,150,expiration,AAPL $245 put exp. 11/14/2025,0,1,0,debit
+11/14/2025,11:00:00 PM GMT+2,151,expiration,AAPL $245 put exp. 11/14/2025,0,1,0,debit
+11/17/2025,10:45:00 PM GMT+2,182,sell to open,AAPL $255 put exp. 1/2/2026,435,1,435,credit
+11/18/2025,10:45:00 PM GMT+2,183,sell to open,AAPL $255 put exp. 1/2/2026,412,1,412,credit
+11/19/2025,10:45:00 PM GMT+2,184,sell to open,AAPL $255 put exp. 1/2/2026,362,1,362,credit
+11/20/2025,10:45:00 PM GMT+2,185,sell to open,AAPL $255 put exp. 1/2/2026,457,1,457,credit
+11/21/2025,10:45:00 PM GMT+2,186,sell to open,AAPL $260 put exp. 1/2/2026,425,1,425,credit
+11/21/2025,11:00:00 PM GMT+2,148,expiration,AAPL $240 put exp. 11/21/2025,0,1,0,debit
+11/21/2025,11:00:00 PM GMT+2,149,expiration,AAPL $245 put exp. 11/21/2025,0,1,0,debit
+11/21/2025,11:00:00 PM GMT+2,152,expiration,AAPL $245 put exp. 11/21/2025,0,1,0,debit
+11/21/2025,11:00:00 PM GMT+2,153,expiration,AAPL $245 put exp. 11/21/2025,0,1,0,debit
+11/21/2025,11:00:00 PM GMT+2,154,expiration,AAPL $245 put exp. 11/21/2025,0,1,0,debit
+11/21/2025,11:00:00 PM GMT+2,155,expiration,AAPL $240 put exp. 11/21/2025,0,1,0,debit
+11/21/2025,11:00:00 PM GMT+2,156,expiration,AAPL $235 put exp. 11/21/2025,0,1,0,debit
+11/24/2025,10:45:00 PM GMT+2,187,sell to open,AAPL $265 put exp. 1/2/2026,360,1,360,credit
+11/25/2025,10:45:00 PM GMT+2,188,sell to open,AAPL $265 put exp. 1/16/2026,437,1,437,credit
+11/26/2025,10:45:00 PM GMT+2,189,sell to open,AAPL $265 put exp. 1/9/2026,295,1,295,credit
+11/28/2025,10:45:00 PM GMT+2,190,sell to open,AAPL $265 put exp. 1/9/2026,323,1,323,credit
+11/28/2025,11:00:00 PM GMT+2,157,expiration,AAPL $235 put exp. 11/28/2025,0,1,0,debit
+11/28/2025,11:00:00 PM GMT+2,158,expiration,AAPL $235 put exp. 11/28/2025,0,1,0,debit
+11/28/2025,11:00:00 PM GMT+2,159,expiration,AAPL $235 put exp. 11/28/2025,0,1,0,debit
+11/28/2025,11:00:00 PM GMT+2,160,expiration,AAPL $235 put exp. 11/28/2025,0,1,0,debit
+11/28/2025,11:00:00 PM GMT+2,161,expiration,AAPL $240 put exp. 11/28/2025,0,1,0,debit
+11/28/2025,11:00:00 PM GMT+2,162,expiration,AAPL $250 put exp. 11/28/2025,0,1,0,debit
+11/28/2025,11:00:00 PM GMT+2,163,expiration,AAPL $250 put exp. 11/28/2025,0,1,0,debit
+11/28/2025,11:00:00 PM GMT+2,164,expiration,AAPL $245 put exp. 11/28/2025,0,1,0,debit
+12/1/2025,10:45:00 PM GMT+2,191,sell to open,AAPL $270 put exp. 1/16/2026,370,1,370,credit
+12/2/2025,10:45:00 PM GMT+2,192,sell to open,AAPL $270 put exp. 1/16/2026,282,1,282,credit
+12/3/2025,10:45:00 PM GMT+2,193,sell to open,AAPL $270 put exp. 1/16/2026,305,1,305,credit
+12/4/2025,10:45:00 PM GMT+2,194,sell to open,AAPL $265 put exp. 1/16/2026,275,1,275,credit
+12/5/2025,10:45:00 PM GMT+2,195,sell to open,AAPL $265 put exp. 1/16/2026,264,1,264,credit
+12/5/2025,11:00:00 PM GMT+2,165,expiration,AAPL $245 put exp. 12/5/2025,0,1,0,debit
+12/5/2025,11:00:00 PM GMT+2,166,expiration,AAPL $250 put exp. 12/5/2025,0,1,0,debit
+12/5/2025,11:00:00 PM GMT+2,167,expiration,AAPL $255 put exp. 12/5/2025,0,1,0,debit
+12/8/2025,10:45:00 PM GMT+2,196,sell to open,AAPL $265 put exp. 1/23/2026,332,1,332,credit
+12/9/2025,10:45:00 PM GMT+2,197,sell to open,AAPL $265 put exp. 1/23/2026,305,1,305,credit
+12/10/2025,10:45:00 PM GMT+2,198,sell to open,AAPL $265 put exp. 1/23/2026,261,1,261,credit
+12/11/2025,10:45:00 PM GMT+2,199,sell to open,AAPL $265 put exp. 1/23/2026,270,1,270,credit
+12/12/2025,10:45:00 PM GMT+2,200,sell to open,AAPL $265 put exp. 1/23/2026,280,1,280,credit
+12/12/2025,11:00:00 PM GMT+2,170,expiration,AAPL $260 put exp. 12/12/2025,0,1,0,debit
+12/12/2025,11:00:00 PM GMT+2,171,expiration,AAPL $260 put exp. 12/12/2025,0,1,0,debit
+12/15/2025,10:45:00 PM GMT+2,201,sell to open,AAPL $260 put exp. 1/30/2026,372,1,372,credit
+12/16/2025,10:45:00 PM GMT+2,202,sell to open,AAPL $260 put exp. 1/30/2026,327,1,327,credit
+12/17/2025,10:45:00 PM GMT+2,203,sell to open,AAPL $260 put exp. 1/30/2026,365,1,365,credit
+12/18/2025,10:45:00 PM GMT+2,204,sell to open,AAPL $260 put exp. 1/30/2026,387,1,387,credit
+12/19/2025,10:45:00 PM GMT+2,205,sell to open,AAPL $255 put exp. 1/30/2026,303,1,303,credit
+12/19/2025,11:00:00 PM GMT+2,168,expiration,AAPL $255 put exp. 12/19/2025,0,1,0,debit
+12/19/2025,11:00:00 PM GMT+2,169,expiration,AAPL $255 put exp. 12/19/2025,0,1,0,debit
+12/19/2025,11:00:00 PM GMT+2,172,expiration,AAPL $255 put exp. 12/19/2025,0,1,0,debit
+12/19/2025,11:00:00 PM GMT+2,173,expiration,AAPL $255 put exp. 12/19/2025,0,1,0,debit
+12/19/2025,11:00:00 PM GMT+2,174,expiration,AAPL $255 put exp. 12/19/2025,0,1,0,debit
+12/19/2025,11:00:00 PM GMT+2,175,expiration,AAPL $255 put exp. 12/19/2025,0,1,0,debit
+12/19/2025,11:00:00 PM GMT+2,176,expiration,AAPL $255 put exp. 12/19/2025,0,1,0,debit
+12/22/2025,10:45:00 PM GMT+2,206,sell to open,AAPL $255 put exp. 1/30/2026,265,1,265,credit
+12/23/2025,10:45:00 PM GMT+2,207,sell to open,AAPL $260 put exp. 1/30/2026,315,1,315,credit
+12/24/2025,10:45:00 PM GMT+2,208,sell to open,AAPL $260 put exp. 2/6/2026,285,1,285,credit
+12/26/2025,10:45:00 PM GMT+2,209,sell to open,AAPL $260 put exp. 2/6/2026,311,1,311,credit
+12/26/2025,11:00:00 PM GMT+2,177,expiration,AAPL $255 put exp. 12/26/2025,0,1,0,debit
+12/26/2025,11:00:00 PM GMT+2,178,expiration,AAPL $260 put exp. 12/26/2025,0,1,0,debit
+12/26/2025,11:00:00 PM GMT+2,179,expiration,AAPL $260 put exp. 12/26/2025,0,1,0,debit
+12/26/2025,11:00:00 PM GMT+2,180,expiration,AAPL $260 put exp. 12/26/2025,0,1,0,debit
+12/26/2025,11:00:00 PM GMT+2,181,expiration,AAPL $260 put exp. 12/26/2025,0,1,0,debit
+12/29/2025,10:45:00 PM GMT+2,210,sell to open,AAPL $260 put exp. 2/6/2026,312,1,312,credit
+12/30/2025,10:45:00 PM GMT+2,211,sell to open,AAPL $260 put exp. 2/20/2026,405,1,405,credit
+12/31/2025,10:45:00 PM GMT+2,212,sell to open,AAPL $260 put exp. 2/13/2026,370,1,370,credit
+1/2/2026,10:45:00 PM GMT+2,213,sell to open,AAPL $255 put exp. 2/13/2026,304,1,304,credit
+1/2/2026,11:00:00 PM GMT+2,182,expiration,AAPL $255 put exp. 1/2/2026,0,1,0,debit
+1/2/2026,11:00:00 PM GMT+2,183,expiration,AAPL $255 put exp. 1/2/2026,0,1,0,debit
+1/2/2026,11:00:00 PM GMT+2,184,expiration,AAPL $255 put exp. 1/2/2026,0,1,0,debit
+1/2/2026,11:00:00 PM GMT+2,185,expiration,AAPL $255 put exp. 1/2/2026,0,1,0,debit
+1/2/2026,11:00:00 PM GMT+2,186,expiration,AAPL $260 put exp. 1/2/2026,0,1,0,debit
+1/2/2026,11:00:00 PM GMT+2,187,expiration,AAPL $265 put exp. 1/2/2026,0,1,0,debit
+1/5/2026,10:45:00 PM GMT+2,214,sell to open,AAPL $255 put exp. 2/20/2026,410,1,410,credit
+1/6/2026,10:45:00 PM GMT+2,215,sell to open,AAPL $250 put exp. 2/20/2026,395,1,395,credit
+1/7/2026,10:45:00 PM GMT+2,216,sell to open,AAPL $250 put exp. 2/20/2026,465,1,465,credit
+1/8/2026,10:45:00 PM GMT+2,217,sell to open,AAPL $245 put exp. 2/20/2026,405,1,405,credit
+1/9/2026,10:45:00 PM GMT+2,218,sell to open,AAPL $245 put exp. 2/20/2026,332,1,332,credit
+1/9/2026,11:00:00 PM GMT+2,189,exercise,AAPL $265 put exp. 1/9/2026,0,1,0,debit
+1/9/2026,11:00:00 PM GMT+2,189,assignment,AAPL shares,265,100,26500,debit
+1/9/2026,11:00:00 PM GMT+2,189,sell to close,AAPL shares,259.37,100,25937,credit
+1/9/2026,11:00:00 PM GMT+2,190,exercise,AAPL $265 put exp. 1/9/2026,0,1,0,debit
+1/9/2026,11:00:00 PM GMT+2,190,assignment,AAPL shares,265,100,26500,debit
+1/9/2026,11:00:00 PM GMT+2,190,sell to close,AAPL shares,259.37,100,25937,credit
+1/12/2026,10:45:00 PM GMT+2,219,sell to open,AAPL $250 put exp. 2/27/2026,475,1,475,credit
+1/13/2026,10:45:00 PM GMT+2,220,sell to open,AAPL $245 put exp. 2/27/2026,385,1,385,credit
+1/16/2026,11:00:00 PM GMT+2,188,exercise,AAPL $265 put exp. 1/16/2026,0,1,0,debit
+1/16/2026,11:00:00 PM GMT+2,188,assignment,AAPL shares,265,100,26500,debit
+1/16/2026,11:00:00 PM GMT+2,188,sell to close,AAPL shares,255.53,100,25553,credit
+1/16/2026,11:00:00 PM GMT+2,191,exercise,AAPL $270 put exp. 1/16/2026,0,1,0,debit
+1/16/2026,11:00:00 PM GMT+2,191,assignment,AAPL shares,270,100,27000,debit
+1/16/2026,11:00:00 PM GMT+2,191,sell to close,AAPL shares,255.53,100,25553,credit
+1/16/2026,11:00:00 PM GMT+2,192,exercise,AAPL $270 put exp. 1/16/2026,0,1,0,debit
+1/16/2026,11:00:00 PM GMT+2,192,assignment,AAPL shares,270,100,27000,debit
+1/16/2026,11:00:00 PM GMT+2,192,sell to close,AAPL shares,255.53,100,25553,credit
+1/16/2026,11:00:00 PM GMT+2,193,exercise,AAPL $270 put exp. 1/16/2026,0,1,0,debit
+1/16/2026,11:00:00 PM GMT+2,193,assignment,AAPL shares,270,100,27000,debit
+1/16/2026,11:00:00 PM GMT+2,193,sell to close,AAPL shares,255.53,100,25553,credit
+1/16/2026,11:00:00 PM GMT+2,194,exercise,AAPL $265 put exp. 1/16/2026,0,1,0,debit
+1/16/2026,11:00:00 PM GMT+2,194,assignment,AAPL shares,265,100,26500,debit
+1/16/2026,11:00:00 PM GMT+2,194,sell to close,AAPL shares,255.53,100,25553,credit
+1/16/2026,11:00:00 PM GMT+2,195,exercise,AAPL $265 put exp. 1/16/2026,0,1,0,debit
+1/16/2026,11:00:00 PM GMT+2,195,assignment,AAPL shares,265,100,26500,debit
+1/16/2026,11:00:00 PM GMT+2,195,sell to close,AAPL shares,255.53,100,25553,credit
+1/23/2026,11:00:00 PM GMT+2,196,exercise,AAPL $265 put exp. 1/23/2026,0,1,0,debit
+1/23/2026,11:00:00 PM GMT+2,196,assignment,AAPL shares,265,100,26500,debit
+1/23/2026,11:00:00 PM GMT+2,196,sell to close,AAPL shares,248.04,100,24804,credit
+1/23/2026,11:00:00 PM GMT+2,197,exercise,AAPL $265 put exp. 1/23/2026,0,1,0,debit
+1/23/2026,11:00:00 PM GMT+2,197,assignment,AAPL shares,265,100,26500,debit
+1/23/2026,11:00:00 PM GMT+2,197,sell to close,AAPL shares,248.04,100,24804,credit
+1/23/2026,11:00:00 PM GMT+2,198,exercise,AAPL $265 put exp. 1/23/2026,0,1,0,debit
+1/23/2026,11:00:00 PM GMT+2,198,assignment,AAPL shares,265,100,26500,debit
+1/23/2026,11:00:00 PM GMT+2,198,sell to close,AAPL shares,248.04,100,24804,credit
+1/23/2026,11:00:00 PM GMT+2,199,exercise,AAPL $265 put exp. 1/23/2026,0,1,0,debit
+1/23/2026,11:00:00 PM GMT+2,199,assignment,AAPL shares,265,100,26500,debit
+1/23/2026,11:00:00 PM GMT+2,199,sell to close,AAPL shares,248.04,100,24804,credit
+1/23/2026,11:00:00 PM GMT+2,200,exercise,AAPL $265 put exp. 1/23/2026,0,1,0,debit
+1/23/2026,11:00:00 PM GMT+2,200,assignment,AAPL shares,265,100,26500,debit
+1/23/2026,11:00:00 PM GMT+2,200,sell to close,AAPL shares,248.04,100,24804,credit
+1/30/2026,11:00:00 PM GMT+2,201,exercise,AAPL $260 put exp. 1/30/2026,0,1,0,debit
+1/30/2026,11:00:00 PM GMT+2,201,assignment,AAPL shares,260,100,26000,debit
+1/30/2026,11:00:00 PM GMT+2,201,sell to close,AAPL shares,259.48,100,25948,credit
+1/30/2026,11:00:00 PM GMT+2,202,exercise,AAPL $260 put exp. 1/30/2026,0,1,0,debit
+1/30/2026,11:00:00 PM GMT+2,202,assignment,AAPL shares,260,100,26000,debit
+1/30/2026,11:00:00 PM GMT+2,202,sell to close,AAPL shares,259.48,100,25948,credit
+1/30/2026,11:00:00 PM GMT+2,203,exercise,AAPL $260 put exp. 1/30/2026,0,1,0,debit
+1/30/2026,11:00:00 PM GMT+2,203,assignment,AAPL shares,260,100,26000,debit
+1/30/2026,11:00:00 PM GMT+2,203,sell to close,AAPL shares,259.48,100,25948,credit
+1/30/2026,11:00:00 PM GMT+2,204,exercise,AAPL $260 put exp. 1/30/2026,0,1,0,debit
+1/30/2026,11:00:00 PM GMT+2,204,assignment,AAPL shares,260,100,26000,debit
+1/30/2026,11:00:00 PM GMT+2,204,sell to close,AAPL shares,259.48,100,25948,credit
+1/30/2026,11:00:00 PM GMT+2,205,expiration,AAPL $255 put exp. 1/30/2026,0,1,0,debit
+1/30/2026,11:00:00 PM GMT+2,206,expiration,AAPL $255 put exp. 1/30/2026,0,1,0,debit
+1/30/2026,11:00:00 PM GMT+2,207,exercise,AAPL $260 put exp. 1/30/2026,0,1,0,debit
+1/30/2026,11:00:00 PM GMT+2,207,assignment,AAPL shares,260,100,26000,debit
+1/30/2026,11:00:00 PM GMT+2,207,sell to close,AAPL shares,259.48,100,25948,credit
+2/6/2026,11:00:00 PM GMT+2,208,expiration,AAPL $260 put exp. 2/6/2026,0,1,0,debit
+2/6/2026,11:00:00 PM GMT+2,209,expiration,AAPL $260 put exp. 2/6/2026,0,1,0,debit
+2/6/2026,11:00:00 PM GMT+2,210,expiration,AAPL $260 put exp. 2/6/2026,0,1,0,debit
+2/13/2026,11:00:00 PM GMT+2,212,exercise,AAPL $260 put exp. 2/13/2026,0,1,0,debit
+2/13/2026,11:00:00 PM GMT+2,212,assignment,AAPL shares,260,100,26000,debit
+2/13/2026,11:00:00 PM GMT+2,212,sell to close,AAPL shares,255.78,100,25578,credit
+2/13/2026,11:00:00 PM GMT+2,213,expiration,AAPL $255 put exp. 2/13/2026,0,1,0,debit
+2/20/2026,11:00:00 PM GMT+2,211,expiration,AAPL $260 put exp. 2/20/2026,0,1,0,debit
+2/20/2026,11:00:00 PM GMT+2,214,expiration,AAPL $255 put exp. 2/20/2026,0,1,0,debit
+2/20/2026,11:00:00 PM GMT+2,215,expiration,AAPL $250 put exp. 2/20/2026,0,1,0,debit
+2/20/2026,11:00:00 PM GMT+2,216,expiration,AAPL $250 put exp. 2/20/2026,0,1,0,debit
+2/20/2026,11:00:00 PM GMT+2,217,expiration,AAPL $245 put exp. 2/20/2026,0,1,0,debit
+2/20/2026,11:00:00 PM GMT+2,218,expiration,AAPL $245 put exp. 2/20/2026,0,1,0,debit
+2/27/2026,11:00:00 PM GMT+2,219,expiration,AAPL $250 put exp. 2/27/2026,0,1,0,debit
+2/27/2026,11:00:00 PM GMT+2,220,expiration,AAPL $245 put exp. 2/27/2026,0,1,0,debit

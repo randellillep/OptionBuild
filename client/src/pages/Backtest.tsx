@@ -959,18 +959,45 @@ function LogsSection({
         effect: leg.direction === "sell" ? "credit" : "debit",
       });
 
-      const closeType = `${leg.direction === "sell" ? "buy" : "sell"} to close`;
-      entries.push({
-        rowNum: 0,
-        date: trade.closedDate,
-        tradeNo: trade.tradeNumber,
-        type: trade.closeReason === "expired" || trade.closeReason === "exercised" ? trade.closeReason : closeType,
-        instrument,
-        price: Math.round(leg.exitPrice * 100),
-        quantity: leg.quantity,
-        value: Math.round(leg.exitPrice * 100 * leg.quantity),
-        effect: leg.direction === "sell" ? "debit" : "credit",
-      });
+      if (trade.closeReason === "exercised") {
+        const intrinsicValue = Math.round(leg.exitPrice * 100);
+        entries.push({
+          rowNum: 0,
+          date: trade.closedDate,
+          tradeNo: trade.tradeNumber,
+          type: "exercised",
+          instrument,
+          price: intrinsicValue,
+          quantity: leg.quantity,
+          value: intrinsicValue * leg.quantity,
+          effect: "debit",
+        });
+      } else if (trade.closeReason === "expired") {
+        entries.push({
+          rowNum: 0,
+          date: trade.closedDate,
+          tradeNo: trade.tradeNumber,
+          type: "expired",
+          instrument,
+          price: 0,
+          quantity: leg.quantity,
+          value: 0,
+          effect: "debit",
+        });
+      } else {
+        const closeType = `${leg.direction === "sell" ? "buy" : "sell"} to close`;
+        entries.push({
+          rowNum: 0,
+          date: trade.closedDate,
+          tradeNo: trade.tradeNumber,
+          type: closeType,
+          instrument,
+          price: Math.round(leg.exitPrice * 100),
+          quantity: leg.quantity,
+          value: Math.round(leg.exitPrice * 100 * leg.quantity),
+          effect: leg.direction === "sell" ? "debit" : "credit",
+        });
+      }
     });
 
     return entries;

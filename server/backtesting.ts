@@ -622,7 +622,13 @@ export async function runTastyworksBacktest(
   try {
     await storage.updateBacktestRun(backtestId, { status: "running", progress: 0 });
     
-    const priceHistory = await fetchHistoricalPrices(config.symbol, config.startDate, config.endDate);
+    const maxDTE = Math.max(...config.legs.map(l => l.dte));
+    const extendedEndDate = (() => {
+      const end = new Date(config.endDate);
+      end.setDate(end.getDate() + maxDTE + 21);
+      return end.toISOString().split('T')[0];
+    })();
+    const priceHistory = await fetchHistoricalPrices(config.symbol, config.startDate, extendedEndDate);
     
     if (priceHistory.length === 0) {
       await storage.updateBacktestRun(backtestId, {
@@ -675,12 +681,8 @@ export async function runTastyworksBacktest(
         activeTrades = activeTrades.filter(t => t.tradeNumber !== trade.tradeNumber);
       }
       
-      if (shouldEnterTrade(currentDate, config, activeTrades)) {
-        const maxDTE = Math.max(...config.legs.map(l => l.dte));
-        const wouldExpire = calculateExpirationDate(currentDate, maxDTE);
-        if (wouldExpire > config.endDate) {
-          // Skip: expiration would fall after backtest end date
-        } else {
+      const canOpenTrades = currentDate <= config.endDate;
+      if (canOpenTrades && shouldEnterTrade(currentDate, config, activeTrades)) {
         const strikes: number[] = [];
         const premiums: number[] = [];
         
@@ -743,7 +745,6 @@ export async function runTastyworksBacktest(
         };
         
         activeTrades.push(newTrade);
-      } // end else (expiration within backtest range)
       } // end shouldEnterTrade
       
       // Calculate open P/L for each active trade individually
