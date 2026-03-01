@@ -448,9 +448,9 @@ export function PLHeatmap({
                 : '';
               
               return (
-                <tr key={rowIdx} className={`h-[24px] ${currentPriceRowStyle}`}>
+                <tr key={rowIdx} className={`h-[24px] heatmap-row ${currentPriceRowStyle}`}>
                   <td
-                    className={`text-[10px] font-mono font-semibold px-1.5 py-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[10px] font-mono font-semibold px-1.5 py-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 heatmap-price-label transition-colors ${
                       isClosestToCurrentPrice ? 'text-foreground dark:text-white font-bold' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
@@ -458,7 +458,7 @@ export function PLHeatmap({
                     ${strikeDisplay}
                   </td>
                   <td
-                    className={`text-[10px] font-mono text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 ${
+                    className={`text-[10px] font-mono text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 heatmap-price-label transition-colors ${
                       percentChange > 0 ? 'text-emerald-600 dark:text-emerald-400' : 
                       percentChange < 0 ? 'text-red-500 dark:text-red-400' : 
                       'text-muted-foreground'

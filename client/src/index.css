@@ -516,7 +516,7 @@
   /* Heatmap cell hover effect */
   .heatmap-cell {
     position: relative;
-    cursor: crosshair;
+    cursor: default;
   }
   
   .heatmap-cell:hover {
@@ -524,6 +524,14 @@
     outline-offset: -1px;
     z-index: 5;
     filter: brightness(1.12);
+  }
+
+  /* Heatmap row hover — highlight the price & percent labels */
+  .heatmap-row:hover .heatmap-price-label {
+    background-color: hsl(210 20% 88%);
+  }
+  .dark .heatmap-row:hover .heatmap-price-label {
+    background-color: hsl(220 15% 22%);
   }
 
   /* Hide scrollbar utility */
