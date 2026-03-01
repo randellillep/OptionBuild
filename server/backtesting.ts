@@ -307,15 +307,15 @@ function estimateVolatility(priceHistory: HistoricalBar[], lookback: number = 30
   }
   const ewmaVol = Math.sqrt(ewmaVariance) * Math.sqrt(252);
   
-  const blendedVol = annualizedVol * 0.5 + ewmaVol * 0.5;
+  const blendedVol = annualizedVol * 0.70 + ewmaVol * 0.30;
   
   const longTermIV = 0.25;
-  const meanRevertedVol = blendedVol * 0.65 + longTermIV * 0.35;
+  const meanRevertedVol = blendedVol * 0.50 + longTermIV * 0.50;
   
-  const vrpMultiplier = 1.30;
+  const vrpMultiplier = 1.15;
   const impliedVolApprox = meanRevertedVol * vrpMultiplier;
   
-  return Math.max(0.15, Math.min(0.80, impliedVolApprox));
+  return Math.max(0.15, Math.min(0.45, impliedVolApprox));
 }
 
 function calculateBuyingPower(

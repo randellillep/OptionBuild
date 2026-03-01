@@ -58,7 +58,7 @@ Preferred communication style: Simple, everyday language.
 - Expiration dates: enumerate all Fridays within ±14 days of target date (entry + DTE), adjust for US market holidays, pick Friday whose actual DTE is closest to target. Ties break to earlier (lower DTE). Achieves ~78% match rate vs tastytrade reference data; remaining mismatches are due to tastytrade using actual listed option expiration calendars.
 - No duplicate trade avoidance: a new trade is opened every trading day (matching tastytrade's daily entry approach)
 - Strike prices use realistic increments ($0.50 for <$25, $1 for <$50, $2.50 for <$200, $5 for $200+) and round to **nearest** increment (Math.round, not floor/ceil)
-- Volatility estimation uses EWMA blend (70% EWMA + 30% simple hist-vol) with 35% mean-reversion to 25% long-term IV, 1.30x VRP multiplier, capped 15%–80%
+- Volatility estimation uses blended vol (70% simple HV + 30% EWMA) with 50% mean-reversion to 25% long-term IV, 1.15x VRP multiplier, capped 15%–45%
 - Buying power uses tastytrade-style BPR: max(20% underlying - OTM amount + premium, 10% strike + premium)
 - Default fee per contract: $0 (matching tastytrade's no-fee display preference)
 - Open P/L calculated per-trade individually (not averaged across positions)
