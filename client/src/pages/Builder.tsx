@@ -147,9 +147,10 @@ export default function Builder() {
     '#eab308', // Yellow
   ];
   
-  // Stable color assignment: once an expiration gets a color, it keeps it even
-  // when new expirations are added. Colors are assigned in order of first appearance.
-  const stableColorAssignments = useRef<Map<number, string>>(new Map());
+  // Stable color assignment keyed by leg ID. Each leg keeps its color even when
+  // its expiration date changes. The first leg gets slate; subsequent legs get
+  // palette colors in order they were first seen.
+  const legColorAssignments = useRef<Map<string, string>>(new Map());
   const nextColorIndex = useRef(0);
   
   const expirationColorMap = useMemo(() => {
@@ -165,46 +166,41 @@ export default function Builder() {
     const uniqueDaysArr = Array.from(new Set(activeOptionLegs.map(l => l.expirationDays)));
     if (uniqueDaysArr.length < 2) {
       if (uniqueDaysArr.length <= 1) {
-        stableColorAssignments.current.clear();
+        legColorAssignments.current.clear();
         nextColorIndex.current = 0;
       }
       return new Map<number, string>();
     }
     
-    // Remove assignments for expirations that no longer exist
-    const currentSet = new Set(uniqueDaysArr);
-    for (const key of stableColorAssignments.current.keys()) {
-      if (!currentSet.has(key)) {
-        stableColorAssignments.current.delete(key);
+    // Remove assignments for legs that no longer exist
+    const activeLegIds = new Set(activeOptionLegs.map(l => l.id));
+    for (const key of legColorAssignments.current.keys()) {
+      if (!activeLegIds.has(key)) {
+        legColorAssignments.current.delete(key);
       }
     }
     
-    // Determine which expiration was added first (lowest leg index order)
-    const firstAppearanceOrder: number[] = [];
-    const seen = new Set<number>();
+    // Assign a color to each leg (by leg ID) in order of appearance
     for (const leg of activeOptionLegs) {
-      if (!seen.has(leg.expirationDays)) {
-        seen.add(leg.expirationDays);
-        firstAppearanceOrder.push(leg.expirationDays);
-      }
-    }
-    
-    // Assign colors stably: first-added expiration gets slate, rest get palette colors
-    const map = new Map<number, string>();
-    for (const days of firstAppearanceOrder) {
-      if (stableColorAssignments.current.has(days)) {
-        map.set(days, stableColorAssignments.current.get(days)!);
-      } else {
-        // First expiration in the list gets slate; subsequent get palette colors
-        const isFirstExpiration = stableColorAssignments.current.size === 0;
-        const color = isFirstExpiration
+      if (!legColorAssignments.current.has(leg.id)) {
+        const isFirst = legColorAssignments.current.size === 0;
+        const color = isFirst
           ? FIRST_EXPIRATION_COLOR
           : EXPIRATION_COLORS[nextColorIndex.current % EXPIRATION_COLORS.length];
-        if (!isFirstExpiration) {
+        if (!isFirst) {
           nextColorIndex.current++;
         }
-        stableColorAssignments.current.set(days, color);
-        map.set(days, color);
+        legColorAssignments.current.set(leg.id, color);
+      }
+    }
+    
+    // Build the days->color map. For each unique expiration day, use the color
+    // of the earliest leg (by position) that has that expiration.
+    const map = new Map<number, string>();
+    for (const leg of activeOptionLegs) {
+      if (!map.has(leg.expirationDays)) {
+        const color = legColorAssignments.current.get(leg.id);
+        if (color) map.set(leg.expirationDays, color);
       }
     }
     
