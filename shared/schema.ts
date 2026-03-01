@@ -385,6 +385,26 @@ export const insertBacktestRunSchema = createInsertSchema(backtestRuns).omit({
 export type InsertBacktestRun = z.infer<typeof insertBacktestRunSchema>;
 export type BacktestRun = typeof backtestRuns.$inferSelect;
 
+// Brokerage connections table - stores user's broker API credentials
+export const brokerageConnections = pgTable("brokerage_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  broker: varchar("broker").notNull(),
+  apiKey: varchar("api_key").notNull(),
+  apiSecret: varchar("api_secret").notNull(),
+  isPaper: integer("is_paper").notNull().default(1),
+  label: varchar("label"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [index("IDX_brokerage_user").on(table.userId)]);
+
+export const insertBrokerageConnectionSchema = createInsertSchema(brokerageConnections).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBrokerageConnection = z.infer<typeof insertBrokerageConnectionSchema>;
+export type BrokerageConnection = typeof brokerageConnections.$inferSelect;
+
 // Historical price cache table
 export const historicalPrices = pgTable("historical_prices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

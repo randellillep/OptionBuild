@@ -1742,6 +1742,316 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================
+  // Brokerage Integration Routes
+  // ==========================================
+
+  const ALPACA_PAPER_URL = "https://paper-api.alpaca.markets";
+  const ALPACA_LIVE_URL = "https://api.alpaca.markets";
+
+  function getAlpacaBaseUrl(isPaper: boolean): string {
+    return isPaper ? ALPACA_PAPER_URL : ALPACA_LIVE_URL;
+  }
+
+  function buildOccSymbol(underlying: string, expirationDate: string, optionType: "call" | "put", strike: number): string {
+    const root = underlying.toUpperCase().padEnd(6, ' ');
+    const exp = expirationDate.replace(/-/g, '').slice(2);
+    const side = optionType === "call" ? "C" : "P";
+    const strikeInt = Math.round(strike * 1000);
+    const strikeStr = strikeInt.toString().padStart(8, '0');
+    return `${root}${exp}${side}${strikeStr}`;
+  }
+
+  app.get('/api/brokerage/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const connections = await storage.getBrokerageConnections(userId);
+      const safe = connections.map(c => ({
+        id: c.id,
+        broker: c.broker,
+        isPaper: c.isPaper,
+        label: c.label,
+        createdAt: c.createdAt,
+        apiKeyLast4: c.apiKey.slice(-4),
+      }));
+      res.json({ connections: safe });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/brokerage/connect', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const schema = z.object({
+        broker: z.enum(["alpaca"]),
+        apiKey: z.string().min(1),
+        apiSecret: z.string().min(1),
+        isPaper: z.number().min(0).max(1).default(1),
+        label: z.string().optional(),
+      });
+      const parsed = schema.parse(req.body);
+
+      const baseUrl = getAlpacaBaseUrl(parsed.isPaper === 1);
+      const verifyRes = await fetch(`${baseUrl}/v2/account`, {
+        headers: {
+          "APCA-API-KEY-ID": parsed.apiKey,
+          "APCA-API-SECRET-KEY": parsed.apiSecret,
+        },
+      });
+
+      if (!verifyRes.ok) {
+        const errText = await verifyRes.text();
+        return res.status(400).json({ error: `Failed to verify API credentials: ${errText}` });
+      }
+
+      const accountData = await verifyRes.json();
+
+      const connection = await storage.createBrokerageConnection({
+        userId,
+        broker: parsed.broker,
+        apiKey: parsed.apiKey,
+        apiSecret: parsed.apiSecret,
+        isPaper: parsed.isPaper,
+        label: parsed.label || `${parsed.broker} ${parsed.isPaper === 1 ? "Paper" : "Live"}`,
+      });
+
+      res.json({
+        connection: {
+          id: connection.id,
+          broker: connection.broker,
+          isPaper: connection.isPaper,
+          label: connection.label,
+          apiKeyLast4: connection.apiKey.slice(-4),
+        },
+        account: {
+          id: accountData.id,
+          status: accountData.status,
+          buyingPower: parseFloat(accountData.buying_power),
+          cash: parseFloat(accountData.cash),
+          equity: parseFloat(accountData.equity),
+          portfolioValue: parseFloat(accountData.portfolio_value),
+          patternDayTrader: accountData.pattern_day_trader,
+          tradingBlocked: accountData.trading_blocked,
+          accountBlocked: accountData.account_blocked,
+        },
+      });
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid request data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/api/brokerage/disconnect/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const deleted = await storage.deleteBrokerageConnection(req.params.id, userId);
+      if (!deleted) return res.status(404).json({ error: "Connection not found" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/brokerage/account/:connectionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
+      if (!conn) return res.status(404).json({ error: "Connection not found" });
+
+      const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
+      const accountRes = await fetch(`${baseUrl}/v2/account`, {
+        headers: {
+          "APCA-API-KEY-ID": conn.apiKey,
+          "APCA-API-SECRET-KEY": conn.apiSecret,
+        },
+      });
+      if (!accountRes.ok) {
+        return res.status(accountRes.status).json({ error: "Failed to fetch account data" });
+      }
+      const data = await accountRes.json();
+      res.json({
+        id: data.id,
+        status: data.status,
+        buyingPower: parseFloat(data.buying_power),
+        cash: parseFloat(data.cash),
+        equity: parseFloat(data.equity),
+        portfolioValue: parseFloat(data.portfolio_value),
+        patternDayTrader: data.pattern_day_trader,
+        tradingBlocked: data.trading_blocked,
+        accountBlocked: data.account_blocked,
+        daytradeCount: data.daytrade_count,
+        lastEquity: parseFloat(data.last_equity),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/brokerage/orders/:connectionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
+      if (!conn) return res.status(404).json({ error: "Connection not found" });
+
+      const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
+      const status = (req.query.status as string) || "all";
+      const limit = (req.query.limit as string) || "50";
+      const ordersRes = await fetch(`${baseUrl}/v2/orders?status=${status}&limit=${limit}&direction=desc`, {
+        headers: {
+          "APCA-API-KEY-ID": conn.apiKey,
+          "APCA-API-SECRET-KEY": conn.apiSecret,
+        },
+      });
+      if (!ordersRes.ok) {
+        return res.status(ordersRes.status).json({ error: "Failed to fetch orders" });
+      }
+      const orders = await ordersRes.json();
+      res.json({ orders });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/brokerage/orders/:connectionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
+      if (!conn) return res.status(404).json({ error: "Connection not found" });
+
+      const orderSchema = z.object({
+        legs: z.array(z.object({
+          symbol: z.string(),
+          expirationDate: z.string(),
+          optionType: z.enum(["call", "put"]),
+          strike: z.number(),
+          side: z.enum(["buy", "sell"]),
+          quantity: z.number().int().min(1),
+        })),
+        type: z.enum(["market", "limit", "stop", "stop_limit"]).default("limit"),
+        timeInForce: z.enum(["day", "gtc", "ioc"]).default("day"),
+        limitPrice: z.number().optional(),
+      });
+      const parsed = orderSchema.parse(req.body);
+      const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
+
+      for (const leg of parsed.legs) {
+        if (!leg.expirationDate || !/^\d{4}-\d{2}-\d{2}$/.test(leg.expirationDate)) {
+          return res.status(400).json({ error: `Invalid expiration date for ${leg.symbol} $${leg.strike} ${leg.optionType}` });
+        }
+        if (leg.strike <= 0) {
+          return res.status(400).json({ error: `Invalid strike price: ${leg.strike}` });
+        }
+      }
+
+      if (parsed.legs.length === 1) {
+        const leg = parsed.legs[0];
+        const occSymbol = buildOccSymbol(leg.symbol, leg.expirationDate, leg.optionType, leg.strike);
+        const orderBody: any = {
+          symbol: occSymbol,
+          qty: leg.quantity.toString(),
+          side: leg.side === "sell" ? "sell" : "buy",
+          type: parsed.type,
+          time_in_force: parsed.timeInForce,
+        };
+        if (parsed.type === "limit" && parsed.limitPrice != null) {
+          orderBody.limit_price = parsed.limitPrice.toString();
+        }
+
+        const orderRes = await fetch(`${baseUrl}/v2/orders`, {
+          method: "POST",
+          headers: {
+            "APCA-API-KEY-ID": conn.apiKey,
+            "APCA-API-SECRET-KEY": conn.apiSecret,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(orderBody),
+        });
+        const result = await orderRes.json();
+        if (!orderRes.ok) {
+          return res.status(orderRes.status).json({ error: result.message || "Order rejected", details: result });
+        }
+        return res.json({ order: result });
+      }
+
+      const alpacaLegs = parsed.legs.map(leg => {
+        const occSymbol = buildOccSymbol(leg.symbol, leg.expirationDate, leg.optionType, leg.strike);
+        return {
+          symbol: occSymbol,
+          qty: leg.quantity.toString(),
+          side: leg.side === "sell" ? "sell" : "buy",
+        };
+      });
+
+      const mloBody: any = {
+        order_class: "mleg",
+        legs: alpacaLegs,
+        type: parsed.type,
+        time_in_force: parsed.timeInForce,
+      };
+      if (parsed.type === "limit" && parsed.limitPrice != null) {
+        mloBody.limit_price = parsed.limitPrice.toString();
+      }
+
+      const orderRes = await fetch(`${baseUrl}/v2/orders`, {
+        method: "POST",
+        headers: {
+          "APCA-API-KEY-ID": conn.apiKey,
+          "APCA-API-SECRET-KEY": conn.apiSecret,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(mloBody),
+      });
+      const result = await orderRes.json();
+      if (!orderRes.ok) {
+        return res.status(orderRes.status).json({ error: result.message || "Order rejected", details: result });
+      }
+      res.json({ order: result });
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid order data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/api/brokerage/orders/:connectionId/:orderId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
+      if (!conn) return res.status(404).json({ error: "Connection not found" });
+
+      const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
+      const cancelRes = await fetch(`${baseUrl}/v2/orders/${req.params.orderId}`, {
+        method: "DELETE",
+        headers: {
+          "APCA-API-KEY-ID": conn.apiKey,
+          "APCA-API-SECRET-KEY": conn.apiSecret,
+        },
+      });
+      if (cancelRes.status === 204) {
+        return res.json({ success: true });
+      }
+      const result = await cancelRes.json();
+      if (!cancelRes.ok) {
+        return res.status(cancelRes.status).json({ error: result.message || "Failed to cancel order" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

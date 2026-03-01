@@ -1,4 +1,4 @@
-import { type User, type UpsertUser, type MarketOptionChainSummary, type InsertSavedTrade, type SavedTrade, type InsertBacktestRun, type BacktestRun, type BacktestRunResult, type HistoricalPrice, users, savedTrades, backtestRuns, historicalPrices } from "@shared/schema";
+import { type User, type UpsertUser, type MarketOptionChainSummary, type InsertSavedTrade, type SavedTrade, type InsertBacktestRun, type BacktestRun, type BacktestRunResult, type HistoricalPrice, type InsertBrokerageConnection, type BrokerageConnection, users, savedTrades, backtestRuns, historicalPrices, brokerageConnections } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 
@@ -26,6 +26,12 @@ export interface IStorage {
   // Historical price cache
   getHistoricalPrices(symbol: string, startDate: string, endDate: string): Promise<HistoricalPrice[]>;
   saveHistoricalPrices(prices: { symbol: string; date: string; open: number; high: number; low: number; close: number; volume?: number }[]): Promise<void>;
+  
+  // Brokerage connections
+  getBrokerageConnections(userId: string): Promise<BrokerageConnection[]>;
+  getBrokerageConnection(id: string, userId: string): Promise<BrokerageConnection | undefined>;
+  createBrokerageConnection(connection: InsertBrokerageConnection): Promise<BrokerageConnection>;
+  deleteBrokerageConnection(id: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -149,6 +155,28 @@ export class DatabaseStorage implements IStorage {
         volume: price.volume ?? null,
       }).onConflictDoNothing();
     }
+  }
+  async getBrokerageConnections(userId: string): Promise<BrokerageConnection[]> {
+    return await db.select().from(brokerageConnections).where(eq(brokerageConnections.userId, userId)).orderBy(desc(brokerageConnections.createdAt));
+  }
+
+  async getBrokerageConnection(id: string, userId: string): Promise<BrokerageConnection | undefined> {
+    const [conn] = await db.select().from(brokerageConnections).where(
+      and(eq(brokerageConnections.id, id), eq(brokerageConnections.userId, userId))
+    );
+    return conn;
+  }
+
+  async createBrokerageConnection(connection: InsertBrokerageConnection): Promise<BrokerageConnection> {
+    const [newConn] = await db.insert(brokerageConnections).values(connection).returning();
+    return newConn;
+  }
+
+  async deleteBrokerageConnection(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(brokerageConnections).where(
+      and(eq(brokerageConnections.id, id), eq(brokerageConnections.userId, userId))
+    ).returning();
+    return result.length > 0;
   }
 }
 

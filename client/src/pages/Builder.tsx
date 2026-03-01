@@ -20,6 +20,7 @@ import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, B
 import { TutorialOverlay, useTutorial } from "@/components/TutorialOverlay";
 import { AIChatAssistant } from "@/components/AIChatAssistant";
 import { SaveTradeModal } from "@/components/SaveTradeModal";
+import { ExecuteTradeModal } from "@/components/ExecuteTradeModal";
 import { StrategySelector } from "@/components/StrategySelector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { OptionLeg, MarketOptionChainSummary } from "@shared/schema";
@@ -55,6 +56,7 @@ export default function Builder() {
   const [range, setRange] = useState(14);
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
+  const [isExecuteTradeOpen, setIsExecuteTradeOpen] = useState(false);
   const [commissionSettings, setCommissionSettings] = useState<CommissionSettings>({
     perTrade: 0,
     perContract: 0,
@@ -2003,6 +2005,7 @@ export default function Builder() {
             symbolInfo={symbolInfo} 
             onSymbolChange={setSymbolInfo}
             onSaveTrade={() => setIsSaveTradeOpen(true)}
+            onExecuteTrade={() => setIsExecuteTradeOpen(true)}
             legsCount={legs.length}
             legs={legs}
             volatility={volatility}
@@ -2195,6 +2198,14 @@ export default function Builder() {
         legs={legs}
         selectedExpirationDate={selectedExpirationDate}
         isAuthenticated={isAuthenticated}
+      />
+
+      <ExecuteTradeModal
+        isOpen={isExecuteTradeOpen}
+        onClose={() => setIsExecuteTradeOpen(false)}
+        legs={legs}
+        symbol={symbolInfo.symbol}
+        currentPrice={symbolInfo.price}
       />
 
       <TutorialOverlay isOpen={showTutorial} onClose={closeTutorial} />

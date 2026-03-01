@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Search, TrendingUp, TrendingDown, Loader2, X, Star, Clock, BarChart3, Landmark, Fuel, ListOrdered, Bookmark } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Loader2, X, Star, Clock, BarChart3, Landmark, Fuel, ListOrdered, Bookmark, ArrowUpDown } from "lucide-react";
 import type { SymbolInfo } from "@/hooks/useStrategyEngine";
 import { useQuery } from "@tanstack/react-query";
 import { PositionsModal, CommissionSettings } from "@/components/PositionsModal";
@@ -14,6 +14,7 @@ interface TradingViewSearchProps {
   onSymbolChange: (info: SymbolInfo) => void;
   renderAddButton?: () => React.ReactNode;
   onSaveTrade?: () => void;
+  onExecuteTrade?: () => void;
   legsCount?: number;
   legs?: OptionLeg[];
   volatility?: number;
@@ -108,6 +109,7 @@ export function TradingViewSearch({
   onSymbolChange, 
   renderAddButton, 
   onSaveTrade, 
+  onExecuteTrade,
   legsCount = 0, 
   legs = [],
   volatility = 0.30,
@@ -291,7 +293,7 @@ export function TradingViewSearch({
             <Button 
               variant="outline" 
               size="sm"
-              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground text-xs sm:text-sm"
+              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 text-foreground text-xs sm:text-sm"
               data-testid="button-positions"
               onClick={() => setIsPositionsModalOpen(true)}
             >
@@ -302,12 +304,23 @@ export function TradingViewSearch({
             <Button 
               variant="outline" 
               size="sm"
-              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 hover:bg-sky-200 dark:hover:bg-sky-800/50 text-foreground text-xs sm:text-sm"
+              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 text-foreground text-xs sm:text-sm"
               onClick={onSaveTrade}
               data-testid="button-save-trade"
             >
               <Bookmark className="h-3.5 w-3.5 sm:mr-1.5" />
               <span className="hidden sm:inline">Save Trade</span>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-foreground text-xs sm:text-sm"
+              onClick={onExecuteTrade}
+              data-testid="button-execute-trade"
+            >
+              <ArrowUpDown className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Execute</span>
             </Button>
             
           </div>

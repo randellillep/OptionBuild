@@ -50,7 +50,16 @@ Preferred communication style: Simple, everyday language.
 **Backend Infrastructure**: Express.js, Drizzle ORM, Neon, `connect-pg-simple`.
 **Development Tools**: Vite, TypeScript, ESBuild.
 **Utilities**: `date-fns`, `nanoid`, `embla-carousel`.
-**Integrations**: Finnhub API (live stock prices, search, historical data, fundamentals), PostgreSQL (user authentication, session storage), Replit Auth (Google sign-in).
+**Integrations**: Finnhub API (live stock prices, search, historical data, fundamentals), PostgreSQL (user authentication, session storage), Replit Auth (Google sign-in), Alpaca Trading API (market data + trade execution).
+
+## Brokerage Integration
+
+**Architecture**: Per-user brokerage API credentials stored in `brokerage_connections` table. Server proxies all trading requests using user's credentials (never exposed to frontend).
+**Supported Brokers**: Alpaca (paper + live trading). Extensible to other brokers via `broker` field.
+**API Routes**: `/api/brokerage/*` — connect, disconnect, status, account info, order submission, order history, order cancellation.
+**Frontend Components**: `ExecuteTradeModal` (order preview + submission), `TradeTab` (connection management, account info, order history in AnalysisTabs).
+**OCC Symbol Generation**: Builds standard OCC option symbols (e.g., `AAPL  260320C00265000`) for Alpaca order submission.
+**Security**: API keys stored server-side only; frontend only sees last 4 chars. Credentials verified against Alpaca on connect.
 
 ## Backtesting Engine (tastytrade-aligned)
 
