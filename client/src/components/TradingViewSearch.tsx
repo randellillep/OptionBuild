@@ -287,40 +287,40 @@ export function TradingViewSearch({
 
           <div className="hidden sm:flex flex-1" />
 
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 sm:mr-4 flex-wrap">
+          <div className="flex items-center gap-1 shrink-0 sm:mr-4 flex-wrap">
             {renderAddButton && renderAddButton()}
             
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm"
-              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 text-foreground text-xs sm:text-sm"
+              className="text-[11px] text-muted-foreground"
               data-testid="button-positions"
               onClick={() => setIsPositionsModalOpen(true)}
             >
-              <ListOrdered className="h-3.5 w-3.5 sm:mr-1.5" />
+              <ListOrdered className="h-3 w-3 mr-1" />
               <span className="hidden sm:inline">Positions</span> ({openPositionsCount + closedPositionsCount})
             </Button>
             
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm"
-              className="bg-sky-100 dark:bg-sky-900/30 border-sky-200 dark:border-sky-800 text-foreground text-xs sm:text-sm"
+              className="text-[11px] text-muted-foreground"
               onClick={onSaveTrade}
               data-testid="button-save-trade"
             >
-              <Bookmark className="h-3.5 w-3.5 sm:mr-1.5" />
-              <span className="hidden sm:inline">Save Trade</span>
+              <Bookmark className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Save</span>
             </Button>
             
             <Button 
               variant="outline" 
               size="sm"
-              className="bg-emerald-100 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-foreground text-xs sm:text-sm"
+              className="text-[11px] bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
               onClick={onExecuteTrade}
               data-testid="button-execute-trade"
             >
-              <ArrowUpDown className="h-3.5 w-3.5 sm:mr-1.5" />
-              <span className="hidden sm:inline">Execute</span>
+              <ArrowUpDown className="h-3 w-3 mr-1" />
+              Execute
             </Button>
             
           </div>

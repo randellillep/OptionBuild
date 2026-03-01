@@ -198,8 +198,8 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice 
                       <div key={leg.id || i} className="flex items-center justify-between text-xs" data-testid={`text-order-leg-${i}`}>
                         <div className="flex items-center gap-1.5">
                           <Badge
-                            variant={leg.position === "short" ? "destructive" : "default"}
-                            className="text-[10px] px-1.5 py-0"
+                            variant="outline"
+                            className={`text-[10px] px-1.5 py-0 border-0 ${leg.position === "short" ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"}`}
                           >
                             {leg.position === "short" ? "SELL" : "BUY"}
                           </Badge>
