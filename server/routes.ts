@@ -2029,6 +2029,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/brokerage/positions/:connectionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
+      if (!conn) return res.status(404).json({ error: "Connection not found" });
+
+      const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
+      const posRes = await fetch(`${baseUrl}/v2/positions`, {
+        headers: {
+          "APCA-API-KEY-ID": conn.apiKey,
+          "APCA-API-SECRET-KEY": conn.apiSecret,
+        },
+      });
+      if (!posRes.ok) {
+        return res.status(posRes.status).json({ error: "Failed to fetch positions" });
+      }
+      const positions = await posRes.json();
+      res.json({ positions });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete('/api/brokerage/orders/:connectionId/:orderId', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
