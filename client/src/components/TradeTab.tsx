@@ -131,7 +131,7 @@ export function TradeTab() {
     return (
       <Card className="p-6 text-center">
         <ShieldCheck className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">Sign in to connect your brokerage account and start trading.</p>
+        <p className="text-sm text-muted-foreground"><a href="/api/login" className="text-primary font-medium hover:underline" data-testid="link-sign-in-trade">Sign in</a> to connect your brokerage account and start trading.</p>
       </Card>
     );
   }

@@ -16,6 +16,7 @@ interface ExecuteTradeModalProps {
   legs: OptionLeg[];
   symbol: string;
   currentPrice: number;
+  onGoToTradeTab?: () => void;
 }
 
 interface BrokerageConnection {
@@ -26,7 +27,7 @@ interface BrokerageConnection {
   apiKeyLast4: string;
 }
 
-export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice }: ExecuteTradeModalProps) {
+export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice, onGoToTradeTab }: ExecuteTradeModalProps) {
   const [orderType, setOrderType] = useState<"limit" | "market">("limit");
   const [timeInForce, setTimeInForce] = useState<"day" | "gtc">("day");
   const [limitPrice, setLimitPrice] = useState<string>("");
@@ -133,7 +134,7 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice 
               <p className="text-sm text-muted-foreground">
                 No broker connected. Connect your brokerage account in the Trade tab to start executing trades.
               </p>
-              <Button variant="outline" size="sm" onClick={handleClose} data-testid="button-go-to-trade-tab">
+              <Button variant="outline" size="sm" onClick={() => { handleClose(); onGoToTradeTab?.(); }} data-testid="button-go-to-trade-tab">
                 Go to Trade Tab
               </Button>
             </div>

@@ -57,6 +57,7 @@ export default function Builder() {
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
   const [isExecuteTradeOpen, setIsExecuteTradeOpen] = useState(false);
+  const [analysisTab, setAnalysisTab] = useState("greeks");
   const [commissionSettings, setCommissionSettings] = useState<CommissionSettings>({
     perTrade: 0,
     perContract: 0,
@@ -2144,6 +2145,8 @@ export default function Builder() {
                 metrics={metrics}
                 frozenExpectedMove={frozenExpectedMove}
                 calculatedIV={calculatedIV}
+                activeTab={analysisTab}
+                onTabChange={setAnalysisTab}
               />
             </div>
 
@@ -2206,6 +2209,7 @@ export default function Builder() {
         legs={legs}
         symbol={symbolInfo.symbol}
         currentPrice={symbolInfo.price}
+        onGoToTradeTab={() => setAnalysisTab("trade")}
       />
 
       <TutorialOverlay isOpen={showTutorial} onClose={closeTutorial} />

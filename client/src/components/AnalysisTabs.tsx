@@ -51,6 +51,8 @@ interface AnalysisTabsProps {
   metrics?: StrategyMetrics | null;
   frozenExpectedMove?: FrozenExpectedMove | null;
   calculatedIV?: number;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export function AnalysisTabs({ 
@@ -63,7 +65,9 @@ export function AnalysisTabs({
   legs = [],
   metrics,
   frozenExpectedMove,
-  calculatedIV
+  calculatedIV,
+  activeTab,
+  onTabChange
 }: AnalysisTabsProps) {
   
   // Expected Move is passed in as frozen data from Builder
@@ -155,7 +159,7 @@ export function AnalysisTabs({
   };
 
   return (
-    <Tabs defaultValue="greeks" className="w-full mt-6">
+    <Tabs value={activeTab || "greeks"} onValueChange={onTabChange} defaultValue="greeks" className="w-full mt-6">
       {/* Scrollable tabs on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
         <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-6 h-7">
