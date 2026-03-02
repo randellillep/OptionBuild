@@ -40,7 +40,7 @@ export function RangeVolatilitySliders({
   const sliderPercent = ((impliedVolatility - 10) / (100 - 10)) * 100;
 
   return (
-    <Card className="p-3" style={{ overflow: 'visible' }}>
+    <Card className="p-3 pb-5" style={{ overflow: 'visible' }}>
       <div className="flex items-center gap-6">
         {/* Range slider */}
         <div className="flex items-center gap-3 flex-1">
