@@ -51,7 +51,8 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice,
   }, 0);
 
   const strategyPrice = optionLegs.reduce((sum, leg) => {
-    return leg.position === "short" ? sum + leg.premium : sum - leg.premium;
+    const val = leg.premium * leg.quantity;
+    return leg.position === "short" ? sum + val : sum - val;
   }, 0);
 
   if (isOpen && !limitPriceInitialized && optionLegs.length > 0) {
