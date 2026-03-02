@@ -155,7 +155,7 @@ export function AnalysisTabs({
   };
 
   return (
-    <Tabs defaultValue="greeks" className="w-full mt-4">
+    <Tabs defaultValue="greeks" className="w-full mt-6">
       {/* Scrollable tabs on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
         <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-6 h-7">
