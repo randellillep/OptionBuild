@@ -1932,10 +1932,12 @@ export default function Builder() {
                 <span className="hidden lg:inline">Tutorials</span>
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" className="h-7 px-1 sm:px-2 text-xs hidden sm:flex" data-testid="button-blog">
-              <FileText className="h-3 w-3 sm:mr-1" />
-              <span className="hidden lg:inline">Blog</span>
-            </Button>
+            <Link href="/blog">
+              <Button variant="ghost" size="sm" className="h-7 px-1 sm:px-2 text-xs hidden sm:flex" data-testid="button-blog">
+                <FileText className="h-3 w-3 sm:mr-1" />
+                <span className="hidden lg:inline">Blog</span>
+              </Button>
+            </Link>
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

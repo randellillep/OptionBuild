@@ -92,9 +92,9 @@ export function Footer() {
               <span className="text-sm text-white/40 cursor-default">
                 Tutorials (Coming Soon)
               </span>
-              <span className="text-sm text-white/40 cursor-default">
-                Blog (Coming Soon)
-              </span>
+              <a href="/blog" className="text-sm text-white/60 hover:text-white transition-colors">
+                Blog
+              </a>
               <span className="text-sm text-white/40 cursor-default">
                 FAQ (Coming Soon)
               </span>

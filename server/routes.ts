@@ -1743,6 +1743,200 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==========================================
+  // Blog Routes
+  // ==========================================
+
+  const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "randel.lillep@gmail.com").split(",").map(e => e.trim().toLowerCase());
+
+  function isAdmin(req: any): boolean {
+    const user = req.user || (req.session as any)?.passport?.user;
+    if (!user) return false;
+    const email = (user.email || "").toLowerCase();
+    return ADMIN_EMAILS.includes(email);
+  }
+
+  function requireAdmin(req: any, res: any, next: any) {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    next();
+  }
+
+  app.get('/api/blog/posts', async (_req, res) => {
+    try {
+      const posts = await storage.getBlogPosts(true);
+      const safePosts = posts.map(({ content, ...rest }) => rest);
+      res.json({ posts: safePosts });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/blog/posts/:slug', async (req, res) => {
+    try {
+      const post = await storage.getBlogPostBySlug(req.params.slug);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+      if (post.published !== 1) return res.status(404).json({ error: "Post not found" });
+      res.json({ post });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/admin/blog/posts', isAuthenticated, requireAdmin, async (_req, res) => {
+    try {
+      const posts = await storage.getBlogPosts(false);
+      res.json({ posts });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/admin/blog/posts/:id', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const post = await storage.getBlogPost(req.params.id);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+      res.json({ post });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/admin/blog/posts', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const schema = z.object({
+        title: z.string().min(1),
+        slug: z.string().min(1).regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens"),
+        excerpt: z.string().optional(),
+        content: z.string().min(1),
+        coverImage: z.string().optional(),
+        published: z.number().min(0).max(1).default(0),
+      });
+      const parsed = schema.parse(req.body);
+
+      const existing = await storage.getBlogPostBySlug(parsed.slug);
+      if (existing) return res.status(400).json({ error: "A post with this slug already exists" });
+
+      const post = await storage.createBlogPost({
+        ...parsed,
+        authorId: userId,
+        publishedAt: parsed.published === 1 ? new Date() : null,
+      });
+      res.json({ post });
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid post data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put('/api/admin/blog/posts/:id', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        title: z.string().min(1).optional(),
+        slug: z.string().min(1).regex(/^[a-z0-9-]+$/).optional(),
+        excerpt: z.string().optional(),
+        content: z.string().min(1).optional(),
+        coverImage: z.string().nullable().optional(),
+        published: z.number().min(0).max(1).optional(),
+      });
+      const parsed = schema.parse(req.body);
+
+      if (parsed.slug) {
+        const existing = await storage.getBlogPostBySlug(parsed.slug);
+        if (existing && existing.id !== req.params.id) {
+          return res.status(400).json({ error: "A post with this slug already exists" });
+        }
+      }
+
+      const updates: any = { ...parsed };
+      if (parsed.published === 1) {
+        const current = await storage.getBlogPost(req.params.id);
+        if (current && current.published !== 1) {
+          updates.publishedAt = new Date();
+        }
+      }
+
+      const post = await storage.updateBlogPost(req.params.id, updates);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+      res.json({ post });
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid post data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete('/api/admin/blog/posts/:id', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const deleted = await storage.deleteBlogPost(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Post not found" });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/admin/blog/upload', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const schema = z.object({
+        filename: z.string().min(1),
+        mimeType: z.string().min(1).refine(
+          (val) => ALLOWED_MIME_TYPES.includes(val),
+          { message: `Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}` }
+        ),
+        data: z.string().min(1),
+      });
+      const parsed = schema.parse(req.body);
+
+      const maxSize = 5 * 1024 * 1024;
+      const dataSize = Buffer.from(parsed.data, 'base64').length;
+      if (dataSize > maxSize) {
+        return res.status(400).json({ error: "Image too large (max 5MB)" });
+      }
+
+      const image = await storage.saveBlogImage({
+        authorId: userId,
+        filename: parsed.filename,
+        mimeType: parsed.mimeType,
+        data: parsed.data,
+      });
+      res.json({ id: image.id, url: `/api/blog/images/${image.id}` });
+    } catch (error: any) {
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid upload data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/blog/images/:id', async (req, res) => {
+    try {
+      const image = await storage.getBlogImage(req.params.id);
+      if (!image) return res.status(404).json({ error: "Image not found" });
+      const buffer = Buffer.from(image.data, 'base64');
+      res.setHeader('Content-Type', image.mimeType);
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.send(buffer);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/admin/check', isAuthenticated, (req: any, res) => {
+    res.json({ isAdmin: isAdmin(req) });
+  });
+
+  // ==========================================
   // Brokerage Integration Routes
   // ==========================================
 

@@ -1,4 +1,4 @@
-import { type User, type UpsertUser, type MarketOptionChainSummary, type InsertSavedTrade, type SavedTrade, type InsertBacktestRun, type BacktestRun, type BacktestRunResult, type HistoricalPrice, type InsertBrokerageConnection, type BrokerageConnection, users, savedTrades, backtestRuns, historicalPrices, brokerageConnections } from "@shared/schema";
+import { type User, type UpsertUser, type MarketOptionChainSummary, type InsertSavedTrade, type SavedTrade, type InsertBacktestRun, type BacktestRun, type BacktestRunResult, type HistoricalPrice, type InsertBrokerageConnection, type BrokerageConnection, type InsertBlogPost, type BlogPost, type BlogImage, users, savedTrades, backtestRuns, historicalPrices, brokerageConnections, blogPosts, blogImages } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 
@@ -32,6 +32,16 @@ export interface IStorage {
   getBrokerageConnection(id: string, userId: string): Promise<BrokerageConnection | undefined>;
   createBrokerageConnection(connection: InsertBrokerageConnection): Promise<BrokerageConnection>;
   deleteBrokerageConnection(id: string, userId: string): Promise<boolean>;
+
+  // Blog
+  getBlogPosts(publishedOnly?: boolean): Promise<BlogPost[]>;
+  getBlogPostBySlug(slug: string): Promise<BlogPost | undefined>;
+  getBlogPost(id: string): Promise<BlogPost | undefined>;
+  createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
+  updateBlogPost(id: string, updates: Partial<InsertBlogPost>): Promise<BlogPost | undefined>;
+  deleteBlogPost(id: string): Promise<boolean>;
+  saveBlogImage(image: { authorId: string; filename: string; mimeType: string; data: string }): Promise<BlogImage>;
+  getBlogImage(id: string): Promise<BlogImage | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -177,6 +187,51 @@ export class DatabaseStorage implements IStorage {
       and(eq(brokerageConnections.id, id), eq(brokerageConnections.userId, userId))
     ).returning();
     return result.length > 0;
+  }
+
+  async getBlogPosts(publishedOnly = false): Promise<BlogPost[]> {
+    if (publishedOnly) {
+      return await db.select().from(blogPosts).where(eq(blogPosts.published, 1)).orderBy(desc(blogPosts.publishedAt));
+    }
+    return await db.select().from(blogPosts).orderBy(desc(blogPosts.createdAt));
+  }
+
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
+    const [post] = await db.select().from(blogPosts).where(eq(blogPosts.slug, slug));
+    return post;
+  }
+
+  async getBlogPost(id: string): Promise<BlogPost | undefined> {
+    const [post] = await db.select().from(blogPosts).where(eq(blogPosts.id, id));
+    return post;
+  }
+
+  async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
+    const [newPost] = await db.insert(blogPosts).values(post).returning();
+    return newPost;
+  }
+
+  async updateBlogPost(id: string, updates: Partial<InsertBlogPost>): Promise<BlogPost | undefined> {
+    const [updated] = await db.update(blogPosts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(blogPosts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBlogPost(id: string): Promise<boolean> {
+    const result = await db.delete(blogPosts).where(eq(blogPosts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async saveBlogImage(image: { authorId: string; filename: string; mimeType: string; data: string }): Promise<BlogImage> {
+    const [saved] = await db.insert(blogImages).values(image).returning();
+    return saved;
+  }
+
+  async getBlogImage(id: string): Promise<BlogImage | undefined> {
+    const [image] = await db.select().from(blogImages).where(eq(blogImages.id, id));
+    return image;
   }
 }
 

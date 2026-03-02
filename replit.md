@@ -62,6 +62,14 @@ Preferred communication style: Simple, everyday language.
 **tastytrade Auth**: Session-based (username/password → session token via `/sessions` endpoint). Credentials stored as username in `apiKey`, password in `apiSecret`. Fresh session token obtained on each API call.
 **Security**: API keys/passwords stored server-side only; frontend only sees last 4 chars of username/key. Credentials verified against broker API on connect.
 
+## Blog System
+
+**Schema**: `blog_posts` (id UUID, title, slug unique, excerpt, content HTML, coverImage, published 0/1, publishedAt, authorId, createdAt) and `blog_images` (id UUID, authorId, filename, mimeType, data base64, createdAt).
+**API Routes**: Public `GET /api/blog/posts` (published only, no content), `GET /api/blog/posts/:slug` (full post). Admin `GET/POST /api/admin/blog/posts`, `GET/PUT/DELETE /api/admin/blog/posts/:id`, `POST /api/admin/blog/upload` (image upload, restricted to jpeg/png/gif/webp, max 5MB). Images served via `GET /api/blog/images/:id` with caching.
+**Admin Access**: Email-based allowlist via `ADMIN_EMAILS` env var (comma-separated), defaults to owner email. Admin check via `GET /api/admin/check`.
+**Frontend Pages**: `/blog` (listing grid with cards), `/blog/:slug` (full article with styled HTML content), `/admin/blog` (post list + editor with preview, image upload, publish toggle).
+**Navigation**: Blog links in Builder toolbar, Footer, and Home page footer all point to `/blog`.
+
 ## Backtesting Engine (tastytrade-aligned)
 
 **Key Design Decisions**:

@@ -421,3 +421,42 @@ export const historicalPrices = pgTable("historical_prices", {
 ]);
 
 export type HistoricalPrice = typeof historicalPrices.$inferSelect;
+
+// Blog posts table
+export const blogPosts = pgTable("blog_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar("title").notNull(),
+  slug: varchar("slug").notNull().unique(),
+  excerpt: text("excerpt"),
+  content: text("content").notNull(),
+  coverImage: text("cover_image"),
+  published: integer("published").notNull().default(0),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("IDX_blog_posts_slug").on(table.slug),
+  index("IDX_blog_posts_published").on(table.published),
+]);
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+export type BlogPost = typeof blogPosts.$inferSelect;
+
+// Blog images table - stores uploaded images as base64
+export const blogImages = pgTable("blog_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  filename: varchar("filename").notNull(),
+  mimeType: varchar("mime_type").notNull(),
+  data: text("data").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type BlogImage = typeof blogImages.$inferSelect;

@@ -12,6 +12,9 @@ import OptionFinder from "@/pages/OptionFinder";
 import SavedTrades from "@/pages/SavedTrades";
 import Share from "@/pages/Share";
 import Tutorial from "@/pages/Tutorial";
+import Blog from "@/pages/Blog";
+import BlogPost from "@/pages/BlogPost";
+import AdminBlog from "@/pages/AdminBlog";
 
 function Router() {
   return (
@@ -24,6 +27,9 @@ function Router() {
       <Route path="/option-finder" component={OptionFinder} />
       <Route path="/saved-trades" component={SavedTrades} />
       <Route path="/share/:encoded" component={Share} />
+      <Route path="/blog" component={Blog} />
+      <Route path="/blog/:slug" component={BlogPost} />
+      <Route path="/admin/blog" component={AdminBlog} />
       <Route component={NotFound} />
     </Switch>
   );
