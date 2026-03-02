@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, Calendar, ArrowRight, BookOpen } from "lucide-react";
+import { TrendingUp, Calendar, ArrowRight, BookOpen, Settings } from "lucide-react";
 
 interface BlogPost {
   id: string;
@@ -19,10 +20,16 @@ interface BlogPost {
 }
 
 export default function Blog() {
+  const { isAuthenticated } = useAuth();
   const { data, isLoading, error } = useQuery<{ posts: BlogPost[] }>({
     queryKey: ["/api/blog/posts"],
   });
+  const { data: adminCheck } = useQuery<{ isAdmin: boolean }>({
+    queryKey: ["/api/admin/check"],
+    enabled: isAuthenticated,
+  });
 
+  const isAdmin = adminCheck?.isAdmin ?? false;
   const posts = data?.posts ?? [];
 
   const formatDate = (dateStr: string | null) => {
@@ -50,6 +57,14 @@ export default function Blog() {
                 Builder
               </Button>
             </Link>
+            {isAdmin && (
+              <Link href="/admin/blog" data-testid="link-admin-blog">
+                <Button variant="ghost" className="text-sm font-medium">
+                  <Settings className="h-4 w-4 mr-1" />
+                  Manage Posts
+                </Button>
+              </Link>
+            )}
             <ThemeToggle />
           </nav>
         </div>
