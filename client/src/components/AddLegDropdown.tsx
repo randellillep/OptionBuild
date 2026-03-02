@@ -120,7 +120,7 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData, selec
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button 
-          variant="default" 
+          variant="outline" 
           size="sm" 
           className="text-xs" 
           data-testid="button-add-dropdown"
