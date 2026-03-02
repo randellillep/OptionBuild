@@ -58,6 +58,7 @@ export default function Builder() {
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
   const [isExecuteTradeOpen, setIsExecuteTradeOpen] = useState(false);
   const [analysisTab, setAnalysisTab] = useState("greeks");
+  const analysisTabsRef = useRef<HTMLDivElement>(null);
   const [commissionSettings, setCommissionSettings] = useState<CommissionSettings>({
     perTrade: 0,
     perContract: 0,
@@ -2134,20 +2135,22 @@ export default function Builder() {
                 />
               )}
 
-              <AnalysisTabs 
-                greeks={totalGreeks}
-                symbol={symbolInfo.symbol}
-                currentPrice={symbolInfo.price}
-                volatility={volatility}
-                expirationDate={selectedExpirationDate}
-                optionsChainData={optionsChainData}
-                legs={legs}
-                metrics={metrics}
-                frozenExpectedMove={frozenExpectedMove}
-                calculatedIV={calculatedIV}
-                activeTab={analysisTab}
-                onTabChange={setAnalysisTab}
-              />
+              <div ref={analysisTabsRef}>
+                <AnalysisTabs 
+                  greeks={totalGreeks}
+                  symbol={symbolInfo.symbol}
+                  currentPrice={symbolInfo.price}
+                  volatility={volatility}
+                  expirationDate={selectedExpirationDate}
+                  optionsChainData={optionsChainData}
+                  legs={legs}
+                  metrics={metrics}
+                  frozenExpectedMove={frozenExpectedMove}
+                  calculatedIV={calculatedIV}
+                  activeTab={analysisTab}
+                  onTabChange={setAnalysisTab}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -2209,7 +2212,12 @@ export default function Builder() {
         legs={legs}
         symbol={symbolInfo.symbol}
         currentPrice={symbolInfo.price}
-        onGoToTradeTab={() => setAnalysisTab("trade")}
+        onGoToTradeTab={() => {
+          setAnalysisTab("trade");
+          setTimeout(() => {
+            analysisTabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        }}
       />
 
       <TutorialOverlay isOpen={showTutorial} onClose={closeTutorial} />
