@@ -59,6 +59,7 @@ export function TradeTab() {
   const [isPaper, setIsPaper] = useState(true);
   const [showSecret, setShowSecret] = useState(false);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  const [tradeSubtab, setTradeSubtab] = useState<"positions" | "orders">("positions");
 
   const { data: statusData, isLoading: isLoadingStatus } = useQuery<{ connections: BrokerageConnection[] }>({
     queryKey: ['/api/brokerage/status'],
@@ -319,179 +320,202 @@ export function TradeTab() {
 
       {activeConnection && (
         <Card className="p-3">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-medium">Open Positions</span>
-            <Button size="icon" variant="ghost" onClick={() => refetchPositions()} data-testid="button-refresh-positions">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`text-[11px] ${tradeSubtab === "positions" ? "bg-muted font-medium" : "text-muted-foreground"}`}
+                onClick={() => setTradeSubtab("positions")}
+                data-testid="button-subtab-positions"
+              >
+                Open Positions
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`text-[11px] ${tradeSubtab === "orders" ? "bg-muted font-medium" : "text-muted-foreground"}`}
+                onClick={() => setTradeSubtab("orders")}
+                data-testid="button-subtab-orders"
+              >
+                Recent Orders
+              </Button>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => tradeSubtab === "positions" ? refetchPositions() : refetchOrders()}
+              data-testid="button-refresh-trade-subtab"
+            >
               <RefreshCw className="h-3 w-3" />
             </Button>
           </div>
-          {isLoadingPositions ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : !positionsData?.positions || positionsData.positions.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-3" data-testid="text-no-positions">No open positions</p>
-          ) : (
-            <ScrollArea className="max-h-[180px]">
-              <div className="space-y-1.5">
-                {positionsData.positions.map((pos) => {
-                  const parsed = parseOptionSymbol(pos.symbol);
-                  const pl = parseFloat(pos.unrealized_pl);
-                  const plColor = pl >= 0 ? "text-green-500" : "text-red-500";
-                  return (
-                    <div
-                      key={pos.asset_id}
-                      className="p-2 rounded-md bg-muted/30 text-xs space-y-0.5"
-                      data-testid={`row-position-${pos.asset_id}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] px-1.5 py-0 border-0 ${pos.side === "short" ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"}`}
-                          >
-                            {pos.side === "short" ? "SHORT" : "LONG"}
-                          </Badge>
-                          <span className="font-mono font-medium">{parsed?.root || pos.symbol}</span>
-                          <span className="text-muted-foreground">x{Math.abs(parseInt(pos.qty))}</span>
-                        </div>
-                        <span className={`font-mono font-medium ${plColor}`} data-testid={`text-position-pl-${pos.asset_id}`}>
-                          {pl >= 0 ? "+" : ""}${pl.toFixed(2)}
-                        </span>
-                      </div>
-                      {parsed && (
-                        <div className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
-                          <span className="font-mono">${parsed.strike.toFixed(2)} {parsed.type}</span>
-                          <span>Exp {parsed.expiration}</span>
-                          <span>Avg ${parseFloat(pos.avg_entry_price).toFixed(2)}</span>
-                          <span>Mkt ${parseFloat(pos.current_price).toFixed(2)}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          )}
-        </Card>
-      )}
 
-      {activeConnection && (
-        <Card className="p-3">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-medium">Recent Orders</span>
-            <Button size="icon" variant="ghost" onClick={() => refetchOrders()} data-testid="button-refresh-orders">
-              <RefreshCw className="h-3 w-3" />
-            </Button>
-          </div>
-          {isLoadingOrders ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : orders.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">No recent orders</p>
-          ) : (
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-1.5">
-                {orders.slice(0, 20).map((order) => {
-                  const statusInfo = formatOrderStatus(order.status);
-                  const orderDate = new Date(order.submitted_at || order.created_at);
-                  const isMultiLeg = order.order_class === "mleg" && order.legs && order.legs.length > 0;
-                  const parsed = !isMultiLeg ? parseOptionSymbol(order.symbol) : null;
-                  return (
-                    <div
-                      key={order.id}
-                      className="p-2 rounded-md bg-muted/30 text-xs space-y-1"
-                      data-testid={`row-order-${order.id}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {!isMultiLeg && (
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] px-1.5 py-0 shrink-0 border-0 ${order.side === "sell" ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"}`}
-                            >
-                              {order.side?.toUpperCase()}
-                            </Badge>
-                          )}
-                          <span className="font-mono font-medium">
-                            {isMultiLeg ? (parseOptionSymbol(order.legs![0].symbol)?.root || "Multi-Leg") : (parsed?.root || order.symbol)}
-                          </span>
-                          {!isMultiLeg && <span className="text-muted-foreground shrink-0">x{order.qty}</span>}
-                          {isMultiLeg && <Badge variant="outline" className="text-[10px] px-1.5 py-0">MLO</Badge>}
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {order.filled_avg_price && parseFloat(order.filled_avg_price) > 0 && (
-                            <span className="font-mono text-[10px] text-foreground">Fill: ${parseFloat(order.filled_avg_price).toFixed(2)}</span>
-                          )}
-                          <Badge variant={statusInfo.variant} className="text-[10px]">
-                            {statusInfo.label}
-                          </Badge>
-                          {(order.status === "new" || order.status === "accepted" || order.status === "pending_new") && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => cancelOrderMutation.mutate(order.id)}
-                              disabled={cancelOrderMutation.isPending}
-                              data-testid={`button-cancel-order-${order.id}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      {isMultiLeg && order.legs!.map((leg, i) => {
-                        const legParsed = parseOptionSymbol(leg.symbol);
-                        return (
-                          <div key={leg.id || i} className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
-                            <Badge
-                              variant="outline"
-                              className={`text-[9px] px-1 py-0 shrink-0 border-0 ${leg.side === "sell" ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"}`}
-                            >
-                              {leg.side?.toUpperCase()}
-                            </Badge>
-                            <span className="text-foreground">x{leg.qty}</span>
-                            {legParsed ? (
-                              <>
-                                <span className="font-mono">${legParsed.strike.toFixed(2)} {legParsed.type}</span>
-                                <span>Exp {legParsed.expiration}</span>
-                              </>
-                            ) : (
-                              <span className="font-mono">{leg.symbol}</span>
-                            )}
-                            {leg.filled_avg_price && parseFloat(leg.filled_avg_price) > 0 && (
-                              <span className="text-foreground font-mono">@ ${parseFloat(leg.filled_avg_price).toFixed(2)}</span>
-                            )}
+          {tradeSubtab === "positions" && (
+            <>
+              {isLoadingPositions ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : !positionsData?.positions || positionsData.positions.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3" data-testid="text-no-positions">No open positions</p>
+              ) : (
+                <ScrollArea className="max-h-[240px]">
+                  <div className="space-y-1.5">
+                    {positionsData.positions.map((pos) => {
+                      const parsed = parseOptionSymbol(pos.symbol);
+                      const pl = parseFloat(pos.unrealized_pl);
+                      const plColor = pl >= 0 ? "text-green-500" : "text-red-500";
+                      return (
+                        <div
+                          key={pos.asset_id}
+                          className="p-2 rounded-md bg-muted/30 text-xs space-y-0.5"
+                          data-testid={`row-position-${pos.asset_id}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] px-1.5 py-0 border-0 ${pos.side === "short" ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"}`}
+                              >
+                                {pos.side === "short" ? "SHORT" : "LONG"}
+                              </Badge>
+                              <span className="font-mono font-medium">{parsed?.root || pos.symbol}</span>
+                              <span className="text-muted-foreground">x{Math.abs(parseInt(pos.qty))}</span>
+                            </div>
+                            <span className={`font-mono font-medium ${plColor}`} data-testid={`text-position-pl-${pos.asset_id}`}>
+                              {pl >= 0 ? "+" : ""}${pl.toFixed(2)}
+                            </span>
                           </div>
-                        );
-                      })}
-                      {!isMultiLeg && parsed && (
-                        <div className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
-                          <span className="font-mono">${parsed.strike.toFixed(2)} {parsed.type}</span>
-                          <span>Exp {parsed.expiration}</span>
-                          <span className="uppercase">{order.type}</span>
-                          {order.filled_avg_price && parseFloat(order.filled_avg_price) > 0 && (
-                            <span className="text-foreground font-mono">Fill: ${parseFloat(order.filled_avg_price).toFixed(2)}</span>
+                          {parsed && (
+                            <div className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
+                              <span className="font-mono">${parsed.strike.toFixed(2)} {parsed.type}</span>
+                              <span>Exp {parsed.expiration}</span>
+                              <span>Avg ${parseFloat(pos.avg_entry_price).toFixed(2)}</span>
+                              <span>Mkt ${parseFloat(pos.current_price).toFixed(2)}</span>
+                            </div>
                           )}
-                          <span>{orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                         </div>
-                      )}
-                      {!isMultiLeg && !parsed && (
-                        <div className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
-                          <span className="font-mono">{order.symbol}</span>
-                          <span>{orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+            </>
+          )}
+
+          {tradeSubtab === "orders" && (
+            <>
+              {isLoadingOrders ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : orders.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">No recent orders</p>
+              ) : (
+                <ScrollArea className="max-h-[240px]">
+                  <div className="space-y-1.5">
+                    {orders.slice(0, 20).map((order) => {
+                      const statusInfo = formatOrderStatus(order.status);
+                      const orderDate = new Date(order.submitted_at || order.created_at);
+                      const isMultiLeg = order.order_class === "mleg" && order.legs && order.legs.length > 0;
+                      const parsed = !isMultiLeg ? parseOptionSymbol(order.symbol) : null;
+                      return (
+                        <div
+                          key={order.id}
+                          className="p-2 rounded-md bg-muted/30 text-xs space-y-1"
+                          data-testid={`row-order-${order.id}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {!isMultiLeg && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] px-1.5 py-0 shrink-0 border-0 ${order.side === "sell" ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"}`}
+                                >
+                                  {order.side?.toUpperCase()}
+                                </Badge>
+                              )}
+                              <span className="font-mono font-medium">
+                                {isMultiLeg ? (parseOptionSymbol(order.legs![0].symbol)?.root || "Multi-Leg") : (parsed?.root || order.symbol)}
+                              </span>
+                              {!isMultiLeg && <span className="text-muted-foreground shrink-0">x{order.qty}</span>}
+                              {isMultiLeg && <Badge variant="outline" className="text-[10px] px-1.5 py-0">MLO</Badge>}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {order.filled_avg_price && parseFloat(order.filled_avg_price) > 0 && (
+                                <span className="font-mono text-[10px] text-foreground">Fill: ${parseFloat(order.filled_avg_price).toFixed(2)}</span>
+                              )}
+                              <Badge variant={statusInfo.variant} className="text-[10px]">
+                                {statusInfo.label}
+                              </Badge>
+                              {(order.status === "new" || order.status === "accepted" || order.status === "pending_new") && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => cancelOrderMutation.mutate(order.id)}
+                                  disabled={cancelOrderMutation.isPending}
+                                  data-testid={`button-cancel-order-${order.id}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          {isMultiLeg && order.legs!.map((leg, i) => {
+                            const legParsed = parseOptionSymbol(leg.symbol);
+                            return (
+                              <div key={leg.id || i} className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[9px] px-1 py-0 shrink-0 border-0 ${leg.side === "sell" ? "bg-red-500/15 text-red-500" : "bg-green-500/15 text-green-500"}`}
+                                >
+                                  {leg.side?.toUpperCase()}
+                                </Badge>
+                                <span className="text-foreground">x{leg.qty}</span>
+                                {legParsed ? (
+                                  <>
+                                    <span className="font-mono">${legParsed.strike.toFixed(2)} {legParsed.type}</span>
+                                    <span>Exp {legParsed.expiration}</span>
+                                  </>
+                                ) : (
+                                  <span className="font-mono">{leg.symbol}</span>
+                                )}
+                                {leg.filled_avg_price && parseFloat(leg.filled_avg_price) > 0 && (
+                                  <span className="text-foreground font-mono">@ ${parseFloat(leg.filled_avg_price).toFixed(2)}</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {!isMultiLeg && parsed && (
+                            <div className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
+                              <span className="font-mono">${parsed.strike.toFixed(2)} {parsed.type}</span>
+                              <span>Exp {parsed.expiration}</span>
+                              <span className="uppercase">{order.type}</span>
+                              {order.filled_avg_price && parseFloat(order.filled_avg_price) > 0 && (
+                                <span className="text-foreground font-mono">Fill: ${parseFloat(order.filled_avg_price).toFixed(2)}</span>
+                              )}
+                              <span>{orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            </div>
+                          )}
+                          {!isMultiLeg && !parsed && (
+                            <div className="flex items-center gap-2 pl-1 text-[10px] text-muted-foreground">
+                              <span className="font-mono">{order.symbol}</span>
+                              <span>{orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            </div>
+                          )}
+                          <div className="text-[10px] text-muted-foreground pl-1">
+                            <span className="uppercase">{order.type}</span>
+                            {" "}
+                            <span>{orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          </div>
                         </div>
-                      )}
-                      <div className="text-[10px] text-muted-foreground pl-1">
-                        <span className="uppercase">{order.type}</span>
-                        {" "}
-                        <span>{orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+            </>
           )}
         </Card>
       )}
