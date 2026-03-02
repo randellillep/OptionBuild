@@ -1987,7 +1987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const occSymbol = buildOccSymbol(leg.symbol, leg.expirationDate, leg.optionType, leg.strike);
         return {
           symbol: occSymbol,
-          qty: leg.quantity.toString(),
+          ratio_qty: leg.quantity.toString(),
           side: leg.side === "sell" ? "sell" : "buy",
         };
       });
