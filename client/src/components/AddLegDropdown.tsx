@@ -122,7 +122,7 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData, selec
         <Button 
           variant="outline" 
           size="sm" 
-          className="text-xs" 
+          className="text-xs border-teal-500/50 text-teal-400 dark:text-teal-300" 
           data-testid="button-add-dropdown"
         >
           <Plus className="h-3.5 w-3.5 mr-1" />
