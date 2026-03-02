@@ -158,29 +158,29 @@ export function AnalysisTabs({
     <Tabs defaultValue="greeks" className="w-full">
       {/* Scrollable tabs on mobile */}
       <div className="overflow-x-auto -mx-2 px-2 pb-1">
-        <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-6 h-7">
-          <TabsTrigger value="greeks" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-greeks">
-            <Activity className="h-2.5 w-2.5 mr-0.5" />
+        <TabsList className="inline-flex w-auto min-w-full sm:grid sm:grid-cols-6 h-8">
+          <TabsTrigger value="greeks" className="text-xs h-7 px-2.5 sm:px-2 whitespace-nowrap" data-testid="tab-greeks">
+            <Activity className="h-3 w-3 mr-1" />
             Greeks
           </TabsTrigger>
-          <TabsTrigger value="backtest" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-backtest">
-            <History className="h-2.5 w-2.5 mr-0.5" />
+          <TabsTrigger value="backtest" className="text-xs h-7 px-2.5 sm:px-2 whitespace-nowrap" data-testid="tab-backtest">
+            <History className="h-3 w-3 mr-1" />
             Historical
           </TabsTrigger>
-          <TabsTrigger value="expected-move" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-expected-move">
-            <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+          <TabsTrigger value="expected-move" className="text-xs h-7 px-2.5 sm:px-2 whitespace-nowrap" data-testid="tab-expected-move">
+            <TrendingUp className="h-3 w-3 mr-1" />
             Expected
           </TabsTrigger>
-          <TabsTrigger value="volatility-skew" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-volatility-skew">
-            <BarChart3 className="h-2.5 w-2.5 mr-0.5" />
+          <TabsTrigger value="volatility-skew" className="text-xs h-7 px-2.5 sm:px-2 whitespace-nowrap" data-testid="tab-volatility-skew">
+            <BarChart3 className="h-3 w-3 mr-1" />
             Vol Skew
           </TabsTrigger>
-          <TabsTrigger value="open-interest" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-open-interest">
-            <Users className="h-2.5 w-2.5 mr-0.5" />
+          <TabsTrigger value="open-interest" className="text-xs h-7 px-2.5 sm:px-2 whitespace-nowrap" data-testid="tab-open-interest">
+            <Users className="h-3 w-3 mr-1" />
             OI
           </TabsTrigger>
-          <TabsTrigger value="trade" className="text-[10px] h-6 px-2 sm:px-1 whitespace-nowrap" data-testid="tab-trade">
-            <ArrowUpDown className="h-2.5 w-2.5 mr-0.5" />
+          <TabsTrigger value="trade" className="text-xs h-7 px-2.5 sm:px-2 whitespace-nowrap" data-testid="tab-trade">
+            <ArrowUpDown className="h-3 w-3 mr-1" />
             Trade
           </TabsTrigger>
         </TabsList>

@@ -120,12 +120,12 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData, selec
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button 
-          variant="ghost" 
+          variant="default" 
           size="sm" 
-          className="text-[11px] text-muted-foreground" 
+          className="text-xs" 
           data-testid="button-add-dropdown"
         >
-          <Plus className="h-3 w-3 mr-1" />
+          <Plus className="h-3.5 w-3.5 mr-1" />
           Add
         </Button>
       </DropdownMenuTrigger>
