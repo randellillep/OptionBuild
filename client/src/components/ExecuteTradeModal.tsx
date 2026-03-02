@@ -50,10 +50,14 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice,
     return leg.position === "short" ? sum + val : sum - val;
   }, 0);
 
+  const strategyPrice = optionLegs.reduce((sum, leg) => {
+    return leg.position === "short" ? sum + leg.premium : sum - leg.premium;
+  }, 0);
+
   if (isOpen && !limitPriceInitialized && optionLegs.length > 0) {
-    const perContractPremium = Math.abs(netPremium) / (optionLegs.reduce((sum, l) => sum + l.quantity, 0) * 100);
-    if (perContractPremium > 0) {
-      setLimitPrice(perContractPremium.toFixed(2));
+    const absPrice = Math.abs(strategyPrice);
+    if (absPrice > 0) {
+      setLimitPrice(absPrice.toFixed(2));
     }
     setLimitPriceInitialized(true);
   }
@@ -259,7 +263,7 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice,
 
               {orderType === "limit" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Limit Price (per contract)</Label>
+                  <Label className="text-xs">Limit Price</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -268,7 +272,7 @@ export function ExecuteTradeModal({ isOpen, onClose, legs, symbol, currentPrice,
                     placeholder="0.00"
                     data-testid="input-limit-price"
                   />
-                  <p className="text-[10px] text-muted-foreground">Pre-filled with the current mid-price. Adjust as needed.</p>
+                  <p className="text-[10px] text-muted-foreground">Pre-filled with the net strategy price. Adjust as needed.</p>
                 </div>
               )}
 
