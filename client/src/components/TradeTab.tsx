@@ -60,6 +60,7 @@ export function TradeTab() {
   const [showSecret, setShowSecret] = useState(false);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [tradeSubtab, setTradeSubtab] = useState<"positions" | "orders">("positions");
+  const [selectedBroker, setSelectedBroker] = useState<"alpaca" | "tastytrade">("alpaca");
 
   const { data: statusData, isLoading: isLoadingStatus } = useQuery<{ connections: BrokerageConnection[] }>({
     queryKey: ['/api/brokerage/status'],
@@ -102,7 +103,7 @@ export function TradeTab() {
   const connectMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/brokerage/connect", {
-        broker: "alpaca",
+        broker: selectedBroker,
         apiKey,
         apiSecret,
         isPaper: isPaper ? 1 : 0,
@@ -110,7 +111,8 @@ export function TradeTab() {
       return await res.json();
     },
     onSuccess: () => {
-      toast({ title: "Broker connected", description: "Your Alpaca account has been linked." });
+      const brokerLabel = selectedBroker === "tastytrade" ? "tastytrade" : "Alpaca";
+      toast({ title: "Broker connected", description: `Your ${brokerLabel} account has been linked.` });
       setApiKey("");
       setApiSecret("");
       queryClient.invalidateQueries({ queryKey: ['/api/brokerage/status'] });
@@ -158,9 +160,11 @@ export function TradeTab() {
   const orders = ordersData?.orders || [];
 
   const parseOptionSymbol = (symbol: string) => {
-    const match = symbol.match(/^([A-Z]+)(\d{6})([CP])(\d{8})$/);
+    const trimmed = symbol.trim();
+    const match = trimmed.match(/^([A-Z]+)\s*(\d{6})([CP])(\d{8})$/);
     if (!match) return null;
-    const [, root, dateStr, side, strikeStr] = match;
+    const [, rawRoot, dateStr, side, strikeStr] = match;
+    const root = rawRoot.trim();
     const year = 2000 + parseInt(dateStr.substring(0, 2));
     const month = parseInt(dateStr.substring(2, 4));
     const day = parseInt(dateStr.substring(4, 6));
@@ -175,6 +179,7 @@ export function TradeTab() {
   };
 
   const formatOrderStatus = (status: string) => {
+    const normalized = status?.toLowerCase()?.replace(/ /g, "_") || "";
     const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
       new: { label: "New", variant: "outline" },
       accepted: { label: "Accepted", variant: "outline" },
@@ -183,11 +188,16 @@ export function TradeTab() {
       filled: { label: "Filled", variant: "default" },
       done_for_day: { label: "Done", variant: "secondary" },
       canceled: { label: "Canceled", variant: "secondary" },
+      cancelled: { label: "Canceled", variant: "secondary" },
       expired: { label: "Expired", variant: "secondary" },
       replaced: { label: "Replaced", variant: "secondary" },
       rejected: { label: "Rejected", variant: "destructive" },
+      received: { label: "Received", variant: "outline" },
+      routed: { label: "Routed", variant: "outline" },
+      live: { label: "Live", variant: "outline" },
+      contingent: { label: "Contingent", variant: "secondary" },
     };
-    return statusMap[status] || { label: status, variant: "outline" as const };
+    return statusMap[normalized] || { label: status, variant: "outline" as const };
   };
 
   return (
@@ -202,7 +212,10 @@ export function TradeTab() {
                 {activeConnection.broker.toUpperCase()}
               </Badge>
               <Badge variant={activeConnection.isPaper === 1 ? "secondary" : "destructive"} className="text-[10px]">
-                {activeConnection.isPaper === 1 ? "Paper" : "Live"}
+                {activeConnection.isPaper === 1
+                  ? (activeConnection.broker === "tastytrade" ? "Sandbox" : "Paper")
+                  : "Live"
+                }
               </Badge>
               <span className="text-[10px] text-muted-foreground font-mono">****{activeConnection.apiKeyLast4}</span>
             </div>
@@ -259,26 +272,45 @@ export function TradeTab() {
           <div className="flex items-center gap-2 mb-3">
             <Plug className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-medium">Connect Brokerage</span>
-            <Badge variant="outline" className="text-[10px]">Alpaca</Badge>
           </div>
           <div className="space-y-3">
+            <div className="flex gap-1.5">
+              <Button
+                variant={selectedBroker === "alpaca" ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setSelectedBroker("alpaca"); setApiKey(""); setApiSecret(""); }}
+                className="flex-1"
+                data-testid="button-broker-alpaca"
+              >
+                Alpaca
+              </Button>
+              <Button
+                variant={selectedBroker === "tastytrade" ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setSelectedBroker("tastytrade"); setApiKey(""); setApiSecret(""); }}
+                className="flex-1"
+                data-testid="button-broker-tastytrade"
+              >
+                tastytrade
+              </Button>
+            </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">API Key</Label>
+              <Label className="text-xs">{selectedBroker === "tastytrade" ? "Username" : "API Key"}</Label>
               <Input
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="PKXXXXXXXXXXXXXXXX"
+                placeholder={selectedBroker === "tastytrade" ? "your@email.com" : "PKXXXXXXXXXXXXXXXX"}
                 data-testid="input-api-key"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">API Secret</Label>
+              <Label className="text-xs">{selectedBroker === "tastytrade" ? "Password" : "API Secret"}</Label>
               <div className="flex gap-1.5">
                 <Input
                   type={showSecret ? "text" : "password"}
                   value={apiSecret}
                   onChange={(e) => setApiSecret(e.target.value)}
-                  placeholder="Your API secret key"
+                  placeholder={selectedBroker === "tastytrade" ? "Your password" : "Your API secret key"}
                   className="flex-1"
                   data-testid="input-api-secret"
                 />
@@ -293,7 +325,12 @@ export function TradeTab() {
                 onCheckedChange={setIsPaper}
                 data-testid="switch-paper-trading"
               />
-              <Label className="text-xs">{isPaper ? "Paper Trading" : "Live Trading"}</Label>
+              <Label className="text-xs">
+                {selectedBroker === "tastytrade"
+                  ? (isPaper ? "Sandbox" : "Live Trading")
+                  : (isPaper ? "Paper Trading" : "Live Trading")
+                }
+              </Label>
               {!isPaper && (
                 <Badge variant="destructive" className="text-[10px]">
                   Real Money
@@ -312,7 +349,7 @@ export function TradeTab() {
               ) : (
                 <Plug className="h-3.5 w-3.5 mr-1.5" />
               )}
-              Connect {isPaper ? "Paper" : "Live"} Account
+              Connect {selectedBroker === "tastytrade" ? (isPaper ? "Sandbox" : "Live") : (isPaper ? "Paper" : "Live")} Account
             </Button>
           </div>
         </Card>

@@ -1748,13 +1748,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const ALPACA_PAPER_URL = "https://paper-api.alpaca.markets";
   const ALPACA_LIVE_URL = "https://api.alpaca.markets";
+  const TASTYTRADE_API_URL = "https://api.tastytrade.com";
+  const TASTYTRADE_SANDBOX_URL = "https://api.cert.tastytrade.com";
 
   function getAlpacaBaseUrl(isPaper: boolean): string {
     return isPaper ? ALPACA_PAPER_URL : ALPACA_LIVE_URL;
   }
 
+  function getTastytradeBaseUrl(isPaper: boolean): string {
+    return isPaper ? TASTYTRADE_SANDBOX_URL : TASTYTRADE_API_URL;
+  }
+
+  async function getTastytradeSession(baseUrl: string, username: string, password: string): Promise<{ sessionToken: string; accounts: any[] }> {
+    const loginRes = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login: username, password }),
+    });
+    if (!loginRes.ok) {
+      const err = await loginRes.text();
+      throw new Error(`Tastytrade login failed: ${err}`);
+    }
+    const loginData = await loginRes.json();
+    const sessionToken = loginData.data?.["session-token"];
+    if (!sessionToken) throw new Error("No session token returned");
+
+    const accountsRes = await fetch(`${baseUrl}/customers/me/accounts`, {
+      headers: { Authorization: sessionToken },
+    });
+    if (!accountsRes.ok) throw new Error("Failed to fetch Tastytrade accounts");
+    const accountsData = await accountsRes.json();
+    return { sessionToken, accounts: accountsData.data?.items || [] };
+  }
+
+  function tastytradeHeaders(sessionToken: string): Record<string, string> {
+    return { Authorization: sessionToken, "Content-Type": "application/json" };
+  }
+
   function buildOccSymbol(underlying: string, expirationDate: string, optionType: "call" | "put", strike: number): string {
     const root = underlying.toUpperCase();
+    const exp = expirationDate.replace(/-/g, '').slice(2);
+    const side = optionType === "call" ? "C" : "P";
+    const strikeInt = Math.round(strike * 1000);
+    const strikeStr = strikeInt.toString().padStart(8, '0');
+    return `${root}${exp}${side}${strikeStr}`;
+  }
+
+  function buildTastytradeSymbol(underlying: string, expirationDate: string, optionType: "call" | "put", strike: number): string {
+    const root = underlying.toUpperCase().padEnd(6, ' ');
     const exp = expirationDate.replace(/-/g, '').slice(2);
     const side = optionType === "call" ? "C" : "P";
     const strikeInt = Math.round(strike * 1000);
@@ -1787,13 +1828,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
       const schema = z.object({
-        broker: z.enum(["alpaca"]),
+        broker: z.enum(["alpaca", "tastytrade"]),
         apiKey: z.string().min(1),
         apiSecret: z.string().min(1),
         isPaper: z.number().min(0).max(1).default(1),
         label: z.string().optional(),
       });
       const parsed = schema.parse(req.body);
+
+      if (parsed.broker === "tastytrade") {
+        const baseUrl = getTastytradeBaseUrl(parsed.isPaper === 1);
+        const { sessionToken, accounts } = await getTastytradeSession(baseUrl, parsed.apiKey, parsed.apiSecret);
+        
+        if (accounts.length === 0) {
+          return res.status(400).json({ error: "No Tastytrade accounts found" });
+        }
+        const accountNumber = accounts[0].account?.["account-number"] || accounts[0]["account-number"];
+        if (!accountNumber) {
+          return res.status(400).json({ error: "Could not determine Tastytrade account number" });
+        }
+
+        const balRes = await fetch(`${baseUrl}/accounts/${accountNumber}/balances`, {
+          headers: tastytradeHeaders(sessionToken),
+        });
+        const balData = balRes.ok ? await balRes.json() : null;
+        const bal = balData?.data;
+
+        const connection = await storage.createBrokerageConnection({
+          userId,
+          broker: "tastytrade",
+          apiKey: parsed.apiKey,
+          apiSecret: parsed.apiSecret,
+          isPaper: parsed.isPaper,
+          label: parsed.label || `tastytrade ${parsed.isPaper === 1 ? "Sandbox" : "Live"} (${accountNumber})`,
+        });
+
+        return res.json({
+          connection: {
+            id: connection.id,
+            broker: connection.broker,
+            isPaper: connection.isPaper,
+            label: connection.label,
+            apiKeyLast4: parsed.apiKey.slice(-4),
+          },
+          account: {
+            id: accountNumber,
+            status: "ACTIVE",
+            buyingPower: parseFloat(bal?.["derivative-buying-power"] || bal?.["buying-power"] || "0"),
+            cash: parseFloat(bal?.["cash-balance"] || "0"),
+            equity: parseFloat(bal?.["net-liquidating-value"] || "0"),
+            portfolioValue: parseFloat(bal?.["net-liquidating-value"] || "0"),
+          },
+        });
+      }
 
       const baseUrl = getAlpacaBaseUrl(parsed.isPaper === 1);
       const verifyRes = await fetch(`${baseUrl}/v2/account`, {
@@ -1866,6 +1953,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
       if (!conn) return res.status(404).json({ error: "Connection not found" });
 
+      if (conn.broker === "tastytrade") {
+        const baseUrl = getTastytradeBaseUrl(conn.isPaper === 1);
+        const { sessionToken, accounts } = await getTastytradeSession(baseUrl, conn.apiKey, conn.apiSecret);
+        const accountNumber = accounts[0]?.account?.["account-number"] || accounts[0]?.["account-number"];
+        if (!accountNumber) return res.status(400).json({ error: "No account found" });
+
+        const balRes = await fetch(`${baseUrl}/accounts/${accountNumber}/balances`, {
+          headers: tastytradeHeaders(sessionToken),
+        });
+        if (!balRes.ok) return res.status(balRes.status).json({ error: "Failed to fetch balances" });
+        const balData = await balRes.json();
+        const bal = balData.data;
+        return res.json({
+          id: accountNumber,
+          status: "ACTIVE",
+          buyingPower: parseFloat(bal?.["derivative-buying-power"] || bal?.["buying-power"] || "0"),
+          cash: parseFloat(bal?.["cash-balance"] || "0"),
+          equity: parseFloat(bal?.["net-liquidating-value"] || "0"),
+          portfolioValue: parseFloat(bal?.["net-liquidating-value"] || "0"),
+        });
+      }
+
       const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
       const accountRes = await fetch(`${baseUrl}/v2/account`, {
         headers: {
@@ -1901,6 +2010,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
       if (!conn) return res.status(404).json({ error: "Connection not found" });
+
+      if (conn.broker === "tastytrade") {
+        const baseUrl = getTastytradeBaseUrl(conn.isPaper === 1);
+        const { sessionToken, accounts } = await getTastytradeSession(baseUrl, conn.apiKey, conn.apiSecret);
+        const accountNumber = accounts[0]?.account?.["account-number"] || accounts[0]?.["account-number"];
+        if (!accountNumber) return res.status(400).json({ error: "No account found" });
+
+        const ordersRes = await fetch(`${baseUrl}/accounts/${accountNumber}/orders?per-page=50`, {
+          headers: tastytradeHeaders(sessionToken),
+        });
+        if (!ordersRes.ok) return res.status(ordersRes.status).json({ error: "Failed to fetch orders" });
+        const ordersData = await ordersRes.json();
+        const ttOrders = ordersData.data?.items || [];
+        
+        const ttStatusMap: Record<string, string> = {
+          "Received": "new",
+          "Routed": "accepted",
+          "In Flight": "pending_new",
+          "Live": "accepted",
+          "Filled": "filled",
+          "Cancelled": "canceled",
+          "Expired": "expired",
+          "Rejected": "rejected",
+          "Contingent": "pending_new",
+          "Partially Filled": "partially_filled",
+          "Done": "done_for_day",
+        };
+        const normalizedOrders = ttOrders.map((o: any) => {
+          const legs = (o.legs || []).map((leg: any) => ({
+            id: leg.id || "",
+            symbol: (leg.symbol || "").trim(),
+            qty: String(leg.quantity || 0),
+            side: (leg.action === "Sell to Open" || leg.action === "Sell to Close") ? "sell" : "buy",
+            type: o["order-type"]?.toLowerCase() || "limit",
+            status: ttStatusMap[o.status] || o.status?.toLowerCase()?.replace(/ /g, "_") || "",
+            filled_qty: String(leg["remaining-quantity"] != null ? Math.max(0, (leg.quantity || 0) - (leg["remaining-quantity"] || 0)) : 0),
+            filled_avg_price: o["average-fill-price"] ? String(o["average-fill-price"]) : null,
+          }));
+          const totalQty = legs.reduce((s: number, l: any) => s + parseInt(l.qty || "0"), 0);
+          const totalFilled = legs.reduce((s: number, l: any) => s + parseInt(l.filled_qty || "0"), 0);
+          return {
+            id: String(o.id || ""),
+            symbol: legs.length === 1 ? legs[0].symbol : "",
+            qty: String(o.size || totalQty),
+            side: legs.length === 1 ? legs[0].side : "",
+            type: o["order-type"]?.toLowerCase() || "limit",
+            status: ttStatusMap[o.status] || o.status?.toLowerCase()?.replace(/ /g, "_") || "",
+            filled_qty: String(totalFilled),
+            filled_avg_price: o["average-fill-price"] ? String(o["average-fill-price"]) : null,
+            submitted_at: o["updated-at"] || o["created-at"] || "",
+            created_at: o["created-at"] || "",
+            updated_at: o["updated-at"] || "",
+            order_class: legs.length > 1 ? "mleg" : "",
+            legs: legs.length > 1 ? legs : undefined,
+          };
+        });
+        return res.json({ orders: normalizedOrders });
+      }
 
       const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
       const status = (req.query.status as string) || "all";
@@ -1942,7 +2109,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limitPrice: z.number().optional(),
       });
       const parsed = orderSchema.parse(req.body);
-      const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
 
       for (const leg of parsed.legs) {
         if (!leg.expirationDate || !/^\d{4}-\d{2}-\d{2}$/.test(leg.expirationDate)) {
@@ -1952,6 +2118,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: `Invalid strike price: ${leg.strike}` });
         }
       }
+
+      if (conn.broker === "tastytrade") {
+        const baseUrl = getTastytradeBaseUrl(conn.isPaper === 1);
+        const { sessionToken, accounts } = await getTastytradeSession(baseUrl, conn.apiKey, conn.apiSecret);
+        const accountNumber = accounts[0]?.account?.["account-number"] || accounts[0]?.["account-number"];
+        if (!accountNumber) return res.status(400).json({ error: "No account found" });
+
+        const ttLegs = parsed.legs.map(leg => {
+          const ttSymbol = buildTastytradeSymbol(leg.symbol, leg.expirationDate, leg.optionType, leg.strike);
+          return {
+            "instrument-type": "Equity Option",
+            symbol: ttSymbol,
+            action: leg.side === "sell" ? "Sell to Open" : "Buy to Open",
+            quantity: leg.quantity,
+          };
+        });
+
+        const ttOrder: any = {
+          "time-in-force": parsed.timeInForce === "gtc" ? "GTC" : "Day",
+          "order-type": parsed.type === "market" ? "Market" : "Limit",
+          legs: ttLegs,
+        };
+        if (parsed.type === "limit" && parsed.limitPrice != null) {
+          ttOrder.price = parsed.limitPrice.toString();
+          ttOrder["price-effect"] = parsed.limitPrice >= 0 ? "Credit" : "Debit";
+          if (parsed.limitPrice < 0) {
+            ttOrder.price = Math.abs(parsed.limitPrice).toString();
+          }
+        }
+
+        const orderRes = await fetch(`${baseUrl}/accounts/${accountNumber}/orders`, {
+          method: "POST",
+          headers: tastytradeHeaders(sessionToken),
+          body: JSON.stringify(ttOrder),
+        });
+        const result = await orderRes.json();
+        if (!orderRes.ok) {
+          const errMsg = result.error?.message || result.error?.errors?.[0]?.message || "Order rejected";
+          return res.status(orderRes.status).json({ error: errMsg, details: result });
+        }
+        return res.json({ order: { id: result.data?.id || "unknown", status: result.data?.status || "submitted", ...result.data } });
+      }
+
+      const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
 
       if (parsed.legs.length === 1) {
         const leg = parsed.legs[0];
@@ -2036,6 +2246,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
       if (!conn) return res.status(404).json({ error: "Connection not found" });
 
+      if (conn.broker === "tastytrade") {
+        const baseUrl = getTastytradeBaseUrl(conn.isPaper === 1);
+        const { sessionToken, accounts } = await getTastytradeSession(baseUrl, conn.apiKey, conn.apiSecret);
+        const accountNumber = accounts[0]?.account?.["account-number"] || accounts[0]?.["account-number"];
+        if (!accountNumber) return res.status(400).json({ error: "No account found" });
+
+        const posRes = await fetch(`${baseUrl}/accounts/${accountNumber}/positions`, {
+          headers: tastytradeHeaders(sessionToken),
+        });
+        if (!posRes.ok) return res.status(posRes.status).json({ error: "Failed to fetch positions" });
+        const posData = await posRes.json();
+        const ttPositions = posData.data?.items || [];
+
+        const positions = ttPositions.map((p: any) => {
+          const isShort = p["quantity-direction"] === "Short";
+          const qty = Math.abs(p.quantity || 0);
+          const multiplier = p.multiplier || 100;
+          const markPrice = parseFloat(p["mark-price"] || p["close-price"] || "0");
+          const avgOpen = parseFloat(p["average-open-price"] || "0");
+          const unrealizedPl = (markPrice - avgOpen) * qty * multiplier * (isShort ? -1 : 1);
+          return {
+            asset_id: p.symbol || p["instrument-type"],
+            symbol: p.symbol || "",
+            qty: String(isShort ? -qty : qty),
+            side: isShort ? "short" : "long",
+            market_value: String(markPrice * qty * multiplier),
+            cost_basis: String(avgOpen * qty * multiplier),
+            unrealized_pl: String(unrealizedPl),
+            unrealized_plpc: avgOpen > 0 ? String(((markPrice - avgOpen) / avgOpen * 100 * (isShort ? -1 : 1)).toFixed(2)) : "0",
+            current_price: String(markPrice),
+            avg_entry_price: String(avgOpen),
+          };
+        });
+        return res.json({ positions });
+      }
+
       const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
       const posRes = await fetch(`${baseUrl}/v2/positions`, {
         headers: {
@@ -2059,6 +2305,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const conn = await storage.getBrokerageConnection(req.params.connectionId, userId);
       if (!conn) return res.status(404).json({ error: "Connection not found" });
+
+      if (conn.broker === "tastytrade") {
+        const baseUrl = getTastytradeBaseUrl(conn.isPaper === 1);
+        const { sessionToken, accounts } = await getTastytradeSession(baseUrl, conn.apiKey, conn.apiSecret);
+        const accountNumber = accounts[0]?.account?.["account-number"] || accounts[0]?.["account-number"];
+        if (!accountNumber) return res.status(400).json({ error: "No account found" });
+
+        const cancelRes = await fetch(`${baseUrl}/accounts/${accountNumber}/orders/${req.params.orderId}`, {
+          method: "DELETE",
+          headers: tastytradeHeaders(sessionToken),
+        });
+        if (cancelRes.status === 204 || cancelRes.ok) {
+          return res.json({ success: true });
+        }
+        const result = await cancelRes.json();
+        return res.status(cancelRes.status).json({ error: result.error?.message || "Failed to cancel order" });
+      }
 
       const baseUrl = getAlpacaBaseUrl(conn.isPaper === 1);
       const cancelRes = await fetch(`${baseUrl}/v2/orders/${req.params.orderId}`, {

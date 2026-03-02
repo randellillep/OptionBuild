@@ -55,11 +55,12 @@ Preferred communication style: Simple, everyday language.
 ## Brokerage Integration
 
 **Architecture**: Per-user brokerage API credentials stored in `brokerage_connections` table. Server proxies all trading requests using user's credentials (never exposed to frontend).
-**Supported Brokers**: Alpaca (paper + live trading). Extensible to other brokers via `broker` field.
-**API Routes**: `/api/brokerage/*` — connect, disconnect, status, account info, order submission, order history, order cancellation.
-**Frontend Components**: `ExecuteTradeModal` (order preview + submission), `TradeTab` (connection management, account info, order history in AnalysisTabs).
-**OCC Symbol Generation**: Builds Alpaca-format option symbols without space padding (e.g., `AAPL260320C00265000`) for order submission.
-**Security**: API keys stored server-side only; frontend only sees last 4 chars. Credentials verified against Alpaca on connect.
+**Supported Brokers**: Alpaca (paper + live trading), tastytrade (sandbox + live trading). Extensible to other brokers via `broker` field.
+**API Routes**: `/api/brokerage/*` — connect, disconnect, status, account info, order submission, order history, order cancellation, positions. All routes branch on `conn.broker` to proxy to the correct broker API.
+**Frontend Components**: `ExecuteTradeModal` (order preview + submission), `TradeTab` (connection management with broker selector, account info, order history in AnalysisTabs).
+**OCC Symbol Generation**: Alpaca uses unpadded root (e.g., `AAPL260320C00265000`); tastytrade uses space-padded 6-char root (e.g., `AAPL  260320C00265000`).
+**tastytrade Auth**: Session-based (username/password → session token via `/sessions` endpoint). Credentials stored as username in `apiKey`, password in `apiSecret`. Fresh session token obtained on each API call.
+**Security**: API keys/passwords stored server-side only; frontend only sees last 4 chars of username/key. Credentials verified against broker API on connect.
 
 ## Backtesting Engine (tastytrade-aligned)
 
