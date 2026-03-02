@@ -1994,6 +1994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const mloBody: any = {
         order_class: "mleg",
+        qty: "1",
         legs: alpacaLegs,
         type: parsed.type,
         time_in_force: parsed.timeInForce,
