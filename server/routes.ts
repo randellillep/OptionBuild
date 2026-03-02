@@ -1983,18 +1983,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ order: result });
       }
 
+      const quantities = parsed.legs.map(l => l.quantity);
+      const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+      const overallGcd = quantities.reduce((a, b) => gcd(a, b));
+
       const alpacaLegs = parsed.legs.map(leg => {
         const occSymbol = buildOccSymbol(leg.symbol, leg.expirationDate, leg.optionType, leg.strike);
         return {
           symbol: occSymbol,
-          ratio_qty: leg.quantity.toString(),
+          ratio_qty: (leg.quantity / overallGcd).toString(),
           side: leg.side === "sell" ? "sell" : "buy",
         };
       });
 
       const mloBody: any = {
         order_class: "mleg",
-        qty: "1",
+        qty: overallGcd.toString(),
         legs: alpacaLegs,
         type: parsed.type,
         time_in_force: parsed.timeInForce,
