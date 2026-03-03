@@ -411,63 +411,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stock symbol search endpoint (using local list - Alpaca doesn't have search API)
-  const POPULAR_STOCKS = [
-    { symbol: 'AAPL', name: 'Apple Inc.' },
-    { symbol: 'MSFT', name: 'Microsoft Corporation' },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.' },
-    { symbol: 'AMZN', name: 'Amazon.com Inc.' },
-    { symbol: 'META', name: 'Meta Platforms Inc.' },
-    { symbol: 'TSLA', name: 'Tesla Inc.' },
-    { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-    { symbol: 'JPM', name: 'JPMorgan Chase & Co.' },
-    { symbol: 'V', name: 'Visa Inc.' },
-    { symbol: 'JNJ', name: 'Johnson & Johnson' },
-    { symbol: 'WMT', name: 'Walmart Inc.' },
-    { symbol: 'PG', name: 'Procter & Gamble Co.' },
-    { symbol: 'MA', name: 'Mastercard Inc.' },
-    { symbol: 'UNH', name: 'UnitedHealth Group Inc.' },
-    { symbol: 'HD', name: 'Home Depot Inc.' },
-    { symbol: 'DIS', name: 'Walt Disney Co.' },
-    { symbol: 'BAC', name: 'Bank of America Corp.' },
-    { symbol: 'XOM', name: 'Exxon Mobil Corporation' },
-    { symbol: 'PFE', name: 'Pfizer Inc.' },
-    { symbol: 'KO', name: 'Coca-Cola Co.' },
-    { symbol: 'NFLX', name: 'Netflix Inc.' },
-    { symbol: 'AMD', name: 'Advanced Micro Devices Inc.' },
-    { symbol: 'INTC', name: 'Intel Corporation' },
-    { symbol: 'CRM', name: 'Salesforce Inc.' },
-    { symbol: 'CSCO', name: 'Cisco Systems Inc.' },
-    { symbol: 'ORCL', name: 'Oracle Corporation' },
-    { symbol: 'IBM', name: 'International Business Machines' },
-    { symbol: 'GS', name: 'Goldman Sachs Group Inc.' },
-    { symbol: 'CVX', name: 'Chevron Corporation' },
-    { symbol: 'MRK', name: 'Merck & Co. Inc.' },
-    { symbol: 'ABBV', name: 'AbbVie Inc.' },
-    { symbol: 'LLY', name: 'Eli Lilly and Company' },
-    { symbol: 'COST', name: 'Costco Wholesale Corporation' },
-    { symbol: 'AVGO', name: 'Broadcom Inc.' },
-    { symbol: 'PEP', name: 'PepsiCo Inc.' },
-    { symbol: 'TMO', name: 'Thermo Fisher Scientific' },
-    { symbol: 'MCD', name: 'McDonald\'s Corporation' },
-    { symbol: 'ADBE', name: 'Adobe Inc.' },
-    { symbol: 'NKE', name: 'Nike Inc.' },
-    { symbol: 'T', name: 'AT&T Inc.' },
-    { symbol: 'VZ', name: 'Verizon Communications' },
-    { symbol: 'CMCSA', name: 'Comcast Corporation' },
-    { symbol: 'ABT', name: 'Abbott Laboratories' },
-    { symbol: 'DHR', name: 'Danaher Corporation' },
-    { symbol: 'TXN', name: 'Texas Instruments Inc.' },
-    { symbol: 'QCOM', name: 'Qualcomm Inc.' },
-    { symbol: 'NEE', name: 'NextEra Energy Inc.' },
-    { symbol: 'PM', name: 'Philip Morris International' },
-    { symbol: 'RTX', name: 'Raytheon Technologies' },
-    { symbol: 'UNP', name: 'Union Pacific Corporation' },
-    { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust' },
-    { symbol: 'QQQ', name: 'Invesco QQQ Trust' },
-    { symbol: 'IWM', name: 'iShares Russell 2000 ETF' },
-    { symbol: 'GLD', name: 'SPDR Gold Trust' },
-    { symbol: 'SLV', name: 'iShares Silver Trust' },
+  // In-memory cache for Alpaca assets (loaded once, refreshed periodically)
+  let alpacaAssetsCache: { symbol: string; name: string }[] = [];
+  let alpacaAssetsCacheTime = 0;
+  const ASSETS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+  async function loadAlpacaAssets(): Promise<{ symbol: string; name: string }[]> {
+    const now = Date.now();
+    if (alpacaAssetsCache.length > 0 && (now - alpacaAssetsCacheTime) < ASSETS_CACHE_TTL) {
+      return alpacaAssetsCache;
+    }
+
+    if (!ALPACA_API_KEY || !ALPACA_API_SECRET) {
+      console.log("[Search] No Alpaca API keys, using fallback list");
+      return [];
+    }
+
+    try {
+      console.log("[Search] Loading assets from Alpaca API...");
+      const response = await fetch(
+        `https://paper-api.alpaca.markets/v2/assets?status=active&asset_class=us_equity`,
+        {
+          headers: {
+            'APCA-API-KEY-ID': ALPACA_API_KEY,
+            'APCA-API-SECRET-KEY': ALPACA_API_SECRET,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error("[Search] Alpaca assets API error:", response.status);
+        return alpacaAssetsCache;
+      }
+
+      const assets = await response.json() as any[];
+      alpacaAssetsCache = assets
+        .filter((a: any) => a.tradable && a.symbol && !a.symbol.includes('/'))
+        .map((a: any) => ({
+          symbol: a.symbol,
+          name: a.name || a.symbol,
+        }));
+      alpacaAssetsCacheTime = now;
+      console.log(`[Search] Cached ${alpacaAssetsCache.length} tradable assets`);
+      return alpacaAssetsCache;
+    } catch (error) {
+      console.error("[Search] Failed to load Alpaca assets:", error);
+      return alpacaAssetsCache;
+    }
+  }
+
+  // Pre-load assets on startup
+  loadAlpacaAssets();
+
+  const SEARCH_INDEX_SYMBOLS = [
     { symbol: 'SPX', name: 'S&P 500 Index' },
     { symbol: 'NDX', name: 'Nasdaq-100 Index' },
     { symbol: 'RUT', name: 'Russell 2000 Index' },
@@ -485,14 +481,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const query = q.toUpperCase();
-      
-      // Search in our local list of popular stocks
-      const results = POPULAR_STOCKS
-        .filter(stock => 
-          stock.symbol.includes(query) || 
-          stock.name.toUpperCase().includes(query)
-        )
-        .slice(0, 10)
+      const assets = await loadAlpacaAssets();
+      const allAssets = [...SEARCH_INDEX_SYMBOLS, ...assets];
+
+      // Exact symbol matches first, then prefix matches, then contains matches
+      const exactMatches: { symbol: string; name: string }[] = [];
+      const prefixMatches: { symbol: string; name: string }[] = [];
+      const containsMatches: { symbol: string; name: string }[] = [];
+
+      for (const stock of allAssets) {
+        if (!stock.symbol) continue;
+        if (stock.symbol === query) {
+          exactMatches.push(stock);
+        } else if (stock.symbol.startsWith(query)) {
+          prefixMatches.push(stock);
+        } else if (stock.symbol.includes(query) || (stock.name && stock.name.toUpperCase().includes(query))) {
+          containsMatches.push(stock);
+        }
+      }
+
+      const results = [...exactMatches, ...prefixMatches, ...containsMatches]
+        .slice(0, 15)
         .map(stock => ({
           symbol: stock.symbol,
           name: stock.name,
