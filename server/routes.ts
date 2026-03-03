@@ -508,15 +508,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           displaySymbol: stock.symbol,
         }));
 
-      // If no matches found but query looks like a valid symbol, add it as a custom entry
-      if (results.length === 0 && /^[A-Z]{1,5}$/.test(query)) {
-        results.push({
-          symbol: query,
-          name: query,
-          displaySymbol: query,
-        });
-      }
-
       res.json({ results });
     } catch (error) {
       console.error("Error searching stocks:", error);
