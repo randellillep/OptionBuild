@@ -661,17 +661,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check cache first - cache key includes version so old entries are automatically invalidated
       const cachedData = await storage.getOptionsChainCache(cacheKey);
       if (cachedData && cachedData.availableExpirations) {
-        // Validate cached data - check if requested expiration is still available
+        // If requested expiration isn't in cache but other expirations are available,
+        // skip cache and do a fresh fetch with fallback logic
         if (expiration && cachedData.availableExpirations && !cachedData.availableExpirations.includes(expiration)) {
-          // Expiration no longer available - return 404 even from cache
-          return res.status(404).json({
-            error: `Expiration date ${expiration} not available`,
-            message: `The requested expiration date (${expiration}) is not available from Alpaca. This may be due to API snapshot limits.`,
-            availableExpirations: cachedData.availableExpirations.slice(0, 10),
-            symbol: symbol.toUpperCase(),
-          });
+          // Don't use this cache entry — let the fallback logic below handle it
+        } else {
+          return res.json(cachedData);
         }
-        return res.json(cachedData);
       }
 
       // Use shared helper to fetch snapshots with pagination
@@ -701,18 +697,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[Options Chain] Available expirations:`, availableExpirations.slice(0, 5));
       
       // Check if requested expiration exists in Alpaca data
+      // If not found, fall back to the nearest available expiration instead of returning 404
+      let effectiveExpiration = expiration;
       if (expiration && !availableExpirations.includes(expiration)) {
-        console.log(`[Options Chain] ⚠️  WARNING: Requested expiration ${expiration} not found in Alpaca data`);
-        console.log(`[Options Chain] ⚠️  Available expirations:`, availableExpirations);
-        console.log(`[Options Chain] ⚠️  This may be due to Alpaca API limits (max ~100 snapshots)`);
+        if (availableExpirations.length === 0) {
+          // No expirations at all — need to do a broader fetch
+          console.log(`[Options Chain] ⚠️  Requested expiration ${expiration} not found and no expirations from initial fetch. Trying broader fetch...`);
+          try {
+            const broadFetch = await fetchAlpacaSnapshots(symbol);
+            if (broadFetch.count > 0 && broadFetch.availableExpirations.length > 0) {
+              availableExpirations = broadFetch.availableExpirations;
+              Object.assign(snapshots, broadFetch.snapshots);
+              console.log(`[Options Chain] Broader fetch found ${broadFetch.count} snapshots with expirations:`, availableExpirations.slice(0, 5));
+            }
+          } catch (e) {
+            // Broader fetch also failed
+          }
+        }
         
-        // Return 404 with actionable message for the frontend
-        return res.status(404).json({
-          error: `Expiration date ${expiration} not available`,
-          message: `The requested expiration date (${expiration}) is not available from Alpaca. This may be due to API snapshot limits.`,
-          availableExpirations: availableExpirations.slice(0, 10), // Show first 10 available dates
-          symbol: symbol.toUpperCase(),
-        });
+        if (availableExpirations.length > 0) {
+          // Find the nearest available expiration to the requested date
+          const requestedTime = new Date(expiration).getTime();
+          let nearestDate = availableExpirations[0];
+          let nearestDiff = Math.abs(new Date(nearestDate).getTime() - requestedTime);
+          for (const d of availableExpirations) {
+            const diff = Math.abs(new Date(d).getTime() - requestedTime);
+            if (diff < nearestDiff) {
+              nearestDiff = diff;
+              nearestDate = d;
+            }
+          }
+          
+          console.log(`[Options Chain] Requested expiration ${expiration} not found, falling back to nearest: ${nearestDate}`);
+          effectiveExpiration = nearestDate;
+          
+          // If we don't already have data for the nearest date, fetch it
+          const existingForNearest = Object.keys(snapshots).filter(sym => {
+            const isoDate = parseOptionSymbolExpiration(sym);
+            return isoDate === nearestDate;
+          });
+          
+          if (existingForNearest.length === 0) {
+            try {
+              const nearestFetch = await fetchAlpacaSnapshots(symbol, { expiration: nearestDate });
+              Object.assign(snapshots, nearestFetch.snapshots);
+              console.log(`[Options Chain] Fetched ${nearestFetch.count} snapshots for fallback expiration ${nearestDate}`);
+            } catch (e) {
+              console.log(`[Options Chain] Failed to fetch fallback expiration ${nearestDate}`);
+            }
+          }
+        } else {
+          // Truly no options data available
+          return res.status(404).json({
+            error: `No options data available for ${symbol.toUpperCase()}`,
+            message: `No options expirations found for ${symbol.toUpperCase()} from Alpaca.`,
+            availableExpirations: [],
+            symbol: symbol.toUpperCase(),
+          });
+        }
       }
       
       // Log sample option symbols to debug PUT availability
@@ -722,8 +764,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const putCount = sampleSymbols.filter(s => s.includes('P')).length;
       console.log(`[Options Chain] Sample breakdown: ${callCount} calls, ${putCount} puts in first 10 symbols`);
       
-      if (expiration) {
-        console.log(`[Options Chain] Filtering for expiration: ${expiration}`);
+      if (effectiveExpiration) {
+        console.log(`[Options Chain] Filtering for expiration: ${effectiveExpiration}`);
       }
       const quotes: MarketOptionQuote[] = [];
       
@@ -754,8 +796,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Apply filters
         if (side && parsed.side !== side) continue;
         if (strike && Math.abs(parsed.strike - strike) > 0.01) continue;
-        // Filter by expiration to ensure we only return options for the requested date
-        if (expiration && parsed.isoDate !== expiration) continue;
+        // Filter by expiration to ensure we only return options for the requested/fallback date
+        if (effectiveExpiration && parsed.isoDate !== effectiveExpiration) continue;
 
         const quote = snapshot.latestQuote || {};
         const trade = snapshot.latestTrade || {};
@@ -909,12 +951,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const summary: MarketOptionChainSummary = {
         symbol: symbol.toUpperCase(),
-        expirations: availableExpirations, // Use expirations from Alpaca snapshots
+        expirations: availableExpirations,
         minStrike,
         maxStrike,
-        strikes: uniqueStrikes,  // Pass actual available strikes
+        strikes: uniqueStrikes,
         quotes,
         cachedAt: Date.now(),
+        ...(effectiveExpiration !== expiration && effectiveExpiration ? { 
+          requestedExpiration: expiration,
+          effectiveExpiration: effectiveExpiration,
+        } : {}),
       };
 
       // Cache for 60 seconds
