@@ -1877,7 +1877,7 @@ export default function Builder() {
   return (
     <div className="min-h-screen bg-background min-w-[768px]">
       {isInitialLoading && (
-        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300" data-testid="loading-overlay">
+        <div className="fixed inset-0 z-[100] bg-background flex items-center justify-center" data-testid="loading-overlay">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="text-sm text-muted-foreground">Loading strategy...</span>
