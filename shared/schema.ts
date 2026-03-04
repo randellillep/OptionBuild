@@ -460,3 +460,19 @@ export const blogImages = pgTable("blog_images", {
 });
 
 export type BlogImage = typeof blogImages.$inferSelect;
+
+export const deletionTokens = pgTable("deletion_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [index("IDX_deletion_tokens_token").on(table.token)]);
+
+export const insertDeletionTokenSchema = createInsertSchema(deletionTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertDeletionToken = z.infer<typeof insertDeletionTokenSchema>;
+export type DeletionToken = typeof deletionTokens.$inferSelect;

@@ -6,6 +6,7 @@ import type { MarketOptionQuote, MarketOptionChainSummary, OptionType, BacktestR
 import { setupAuth, isAuthenticated as replitIsAuthenticated } from "./replitAuth";
 import { setupGoogleAuth, isGoogleAuthenticated } from "./googleAuth";
 import { runBacktest, runTastyworksBacktest } from "./backtesting";
+import { Resend } from "resend";
 import { 
   Backtester, 
   ShortPutStrategy, 
@@ -2535,6 +2536,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+  app.post('/api/account/delete-request', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+      const user = await storage.getUser(userId);
+      if (!user || !user.email) {
+        return res.status(400).json({ error: "No email associated with your account" });
+      }
+
+      if (!resend) {
+        return res.status(500).json({ error: "Email service not configured" });
+      }
+
+      const token = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await storage.createDeletionToken({
+        userId,
+        token,
+        expiresAt,
+      });
+
+      const baseUrl = process.env.REPLIT_DOMAINS
+        ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+        : process.env.RENDER_EXTERNAL_URL || `https://${req.get('host')}`;
+
+      const confirmUrl = `${baseUrl}/account/confirm-delete?token=${token}`;
+
+      await resend.emails.send({
+        from: "OptionBuild <onboarding@resend.dev>",
+        to: user.email,
+        subject: "Confirm Account Deletion - OptionBuild",
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <h1 style="color: #dc2626; font-size: 24px; margin-bottom: 16px;">Account Deletion Request</h1>
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+              We received a request to permanently delete your OptionBuild account. This action cannot be undone.
+            </p>
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+              <strong>The following data will be permanently deleted:</strong>
+            </p>
+            <ul style="color: #374151; font-size: 14px; line-height: 1.8;">
+              <li>Your user account and profile</li>
+              <li>All saved trading strategies</li>
+              <li>Brokerage connections and API keys</li>
+              <li>Backtest history and results</li>
+              <li>Blog posts (if admin)</li>
+            </ul>
+            <div style="margin: 32px 0;">
+              <a href="${confirmUrl}" style="background-color: #dc2626; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Confirm Account Deletion
+              </a>
+            </div>
+            <p style="color: #6b7280; font-size: 13px; line-height: 1.6;">
+              This link will expire in <strong>24 hours</strong>. If you did not request this, you can safely ignore this email.
+            </p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
+            <p style="color: #9ca3af; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} OptionBuild. All rights reserved.
+            </p>
+          </div>
+        `,
+      });
+
+      res.json({ success: true, message: "Confirmation email sent" });
+    } catch (error: any) {
+      console.error("Delete request error:", error);
+      res.status(500).json({ error: "Failed to send confirmation email" });
+    }
+  });
+
+  app.get('/api/account/confirm-delete', async (req, res) => {
+    try {
+      const { token } = req.query;
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: "Missing or invalid token" });
+      }
+
+      const deletionToken = await storage.getDeletionToken(token);
+      if (!deletionToken) {
+        return res.status(404).json({ error: "Invalid or expired deletion link" });
+      }
+
+      if (new Date() > deletionToken.expiresAt) {
+        await storage.deleteDeletionToken(token);
+        return res.status(410).json({ error: "This deletion link has expired. Please request a new one." });
+      }
+
+      await storage.deleteUser(deletionToken.userId);
+      await storage.deleteDeletionToken(token);
+
+      res.json({ success: true, message: "Your account has been permanently deleted" });
+    } catch (error: any) {
+      console.error("Confirm delete error:", error);
+      res.status(500).json({ error: "Failed to delete account" });
     }
   });
 

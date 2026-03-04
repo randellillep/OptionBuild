@@ -15,6 +15,9 @@ import Tutorial from "@/pages/Tutorial";
 import Blog from "@/pages/Blog";
 import BlogPost from "@/pages/BlogPost";
 import AdminBlog from "@/pages/AdminBlog";
+import AccountSettings from "@/pages/AccountSettings";
+import FAQ from "@/pages/FAQ";
+import ConfirmDelete from "@/pages/ConfirmDelete";
 
 function Router() {
   return (
@@ -30,6 +33,9 @@ function Router() {
       <Route path="/blog" component={Blog} />
       <Route path="/blog/:slug" component={BlogPost} />
       <Route path="/admin/blog" component={AdminBlog} />
+      <Route path="/account" component={AccountSettings} />
+      <Route path="/faq" component={FAQ} />
+      <Route path="/account/confirm-delete" component={ConfirmDelete} />
       <Route component={NotFound} />
     </Switch>
   );

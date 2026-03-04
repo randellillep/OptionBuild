@@ -70,6 +70,16 @@ Preferred communication style: Simple, everyday language.
 **Frontend Pages**: `/blog` (listing grid with cards), `/blog/:slug` (full article with styled HTML content), `/admin/blog` (post list + editor with preview, image upload, publish toggle).
 **Navigation**: Blog links in Builder toolbar, Footer, and Home page footer all point to `/blog`.
 
+## Account Management
+
+**Pages**: `/account` (Account Settings), `/faq` (FAQ), `/account/confirm-delete` (Confirm Deletion).
+**Account Settings**: Two-column layout — left: user settings (email display), appearance (dark mode toggle), help (contact us, FAQ link). Right: subscription (Free plan), billing (Coming Soon for payment method + invoices, Stripe integration deferred), account (delete account).
+**Delete Account Flow**: User clicks "Delete Account" → modal with warning + checkbox → "Send Deletion Confirmation Email" → server generates UUID token in `deletion_tokens` table (24hr expiry) → sends email via Resend API to user's email → user clicks link → `GET /api/account/confirm-delete?token=XXX` validates and deletes user (cascade deletes all related data).
+**Email Service**: Resend (`RESEND_API_KEY` env var), sends from `onboarding@resend.dev`. Deletion emails include styled HTML with red "Confirm Account Deletion" button.
+**FAQ Page**: Accordion-style, 10 items covering platform overview, pricing, strategy building, Black-Scholes, backtesting, trade execution, brokerage connection, security, account deletion, and support contact.
+**Schema**: `deletion_tokens` table (id UUID, user_id FK cascade, token unique, expires_at timestamp, created_at).
+**API Routes**: `POST /api/account/delete-request` (authenticated, sends email), `GET /api/account/confirm-delete?token=XXX` (public, validates + deletes).
+
 ## Backtesting Engine (tastytrade-aligned)
 
 **Key Design Decisions**:

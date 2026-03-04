@@ -1,4 +1,4 @@
-import { type User, type UpsertUser, type MarketOptionChainSummary, type InsertSavedTrade, type SavedTrade, type InsertBacktestRun, type BacktestRun, type BacktestRunResult, type HistoricalPrice, type InsertBrokerageConnection, type BrokerageConnection, type InsertBlogPost, type BlogPost, type BlogImage, users, savedTrades, backtestRuns, historicalPrices, brokerageConnections, blogPosts, blogImages } from "@shared/schema";
+import { type User, type UpsertUser, type MarketOptionChainSummary, type InsertSavedTrade, type SavedTrade, type InsertBacktestRun, type BacktestRun, type BacktestRunResult, type HistoricalPrice, type InsertBrokerageConnection, type BrokerageConnection, type InsertBlogPost, type BlogPost, type BlogImage, type DeletionToken, type InsertDeletionToken, users, savedTrades, backtestRuns, historicalPrices, brokerageConnections, blogPosts, blogImages, deletionTokens } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 
@@ -42,6 +42,11 @@ export interface IStorage {
   deleteBlogPost(id: string): Promise<boolean>;
   saveBlogImage(image: { authorId: string; filename: string; mimeType: string; data: string }): Promise<BlogImage>;
   getBlogImage(id: string): Promise<BlogImage | undefined>;
+
+  createDeletionToken(tokenData: InsertDeletionToken): Promise<DeletionToken>;
+  getDeletionToken(token: string): Promise<DeletionToken | undefined>;
+  deleteDeletionToken(token: string): Promise<boolean>;
+  deleteUser(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -232,6 +237,26 @@ export class DatabaseStorage implements IStorage {
   async getBlogImage(id: string): Promise<BlogImage | undefined> {
     const [image] = await db.select().from(blogImages).where(eq(blogImages.id, id));
     return image;
+  }
+
+  async createDeletionToken(tokenData: InsertDeletionToken): Promise<DeletionToken> {
+    const [newToken] = await db.insert(deletionTokens).values(tokenData).returning();
+    return newToken;
+  }
+
+  async getDeletionToken(token: string): Promise<DeletionToken | undefined> {
+    const [record] = await db.select().from(deletionTokens).where(eq(deletionTokens.token, token));
+    return record;
+  }
+
+  async deleteDeletionToken(token: string): Promise<boolean> {
+    const result = await db.delete(deletionTokens).where(eq(deletionTokens.token, token)).returning();
+    return result.length > 0;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
   }
 }
 

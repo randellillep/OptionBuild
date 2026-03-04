@@ -95,9 +95,9 @@ export function Footer() {
               <a href="/blog" className="text-sm text-white/60 hover:text-white transition-colors">
                 Blog
               </a>
-              <span className="text-sm text-white/40 cursor-default">
-                FAQ (Coming Soon)
-              </span>
+              <Link href="/faq" className="text-sm text-white/60 hover:text-white transition-colors" data-testid="link-faq">
+                FAQ
+              </Link>
             </div>
 
             <div className="flex flex-col gap-2">
