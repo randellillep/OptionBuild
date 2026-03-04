@@ -583,21 +583,13 @@ export default function Builder() {
     if (strategyIndex !== null || urlSymbol) {
       urlParamsProcessed.current = true;
       
-      // Load symbol from URL if different
-      if (urlSymbol && urlSymbol !== symbolInfo.symbol) {
-        setSymbolInfo(prev => ({ ...prev, symbol: urlSymbol }));
-      }
-      
-      // Load strategy template if specified
-      if (strategyIndex !== null) {
-        const templateIndex = parseInt(strategyIndex, 10);
-        if (!isNaN(templateIndex) && templateIndex >= 0 && templateIndex < strategyTemplates.length) {
+      const applyStrategyTemplate = (templateIndex: number, price: number) => {
+        if (templateIndex >= 0 && templateIndex < strategyTemplates.length) {
           const template = strategyTemplates[templateIndex];
-          const basePrice = symbolInfo.price > 0 ? symbolInfo.price : 100;
-          const atmStrike = Math.round(basePrice / 5) * 5;
+          const basePrice = price > 0 ? price : 100;
+          const atmStrike = roundStrike(basePrice, 'nearest');
           
           const adjustedLegs: OptionLeg[] = template.legs.map((leg, index) => {
-            // For stock legs, set entry price to current price
             if (leg.type === "stock") {
               return deepCopyLeg(leg, {
                 strike: 0,
@@ -609,7 +601,7 @@ export default function Builder() {
             }
             
             const strikeOffset = leg.strike - 100;
-            const newStrike = atmStrike + strikeOffset;
+            const newStrike = roundStrike(atmStrike + strikeOffset, 'nearest');
             
             return deepCopyLeg(leg, {
               strike: newStrike,
@@ -621,9 +613,33 @@ export default function Builder() {
           
           setLegs(adjustedLegs);
         }
+      };
+      
+      const targetSymbol = urlSymbol || symbolInfo.symbol;
+      const parsedTemplateIndex = strategyIndex !== null ? parseInt(strategyIndex, 10) : -1;
+      
+      if (targetSymbol !== symbolInfo.symbol) {
+        fetch(`/api/stock/quote/${encodeURIComponent(targetSymbol)}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            const realPrice = data?.price || 100;
+            setSymbolInfo({ symbol: targetSymbol, price: realPrice });
+            if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
+              applyStrategyTemplate(parsedTemplateIndex, realPrice);
+            }
+          })
+          .catch(() => {
+            setSymbolInfo(prev => ({ ...prev, symbol: targetSymbol }));
+            if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
+              applyStrategyTemplate(parsedTemplateIndex, 100);
+            }
+          });
+      } else {
+        if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
+          applyStrategyTemplate(parsedTemplateIndex, symbolInfo.price);
+        }
       }
       
-      // Clear URL params after processing - stay on /builder route
       window.history.replaceState({}, '', '/builder');
     }
   }, [searchString, symbolInfo.symbol, symbolInfo.price, setSymbolInfo, setLegs]);
