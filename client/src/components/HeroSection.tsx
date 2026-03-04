@@ -119,12 +119,12 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
               Build & Visualize Options Strategies
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-8">
-              Professional options analysis with real-time P/L charts, Greeks calculator, and 10+ strategy templates. Free to start.
+              Professional options analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
             </p>
           </div>
 
-          <div className="w-full max-w-md">
-            <div className="rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm p-5">
+          <div className="w-full max-w-sm">
+            <div className="rounded-lg border border-white/15 bg-black/40 backdrop-blur-md p-5 shadow-lg">
               <div className="mb-4" ref={tickerRef}>
                 <label className="block text-sm font-medium text-white/80 mb-1.5">Ticker</label>
                 <div className="relative">
@@ -242,7 +242,7 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
             </div>
             <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-purple-400" />
-              <span className="text-sm">10+ Strategy Templates</span>
+              <span className="text-sm">30+ Strategy Templates</span>
             </div>
           </div>
         </div>
