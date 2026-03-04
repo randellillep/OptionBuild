@@ -16,7 +16,7 @@ import { EquityPanel } from "@/components/EquityPanel";
 import { AddLegDropdown } from "@/components/AddLegDropdown";
 import { AnalysisTabs } from "@/components/AnalysisTabs";
 import { Footer } from "@/components/Footer";
-import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Bookmark, Search, HelpCircle } from "lucide-react";
+import { TrendingUp, ChevronDown, BookOpen, FileText, User, LogOut, BarChart3, Bookmark, Search, HelpCircle, Loader2 } from "lucide-react";
 import { TutorialOverlay, useTutorial } from "@/components/TutorialOverlay";
 import { AIChatAssistant } from "@/components/AIChatAssistant";
 import { SaveTradeModal } from "@/components/SaveTradeModal";
@@ -66,6 +66,17 @@ export default function Builder() {
   });
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
   const urlParamsProcessed = useRef(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return !!(params.get('symbol') || params.get('strategy') || sessionStorage.getItem('sharedStrategy'));
+  });
+  
+  useEffect(() => {
+    if (isInitialLoading) {
+      const safetyTimer = setTimeout(() => setIsInitialLoading(false), 5000);
+      return () => clearTimeout(safetyTimer);
+    }
+  }, [isInitialLoading]);
   
   // Store initial P/L values from SavedTrades for immediate consistency
   // These values are used for the heatmap's current-scenario cell until user makes changes
@@ -571,10 +582,11 @@ export default function Builder() {
             
             setSelectedExpiration(expirationDays, expirationDateStr);
             sessionStorage.removeItem('sharedStrategy');
+            setTimeout(() => setIsInitialLoading(false), 400);
           }
         }
       } catch {
-        // Silent fail if parse fails
+        setIsInitialLoading(false);
       }
       window.history.replaceState({}, '', '/builder');
       return;
@@ -627,17 +639,20 @@ export default function Builder() {
             if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
               applyStrategyTemplate(parsedTemplateIndex, realPrice);
             }
+            setTimeout(() => setIsInitialLoading(false), 600);
           })
           .catch(() => {
             setSymbolInfo(prev => ({ ...prev, symbol: targetSymbol }));
             if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
               applyStrategyTemplate(parsedTemplateIndex, 100);
             }
+            setTimeout(() => setIsInitialLoading(false), 600);
           });
       } else {
         if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
           applyStrategyTemplate(parsedTemplateIndex, symbolInfo.price);
         }
+        setTimeout(() => setIsInitialLoading(false), 400);
       }
       
       window.history.replaceState({}, '', '/builder');
@@ -1861,6 +1876,14 @@ export default function Builder() {
 
   return (
     <div className="min-h-screen bg-background min-w-[768px]">
+      {isInitialLoading && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300" data-testid="loading-overlay">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground">Loading strategy...</span>
+          </div>
+        </div>
+      )}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-2 sm:px-4 md:px-6 flex h-10 items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">

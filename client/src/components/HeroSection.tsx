@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Calculator, BookOpen, ChevronDown, Search, Loader2 } from "lucide-react";
+import { TrendingUp, Calculator, BookOpen, ChevronDown, Search } from "lucide-react";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useQuery } from "@tanstack/react-query";
 import heroImage from "@assets/generated_images/Trading_workspace_hero_image_f5851d25.png";
