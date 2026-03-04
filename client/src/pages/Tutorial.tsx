@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Search,
   TrendingUp,
@@ -694,6 +695,7 @@ function TutorialHeader() {
           >
             Launch Builder
           </Button>
+          <ThemeToggle />
         </nav>
       </div>
     </header>

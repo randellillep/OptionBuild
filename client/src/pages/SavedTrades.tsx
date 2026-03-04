@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Footer } from "@/components/Footer";
 import { TrendingUp, Download, Star, Settings, ArrowLeft, Trash2 } from "lucide-react";
 import { useLocation, Link } from "wouter";
@@ -354,6 +355,7 @@ export default function SavedTrades() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeToggle />
             {isAuthenticated && user && (
               <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
                 <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || 'User'} />
