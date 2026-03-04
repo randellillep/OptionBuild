@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Calculator, BookOpen, ChevronDown, Search, Loader2 } from "lucide-react";
 import { strategyTemplates } from "@/lib/strategy-templates";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import heroImage from "@assets/generated_images/Trading_workspace_hero_image_f5851d25.png";
 
 interface SearchResult {
@@ -50,7 +50,7 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const { data: searchResults, isLoading: isSearching } = useQuery<{ results: SearchResult[] }>({
+  const { data: searchResults, isLoading: isSearching, isFetching: isSearchFetching } = useQuery<{ results: SearchResult[] }>({
     queryKey: ["/api/stock/search", debouncedSearch],
     queryFn: async () => {
       if (!debouncedSearch) return { results: [] };
@@ -60,6 +60,7 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
     },
     enabled: debouncedSearch.length > 0,
     staleTime: 60000,
+    placeholderData: keepPreviousData,
   });
 
   const handleSelectTicker = (symbol: string) => {
@@ -140,26 +141,28 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
                     />
                   </div>
                   {showTickerDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 rounded-md border border-white/15 bg-[hsl(222,47%,11%)] shadow-xl z-50 max-h-48 overflow-y-auto">
-                      {isSearching && (
+                    <div className="absolute top-full left-0 right-0 mt-1 rounded-md border border-white/15 bg-[hsl(222,47%,11%)] shadow-xl z-50 max-h-48 overflow-y-auto transition-opacity duration-150">
+                      {tickerInput.length > 0 && searchResults?.results && searchResults.results.length > 0 ? (
+                        <div className={`transition-opacity duration-150 ${isSearchFetching ? 'opacity-70' : 'opacity-100'}`}>
+                          {searchResults.results.slice(0, 8).map((result) => (
+                            <button
+                              key={result.symbol}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center justify-between gap-2"
+                              onClick={() => handleSelectTicker(result.symbol)}
+                              data-testid={`option-ticker-${result.symbol}`}
+                            >
+                              <span className="font-medium text-white">{result.symbol}</span>
+                              <span className="text-white/50 text-xs truncate max-w-[160px]">{result.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : tickerInput.length > 0 && (isSearching || isSearchFetching || tickerInput !== debouncedSearch) ? (
                         <div className="flex items-center justify-center py-3">
                           <Loader2 className="h-4 w-4 animate-spin text-white/50" />
                         </div>
-                      )}
-                      {!isSearching && searchResults?.results && searchResults.results.length > 0 && (
-                        searchResults.results.slice(0, 8).map((result) => (
-                          <button
-                            key={result.symbol}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center justify-between gap-2"
-                            onClick={() => handleSelectTicker(result.symbol)}
-                            data-testid={`option-ticker-${result.symbol}`}
-                          >
-                            <span className="font-medium text-white">{result.symbol}</span>
-                            <span className="text-white/50 text-xs truncate max-w-[160px]">{result.name}</span>
-                          </button>
-                        ))
-                      )}
-                      {!isSearching && (!searchResults?.results || searchResults.results.length === 0) && tickerInput.length === 0 && (
+                      ) : tickerInput.length > 0 && (!searchResults?.results || searchResults.results.length === 0) ? (
+                        <div className="px-3 py-3 text-sm text-white/40 text-center">No results found</div>
+                      ) : (
                         ["AAPL", "TSLA", "NVDA", "SPY", "MSFT", "QQQ"].map((sym) => (
                           <button
                             key={sym}
@@ -170,9 +173,6 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
                             {sym}
                           </button>
                         ))
-                      )}
-                      {!isSearching && tickerInput.length > 0 && (!searchResults?.results || searchResults.results.length === 0) && (
-                        <div className="px-3 py-3 text-sm text-white/40 text-center">No results found</div>
                       )}
                     </div>
                   )}

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Search, TrendingUp, TrendingDown, Loader2, X, Star, Clock, BarChart3, Landmark, Fuel, ListOrdered, Bookmark, ArrowUpDown } from "lucide-react";
 import type { SymbolInfo } from "@/hooks/useStrategyEngine";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { PositionsModal, CommissionSettings } from "@/components/PositionsModal";
 import type { OptionLeg } from "@shared/schema";
 
@@ -183,7 +183,7 @@ export function TradingViewSearch({
     };
   }, [isOpen]);
 
-  const { data: searchResults, isLoading: isSearching } = useQuery<{ results: SearchResult[] }>({
+  const { data: searchResults, isLoading: isSearching, isFetching: isSearchFetching } = useQuery<{ results: SearchResult[] }>({
     queryKey: ["/api/stock/search", debouncedSearch],
     queryFn: async () => {
       if (!debouncedSearch) return { results: [] };
@@ -192,6 +192,8 @@ export function TradingViewSearch({
       return response.json();
     },
     enabled: debouncedSearch.length > 0,
+    staleTime: 60000,
+    placeholderData: keepPreviousData,
   });
 
   const { data: currentQuote } = useQuery<StockQuote>({
@@ -328,8 +330,8 @@ export function TradingViewSearch({
       </Card>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/50" onClick={() => setIsOpen(false)}>
-          <Card className="w-full max-w-2xl mx-4 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/50 animate-in fade-in duration-150" onClick={() => setIsOpen(false)}>
+          <Card className="w-full max-w-2xl mx-4 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-border">
               <div className="flex items-center gap-3">
                 <Search className="h-5 w-5 text-muted-foreground" />
@@ -341,7 +343,7 @@ export function TradingViewSearch({
                   className="flex-1 border-0 shadow-none focus-visible:ring-0 text-lg"
                   data-testid="input-search-modal"
                 />
-                {isSearching && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+                {isSearchFetching && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -354,16 +356,14 @@ export function TradingViewSearch({
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto">
-              {searchTerm && debouncedSearch ? (
+              {searchTerm ? (
                 <div className="p-4">
-                  <div className="text-xs font-medium text-muted-foreground mb-3">SEARCH RESULTS</div>
-                  {isSearching ? (
-                    <div className="py-8 text-center">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Searching...</p>
-                    </div>
-                  ) : searchResults?.results && searchResults.results.length > 0 ? (
-                    <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-3">
+                    SEARCH RESULTS
+                    {isSearchFetching && <Loader2 className="h-3 w-3 animate-spin" />}
+                  </div>
+                  {searchResults?.results && searchResults.results.length > 0 ? (
+                    <div className={`space-y-1 transition-opacity duration-150 ${isSearchFetching ? 'opacity-60' : 'opacity-100'}`}>
                       {searchResults.results.map((result) => (
                         <SymbolRow
                           key={result.symbol}
@@ -371,6 +371,11 @@ export function TradingViewSearch({
                           name={result.name}
                         />
                       ))}
+                    </div>
+                  ) : isSearching || isSearchFetching || searchTerm !== debouncedSearch ? (
+                    <div className="py-8 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Searching...</p>
                     </div>
                   ) : (
                     <div className="py-8 text-center">
