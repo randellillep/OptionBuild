@@ -595,65 +595,162 @@ export default function Builder() {
     if (strategyIndex !== null || urlSymbol) {
       urlParamsProcessed.current = true;
       
-      const applyStrategyTemplate = (templateIndex: number, price: number) => {
-        if (templateIndex >= 0 && templateIndex < strategyTemplates.length) {
-          const template = strategyTemplates[templateIndex];
-          const basePrice = price > 0 ? price : 100;
-          const atmStrike = roundStrike(basePrice, 'nearest');
-          
-          const adjustedLegs: OptionLeg[] = template.legs.map((leg, index) => {
-            if (leg.type === "stock") {
-              return deepCopyLeg(leg, {
-                strike: 0,
-                premium: basePrice,
-                entryUnderlyingPrice: basePrice,
-                costBasisLocked: true,
-                id: Date.now().toString() + leg.id + index,
-              });
-            }
-            
-            const strikeOffset = leg.strike - 100;
-            const newStrike = roundStrike(atmStrike + strikeOffset, 'nearest');
-            
+      const applyTemplateWithPrice = (templateIndex: number, price: number) => {
+        if (templateIndex < 0 || templateIndex >= strategyTemplates.length) return;
+        const template = strategyTemplates[templateIndex];
+        const currentPrice = price > 0 ? price : 100;
+        const atmStrike = roundStrike(currentPrice, 'nearest');
+        
+        const adjustedLegs: OptionLeg[] = template.legs.map((leg, index) => {
+          if (leg.type === "stock") {
             return deepCopyLeg(leg, {
-              strike: newStrike,
+              strike: 0,
+              premium: currentPrice,
+              entryUnderlyingPrice: currentPrice,
+              costBasisLocked: true,
               id: Date.now().toString() + leg.id + index,
-              expirationDays: selectedExpirationDays || leg.expirationDays || 30,
-              expirationDate: selectedExpirationDate || undefined,
             });
-          });
+          }
           
-          setLegs(adjustedLegs);
-        }
+          let newStrike = atmStrike;
+          switch (template.name) {
+            case "Long Call":
+            case "Long Put":
+            case "Short Call":
+            case "Short Put":
+            case "Cash-Secured Put":
+              newStrike = atmStrike;
+              break;
+            case "Covered Call":
+              newStrike = roundStrike(currentPrice * 1.05, 'up');
+              break;
+            case "Protective Put":
+              newStrike = roundStrike(currentPrice * 0.95, 'down');
+              break;
+            case "Collar":
+              if (leg.type === "call") newStrike = roundStrike(currentPrice * 1.05, 'up');
+              else if (leg.type === "put") newStrike = roundStrike(currentPrice * 0.95, 'down');
+              break;
+            case "Bull Call Spread":
+              newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 1.05, 'up');
+              break;
+            case "Bull Put Spread":
+              newStrike = leg.position === "short" ? atmStrike : roundStrike(currentPrice * 0.95, 'down');
+              break;
+            case "Bear Put Spread":
+              newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 0.95, 'down');
+              break;
+            case "Bear Call Spread":
+              newStrike = leg.position === "short" ? atmStrike : roundStrike(currentPrice * 1.05, 'up');
+              break;
+            case "Bull Call Ladder":
+              if (index === 0) newStrike = atmStrike;
+              else if (index === 1) newStrike = roundStrike(currentPrice * 1.05, 'up');
+              else newStrike = roundStrike(currentPrice * 1.10, 'up');
+              break;
+            case "Bear Put Ladder":
+              if (index === 0) newStrike = atmStrike;
+              else if (index === 1) newStrike = roundStrike(currentPrice * 0.95, 'down');
+              else newStrike = roundStrike(currentPrice * 0.90, 'down');
+              break;
+            case "Long Synthetic Future":
+            case "Short Synthetic Future":
+              newStrike = atmStrike;
+              break;
+            case "Long Straddle":
+            case "Short Straddle":
+              newStrike = atmStrike;
+              break;
+            case "Long Strangle":
+            case "Short Strangle":
+              newStrike = leg.type === "call" ? roundStrike(currentPrice * 1.05, 'up') : roundStrike(currentPrice * 0.95, 'down');
+              break;
+            case "Iron Condor":
+            case "Inverse Iron Condor":
+              if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down');
+              else if (index === 1) newStrike = roundStrike(currentPrice * 0.90, 'down');
+              else if (index === 2) newStrike = roundStrike(currentPrice * 1.05, 'up');
+              else if (index === 3) newStrike = roundStrike(currentPrice * 1.10, 'up');
+              break;
+            case "Iron Butterfly":
+              if (leg.position === "short") newStrike = atmStrike;
+              else if (leg.type === "put") newStrike = roundStrike(currentPrice * 0.95, 'down');
+              else newStrike = roundStrike(currentPrice * 1.05, 'up');
+              break;
+            case "Long Call Butterfly":
+            case "Long Put Butterfly":
+            case "Butterfly Spread":
+              if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down');
+              else if (index === 1) newStrike = atmStrike;
+              else newStrike = roundStrike(currentPrice * 1.05, 'up');
+              break;
+            case "Broken Wing Butterfly":
+              if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down');
+              else if (index === 1) newStrike = atmStrike;
+              else newStrike = roundStrike(currentPrice * 1.10, 'up');
+              break;
+            case "Jade Lizard":
+              if (index === 0) newStrike = roundStrike(currentPrice * 1.05, 'up');
+              else if (index === 1) newStrike = roundStrike(currentPrice * 0.95, 'down');
+              else newStrike = roundStrike(currentPrice * 0.90, 'down');
+              break;
+            case "Call Ratio Backspread":
+              newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 1.05, 'up');
+              break;
+            case "Put Ratio Backspread":
+              newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 0.95, 'down');
+              break;
+            case "Strip":
+            case "Strap":
+            case "Guts":
+            case "Short Guts":
+              newStrike = leg.type === "call" ? roundStrike(currentPrice * 1.05, 'up') : roundStrike(currentPrice * 0.95, 'down');
+              break;
+            case "Calendar Spread":
+            case "Diagonal Spread":
+              newStrike = atmStrike;
+              break;
+            case "Double Diagonal":
+              newStrike = leg.type === "call" ? roundStrike(currentPrice * 1.05, 'up') : roundStrike(currentPrice * 0.95, 'down');
+              break;
+            default: {
+              const strikeOffset = leg.strike - 100;
+              newStrike = roundStrike(atmStrike + strikeOffset, 'nearest');
+              break;
+            }
+          }
+          
+          return deepCopyLeg(leg, {
+            strike: newStrike,
+            id: Date.now().toString() + leg.id + index,
+            expirationDays: selectedExpirationDays || leg.expirationDays || 30,
+            expirationDate: selectedExpirationDate || undefined,
+          });
+        });
+        
+        setLegs(adjustedLegs);
       };
       
       const targetSymbol = urlSymbol || symbolInfo.symbol;
       const parsedTemplateIndex = strategyIndex !== null ? parseInt(strategyIndex, 10) : -1;
       
-      if (targetSymbol !== symbolInfo.symbol) {
-        fetch(`/api/stock/quote/${encodeURIComponent(targetSymbol)}`)
-          .then(res => res.ok ? res.json() : null)
-          .then(data => {
-            const realPrice = data?.price || 100;
-            setSymbolInfo({ symbol: targetSymbol, price: realPrice });
-            if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
-              applyStrategyTemplate(parsedTemplateIndex, realPrice);
-            }
-            setTimeout(() => setIsInitialLoading(false), 600);
-          })
-          .catch(() => {
-            setSymbolInfo(prev => ({ ...prev, symbol: targetSymbol }));
-            if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
-              applyStrategyTemplate(parsedTemplateIndex, 100);
-            }
-            setTimeout(() => setIsInitialLoading(false), 600);
-          });
-      } else {
-        if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
-          applyStrategyTemplate(parsedTemplateIndex, symbolInfo.price);
-        }
-        setTimeout(() => setIsInitialLoading(false), 400);
-      }
+      fetch(`/api/stock/quote/${encodeURIComponent(targetSymbol)}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          const realPrice = data?.price || 100;
+          setSymbolInfo({ symbol: targetSymbol, price: realPrice });
+          if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
+            applyTemplateWithPrice(parsedTemplateIndex, realPrice);
+          }
+          setTimeout(() => setIsInitialLoading(false), 600);
+        })
+        .catch(() => {
+          setSymbolInfo(prev => ({ ...prev, symbol: targetSymbol }));
+          if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
+            applyTemplateWithPrice(parsedTemplateIndex, symbolInfo.price);
+          }
+          setTimeout(() => setIsInitialLoading(false), 600);
+        });
       
       window.history.replaceState({}, '', '/builder');
     }
@@ -1809,45 +1906,111 @@ export default function Builder() {
     const adjustedLegs = template.legs.map((leg, index) => {
       let newStrike = atmStrike;
       
-      // Strategy-specific strike adjustments
       switch (template.name) {
         case "Long Call":
-          newStrike = atmStrike; // ATM
-          break;
         case "Long Put":
-          newStrike = atmStrike; // ATM
+        case "Short Call":
+        case "Short Put":
+        case "Cash-Secured Put":
+          newStrike = atmStrike;
           break;
         case "Covered Call":
-          newStrike = roundStrike(currentPrice * 1.05, 'up'); // 5% OTM (round up)
+          newStrike = roundStrike(currentPrice * 1.05, 'up');
           break;
         case "Protective Put":
-          newStrike = roundStrike(currentPrice * 0.95, 'down'); // 5% OTM (round down)
+          newStrike = roundStrike(currentPrice * 0.95, 'down');
+          break;
+        case "Collar":
+          if (leg.type === "call") newStrike = roundStrike(currentPrice * 1.05, 'up');
+          else if (leg.type === "put") newStrike = roundStrike(currentPrice * 0.95, 'down');
           break;
         case "Bull Call Spread":
-          newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 1.05, 'up'); // ATM + 5% OTM
+          newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 1.05, 'up');
+          break;
+        case "Bull Put Spread":
+          newStrike = leg.position === "short" ? atmStrike : roundStrike(currentPrice * 0.95, 'down');
           break;
         case "Bear Put Spread":
-          newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 0.95, 'down'); // ATM + 5% OTM (matched to bull spread)
+          newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 0.95, 'down');
+          break;
+        case "Bear Call Spread":
+          newStrike = leg.position === "short" ? atmStrike : roundStrike(currentPrice * 1.05, 'up');
+          break;
+        case "Bull Call Ladder":
+          if (index === 0) newStrike = atmStrike;
+          else if (index === 1) newStrike = roundStrike(currentPrice * 1.05, 'up');
+          else newStrike = roundStrike(currentPrice * 1.10, 'up');
+          break;
+        case "Bear Put Ladder":
+          if (index === 0) newStrike = atmStrike;
+          else if (index === 1) newStrike = roundStrike(currentPrice * 0.95, 'down');
+          else newStrike = roundStrike(currentPrice * 0.90, 'down');
+          break;
+        case "Long Synthetic Future":
+        case "Short Synthetic Future":
+          newStrike = atmStrike;
           break;
         case "Long Straddle":
-          newStrike = atmStrike; // Both at ATM
+        case "Short Straddle":
+          newStrike = atmStrike;
           break;
         case "Long Strangle":
+        case "Short Strangle":
           newStrike = leg.type === "call" ? roundStrike(currentPrice * 1.05, 'up') : roundStrike(currentPrice * 0.95, 'down');
           break;
         case "Iron Condor":
-          // Short put, long put, short call, long call
-          if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down'); // Short put -5%
-          else if (index === 1) newStrike = roundStrike(currentPrice * 0.90, 'down'); // Long put -10%
-          else if (index === 2) newStrike = roundStrike(currentPrice * 1.05, 'up'); // Short call +5%
-          else if (index === 3) newStrike = roundStrike(currentPrice * 1.10, 'up'); // Long call +10%
+        case "Inverse Iron Condor":
+          if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down');
+          else if (index === 1) newStrike = roundStrike(currentPrice * 0.90, 'down');
+          else if (index === 2) newStrike = roundStrike(currentPrice * 1.05, 'up');
+          else if (index === 3) newStrike = roundStrike(currentPrice * 1.10, 'up');
           break;
+        case "Iron Butterfly":
+          if (leg.position === "short") newStrike = atmStrike;
+          else if (leg.type === "put") newStrike = roundStrike(currentPrice * 0.95, 'down');
+          else newStrike = roundStrike(currentPrice * 1.05, 'up');
+          break;
+        case "Long Call Butterfly":
+        case "Long Put Butterfly":
         case "Butterfly Spread":
-          // Low wing, body (2x), high wing
-          if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down'); // -5%
-          else if (index === 1) newStrike = atmStrike; // ATM
-          else if (index === 2) newStrike = roundStrike(currentPrice * 1.05, 'up'); // +5%
+          if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down');
+          else if (index === 1) newStrike = atmStrike;
+          else newStrike = roundStrike(currentPrice * 1.05, 'up');
           break;
+        case "Broken Wing Butterfly":
+          if (index === 0) newStrike = roundStrike(currentPrice * 0.95, 'down');
+          else if (index === 1) newStrike = atmStrike;
+          else newStrike = roundStrike(currentPrice * 1.10, 'up');
+          break;
+        case "Jade Lizard":
+          if (index === 0) newStrike = roundStrike(currentPrice * 1.05, 'up');
+          else if (index === 1) newStrike = roundStrike(currentPrice * 0.95, 'down');
+          else newStrike = roundStrike(currentPrice * 0.90, 'down');
+          break;
+        case "Call Ratio Backspread":
+          newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 1.05, 'up');
+          break;
+        case "Put Ratio Backspread":
+          newStrike = index === 0 ? atmStrike : roundStrike(currentPrice * 0.95, 'down');
+          break;
+        case "Strip":
+        case "Strap":
+        case "Guts":
+        case "Short Guts":
+          newStrike = leg.type === "call" ? roundStrike(currentPrice * 1.05, 'up') : roundStrike(currentPrice * 0.95, 'down');
+          break;
+        case "Calendar Spread":
+        case "Diagonal Spread":
+          newStrike = atmStrike;
+          break;
+        case "Double Diagonal":
+          newStrike = leg.type === "call" ? roundStrike(currentPrice * 1.05, 'up') : roundStrike(currentPrice * 0.95, 'down');
+          break;
+        default: {
+          const strikeOffset = leg.strike - 100;
+          newStrike = roundStrike(atmStrike + strikeOffset, 'nearest');
+          break;
+        }
       }
       
       // For stock legs, set entry price to current price and strike to 0
