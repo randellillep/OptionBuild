@@ -165,15 +165,22 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
                     />
                   </div>
                   {showTickerDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 rounded-md border border-white/15 bg-[hsl(222,47%,11%)] shadow-xl z-50 max-h-48 overflow-y-auto">
-                      {hasMatchedResults ? (
-                        <div className={`transition-opacity duration-150 ${isSearchPending ? 'opacity-60' : 'opacity-100'}`}>
-                          {isSearchPending && (
-                            <div className="flex items-center justify-center py-1.5">
-                              <Loader2 className="h-3 w-3 animate-spin text-white/40" />
-                            </div>
-                          )}
-                          {stableResults.slice(0, 8).map((result) => (
+                    <div className="absolute top-full left-0 right-0 mt-1 rounded-md border border-white/15 bg-[hsl(222,47%,11%)] shadow-xl z-50 overflow-hidden">
+                      <div className="relative max-h-48 overflow-y-auto">
+                        {!(hasMatchedResults || showNoResults) && (
+                          defaultSuggestions.map((sym) => (
+                            <button
+                              key={sym}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors text-white font-medium"
+                              onClick={() => handleSelectTicker(sym)}
+                              data-testid={`option-ticker-${sym}`}
+                            >
+                              {sym}
+                            </button>
+                          ))
+                        )}
+                        {hasMatchedResults && (
+                          stableResults.slice(0, 8).map((result) => (
                             <button
                               key={result.symbol}
                               className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors flex items-center justify-between gap-2"
@@ -183,38 +190,12 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
                               <span className="font-medium text-white">{result.symbol}</span>
                               <span className="text-white/50 text-xs truncate max-w-[160px]">{result.name}</span>
                             </button>
-                          ))}
-                        </div>
-                      ) : showNoResults ? (
-                        <div className="px-3 py-3 text-sm text-white/40 text-center">No results found</div>
-                      ) : isSearchPending ? (
-                        <div>
-                          <div className="flex items-center justify-center py-1.5">
-                            <Loader2 className="h-3 w-3 animate-spin text-white/40" />
-                          </div>
-                          {defaultSuggestions.map((sym) => (
-                            <button
-                              key={sym}
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors text-white/40 font-medium"
-                              onClick={() => handleSelectTicker(sym)}
-                              data-testid={`option-ticker-${sym}`}
-                            >
-                              {sym}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        defaultSuggestions.map((sym) => (
-                          <button
-                            key={sym}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-white/10 transition-colors text-white font-medium"
-                            onClick={() => handleSelectTicker(sym)}
-                            data-testid={`option-ticker-${sym}`}
-                          >
-                            {sym}
-                          </button>
-                        ))
-                      )}
+                          ))
+                        )}
+                        {showNoResults && (
+                          <div className="px-3 py-3 text-sm text-white/40 text-center">No results found</div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
