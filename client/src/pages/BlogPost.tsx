@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ThemeToggle } from "@/components/ThemeToggle";
+
 import { Footer } from "@/components/Footer";
 import { TrendingUp, ArrowLeft, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,6 @@ export default function BlogPostPage() {
             <Link href="/blog" className="text-sm font-medium hover:text-primary transition-colors" data-testid="link-blog">
               Blog
             </Link>
-            <ThemeToggle />
           </div>
         </div>
       </header>

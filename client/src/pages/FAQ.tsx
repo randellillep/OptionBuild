@@ -1,5 +1,5 @@
 import { TrendingUp } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
+
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import {
@@ -83,7 +83,6 @@ export default function FAQ() {
             >
               Builder
             </Button>
-            <ThemeToggle />
           </div>
         </div>
       </header>

@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "@/components/ThemeToggle";
+
 import { ProfitLossChart } from "@/components/ProfitLossChart";
 import { TradingViewSearch } from "@/components/TradingViewSearch";
 import { ExpirationTimeline } from "@/components/ExpirationTimeline";
@@ -2194,7 +2194,6 @@ export default function Builder() {
             >
               <HelpCircle className="h-4 w-4" />
             </Button>
-            <ThemeToggle />
           </div>
         </div>
       </header>
