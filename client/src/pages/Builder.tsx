@@ -65,6 +65,7 @@ export default function Builder() {
     roundTrip: false
   });
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
+  const templateAppliedFromUrl = useRef(false);
   const urlParamsProcessed = useRef(false);
   const [isInitialLoading, setIsInitialLoading] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -738,6 +739,10 @@ export default function Builder() {
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           const realPrice = data?.price || 100;
+          if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
+            templateAppliedFromUrl.current = true;
+          }
+          prevSymbolRef.current = { symbol: targetSymbol, price: realPrice };
           setSymbolInfo({ symbol: targetSymbol, price: realPrice });
           if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
             applyTemplateWithPrice(parsedTemplateIndex, realPrice);
@@ -745,6 +750,10 @@ export default function Builder() {
           setTimeout(() => setIsInitialLoading(false), 600);
         })
         .catch(() => {
+          if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
+            templateAppliedFromUrl.current = true;
+          }
+          prevSymbolRef.current = { symbol: targetSymbol, price: symbolInfo.price };
           setSymbolInfo(prev => ({ ...prev, symbol: targetSymbol }));
           if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
             applyTemplateWithPrice(parsedTemplateIndex, symbolInfo.price);
@@ -997,8 +1006,12 @@ export default function Builder() {
     
     const optionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
     
-    // Legs cleared by AUTO-ADJUST: create fresh ATM leg with the correct date
-    // This avoids the flickering two-step process (placeholder date → snap)
+    if (optionLegs.length === 0 && symbolInfo.price > 0 && templateAppliedFromUrl.current) {
+      templateAppliedFromUrl.current = false;
+      setLastProcessedSymbolChangeId(symbolChangeId);
+      return;
+    }
+
     if (optionLegs.length === 0 && symbolInfo.price > 0) {
       const atmStrike = roundStrike(symbolInfo.price, 'nearest');
       const expDays = recalcDays(preferredFutureDate);
