@@ -3,7 +3,6 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { StrategyTemplateCard } from "@/components/StrategyTemplateCard";
 import { PricingCard } from "@/components/PricingCard";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { 
   TrendingUp, 
   Calculator, 
@@ -90,11 +89,9 @@ export default function Home() {
             >
               Launch Builder
             </Button>
-            <ThemeToggle />
           </nav>
 
           <div className="flex md:hidden items-center gap-2">
-            <ThemeToggle />
             <Button variant="ghost" size="icon" data-testid="button-menu">
               <Menu className="h-5 w-5" />
             </Button>

@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { SymbolSearchBar } from "@/components/SymbolSearchBar";
 import { 
   TrendingUp, 
@@ -358,7 +357,6 @@ export default function OptionFinder() {
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back to Builder
             </Button>
-            <ThemeToggle />
           </div>
         </div>
       </header>

@@ -122,7 +122,6 @@ export default function AccountSettings() {
             >
               Builder
             </Button>
-            <ThemeToggle />
           </div>
         </div>
       </header>
