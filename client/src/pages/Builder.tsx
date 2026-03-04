@@ -1876,14 +1876,6 @@ export default function Builder() {
 
   return (
     <div className="min-h-screen bg-background min-w-[768px]">
-      {isInitialLoading && (
-        <div className="fixed inset-0 z-[100] bg-background flex items-center justify-center" data-testid="loading-overlay">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">Loading strategy...</span>
-          </div>
-        </div>
-      )}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-2 sm:px-4 md:px-6 flex h-10 items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">
@@ -2041,6 +2033,15 @@ export default function Builder() {
           </div>
         </div>
       </header>
+
+      {isInitialLoading && (
+        <div className="fixed inset-0 top-10 z-[60] bg-background flex items-center justify-center" data-testid="loading-overlay">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground">Loading strategy...</span>
+          </div>
+        </div>
+      )}
 
       <div className={`container mx-auto px-3 md:px-4 py-2 transition-opacity duration-300 ${(savedTradeSettling || symbolTransitioning) ? 'opacity-40' : 'opacity-100'}`}>
         <div className="space-y-2">
