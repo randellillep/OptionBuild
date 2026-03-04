@@ -100,7 +100,7 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
   };
 
   return (
-    <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
+    <section className="relative flex items-center overflow-hidden">
       <div
         className="absolute inset-0 z-0"
         style={{
@@ -112,19 +112,19 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/70 to-black/60" />
       </div>
 
-      <div className="container relative z-10 mx-auto px-4 md:px-6 py-20">
-        <div className="flex flex-col gap-8">
+      <div className="container relative z-10 mx-auto px-4 md:px-6 py-12 md:py-16">
+        <div className="flex flex-col gap-6">
           <div className="max-w-2xl">
-            <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
               Build & Visualize Options Strategies
             </h1>
-            <p className="text-lg md:text-xl text-gray-300 mb-8">
+            <p className="text-base md:text-lg text-gray-300 mb-0">
               Professional options analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
             </p>
           </div>
 
           <div className="w-full max-w-sm">
-            <div className="rounded-lg border border-white/15 bg-black/40 backdrop-blur-md p-5 shadow-lg">
+            <div className="rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm p-5">
               <div className="mb-4" ref={tickerRef}>
                 <label className="block text-sm font-medium text-white/80 mb-1.5">Ticker</label>
                 <div className="relative">
