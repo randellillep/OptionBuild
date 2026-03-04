@@ -65,7 +65,6 @@ export default function Builder() {
     roundTrip: false
   });
   const prevSymbolRef = useRef<{ symbol: string; price: number } | null>(null);
-  const templateAppliedFromUrl = useRef(false);
   const urlParamsProcessed = useRef(false);
   const [isInitialLoading, setIsInitialLoading] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -739,9 +738,6 @@ export default function Builder() {
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           const realPrice = data?.price || 100;
-          if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
-            templateAppliedFromUrl.current = true;
-          }
           prevSymbolRef.current = { symbol: targetSymbol, price: realPrice };
           setSymbolInfo({ symbol: targetSymbol, price: realPrice });
           if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
@@ -750,9 +746,6 @@ export default function Builder() {
           setTimeout(() => setIsInitialLoading(false), 600);
         })
         .catch(() => {
-          if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
-            templateAppliedFromUrl.current = true;
-          }
           prevSymbolRef.current = { symbol: targetSymbol, price: symbolInfo.price };
           setSymbolInfo(prev => ({ ...prev, symbol: targetSymbol }));
           if (!isNaN(parsedTemplateIndex) && parsedTemplateIndex >= 0) {
@@ -973,6 +966,8 @@ export default function Builder() {
     if (!optionsExpirationsData?.expirations || optionsExpirationsData.expirations.length === 0) return;
     // Wait for real price before creating initial ATM leg (avoid using hardcoded default)
     if (!hasFetchedInitialPrice && symbolChangeId === 0) return;
+    // Wait for URL params to be processed before creating default legs
+    if (isInitialLoading) return;
     
     const availableDates = optionsExpirationsData.expirations;
     const today = new Date();
@@ -1006,12 +1001,6 @@ export default function Builder() {
     
     const optionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
     
-    if (optionLegs.length === 0 && symbolInfo.price > 0 && templateAppliedFromUrl.current) {
-      templateAppliedFromUrl.current = false;
-      setLastProcessedSymbolChangeId(symbolChangeId);
-      return;
-    }
-
     if (optionLegs.length === 0 && symbolInfo.price > 0) {
       const atmStrike = roundStrike(symbolInfo.price, 'nearest');
       const expDays = recalcDays(preferredFutureDate);
@@ -1100,7 +1089,7 @@ export default function Builder() {
     if (symbolTransitioning) {
       symbolTransitionTimerRef.current = setTimeout(() => setSymbolTransitioning(false), 3000);
     }
-  }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration, hasFetchedInitialPrice]);
+  }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration, hasFetchedInitialPrice, isInitialLoading]);
 
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
   // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration
