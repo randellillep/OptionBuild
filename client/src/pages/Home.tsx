@@ -32,7 +32,7 @@ export default function Home() {
     },
     {
       icon: BookOpen,
-      title: "10+ Strategy Templates",
+      title: "30+ Strategy Templates",
       description: "Pre-built strategies including spreads, straddles, condors, and butterflies ready to customize.",
     },
     {
@@ -102,7 +102,12 @@ export default function Home() {
         </div>
       </header>
 
-      <HeroSection onGetStarted={() => setLocation("/builder")} />
+      <HeroSection
+        onGetStarted={() => setLocation("/builder")}
+        onBuildStrategy={(symbol, strategyIndex) => {
+          setLocation(`/builder?symbol=${encodeURIComponent(symbol)}&strategy=${strategyIndex}`);
+        }}
+      />
 
       <section id="features" className="py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4 md:px-6">
@@ -177,7 +182,7 @@ export default function Home() {
               price="Free"
               features={[
                 "Full strategy builder",
-                "10+ strategy templates",
+                "30+ strategy templates",
                 "P/L chart visualization",
                 "Basic Greeks calculator",
                 "Unlimited strategies",

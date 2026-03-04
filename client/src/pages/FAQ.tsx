@@ -19,7 +19,7 @@ const faqItems = [
   {
     question: "Is OptionBuild free?",
     answer:
-      "Yes, OptionBuild is currently free to use. You get full access to the strategy builder, 10+ strategy templates, P/L chart visualization, Greeks calculator, and unlimited strategies at no cost.",
+      "Yes, OptionBuild is currently free to use. You get full access to the strategy builder, 30+ strategy templates, P/L chart visualization, Greeks calculator, and unlimited strategies at no cost.",
   },
   {
     question: "How do I build an options strategy?",
