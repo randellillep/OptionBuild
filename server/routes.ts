@@ -446,14 +446,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const assets = await response.json() as any[];
-      alpacaAssetsCache = assets
-        .filter((a: any) => a.tradable && a.symbol && !a.symbol.includes('/'))
+      const allTradable = assets.filter((a: any) => a.tradable && a.symbol && !a.symbol.includes('/'));
+      alpacaAssetsCache = allTradable
+        .filter((a: any) => Array.isArray(a.attributes) && a.attributes.includes('has_options'))
         .map((a: any) => ({
           symbol: a.symbol,
           name: a.name || a.symbol,
         }));
       alpacaAssetsCacheTime = now;
-      console.log(`[Search] Cached ${alpacaAssetsCache.length} tradable assets`);
+      console.log(`[Search] Cached ${alpacaAssetsCache.length} optionable assets (filtered from ${allTradable.length} tradable)`);
       return alpacaAssetsCache;
     } catch (error) {
       console.error("[Search] Failed to load Alpaca assets:", error);
