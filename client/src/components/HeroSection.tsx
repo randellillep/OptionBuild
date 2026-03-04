@@ -113,33 +113,18 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
       </div>
 
       <div className="container relative z-10 mx-auto px-4 md:px-6 py-20">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-10">
+        <div className="flex flex-col gap-8">
           <div className="max-w-2xl">
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
               Build & Visualize Options Strategies
             </h1>
-            <p className="text-xl md:text-2xl text-gray-200 mb-8">
-              Professional options analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
+            <p className="text-lg md:text-xl text-gray-300 mb-8">
+              Professional options analysis with real-time P/L charts, Greeks calculator, and 10+ strategy templates. Free to start.
             </p>
-
-            <div className="flex flex-wrap gap-6 text-white/90">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-400" />
-                <span className="text-sm">Real-time P/L Charts</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calculator className="h-5 w-5 text-blue-400" />
-                <span className="text-sm">Greeks Analysis</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-purple-400" />
-                <span className="text-sm">30+ Strategy Templates</span>
-              </div>
-            </div>
           </div>
 
-          <div className="w-full max-w-sm">
-            <div className="rounded-lg border border-white/15 bg-black/50 backdrop-blur-md p-5 shadow-2xl">
+          <div className="w-full max-w-md">
+            <div className="rounded-lg border border-white/20 bg-white/5 backdrop-blur-sm p-5">
               <div className="mb-4" ref={tickerRef}>
                 <label className="block text-sm font-medium text-white/80 mb-1.5">Ticker</label>
                 <div className="relative">
@@ -243,6 +228,21 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
               >
                 Build Strategy
               </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-6 text-white/90">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-400" />
+              <span className="text-sm">Real-time P/L Charts</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-blue-400" />
+              <span className="text-sm">Greeks Analysis</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-purple-400" />
+              <span className="text-sm">10+ Strategy Templates</span>
             </div>
           </div>
         </div>
