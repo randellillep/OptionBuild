@@ -661,7 +661,7 @@ export function OptionDetailsPanel({
         premium: leg.premium, // Original cost basis
         quantity: entryToReopen.quantity,
         expirationDays: leg.expirationDays,
-        expirationDate: leg.expirationDate,
+        expirationDate: entryToReopen.expirationDate || leg.expirationDate,
         premiumSource: leg.premiumSource,
         impliedVolatility: leg.impliedVolatility,
         entryUnderlyingPrice: leg.entryUnderlyingPrice ?? underlyingPrice,
@@ -790,8 +790,11 @@ export function OptionDetailsPanel({
     const closedQty = selectedClosedEntry ? selectedClosedEntry.quantity : (leg.closingTransaction.quantity || 0);
     const closePrice = selectedClosedEntry ? selectedClosedEntry.closingPrice : (leg.closingTransaction.closingPrice || 0);
     
-    // Create title using the ENTRY's immutable strike (not leg.strike which can change)
-    const closedTitle = `${symbol.toUpperCase()} ${formatStrike(displayStrike)}${leg.type === "call" ? "C" : "P"} ${formatDate(leg.expirationDate || expirationDate)}${isExpired ? ' (Expired)' : ''}`;
+    // Create title using the ENTRY's immutable strike and expiration (not leg values which can change)
+    const entryExpiration = selectedClosedEntry?.expirationDate || leg.expirationDate || expirationDate;
+    const closedTitle = `${symbol.toUpperCase()} ${formatStrike(displayStrike)}${leg.type === "call" ? "C" : "P"} ${formatDate(entryExpiration)}${isExpired ? ' (Expired)' : ''}`;
+    
+    const saleDate = selectedClosedEntry?.closedAt ? formatDate(selectedClosedEntry.closedAt) : null;
     
     // P/L calculation: when viewing a specific entry, calculate only for THAT entry
     // Otherwise calculate for all entries (legacy behavior)
@@ -834,6 +837,9 @@ export function OptionDetailsPanel({
               <Check className="h-3 w-3 mr-1" />
               {closedActionText} {closedQty} Contract{closedQty !== 1 ? 's' : ''}
             </Badge>
+            {saleDate && (
+              <p className="text-[11px] text-muted-foreground mt-1">Closed on {saleDate}</p>
+            )}
           </div>
           <Button
             size="icon"
