@@ -461,6 +461,7 @@ export function OptionDetailsPanel({
       closedAt: new Date().toISOString(),
       strike: leg.strike, // Capture strike at time of close (immutable primitive)
       openingPrice: leg.premium, // Capture cost basis at time of close (immutable primitive)
+      expirationDate: leg.expirationDate || expirationDate, // Capture expiration at time of close (immutable)
       isExcluded: false,
       visualOrder: entryVisualOrder, // Unique visualOrder for this specific close
     };

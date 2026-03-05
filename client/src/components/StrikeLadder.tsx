@@ -812,8 +812,9 @@ export function StrikeLadder({
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
     const closedExpirationSubscript = (() => {
-      if (!leg.expirationDate) return '';
-      const d = new Date(leg.expirationDate);
+      const expDate = entry.expirationDate || leg.expirationDate;
+      if (!expDate) return '';
+      const d = new Date(expDate);
       return `${d.getMonth() + 1}/${d.getDate()}`;
     })();
 
