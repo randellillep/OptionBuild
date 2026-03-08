@@ -1250,7 +1250,21 @@ export function OptionDetailsPanel({
               className="w-full justify-start text-xs h-8 gap-2"
               onClick={() => {
                 if (onSwitchType) onSwitchType();
-                if (onUpdateLeg) onUpdateLeg({ type: leg.type === "call" ? "put" : "call" });
+                if (onUpdateLeg) {
+                  const currentType = leg.type as import("@shared/schema").OptionType;
+                  const newType = currentType === "call" ? "put" : "call";
+                  const updatedClosingTransaction = leg.closingTransaction ? {
+                    ...leg.closingTransaction,
+                    entries: leg.closingTransaction.entries?.map(e => ({
+                      ...e,
+                      type: e.type || currentType,
+                    })),
+                  } : undefined;
+                  onUpdateLeg({ 
+                    type: newType,
+                    ...(updatedClosingTransaction ? { closingTransaction: updatedClosingTransaction } : {}),
+                  });
+                }
               }}
               data-testid="button-switch-type"
             >
