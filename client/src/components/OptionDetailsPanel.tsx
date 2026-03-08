@@ -415,6 +415,15 @@ export function OptionDetailsPanel({
     }
   }, [leg.closingTransaction, showClosingSection]);
 
+  // Update closing price when market data refreshes (e.g. after expiration change)
+  useEffect(() => {
+    if (showClosingSection && !closingPriceEditingRef.current && marketData?.ask) {
+      if (!leg.closingTransaction?.isEnabled) {
+        setClosingPriceText(marketData.ask.toFixed(2));
+      }
+    }
+  }, [marketData?.ask, showClosingSection]);
+
   const handleToggleClosing = (enabled: boolean) => {
     // Just toggle the UI section visibility - don't execute the sell yet
     setShowClosingSection(enabled);
