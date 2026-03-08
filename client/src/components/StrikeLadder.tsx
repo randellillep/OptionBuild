@@ -508,6 +508,19 @@ export function StrikeLadder({
     const hasClosedEntriesWithDifferentExp = hasClosing && (leg.closingTransaction?.entries || []).some(
       e => e.expirationDate && e.expirationDate !== leg.expirationDate
     );
+    const hasAnyDifferentExpirations = (() => {
+      const allExpDates = new Set<string>();
+      for (const l of legs) {
+        if (l.type === 'stock') continue;
+        if (l.expirationDate) allExpDates.add(l.expirationDate);
+        if (l.closingTransaction?.entries) {
+          for (const e of l.closingTransaction.entries) {
+            if (e.expirationDate) allExpDates.add(e.expirationDate);
+          }
+        }
+      }
+      return allExpDates.size >= 2;
+    })();
     
     // Format expiration date as short subscript (M/D format)
     const formatExpirationSubscript = (date: string | undefined) => {
@@ -594,7 +607,7 @@ export function StrikeLadder({
                     x{hasClosing ? remainingQty : quantity}
                   </div>
                 )}
-                {(hasMultipleExpirations || hasAnyClosedLegs || hasClosedEntriesWithDifferentExp) && expirationSubscript && (
+                {(hasMultipleExpirations || hasAnyClosedLegs || hasClosedEntriesWithDifferentExp || hasAnyDifferentExpirations) && expirationSubscript && (
                   <div
                     className="absolute -top-2 -right-2 text-[8px] font-bold text-white rounded-sm px-1 py-px z-[100] leading-tight"
                     style={{ backgroundColor: expirationColor || '#64748b' }}
@@ -814,8 +827,21 @@ export function StrikeLadder({
     const anyEntryHasDifferentExp = (leg.closingTransaction?.entries || []).some(
       e => e.expirationDate && e.expirationDate !== leg.expirationDate
     );
+    const closedHasAnyDifferentExpirations = (() => {
+      const allExpDates = new Set<string>();
+      for (const l of legs) {
+        if (l.type === 'stock') continue;
+        if (l.expirationDate) allExpDates.add(l.expirationDate);
+        if (l.closingTransaction?.entries) {
+          for (const e of l.closingTransaction.entries) {
+            if (e.expirationDate) allExpDates.add(e.expirationDate);
+          }
+        }
+      }
+      return allExpDates.size >= 2;
+    })();
     const closedExpirationSubscript = (() => {
-      if (!anyEntryHasDifferentExp) return '';
+      if (!anyEntryHasDifferentExp && !closedHasAnyDifferentExpirations) return '';
       const entryExpDate = entry.expirationDate || leg.expirationDate;
       if (!entryExpDate) return '';
       const d = new Date(entryExpDate);
