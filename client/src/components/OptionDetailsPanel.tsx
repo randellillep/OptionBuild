@@ -336,14 +336,14 @@ export function OptionDetailsPanel({
     if (onUpdateLeg) onUpdateLeg({ premium: avgCost, premiumSource: "market" });
   };
   
+  const minQuantity = closedQuantity + 1;
+  
   const handleQuantityDecrease = () => {
     if (leg.position === "long") {
-      // Long position: decrease from positive (2 → 1)
-      const newQuantity = Math.max(1, leg.quantity - 1);
+      const newQuantity = Math.max(minQuantity, leg.quantity - 1);
       if (onUpdateQuantity) onUpdateQuantity(newQuantity);
       if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
     } else {
-      // Short position: increase magnitude (-1 → -2)
       const newQuantity = leg.quantity + 1;
       if (onUpdateQuantity) onUpdateQuantity(newQuantity);
       if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
@@ -352,13 +352,11 @@ export function OptionDetailsPanel({
   
   const handleQuantityIncrease = () => {
     if (leg.position === "long") {
-      // Long position: increase to positive (1 → 2)
       const newQuantity = leg.quantity + 1;
       if (onUpdateQuantity) onUpdateQuantity(newQuantity);
       if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
     } else {
-      // Short position: decrease magnitude (but keep at least -1) (-2 → -1)
-      const newQuantity = Math.max(1, leg.quantity - 1);
+      const newQuantity = Math.max(minQuantity, leg.quantity - 1);
       if (onUpdateQuantity) onUpdateQuantity(newQuantity);
       if (onUpdateLeg) onUpdateLeg({ quantity: newQuantity });
     }
@@ -1080,13 +1078,14 @@ export function OptionDetailsPanel({
             <input
               type="text"
               inputMode="numeric"
-              value={leg.position === "short" ? `-${leg.quantity}` : `${leg.quantity}`}
+              value={leg.position === "short" ? `-${Math.abs(displayQuantity)}` : `${Math.abs(displayQuantity)}`}
               onChange={(e) => {
                 const raw = e.target.value.replace(/[^0-9]/g, '');
                 const val = parseInt(raw);
                 if (!isNaN(val) && val >= 1) {
-                  if (onUpdateQuantity) onUpdateQuantity(val);
-                  if (onUpdateLeg) onUpdateLeg({ quantity: val });
+                  const newTotal = val + closedQuantity;
+                  if (onUpdateQuantity) onUpdateQuantity(newTotal);
+                  if (onUpdateLeg) onUpdateLeg({ quantity: newTotal });
                 }
               }}
               className="flex-1 text-center font-mono font-semibold bg-transparent border rounded-md h-8 w-12"

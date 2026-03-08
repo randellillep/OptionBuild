@@ -597,7 +597,7 @@ export function StrikeLadder({
                 {(hasMultipleExpirations || hasAnyClosedLegs || hasClosedEntriesWithDifferentExp) && expirationSubscript && (
                   <div
                     className="absolute -top-2 -right-2 text-[8px] font-bold text-white rounded-sm px-1 py-px z-[100] leading-tight"
-                    style={{ backgroundColor: expirationColor || 'rgba(255,255,255,0.3)' }}
+                    style={{ backgroundColor: expirationColor || '#64748b' }}
                   >{expirationSubscript}</div>
                 )}
               </div>
@@ -815,9 +815,10 @@ export function StrikeLadder({
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
     const closedExpirationSubscript = (() => {
-      const expDate = entry.expirationDate || leg.expirationDate;
-      if (!expDate) return '';
-      const d = new Date(expDate);
+      const entryExpDate = entry.expirationDate || leg.expirationDate;
+      if (!entryExpDate) return '';
+      if (entryExpDate === leg.expirationDate) return '';
+      const d = new Date(entryExpDate);
       return `${d.getMonth() + 1}/${d.getDate()}`;
     })();
 
