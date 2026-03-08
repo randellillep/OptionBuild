@@ -195,22 +195,60 @@ export default function SavedTrades() {
     // Normalize legs with recalculated expirationDays and market prices
     // IMPORTANT: Always force premiumSource to 'saved' for saved trades
     // This ensures P/L calculation uses the stored premium as cost basis
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
     const legs = rawLegs.map(leg => {
-      // Get options chain data using leg's expiration first, then trade's expiration as fallback
       const legExpiration = leg.expirationDate || trade.expirationDate;
       const chainKey = legExpiration ? `${trade.symbol}|${legExpiration}` : null;
       const chainData = chainKey ? optionsChainMap[chainKey] : null;
       
-      // Find matching market quote for this leg
       const matchingQuote = chainData?.quotes?.find(
         q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
       );
       
+      const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
+      const isExpired = expDateStr
+        ? new Date(expDateStr + 'T00:00:00') < todayDate
+        : false;
+
+      if (isExpired && !matchingQuote && !leg.closingTransaction?.isEnabled) {
+        const intrinsicValue = leg.type === 'call'
+          ? Math.max(0, currentPrice - leg.strike)
+          : Math.max(0, leg.strike - currentPrice);
+        const savedMarket = leg.marketMark ?? leg.marketLast;
+        const closingPrice = savedMarket != null && savedMarket > 0
+          ? savedMarket
+          : intrinsicValue;
+        return {
+          ...leg,
+          expirationDays: 0,
+          premiumSource: 'saved' as const,
+          marketBid: closingPrice,
+          marketAsk: closingPrice,
+          marketMark: closingPrice,
+          marketLast: closingPrice,
+          closingTransaction: {
+            quantity: leg.quantity,
+            closingPrice,
+            isEnabled: true,
+            entries: [{
+              id: `exp-${leg.id}`,
+              quantity: leg.quantity,
+              closingPrice,
+              strike: leg.strike,
+              openingPrice: leg.premium,
+              closedAt: expDateStr || new Date().toISOString().split('T')[0],
+              expirationDate: leg.expirationDate,
+              type: leg.type,
+            }],
+          },
+        };
+      }
+      
       return {
         ...leg,
         expirationDays: recalculateExpirationDays(leg, trade.expirationDate),
-        premiumSource: 'saved' as const,  // Force 'saved' - these are saved trades with stored cost basis
-        // Populate market fields from live options chain data
+        premiumSource: 'saved' as const,
         marketBid: matchingQuote?.bid,
         marketAsk: matchingQuote?.ask,
         marketMark: matchingQuote?.mid,
@@ -283,6 +321,8 @@ export default function SavedTrades() {
     
     // Parse and enrich legs with market data (same as calculateTotalReturn)
     const rawLegs = (trade.legs as OptionLeg[]) || [];
+    const todayForBuilder = new Date();
+    todayForBuilder.setHours(0, 0, 0, 0);
     const enrichedLegs = rawLegs.map(leg => {
       const legExpiration = leg.expirationDate || trade.expirationDate;
       const chainKey = legExpiration ? `${trade.symbol}|${legExpiration}` : null;
@@ -292,9 +332,8 @@ export default function SavedTrades() {
         q => Math.abs(q.strike - leg.strike) < 0.01 && q.side.toLowerCase() === leg.type
       );
       
-      // Recalculate expiration days
       let expirationDays = leg.expirationDays || 30;
-      const expDateStr = leg.expirationDate || trade.expirationDate;
+      const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
       if (expDateStr) {
         try {
           const expDate = new Date(expDateStr);
@@ -304,6 +343,45 @@ export default function SavedTrades() {
         } catch {
           // Keep default
         }
+      }
+      
+      const isExpired = expDateStr
+        ? new Date(expDateStr + 'T00:00:00') < todayForBuilder
+        : false;
+
+      if (isExpired && !matchingQuote && !leg.closingTransaction?.isEnabled) {
+        const price = currentPrice || 0;
+        const intrinsicValue = leg.type === 'call'
+          ? Math.max(0, price - leg.strike)
+          : Math.max(0, leg.strike - price);
+        const savedMarket = leg.marketMark ?? leg.marketLast;
+        const closingPrice = savedMarket != null && savedMarket > 0
+          ? savedMarket
+          : intrinsicValue;
+        return {
+          ...leg,
+          expirationDays: 0,
+          premiumSource: 'saved' as const,
+          marketBid: closingPrice,
+          marketAsk: closingPrice,
+          marketMark: closingPrice,
+          marketLast: closingPrice,
+          closingTransaction: {
+            quantity: leg.quantity,
+            closingPrice,
+            isEnabled: true,
+            entries: [{
+              id: `exp-${leg.id}`,
+              quantity: leg.quantity,
+              closingPrice,
+              strike: leg.strike,
+              openingPrice: leg.premium,
+              closedAt: expDateStr || new Date().toISOString().split('T')[0],
+              expirationDate: leg.expirationDate,
+              type: leg.type,
+            }],
+          },
+        };
       }
       
       return {

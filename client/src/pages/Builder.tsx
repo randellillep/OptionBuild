@@ -371,19 +371,24 @@ export default function Builder() {
                 visualOrder: leg.visualOrder ?? index,
               };
               
-              // Auto-close expired legs at $0 (expired worthless) if not already closed
-              // We use $0 as the closing price because we don't have the actual
-              // underlying price at expiration. User can edit the closing price
-              // in the leg details panel if the option expired with intrinsic value.
               if (isLegExpired && !leg.closingTransaction?.isEnabled) {
+                const underlyingAtExpiry = trade.price || 0;
+                const strike = normalLeg.strike;
+                const intrinsicValue = normalLeg.type === 'call'
+                  ? Math.max(0, underlyingAtExpiry - strike)
+                  : Math.max(0, strike - underlyingAtExpiry);
+                const lastMarketPrice = normalLeg.marketMark ?? normalLeg.marketLast;
+                const closingPrice = lastMarketPrice != null && lastMarketPrice > 0
+                  ? lastMarketPrice
+                  : intrinsicValue;
                 normalLeg.closingTransaction = {
                   quantity: normalLeg.quantity,
-                  closingPrice: 0,
+                  closingPrice,
                   isEnabled: true,
                   entries: [{
                     id: `exp-${normalLeg.id}`,
                     quantity: normalLeg.quantity,
-                    closingPrice: 0,
+                    closingPrice,
                     strike: normalLeg.strike,
                     openingPrice: normalLeg.premium,
                     closedAt: expDate || new Date().toISOString().split('T')[0],
@@ -391,10 +396,10 @@ export default function Builder() {
                     type: normalLeg.type,
                   }],
                 };
-                normalLeg.marketBid = 0;
-                normalLeg.marketAsk = 0;
-                normalLeg.marketMark = 0;
-                normalLeg.marketLast = 0;
+                normalLeg.marketBid = closingPrice > 0 ? closingPrice : 0;
+                normalLeg.marketAsk = closingPrice > 0 ? closingPrice : 0;
+                normalLeg.marketMark = closingPrice > 0 ? closingPrice : 0;
+                normalLeg.marketLast = closingPrice > 0 ? closingPrice : 0;
               }
               
               return normalLeg;
