@@ -814,10 +814,13 @@ export function StrikeLadder({
 
     const strikeText = `${entryStrike % 1 === 0 ? entryStrike.toFixed(0) : entryStrike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
 
+    const anyEntryHasDifferentExp = (leg.closingTransaction?.entries || []).some(
+      e => e.expirationDate && e.expirationDate !== leg.expirationDate
+    );
     const closedExpirationSubscript = (() => {
+      if (!anyEntryHasDifferentExp) return '';
       const entryExpDate = entry.expirationDate || leg.expirationDate;
       if (!entryExpDate) return '';
-      if (entryExpDate === leg.expirationDate) return '';
       const d = new Date(entryExpDate);
       return `${d.getMonth() + 1}/${d.getDate()}`;
     })();
