@@ -422,10 +422,8 @@ export function OptionDetailsPanel({
   // Update closing price when market data refreshes (e.g. after expiration change)
   useEffect(() => {
     if (showClosingSection && !closingPriceEditingRef.current && marketData?.bid !== undefined && marketData?.ask !== undefined) {
-      if (!leg.closingTransaction?.isEnabled) {
-        const midPrice = (marketData.bid + marketData.ask) / 2;
-        setClosingPriceText(midPrice.toFixed(2));
-      }
+      const midPrice = (marketData.bid + marketData.ask) / 2;
+      setClosingPriceText(midPrice.toFixed(2));
     }
   }, [marketData?.bid, marketData?.ask, showClosingSection]);
 
