@@ -634,11 +634,6 @@ export function StrikeLadder({
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
             onReopenAsNewLeg={onAddLeg}
             onSwitchType={() => {
-              onUpdateLeg(leg.id, {
-                type: leg.type === "call" ? "put" : "call",
-                costBasisLocked: false,
-                premiumSource: undefined,
-              });
               setPopoverOpen(false);
               setSelectedLeg(null);
             }}

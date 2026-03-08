@@ -1262,6 +1262,8 @@ export function OptionDetailsPanel({
                   } : undefined;
                   onUpdateLeg({ 
                     type: newType,
+                    costBasisLocked: false,
+                    premiumSource: undefined,
                     ...(updatedClosingTransaction ? { closingTransaction: updatedClosingTransaction } : {}),
                   });
                 }
