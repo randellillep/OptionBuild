@@ -659,7 +659,8 @@ export function StrikeLadder({
   };
 
   const renderClosedEntryBadge = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', closedIndex: number = 0) => {
-    const isCall = leg.type === "call";
+    const entryType = entry.type || leg.type;
+    const isCall = entryType === "call";
     const isExcluded = entry.isExcluded;
     
     const entryStrike = entry.strike;

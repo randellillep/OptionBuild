@@ -457,8 +457,8 @@ export function PositionsModal({
                       <div className="flex-1 text-sm">
                         <span className="font-semibold">{symbol}</span>
                         <span className="ml-1">
-                          {/* Use entry.strike (immutable at time of close), not leg.strike */}
-                          {formatStrike(pos.entry.strike)}{pos.leg.type === 'call' ? 'C' : 'P'}
+                          {/* Use entry's immutable strike and type at time of close */}
+                          {formatStrike(pos.entry.strike)}{(pos.entry.type || pos.leg.type) === 'call' ? 'C' : 'P'}
                         </span>
                         {pos.leg.expirationDate && (
                           <span className="text-muted-foreground ml-1">

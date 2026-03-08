@@ -481,6 +481,7 @@ export function OptionDetailsPanel({
       strike: leg.strike, // Capture strike at time of close (immutable primitive)
       openingPrice: leg.premium, // Capture cost basis at time of close (immutable primitive)
       expirationDate: leg.expirationDate || expirationDate, // Capture expiration at time of close (immutable)
+      type: leg.type === "stock" ? undefined : leg.type as import("@shared/schema").OptionType, // Capture option type at time of close (immutable)
       isExcluded: false,
       visualOrder: entryVisualOrder, // Unique visualOrder for this specific close
     };
@@ -685,7 +686,7 @@ export function OptionDetailsPanel({
       })();
       
       const newLeg: Omit<OptionLeg, "id"> = {
-        type: leg.type,
+        type: entryToReopen.type || leg.type,
         position: leg.position,
         strike: entryToReopen.strike,
         premium: leg.premium, // Original cost basis
@@ -820,9 +821,10 @@ export function OptionDetailsPanel({
     const closedQty = selectedClosedEntry ? selectedClosedEntry.quantity : (leg.closingTransaction.quantity || 0);
     const closePrice = selectedClosedEntry ? selectedClosedEntry.closingPrice : (leg.closingTransaction.closingPrice || 0);
     
-    // Create title using the ENTRY's immutable strike and expiration (not leg values which can change)
+    // Create title using the ENTRY's immutable strike, type, and expiration (not leg values which can change)
     const entryExpiration = selectedClosedEntry?.expirationDate || leg.expirationDate || expirationDate;
-    const closedTitle = `${symbol.toUpperCase()} ${formatStrike(displayStrike)}${leg.type === "call" ? "C" : "P"} ${formatDate(entryExpiration)}${isExpired ? ' (Expired)' : ''}`;
+    const entryType = selectedClosedEntry?.type || leg.type;
+    const closedTitle = `${symbol.toUpperCase()} ${formatStrike(displayStrike)}${entryType === "call" ? "C" : "P"} ${formatDate(entryExpiration)}${isExpired ? ' (Expired)' : ''}`;
     
     const saleDate = selectedClosedEntry?.closedAt ? formatDate(selectedClosedEntry.closedAt) : null;
     
