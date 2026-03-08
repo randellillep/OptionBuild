@@ -216,6 +216,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/trades/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const { id } = req.params;
+      const updateSchema = z.object({
+        legs: z.array(z.any()).optional(),
+        price: z.number().optional(),
+        expirationDate: z.string().nullable().optional(),
+      });
+
+      const validation = updateSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid update data", details: validation.error.errors });
+      }
+
+      const updated = await storage.updateSavedTrade(id, userId, validation.data);
+      if (!updated) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating trade:", error);
+      res.status(500).json({ error: "Failed to update trade" });
+    }
+  });
+
   app.delete('/api/trades/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);

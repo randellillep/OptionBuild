@@ -14,6 +14,7 @@ export interface IStorage {
   setOptionsChainCache(cacheKey: string, data: MarketOptionChainSummary, ttlSeconds: number): Promise<void>;
   getSavedTrades(userId: string): Promise<SavedTrade[]>;
   createSavedTrade(trade: InsertSavedTrade): Promise<SavedTrade>;
+  updateSavedTrade(id: string, userId: string, updates: Partial<InsertSavedTrade>): Promise<SavedTrade | undefined>;
   deleteSavedTrade(id: string, userId: string): Promise<boolean>;
   
   // Backtest operations
@@ -109,6 +110,14 @@ export class DatabaseStorage implements IStorage {
   async createSavedTrade(trade: InsertSavedTrade): Promise<SavedTrade> {
     const [newTrade] = await db.insert(savedTrades).values(trade).returning();
     return newTrade;
+  }
+
+  async updateSavedTrade(id: string, userId: string, updates: Partial<InsertSavedTrade>): Promise<SavedTrade | undefined> {
+    const [updated] = await db.update(savedTrades)
+      .set(updates)
+      .where(and(eq(savedTrades.id, id), eq(savedTrades.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async deleteSavedTrade(id: string, userId: string): Promise<boolean> {

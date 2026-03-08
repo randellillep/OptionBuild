@@ -90,6 +90,9 @@ Preferred communication style: Simple, everyday language.
 - `legExpirationDates` includes saved-trade legs (`premiumSource='saved'`) even when fully closed, so expired dates appear in the ExpirationTimeline.
 - Market data updates skip expired legs (no overwrites).
 - ExpirationTimeline shows expired dates with strikethrough styling and injects them from leg data.
+- **Auto-close persistence**: When the Saved Trades page loads, expired legs without closing transactions are automatically closed (using saved market data or intrinsic value) and the updated legs are persisted back to the database via `PATCH /api/trades/:id`. This means closing prices are permanently stored, not recalculated each time.
+- **"Expired or Closed" filter**: Saved Trades page Show filter has three options: "Active" (default), "Expired or Closed", and "All". Trade status is determined per-leg: a trade is "expired/closed" only when ALL legs are either expired or fully closed via closing transactions.
+- `updateSavedTrade(id, userId, updates)` method in storage allows partial updates to saved trades (legs, price, expirationDate).
 
 ## Backtesting Engine (tastytrade-aligned)
 

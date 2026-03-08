@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -124,6 +124,105 @@ export default function SavedTrades() {
   const deleteTrade = (tradeId: string) => {
     deleteMutation.mutate(tradeId);
   };
+
+  const isLegFullyClosed = useCallback((leg: OptionLeg): boolean => {
+    if (!leg.closingTransaction?.isEnabled) return false;
+    const entriesQty = (leg.closingTransaction.entries || []).reduce((sum: number, e: any) => sum + (e.quantity || 0), 0);
+    if (entriesQty >= leg.quantity) return true;
+    if (leg.closingTransaction.quantity && leg.closingTransaction.quantity >= leg.quantity) return true;
+    return false;
+  }, []);
+
+  const isTradeFullyExpiredOrClosed = useCallback((trade: SavedTrade): boolean => {
+    const rawLegs = (trade.legs as OptionLeg[]) || [];
+    if (rawLegs.length === 0) return false;
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    return rawLegs.every(leg => {
+      if (isLegFullyClosed(leg)) return true;
+      const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
+      if (expDateStr) {
+        return new Date(expDateStr + 'T00:00:00') < todayDate;
+      }
+      return false;
+    });
+  }, [isLegFullyClosed]);
+
+  const autoClosedTradesRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!trades.length) return;
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+
+    trades.forEach(trade => {
+      if (autoClosedTradesRef.current.has(trade.id)) return;
+
+      const price = currentPrices[trade.symbol];
+      if (!price) return;
+
+      const rawLegs = (trade.legs as OptionLeg[]) || [];
+      let hasChanges = false;
+
+      const updatedLegs = rawLegs.map(leg => {
+        if (isLegFullyClosed(leg)) return leg;
+
+        const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
+        const isExpired = expDateStr
+          ? new Date(expDateStr + 'T00:00:00') < todayDate
+          : false;
+
+        if (isExpired) {
+          hasChanges = true;
+          const intrinsicValue = leg.type === 'call'
+            ? Math.max(0, price - leg.strike)
+            : Math.max(0, leg.strike - price);
+          const savedMarket = leg.marketMark ?? leg.marketLast;
+          const closingPrice = savedMarket != null && savedMarket > 0
+            ? savedMarket
+            : intrinsicValue;
+          return {
+            ...leg,
+            expirationDays: 0,
+            marketBid: closingPrice,
+            marketAsk: closingPrice,
+            marketMark: closingPrice,
+            marketLast: closingPrice,
+            closingTransaction: {
+              quantity: leg.quantity,
+              closingPrice,
+              isEnabled: true,
+              entries: [{
+                id: `exp-${leg.id}`,
+                quantity: leg.quantity,
+                closingPrice,
+                strike: leg.strike,
+                openingPrice: leg.premium,
+                closedAt: expDateStr || new Date().toISOString().split('T')[0],
+                expirationDate: leg.expirationDate,
+                type: leg.type,
+              }],
+            },
+          };
+        }
+        return leg;
+      });
+
+      if (!hasChanges) {
+        autoClosedTradesRef.current.add(trade.id);
+        return;
+      }
+
+      apiRequest('PATCH', `/api/trades/${trade.id}`, { legs: updatedLegs })
+        .then(() => {
+          autoClosedTradesRef.current.add(trade.id);
+          queryClient.invalidateQueries({ queryKey: ['/api/trades'] });
+        })
+        .catch(err => {
+          console.error('Failed to auto-close expired legs for trade:', trade.id, err);
+        });
+    });
+  }, [trades, currentPrices, isLegFullyClosed]);
 
   const getDaysUntilExpiration = (expirationDate: string | null): { days: number; dateStr: string } | null => {
     if (!expirationDate) return null;
@@ -279,10 +378,9 @@ export default function SavedTrades() {
     .filter(trade => group === "all" || trade.tradeGroup === group)
     .filter(trade => {
       if (showFilter === "all") return true;
-      if (showFilter === "active") {
-        const exp = getDaysUntilExpiration(trade.expirationDate);
-        return exp ? exp.days >= 0 : true;
-      }
+      const fullyDone = isTradeFullyExpiredOrClosed(trade);
+      if (showFilter === "active") return !fullyDone;
+      if (showFilter === "expired") return fullyDone;
       return true;
     })
     .sort((a, b) => {
@@ -485,11 +583,12 @@ export default function SavedTrades() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                 <span className="text-xs sm:text-sm font-medium text-muted-foreground">Show:</span>
                 <Select value={showFilter} onValueChange={setShowFilter}>
-                  <SelectTrigger className="w-full sm:w-[100px] h-8 sm:h-9 text-xs sm:text-sm" data-testid="select-show-filter">
+                  <SelectTrigger className="w-full sm:w-[160px] h-8 sm:h-9 text-xs sm:text-sm" data-testid="select-show-filter">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="expired">Expired or Closed</SelectItem>
                     <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
@@ -578,7 +677,11 @@ export default function SavedTrades() {
                           {formatDate(trade.savedAt)}
                         </td>
                         <td className="py-2 sm:py-3 px-2 text-xs sm:text-sm">
-                          {expInfo ? (
+                          {isTradeFullyExpiredOrClosed(trade) ? (
+                            <span className="text-muted-foreground">
+                              {((trade.legs as OptionLeg[]) || []).every(leg => isLegFullyClosed(leg)) ? 'Closed' : 'Expired'}
+                            </span>
+                          ) : expInfo ? (
                             <span className={expInfo.days <= 7 ? 'text-amber-600 dark:text-amber-500 font-medium' : 'text-muted-foreground'}>
                               {expInfo.days}d
                               <span className="hidden sm:inline"> ({expInfo.dateStr})</span>
