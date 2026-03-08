@@ -411,25 +411,29 @@ export function OptionDetailsPanel({
     setClosingPriceText(defaultPrice.toFixed(2));
   }, [leg.id]);
 
-  // Sync closing transaction state with leg - but DON'T auto-open the section
-  useEffect(() => {
-    // Only update closing price text if already showing and not editing
-    if (showClosingSection && !closingPriceEditingRef.current && leg.closingTransaction?.isEnabled) {
-      setClosingPriceText(leg.closingTransaction.closingPrice.toFixed(2));
-    }
-  }, [leg.closingTransaction, showClosingSection]);
+  // Track the bid/ask at the time of opening the closing section
+  // so we only update when they genuinely change (not on re-renders)
+  const closingSectionBidAskRef = useRef<{ bid: number; ask: number } | null>(null);
 
-  // Update closing price when market data refreshes (e.g. after expiration change)
+  // Update closing price ONLY when bid/ask genuinely change from their initial values
+  // This prevents quantity changes or re-renders from resetting the price
   useEffect(() => {
-    if (showClosingSection && !closingPriceEditingRef.current && marketData?.bid !== undefined && marketData?.ask !== undefined) {
-      const midPrice = (marketData.bid + marketData.ask) / 2;
-      setClosingPriceText(midPrice.toFixed(2));
+    if (!showClosingSection || closingPriceEditingRef.current) return;
+    if (marketData?.bid === undefined || marketData?.ask === undefined) return;
+    
+    const prev = closingSectionBidAskRef.current;
+    if (prev && Math.abs(prev.bid - marketData.bid) < 0.001 && Math.abs(prev.ask - marketData.ask) < 0.001) {
+      return;
     }
+    closingSectionBidAskRef.current = { bid: marketData.bid, ask: marketData.ask };
+    const midPrice = (marketData.bid + marketData.ask) / 2;
+    setClosingPriceText(midPrice.toFixed(2));
   }, [marketData?.bid, marketData?.ask, showClosingSection]);
 
   const handleToggleClosing = (enabled: boolean) => {
     // Just toggle the UI section visibility - don't execute the sell yet
     setShowClosingSection(enabled);
+    closingSectionBidAskRef.current = null;
     if (enabled) {
       // Initialize closing price to mid-price (avg of bid/ask)
       const defaultPrice = (marketData?.bid !== undefined && marketData?.ask !== undefined)
@@ -669,14 +673,25 @@ export function OptionDetailsPanel({
       // Add tiny offset (0.0001) to create unique order while maintaining position
       const reopenedVisualOrder = baseVisualOrder + 0.0001;
       
+      const reopenExpDate = entryToReopen.expirationDate || leg.expirationDate;
+      const reopenExpDays = (() => {
+        if (!reopenExpDate) return leg.expirationDays;
+        const expD = new Date(reopenExpDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        expD.setHours(0, 0, 0, 0);
+        const diff = expD.getTime() - today.getTime();
+        return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+      })();
+      
       const newLeg: Omit<OptionLeg, "id"> = {
         type: leg.type,
         position: leg.position,
         strike: entryToReopen.strike,
         premium: leg.premium, // Original cost basis
         quantity: entryToReopen.quantity,
-        expirationDays: leg.expirationDays,
-        expirationDate: entryToReopen.expirationDate || leg.expirationDate,
+        expirationDays: reopenExpDays,
+        expirationDate: reopenExpDate,
         premiumSource: leg.premiumSource,
         impliedVolatility: leg.impliedVolatility,
         entryUnderlyingPrice: leg.entryUnderlyingPrice ?? underlyingPrice,
