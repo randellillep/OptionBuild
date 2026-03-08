@@ -789,7 +789,8 @@ export function StrikeLadder({
 
   // Unified version of closed entry badge that uses cumulative stackOffset
   const renderClosedEntryBadgeUnified = (leg: OptionLeg, entry: ClosingEntry, position: 'long' | 'short', verticalOffset: number = 0) => {
-    const isCall = leg.type === "call";
+    const entryType = entry.type || leg.type;
+    const isCall = entryType === "call";
     const isExcluded = entry.isExcluded;
     
     const entryStrike = entry.strike;
