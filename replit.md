@@ -80,6 +80,17 @@ Preferred communication style: Simple, everyday language.
 **Schema**: `deletion_tokens` table (id UUID, user_id FK cascade, token unique, expires_at timestamp, created_at).
 **API Routes**: `POST /api/account/delete-request` (authenticated, sends email), `GET /api/account/confirm-delete?token=XXX` (public, validates + deletes).
 
+## Historical Trade Preservation
+
+**Key Design Decisions**:
+- Saved trades preserve their original expiration dates even when those dates are in the past. Dates are never replaced with future dates.
+- When loading a saved trade where the global `expirationDate` is expired but some legs have future dates, the system selects the latest active leg's expiration as the timeline selection.
+- When ALL legs are expired (fully historical trade), `expirationDays=0` and the original `expirationDate` is preserved.
+- Expired legs are auto-closed at $0 (expired worthless) with `expirationDate` and `type` stored in closing entries. User can edit closing price if option expired ITM.
+- `legExpirationDates` includes saved-trade legs (`premiumSource='saved'`) even when fully closed, so expired dates appear in the ExpirationTimeline.
+- Market data updates skip expired legs (no overwrites).
+- ExpirationTimeline shows expired dates with strikethrough styling and injects them from leg data.
+
 ## Backtesting Engine (tastytrade-aligned)
 
 **Key Design Decisions**:

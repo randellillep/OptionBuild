@@ -231,6 +231,7 @@ export default function Builder() {
     return legs
       .filter(l => {
         if (l.type === 'stock' || !l.expirationDate || l.quantity <= 0) return false;
+        if (l.premiumSource === 'saved') return true;
         if (l.closingTransaction?.isEnabled) {
           const closedQty = (l.closingTransaction.entries || []).reduce((sum: number, e: any) => sum + e.quantity, 0);
           if (closedQty >= l.quantity) return false;
@@ -386,6 +387,8 @@ export default function Builder() {
                     strike: normalLeg.strike,
                     openingPrice: normalLeg.premium,
                     closedAt: expDate || new Date().toISOString().split('T')[0],
+                    expirationDate: normalLeg.expirationDate,
+                    type: normalLeg.type,
                   }],
                 };
                 normalLeg.marketBid = 0;
@@ -409,34 +412,52 @@ export default function Builder() {
               const [year, month, day] = dateOnly.split('-').map(Number);
               
               if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                // Set expiration to 4pm ET (21:00 UTC as approximation)
                 const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
                 const now = new Date();
                 const diffMs = expDateUTC.getTime() - now.getTime();
                 const diffDaysFractional = diffMs / (1000 * 60 * 60 * 24);
                 
                 if (diffDaysFractional > 0) {
-                  // Valid future expiration - use fractional days
                   expirationDays = diffDaysFractional;
                   expirationDateStr = dateOnly;
                 } else {
-                  // Expired - use 7-day forward as default
-                  expirationDays = 7;
-                  const futureDate = new Date();
-                  futureDate.setDate(futureDate.getDate() + 7);
-                  expirationDateStr = futureDate.toISOString().split('T')[0];
+                  const activeFutureLegs = normalizedLegs.filter(l => l.type !== 'stock' && l.expirationDays > 0);
+                  if (activeFutureLegs.length > 0) {
+                    const latestLeg = activeFutureLegs.reduce((a, b) => a.expirationDays > b.expirationDays ? a : b);
+                    expirationDays = latestLeg.expirationDays;
+                    expirationDateStr = latestLeg.expirationDate?.split('T')[0] || dateOnly;
+                  } else {
+                    expirationDays = 0;
+                    expirationDateStr = dateOnly;
+                  }
                 }
               } else {
                 expirationDays = 30;
                 expirationDateStr = trade.expirationDate;
               }
             } else {
-              // No expiration stored - derive from legs (which have fractional days) or use default
-              const legDays = normalizedLegs.map(l => l.expirationDays).filter(d => d > 0);
-              expirationDays = legDays.length > 0 ? Math.max(...legDays) : 30;
-              const futureDate = new Date();
-              futureDate.setDate(futureDate.getDate() + Math.ceil(expirationDays));
-              expirationDateStr = futureDate.toISOString().split('T')[0];
+              const activeFutureLegs = normalizedLegs.filter(l => l.type !== 'stock' && l.expirationDays > 0);
+              if (activeFutureLegs.length > 0) {
+                const latestLeg = activeFutureLegs.reduce((a, b) => a.expirationDays > b.expirationDays ? a : b);
+                expirationDays = latestLeg.expirationDays;
+                expirationDateStr = latestLeg.expirationDate?.split('T')[0] || '';
+                if (!expirationDateStr) {
+                  const futureDate = new Date();
+                  futureDate.setDate(futureDate.getDate() + Math.ceil(expirationDays));
+                  expirationDateStr = futureDate.toISOString().split('T')[0];
+                }
+              } else {
+                const legWithDate = normalizedLegs.find(l => l.type !== 'stock' && l.expirationDate);
+                if (legWithDate?.expirationDate) {
+                  expirationDateStr = legWithDate.expirationDate.split('T')[0];
+                  expirationDays = legWithDate.expirationDays;
+                } else {
+                  expirationDays = 30;
+                  const futureDate = new Date();
+                  futureDate.setDate(futureDate.getDate() + 30);
+                  expirationDateStr = futureDate.toISOString().split('T')[0];
+                }
+              }
             }
             
             setSelectedExpiration(expirationDays, expirationDateStr);
@@ -552,7 +573,6 @@ export default function Builder() {
               const [year, month, day] = dateOnly.split('-').map(Number);
               
               if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                // Set expiration to 4pm ET (21:00 UTC as approximation)
                 const expDateUTC = new Date(Date.UTC(year, month - 1, day, 21, 0, 0));
                 const now = new Date();
                 const diffMs = expDateUTC.getTime() - now.getTime();
@@ -562,22 +582,43 @@ export default function Builder() {
                   expirationDays = diffDaysFractional;
                   expirationDateStr = dateOnly;
                 } else {
-                  expirationDays = 7;
-                  const futureDate = new Date();
-                  futureDate.setDate(futureDate.getDate() + 7);
-                  expirationDateStr = futureDate.toISOString().split('T')[0];
+                  const activeFutureLegs = normalizedLegs.filter(l => l.type !== 'stock' && l.expirationDays > 0);
+                  if (activeFutureLegs.length > 0) {
+                    const latestLeg = activeFutureLegs.reduce((a, b) => a.expirationDays > b.expirationDays ? a : b);
+                    expirationDays = latestLeg.expirationDays;
+                    expirationDateStr = latestLeg.expirationDate?.split('T')[0] || dateOnly;
+                  } else {
+                    expirationDays = 0;
+                    expirationDateStr = dateOnly;
+                  }
                 }
               } else {
                 expirationDays = 30;
                 expirationDateStr = strategy.expirationDate;
               }
             } else {
-              // Use fractional days from legs
-              const legDays = normalizedLegs.map(l => l.expirationDays).filter(d => d > 0);
-              expirationDays = legDays.length > 0 ? Math.max(...legDays) : 30;
-              const futureDate = new Date();
-              futureDate.setDate(futureDate.getDate() + Math.ceil(expirationDays));
-              expirationDateStr = futureDate.toISOString().split('T')[0];
+              const activeFutureLegs = normalizedLegs.filter(l => l.type !== 'stock' && l.expirationDays > 0);
+              if (activeFutureLegs.length > 0) {
+                const latestLeg = activeFutureLegs.reduce((a, b) => a.expirationDays > b.expirationDays ? a : b);
+                expirationDays = latestLeg.expirationDays;
+                expirationDateStr = latestLeg.expirationDate?.split('T')[0] || '';
+                if (!expirationDateStr) {
+                  const futureDate = new Date();
+                  futureDate.setDate(futureDate.getDate() + Math.ceil(expirationDays));
+                  expirationDateStr = futureDate.toISOString().split('T')[0];
+                }
+              } else {
+                const legWithDate = normalizedLegs.find(l => l.type !== 'stock' && l.expirationDate);
+                if (legWithDate?.expirationDate) {
+                  expirationDateStr = legWithDate.expirationDate.split('T')[0];
+                  expirationDays = legWithDate.expirationDays;
+                } else {
+                  expirationDays = 30;
+                  const futureDate = new Date();
+                  futureDate.setDate(futureDate.getDate() + 30);
+                  expirationDateStr = futureDate.toISOString().split('T')[0];
+                }
+              }
             }
             
             setSelectedExpiration(expirationDays, expirationDateStr);
