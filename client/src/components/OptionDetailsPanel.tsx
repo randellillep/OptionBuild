@@ -379,7 +379,9 @@ export function OptionDetailsPanel({
   const [closingQty, setClosingQty] = useState(Math.min(1, Math.max(1, remainingToClose)));
   const [closingQtyInput, setClosingQtyInput] = useState(String(Math.min(1, Math.max(1, remainingToClose))));
   const [closingPriceText, setClosingPriceText] = useState(
-    (leg.closingTransaction?.closingPrice || marketData?.ask || leg.premium).toFixed(2)
+    (leg.closingTransaction?.closingPrice || 
+      (marketData?.bid !== undefined && marketData?.ask !== undefined ? (marketData.bid + marketData.ask) / 2 : null) || 
+      leg.premium).toFixed(2)
   );
   const closingPriceEditingRef = useRef(false);
   
@@ -402,8 +404,10 @@ export function OptionDetailsPanel({
     const newQtyVal = Math.min(1, Math.max(1, remaining));
     setClosingQty(newQtyVal);
     setClosingQtyInput(String(newQtyVal));
-    // Reset closing price
-    const defaultPrice = marketData?.ask || leg.premium;
+    // Reset closing price to mid-price (avg of bid/ask)
+    const defaultPrice = (marketData?.bid !== undefined && marketData?.ask !== undefined)
+      ? (marketData.bid + marketData.ask) / 2
+      : leg.premium;
     setClosingPriceText(defaultPrice.toFixed(2));
   }, [leg.id]);
 
@@ -417,19 +421,22 @@ export function OptionDetailsPanel({
 
   // Update closing price when market data refreshes (e.g. after expiration change)
   useEffect(() => {
-    if (showClosingSection && !closingPriceEditingRef.current && marketData?.ask) {
+    if (showClosingSection && !closingPriceEditingRef.current && marketData?.bid !== undefined && marketData?.ask !== undefined) {
       if (!leg.closingTransaction?.isEnabled) {
-        setClosingPriceText(marketData.ask.toFixed(2));
+        const midPrice = (marketData.bid + marketData.ask) / 2;
+        setClosingPriceText(midPrice.toFixed(2));
       }
     }
-  }, [marketData?.ask, showClosingSection]);
+  }, [marketData?.bid, marketData?.ask, showClosingSection]);
 
   const handleToggleClosing = (enabled: boolean) => {
     // Just toggle the UI section visibility - don't execute the sell yet
     setShowClosingSection(enabled);
     if (enabled) {
-      // Initialize closing price to market ask or current premium
-      const defaultPrice = marketData?.ask || leg.premium;
+      // Initialize closing price to mid-price (avg of bid/ask)
+      const defaultPrice = (marketData?.bid !== undefined && marketData?.ask !== undefined)
+        ? (marketData.bid + marketData.ask) / 2
+        : leg.premium;
       setClosingPriceText(defaultPrice.toFixed(2));
       // Calculate remaining quantity available to close from non-excluded entries
       const alreadyClosed = leg.closingTransaction?.entries
@@ -448,7 +455,10 @@ export function OptionDetailsPanel({
     // Use explicit NaN check instead of || to allow 0 as valid closing price
     // This is important when user wants to close at $0 (e.g., option expired worthless)
     const parsedPrice = parseFloat(closingPriceText);
-    const closingPrice = !isNaN(parsedPrice) ? parsedPrice : (marketData?.ask || leg.premium);
+    const midFallback = (marketData?.bid !== undefined && marketData?.ask !== undefined) 
+      ? (marketData.bid + marketData.ask) / 2 
+      : leg.premium;
+    const closingPrice = !isNaN(parsedPrice) ? parsedPrice : midFallback;
     
     // Create a new closing entry with the current strike and opening price (cost basis)
     // These values are captured as primitives and will NOT change when the leg is moved
