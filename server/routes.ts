@@ -634,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Merge expirations: add today if it has options but wasn't in general results
       const expirationSet = new Set(generalResult.availableExpirations);
       todayResult.availableExpirations.forEach((exp: string) => expirationSet.add(exp));
-      const mergedExpirations = Array.from(expirationSet).sort();
+      const mergedExpirations = Array.from(expirationSet).sort().filter((exp: string) => exp >= todayStr);
       
       if (mergedExpirations.length === 0) {
         return res.status(404).json({ 
