@@ -312,40 +312,74 @@ export function useStrategyEngine(rangePercent: number = 14) {
         const now = new Date();
         const expirationTime = new Date(now.getTime() + totalHours * 3600000);
         
-        const weekdays: Array<{ dayStart: number; dayEnd: number }> = [];
-        let d = new Date(now);
-        while (d.getTime() < expirationTime.getTime()) {
-          const dow = d.getDay();
-          if (dow !== 0 && dow !== 6) {
-            const dayStartMs = d.getTime();
-            const nextDay = new Date(d);
-            nextDay.setDate(nextDay.getDate() + 1);
-            nextDay.setHours(0, 0, 0, 0);
-            const dayEndMs = Math.min(nextDay.getTime(), expirationTime.getTime());
-            const startH = (dayStartMs - now.getTime()) / 3600000 / 24;
-            const endH = (dayEndMs - now.getTime()) / 3600000 / 24;
-            if (endH > startH) {
-              weekdays.push({ dayStart: startH, dayEnd: endH });
-            }
+        const etFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false });
+        const etDayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+        const getETComponents = (date: Date) => {
+          const parts = etFormatter.formatToParts(date);
+          const h = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+          const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+          const dayParts = etDayFormatter.formatToParts(date);
+          const weekday = dayParts.find(p => p.type === 'weekday')?.value || '';
+          return { h, m, hours: h + m / 60, weekday };
+        };
+
+        const marketOpenET = 9.5;
+        const marketCloseET = 16;
+
+        const getNextMarketOpen = (from: Date): Date => {
+          let d = new Date(from);
+          const { hours: etH, weekday } = getETComponents(d);
+          const isWeekend = weekday === 'Sat' || weekday === 'Sun';
+          if (!isWeekend && etH < marketCloseET && etH >= marketOpenET) {
+            return d;
           }
-          const next = new Date(d);
-          next.setDate(next.getDate() + 1);
-          next.setHours(0, 0, 0, 0);
-          d = next;
+          if (!isWeekend && etH < marketOpenET) {
+            const offsetMs = (marketOpenET - etH) * 3600000;
+            return new Date(d.getTime() + offsetMs);
+          }
+          d = new Date(d);
+          const offsetToMidnight = (24 - etH) * 3600000;
+          d = new Date(d.getTime() + offsetToMidnight);
+          for (let i = 0; i < 7; i++) {
+            const comp = getETComponents(d);
+            const isWE = comp.weekday === 'Sat' || comp.weekday === 'Sun';
+            if (!isWE) {
+              const offsetMs = (marketOpenET - comp.hours) * 3600000;
+              return new Date(d.getTime() + offsetMs);
+            }
+            d = new Date(d.getTime() + 24 * 3600000);
+          }
+          return d;
+        };
+
+        const getMarketClose = (openTime: Date): Date => {
+          const { hours: etH } = getETComponents(openTime);
+          const offsetMs = (marketCloseET - etH) * 3600000;
+          return new Date(openTime.getTime() + offsetMs);
+        };
+
+        const sessions: Array<{ openMs: number; closeMs: number }> = [];
+        let cursor = getNextMarketOpen(now);
+        while (cursor.getTime() < expirationTime.getTime()) {
+          const close = getMarketClose(cursor);
+          const sessionEnd = Math.min(close.getTime(), expirationTime.getTime());
+          if (sessionEnd > cursor.getTime()) {
+            sessions.push({ openMs: cursor.getTime(), closeMs: sessionEnd });
+          }
+          const nextDay = new Date(close.getTime() + 1000);
+          cursor = getNextMarketOpen(nextDay);
         }
         
-        if (weekdays.length === 0) {
+        if (sessions.length === 0) {
           timeSteps.push(0);
         } else {
-          const slotsPerDay = Math.max(1, Math.min(5, Math.round(20 / weekdays.length)));
-          for (const wd of weekdays) {
-            const span = wd.dayEnd - wd.dayStart;
-            if (slotsPerDay === 1) {
-              timeSteps.push(wd.dayStart + span / 2);
-            } else {
-              for (let s = 0; s < slotsPerDay; s++) {
-                timeSteps.push(wd.dayStart + (span * s) / (slotsPerDay - 1));
-              }
+          const slotsPerDay = Math.max(2, Math.min(10, Math.round(20 / sessions.length)));
+          for (const session of sessions) {
+            const span = session.closeMs - session.openMs;
+            for (let s = 0; s < slotsPerDay; s++) {
+              const ms = session.openMs + (span * s) / (slotsPerDay - 1);
+              timeSteps.push((ms - now.getTime()) / (24 * 3600000));
             }
           }
         }
