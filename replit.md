@@ -85,7 +85,9 @@ Preferred communication style: Simple, everyday language.
 **Key Design Decisions**:
 - Saved trades preserve their original expiration dates even when those dates are in the past. Dates are never replaced with future dates.
 - When loading a saved trade where the global `expirationDate` is expired but some legs have future dates, the system selects the latest active leg's expiration as the timeline selection.
-- When ALL legs are expired (fully historical trade), `expirationDays=0` and the original `expirationDate` is preserved.
+- When ALL legs are expired (fully historical trade), `expirationDays=0` and the original `expirationDate` is preserved. Heatmap shows single column with expiration date label and "EXPIRED" status banner.
+- When ALL legs are fully closed (via closing transactions) but not yet expired, heatmap preserves the real expiration timeline and shows "CLOSED" status banner. `allLegsFullyClosed` supports both entry-based and legacy quantity-based closing detection.
+- Expired leg badges in OptionDetailsPanel only show "Exclude" and "Remove" actions (Switch/Close/ChangeExpiration hidden via `{!isExpired && ...}`).
 - Expired legs are auto-closed using: 1) saved `marketMark`/`marketLast` if available (last API quote), 2) calculated intrinsic value (call: max(0, underlying-strike), put: max(0, strike-underlying)), 3) $0 only for OTM options. `expirationDate` and `type` stored in closing entries. User can edit closing price if needed.
 - `legExpirationDates` includes saved-trade legs (`premiumSource='saved'`) even when fully closed, so expired dates appear in the ExpirationTimeline.
 - **0DTE intraday heatmap**: When `expirationDays=0`, always generates intraday time columns from 9:30AM to 4PM ET with intervals (5min within 1hr, 10min within 3hr, 15min otherwise). During market hours, starts from current time. Time steps represent `daysRemaining` (decreasing to 0 at close), and `calculateProfitLossAtDate` treats `daysFromNow` as `daysRemaining` when `expirationDays<=0`, showing proper theta decay across the session.

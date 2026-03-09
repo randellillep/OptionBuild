@@ -295,13 +295,19 @@ export default function Builder() {
             // Safety fallback: clear after 2s max in case snap-to-nearest doesn't fire
             savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 2000);
             
-            // Use the current price passed from SavedTrades (if available) for immediate consistency
-            // This ensures the heatmap shows the EXACT same P/L as Total Return in Saved Trades
+            // Use the current price passed from SavedTrades for immediate display
             const initialPrice = trade._currentPrice || trade.price || 100;
             setSymbolInfoForSavedTrade({ symbol: trade.symbol, price: initialPrice });
             
-            // Don't immediately override with fetched price - keep the passed price for consistency
-            // The 10-second price poll will update it later if needed
+            // Fetch latest market price so heatmap reflects current conditions
+            fetch(`/api/stock/quote/${trade.symbol}`)
+              .then(res => res.ok ? res.json() : null)
+              .then(data => {
+                if (data && data.price && data.price > 0) {
+                  setSymbolInfo({ symbol: trade.symbol, price: data.price });
+                }
+              })
+              .catch(() => { });
             
             // Helper to recalculate expirationDays from expirationDate
             // Uses fractional days for same-day options to enable time decay visualization
@@ -2241,16 +2247,16 @@ export default function Builder() {
         </div>
       </header>
 
-      {isInitialLoading && (
+      {(isInitialLoading || savedTradeSettling) && (
         <div className="fixed inset-0 top-10 z-[60] bg-background flex items-center justify-center" data-testid="loading-overlay">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">Loading strategy...</span>
+            <span className="text-sm text-muted-foreground">{savedTradeSettling ? 'Loading saved trade...' : 'Loading strategy...'}</span>
           </div>
         </div>
       )}
 
-      <div className={`container mx-auto px-3 md:px-4 py-2 transition-opacity duration-300 ${(savedTradeSettling || symbolTransitioning) ? 'opacity-40' : 'opacity-100'}`}>
+      <div className={`container mx-auto px-3 md:px-4 py-2 transition-opacity duration-300 ${symbolTransitioning ? 'opacity-40' : 'opacity-100'}`}>
         <div className="space-y-2">
           <TradingViewSearch 
             symbolInfo={symbolInfo} 
@@ -2366,6 +2372,17 @@ export default function Builder() {
                   unrealizedPL={initialPLFromSavedTrade?.unrealizedPL ?? unrealizedPL}
                   hasRealizedPL={hasRealizedPL}
                   hasUnrealizedPL={initialPLFromSavedTrade !== null || hasUnrealizedPL}
+                  isFullyExpiredHistorical={scenarioGrid.isFullyExpiredHistorical}
+                  isFullyClosed={scenarioGrid.isFullyClosed}
+                  expirationDateLabel={(() => {
+                    const optionLegs = legs.filter(l => l.type !== 'stock' && l.expirationDate);
+                    if (optionLegs.length === 0) return undefined;
+                    const dates = optionLegs.map(l => l.expirationDate!.split('T')[0]).sort();
+                    const nearest = dates[0];
+                    const d = new Date(nearest + 'T00:00:00');
+                    if (isNaN(d.getTime())) return nearest;
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                  })()}
                 />
               ) : (
                 <ProfitLossChart 
