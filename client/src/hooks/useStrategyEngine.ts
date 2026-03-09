@@ -232,34 +232,6 @@ export function useStrategyEngine(rangePercent: number = 14) {
     return calculateStrategyMetrics(legs, symbolInfo.price, volatility, calculatedIV);
   }, [legs, symbolInfo.price, volatility, calculatedIV]);
 
-  const allLegsFullyClosed = useMemo(() => {
-    const optionLegs = legs.filter(leg => leg.type !== 'stock' && leg.quantity > 0);
-    if (optionLegs.length === 0) return false;
-    return optionLegs.every(leg => {
-      if (!leg.closingTransaction?.isEnabled) return false;
-      const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
-      if (closedQty >= leg.quantity) return true;
-      if (closedQty === 0 && leg.closingTransaction.quantity > 0 && leg.closingTransaction.quantity >= leg.quantity) return true;
-      return false;
-    });
-  }, [legs]);
-
-  const allLegsExpired = useMemo(() => {
-    const optionLegs = legs.filter(leg => leg.type !== 'stock' && leg.quantity > 0);
-    if (optionLegs.length === 0) return false;
-    return optionLegs.every(leg => {
-      if (leg.expirationDays !== undefined && leg.expirationDays < 0) return true;
-      if (leg.expirationDate) {
-        const expDate = new Date(leg.expirationDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        expDate.setHours(0, 0, 0, 0);
-        return expDate < today;
-      }
-      return false;
-    });
-  }, [legs]);
-
   const uniqueExpirationDays = useMemo(() => {
     const activeLegs = legs.filter(leg => {
       if (leg.type === 'stock') return false;
@@ -271,16 +243,8 @@ export function useStrategyEngine(rangePercent: number = 14) {
       return true;
     });
     const days = Array.from(new Set(activeLegs.map(leg => leg.expirationDays))).sort((a, b) => a - b);
-    if (days.length > 0) return days;
-
-    if (allLegsFullyClosed || allLegsExpired) {
-      const allOptionLegs = legs.filter(leg => leg.type !== 'stock' && leg.quantity > 0);
-      const allDays = Array.from(new Set(allOptionLegs.map(leg => leg.expirationDays))).sort((a, b) => a - b);
-      if (allDays.length > 0) return allDays;
-    }
-
-    return [30];
-  }, [legs, allLegsFullyClosed, allLegsExpired]);
+    return days.length > 0 ? days : [30];
+  }, [legs]);
 
   const strikeRange = useMemo(() => {
     // Center around current price using the range percent - user has full control
@@ -307,17 +271,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const maxLegExpiration = Math.max(...uniqueExpirationDays);
     const targetDays = minLegExpiration;
     
-    const isFullyExpiredHistorical = allLegsExpired && targetDays <= 0;
-    const isFullyClosed = allLegsFullyClosed && !allLegsExpired;
-
     // Match OptionStrat: show hourly intervals for options with 7 days or less
     // This gives traders better visibility into theta decay for weekly options
-    const useHours = !isFullyExpiredHistorical && targetDays <= 7;
+    const useHours = targetDays <= 7;
     const timeSteps: number[] = [];
-
-    if (isFullyExpiredHistorical) {
-      timeSteps.push(0);
-    } else if (useHours) {
+    
+    if (useHours) {
       const totalHours = Math.max(0, targetDays * 24);
       
       if (totalHours <= 0) {
@@ -472,10 +431,8 @@ export function useStrategyEngine(rangePercent: number = 14) {
       useHours,
       targetDays,
       dateGroups,
-      isFullyExpiredHistorical,
-      isFullyClosed,
     };
-  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, calculatedIV, allLegsFullyClosed, allLegsExpired]);
+  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, calculatedIV]);
 
   const setSelectedExpiration = (days: number, date: string) => {
     setSelectedExpirationDays(days);

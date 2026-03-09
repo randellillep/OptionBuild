@@ -43,9 +43,6 @@ interface PLHeatmapProps {
   unrealizedPL?: number;
   hasRealizedPL?: boolean;
   hasUnrealizedPL?: boolean;
-  isFullyExpiredHistorical?: boolean;
-  isFullyClosed?: boolean;
-  expirationDateLabel?: string;
 }
 
 export function PLHeatmap({ 
@@ -73,9 +70,6 @@ export function PLHeatmap({
   unrealizedPL = 0,
   hasRealizedPL = false,
   hasUnrealizedPL = false,
-  isFullyExpiredHistorical = false,
-  isFullyClosed = false,
-  expirationDateLabel,
 }: PLHeatmapProps) {
   const [isDraggingIV, setIsDraggingIV] = useState(false);
   const handlePointerUp = useCallback(() => setIsDraggingIV(false), []);
@@ -319,21 +313,6 @@ export function PLHeatmap({
         </div>
       </div>
 
-      {isFullyExpiredHistorical && (
-        <div className="mb-1.5 px-2 py-1 rounded-md bg-muted/60 border border-border flex items-center gap-2" data-testid="status-expired-historical">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Expired</span>
-          {expirationDateLabel && (
-            <span className="text-[10px] text-muted-foreground">Expired {expirationDateLabel}</span>
-          )}
-        </div>
-      )}
-      {isFullyClosed && !isFullyExpiredHistorical && (
-        <div className="mb-1.5 px-2 py-1 rounded-md bg-muted/60 border border-border flex items-center gap-2" data-testid="status-fully-closed">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Closed</span>
-          <span className="text-[10px] text-muted-foreground">All positions closed</span>
-        </div>
-      )}
-
       <div className="overflow-x-auto">
         <table className="w-full border-collapse" style={{ tableLayout: 'fixed', minWidth: 0 }}>
           <thead>
@@ -342,10 +321,8 @@ export function PLHeatmap({
               const now = new Date();
               const monthGroups: Array<{ label: string; count: number }> = [];
               let lastMonth = '';
-
-              if (isFullyExpiredHistorical) {
-                return null;
-              } else if (useHours) {
+              
+              if (useHours) {
                 days.forEach((daysValue) => {
                   const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
                   const monthLabel = targetTime.toLocaleString('default', { month: 'short' });
@@ -442,9 +419,7 @@ export function PLHeatmap({
                     }`}
                     data-testid={`header-time-${idx}`}
                   >
-                    {isFullyExpiredHistorical && expirationDateLabel ? (
-                      <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{expirationDateLabel}</div>
-                    ) : useHours ? (
+                    {useHours ? (
                       <>
                         <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
                         {weekdayLabel && (

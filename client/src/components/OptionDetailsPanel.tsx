@@ -1243,8 +1243,6 @@ export function OptionDetailsPanel({
         ) : (
           // Edit mode - show edit/remove actions
           <div className="space-y-1.5">
-            {!isExpired && (
-            <>
             {/* Switch to Call/Put */}
             <Button
               variant="ghost"
@@ -1468,8 +1466,6 @@ export function OptionDetailsPanel({
                   );
                 })()}
               </div>
-            )}
-            </>
             )}
 
             {/* Exclude Toggle */}
