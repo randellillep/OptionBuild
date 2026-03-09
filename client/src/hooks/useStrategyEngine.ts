@@ -246,6 +246,17 @@ export function useStrategyEngine(rangePercent: number = 14) {
     return days.length > 0 ? days : [30];
   }, [legs]);
 
+  const nearestExpirationDate = useMemo(() => {
+    const activeLegs = legs.filter(leg => {
+      if (leg.type === 'stock') return false;
+      if (leg.quantity <= 0) return false;
+      return true;
+    });
+    if (activeLegs.length === 0) return null;
+    const nearest = activeLegs.reduce((a, b) => a.expirationDays < b.expirationDays ? a : b);
+    return nearest.expirationDate?.split('T')[0] || null;
+  }, [legs]);
+
   const strikeRange = useMemo(() => {
     // Center around current price using the range percent - user has full control
     const rangeMultiplier = rangePercent / 100;
@@ -310,9 +321,8 @@ export function useStrategyEngine(rangePercent: number = 14) {
         if (timeSteps.length === 0) timeSteps.push(0);
       } else {
         const now = new Date();
-        const expirationTime = new Date(now.getTime() + totalHours * 3600000);
         
-        const etFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false });
+        const etFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false, hourCycle: 'h23' });
         const etDayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' });
 
         const getETComponents = (date: Date) => {
@@ -358,6 +368,17 @@ export function useStrategyEngine(rangePercent: number = 14) {
           const offsetMs = (marketCloseET - etH) * 3600000;
           return new Date(openTime.getTime() + offsetMs);
         };
+
+        let expirationTime: Date;
+        if (nearestExpirationDate) {
+          const [ey, em, ed] = nearestExpirationDate.split('-').map(Number);
+          const expDateMidnightLocal = new Date(ey, em - 1, ed);
+          const { hours: expMidnightETH } = getETComponents(expDateMidnightLocal);
+          const msToMarketClose = (marketCloseET - expMidnightETH) * 3600000;
+          expirationTime = new Date(expDateMidnightLocal.getTime() + msToMarketClose);
+        } else {
+          expirationTime = new Date(now.getTime() + totalHours * 3600000);
+        }
 
         const sessions: Array<{ openMs: number; closeMs: number }> = [];
         let cursor = getNextMarketOpen(now);
@@ -466,7 +487,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       targetDays,
       dateGroups,
     };
-  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, volatility, calculatedIV]);
+  }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, nearestExpirationDate, volatility, calculatedIV]);
 
   const setSelectedExpiration = (days: number, date: string) => {
     setSelectedExpirationDays(days);
