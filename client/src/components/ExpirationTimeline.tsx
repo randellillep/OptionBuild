@@ -74,6 +74,7 @@ export function ExpirationTimeline({
   suppressAutoSelect = false,
 }: ExpirationTimelineProps) {
   const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   
   // Fetch real options expiration dates from API
   const { data: apiExpirations, isLoading } = useQuery<OptionsExpirationsResponse>({
@@ -90,13 +91,20 @@ export function ExpirationTimeline({
     const set = new Set<number>();
     legExpirationDates.forEach(info => {
       if (info.isExpired) {
-        const dayCount = Math.ceil((new Date(info.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const [y, m, d] = info.date.split('-').map(Number);
+        const expDate = new Date(y, m - 1, d);
+        const dayCount = Math.round((expDate.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
         set.add(dayCount);
       }
     });
     return set;
-  }, [legExpirationDates, today]);
+  }, [legExpirationDates, todayMidnight]);
   
+  const parseDateLocal = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   // Convert API expiration dates to days from today and create mapping
   const { apiExpirationDays, daysToDateMap } = useMemo(() => {
     if (!apiExpirations?.expirations) return { apiExpirationDays: [], daysToDateMap: new Map<number, string>() };
@@ -104,9 +112,9 @@ export function ExpirationTimeline({
     const mapping = new Map<number, string>();
     const days = apiExpirations.expirations
       .map((dateStr: string) => {
-        const expirationDate = new Date(dateStr);
-        const diffTime = expirationDate.getTime() - today.getTime();
-        const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const expirationDate = parseDateLocal(dateStr);
+        const diffTime = expirationDate.getTime() - todayMidnight.getTime();
+        const dayCount = Math.round(diffTime / (1000 * 60 * 60 * 24));
         if (dayCount >= 0) {
           mapping.set(dayCount, dateStr);
           return dayCount;
@@ -118,7 +126,8 @@ export function ExpirationTimeline({
     // Inject expired/today leg dates that aren't in the API list
     legExpirationDates.forEach(info => {
       if (info.isExpired || info.isToday) {
-        const dayCount = Math.ceil((new Date(info.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const expirationDate = parseDateLocal(info.date);
+        const dayCount = Math.round((expirationDate.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
         if (!days.includes(dayCount)) {
           mapping.set(dayCount, info.date);
           days.push(dayCount);
@@ -136,26 +145,28 @@ export function ExpirationTimeline({
   const { calculatedExpirationDays, calculatedDaysToDateMap } = useMemo(() => {
     const mapping = new Map<number, string>();
     const days = expirationDates.map(date => {
-      const diffTime = date.getTime() - today.getTime();
-      const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      mapping.set(dayCount, date.toISOString().split('T')[0]);
+      const dateMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const diffTime = dateMidnight.getTime() - todayMidnight.getTime();
+      const dayCount = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      mapping.set(dayCount, dateStr);
       return dayCount;
     });
     return { calculatedExpirationDays: days, calculatedDaysToDateMap: mapping };
-  }, [expirationDates, today]);
+  }, [expirationDates, todayMidnight]);
   
   // Use API data if available, otherwise use calculated Friday expirations
   const allDays = apiExpirationDays.length > 0 ? apiExpirationDays : calculatedExpirationDays;
   const activeDaysToDateMap = apiExpirationDays.length > 0 ? daysToDateMap : calculatedDaysToDateMap;
   
   const getDaysLabel = (days: number) => {
-    const targetDate = new Date(today);
+    const targetDate = new Date(todayMidnight);
     targetDate.setDate(targetDate.getDate() + days);
     
     const month = targetDate.toLocaleString('default', { month: 'short' });
     const day = targetDate.getDate();
     const year = targetDate.getFullYear();
-    const showYear = year !== today.getFullYear();
+    const showYear = year !== todayMidnight.getFullYear();
     
     return { month, day, days, year: showYear ? `'${year.toString().slice(-2)}` : '' };
   };
