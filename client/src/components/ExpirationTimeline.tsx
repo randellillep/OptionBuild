@@ -87,10 +87,13 @@ export function ExpirationTimeline({
   
   // Track which day counts are expired (from leg dates)
   const expiredDaysSet = useMemo(() => {
+    const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const set = new Set<number>();
     legExpirationDates.forEach(info => {
       if (info.isExpired) {
-        const dayCount = Math.ceil((new Date(info.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const parts = info.date.split('T')[0].split('-');
+        const infoDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        const dayCount = Math.round((infoDate.getTime() - todayLocal.getTime()) / (1000 * 60 * 60 * 24));
         set.add(dayCount);
       }
     });
@@ -98,15 +101,18 @@ export function ExpirationTimeline({
   }, [legExpirationDates, today]);
   
   // Convert API expiration dates to days from today and create mapping
+  // Use local-midnight normalization to avoid timezone off-by-one errors
   const { apiExpirationDays, daysToDateMap } = useMemo(() => {
     if (!apiExpirations?.expirations) return { apiExpirationDays: [], daysToDateMap: new Map<number, string>() };
     
+    const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const mapping = new Map<number, string>();
     const days = apiExpirations.expirations
       .map((dateStr: string) => {
-        const expirationDate = new Date(dateStr);
-        const diffTime = expirationDate.getTime() - today.getTime();
-        const dayCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const parts = dateStr.split('-');
+        const expirationDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        const diffTime = expirationDate.getTime() - todayLocal.getTime();
+        const dayCount = Math.round(diffTime / (1000 * 60 * 60 * 24));
         if (dayCount >= 0) {
           mapping.set(dayCount, dateStr);
           return dayCount;
@@ -118,7 +124,9 @@ export function ExpirationTimeline({
     // Inject expired/today leg dates that aren't in the API list
     legExpirationDates.forEach(info => {
       if (info.isExpired || info.isToday) {
-        const dayCount = Math.ceil((new Date(info.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const infoParts = info.date.split('T')[0].split('-');
+        const infoDate = new Date(parseInt(infoParts[0]), parseInt(infoParts[1]) - 1, parseInt(infoParts[2]));
+        const dayCount = Math.round((infoDate.getTime() - todayLocal.getTime()) / (1000 * 60 * 60 * 24));
         if (!days.includes(dayCount)) {
           mapping.set(dayCount, info.date);
           days.push(dayCount);
@@ -149,8 +157,16 @@ export function ExpirationTimeline({
   const activeDaysToDateMap = apiExpirationDays.length > 0 ? daysToDateMap : calculatedDaysToDateMap;
   
   const getDaysLabel = (days: number) => {
-    const targetDate = new Date(today);
-    targetDate.setDate(targetDate.getDate() + days);
+    // Use the date string from the mapping if available (most accurate)
+    const dateStr = activeDaysToDateMap.get(days);
+    let targetDate: Date;
+    if (dateStr) {
+      const parts = dateStr.split('T')[0].split('-');
+      targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+      const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      targetDate = new Date(todayLocal.getTime() + days * 24 * 60 * 60 * 1000);
+    }
     
     const month = targetDate.toLocaleString('default', { month: 'short' });
     const day = targetDate.getDate();
