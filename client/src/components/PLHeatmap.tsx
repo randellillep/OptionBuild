@@ -176,16 +176,40 @@ export function PLHeatmap({
   const getTimeLabel = (daysValue: number) => {
     if (useHours) {
       const now = new Date();
-      const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
+      let baseTime: Date;
       
-      // Format as time (e.g., "4:30pm")
-      const hours = targetTime.getHours();
-      const minutes = targetTime.getMinutes();
-      const ampm = hours >= 12 ? 'pm' : 'am';
-      const displayHours = hours % 12 || 12;
-      const displayMinutes = minutes.toString().padStart(2, '0');
+      if (targetDays <= 0) {
+        const etFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false });
+        const etParts = etFormatter.formatToParts(now);
+        const etHour = parseInt(etParts.find(p => p.type === 'hour')?.value || '0');
+        const etMin = parseInt(etParts.find(p => p.type === 'minute')?.value || '0');
+        const etHours = etHour + etMin / 60;
+        
+        const etDayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+        const etDayStr = etDayFormatter.format(now);
+        const isWeekend = etDayStr === 'Sat' || etDayStr === 'Sun';
+        const isWithinSession = !isWeekend && etHours >= 9.5 && etHours < 16;
+        
+        if (isWithinSession) {
+          baseTime = now;
+        } else {
+          const offsetMs = (9.5 - etHours) * 3600000;
+          baseTime = new Date(now.getTime() + offsetMs);
+        }
+      } else {
+        baseTime = now;
+      }
       
-      return `${displayHours}:${displayMinutes}${ampm}`;
+      const targetTime = new Date(baseTime.getTime() + daysValue * 24 * 60 * 60 * 1000);
+      
+      const etTimeStr = targetTime.toLocaleString('en-US', { 
+        timeZone: 'America/New_York', 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true 
+      }).toLowerCase();
+      
+      return etTimeStr;
     } else {
       const today = new Date();
       const targetDate = new Date(today);

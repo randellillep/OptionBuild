@@ -293,19 +293,16 @@ export function useStrategyEngine(rangePercent: number = 14) {
         
         const marketOpenET = 9.5;
         const marketCloseET = 16;
-        const isMarketHours = !isWeekend && etHours >= marketOpenET && etHours < marketCloseET;
+        const isWithinSession = !isWeekend && etHours >= marketOpenET && etHours < marketCloseET;
         
-        if (!isMarketHours) {
-          timeSteps.push(0);
-        } else {
-          const hoursUntilClose = marketCloseET - etHours;
-          const intervalMinutes = hoursUntilClose <= 1 ? 5 : hoursUntilClose <= 3 ? 10 : 15;
-          const minutesRemaining = hoursUntilClose * 60;
-          for (let m = 0; m <= minutesRemaining; m += intervalMinutes) {
-            timeSteps.push(m / (24 * 60));
-          }
-          if (timeSteps.length === 0) timeSteps.push(0);
+        const startET = isWithinSession ? etHours : marketOpenET;
+        const sessionMinutes = (marketCloseET - startET) * 60;
+        const intervalMinutes = sessionMinutes <= 60 ? 5 : sessionMinutes <= 180 ? 10 : 15;
+        
+        for (let m = 0; m <= sessionMinutes; m += intervalMinutes) {
+          timeSteps.push(m / (24 * 60));
         }
+        if (timeSteps.length === 0) timeSteps.push(0);
       } else {
         const now = new Date();
         const expirationTime = new Date(now.getTime() + totalHours * 3600000);
