@@ -232,7 +232,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
     return calculateStrategyMetrics(legs, symbolInfo.price, volatility, calculatedIV);
   }, [legs, symbolInfo.price, volatility, calculatedIV]);
 
+  const isSavedTrade = useMemo(() => {
+    return legs.some(leg => leg.premiumSource === 'saved');
+  }, [legs]);
+
   const allLegsFullyClosed = useMemo(() => {
+    if (!isSavedTrade) return false;
     const optionLegs = legs.filter(leg => leg.type !== 'stock' && leg.quantity > 0);
     if (optionLegs.length === 0) return false;
     return optionLegs.every(leg => {
@@ -242,9 +247,10 @@ export function useStrategyEngine(rangePercent: number = 14) {
       if (closedQty === 0 && leg.closingTransaction.quantity > 0 && leg.closingTransaction.quantity >= leg.quantity) return true;
       return false;
     });
-  }, [legs]);
+  }, [legs, isSavedTrade]);
 
   const allLegsExpired = useMemo(() => {
+    if (!isSavedTrade) return false;
     const optionLegs = legs.filter(leg => leg.type !== 'stock' && leg.quantity > 0);
     if (optionLegs.length === 0) return false;
     return optionLegs.every(leg => {
@@ -258,7 +264,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       }
       return false;
     });
-  }, [legs]);
+  }, [legs, isSavedTrade]);
 
   const uniqueExpirationDays = useMemo(() => {
     const activeLegs = legs.filter(leg => {
