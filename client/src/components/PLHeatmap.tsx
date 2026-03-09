@@ -176,31 +176,18 @@ export function PLHeatmap({
   const getTimeLabel = (daysValue: number) => {
     if (useHours) {
       const now = new Date();
-      let baseTime: Date;
-      
       if (targetDays <= 0) {
-        const etFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false });
-        const etParts = etFormatter.formatToParts(now);
-        const etHour = parseInt(etParts.find(p => p.type === 'hour')?.value || '0');
-        const etMin = parseInt(etParts.find(p => p.type === 'minute')?.value || '0');
-        const etHours = etHour + etMin / 60;
-        
-        const etDayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
-        const etDayStr = etDayFormatter.format(now);
-        const isWeekend = etDayStr === 'Sat' || etDayStr === 'Sun';
-        const isWithinSession = !isWeekend && etHours >= 9.5 && etHours < 16;
-        
-        if (isWithinSession) {
-          baseTime = now;
-        } else {
-          const offsetMs = (9.5 - etHours) * 3600000;
-          baseTime = new Date(now.getTime() + offsetMs);
-        }
-      } else {
-        baseTime = now;
+        const marketCloseET = 16;
+        const remainingHours = daysValue * 24;
+        const clockHoursET = marketCloseET - remainingHours;
+        const clockHour = Math.floor(clockHoursET);
+        const clockMin = Math.round((clockHoursET - clockHour) * 60);
+        const ampm = clockHour >= 12 ? 'pm' : 'am';
+        const displayHour = clockHour > 12 ? clockHour - 12 : (clockHour === 0 ? 12 : clockHour);
+        return `${displayHour}:${clockMin.toString().padStart(2, '0')} ${ampm}`;
       }
       
-      const targetTime = new Date(baseTime.getTime() + daysValue * 24 * 60 * 60 * 1000);
+      const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
       
       const etTimeStr = targetTime.toLocaleString('en-US', { 
         timeZone: 'America/New_York', 

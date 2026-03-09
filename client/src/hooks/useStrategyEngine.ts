@@ -299,8 +299,11 @@ export function useStrategyEngine(rangePercent: number = 14) {
         const sessionMinutes = (marketCloseET - startET) * 60;
         const intervalMinutes = sessionMinutes <= 60 ? 5 : sessionMinutes <= 180 ? 10 : 15;
         
-        for (let m = 0; m <= sessionMinutes; m += intervalMinutes) {
-          timeSteps.push(m / (24 * 60));
+        const stepCount = Math.floor(sessionMinutes / intervalMinutes);
+        for (let i = 0; i <= stepCount; i++) {
+          const minutesFromStart = i * intervalMinutes;
+          const minutesRemaining = sessionMinutes - minutesFromStart;
+          timeSteps.push(minutesRemaining / (24 * 60));
         }
         if (timeSteps.length === 0) timeSteps.push(0);
       } else {
@@ -372,7 +375,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
       let lastDateKey = '';
       
       timeSteps.forEach((daysValue, idx) => {
-        const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
+        let targetTime: Date;
+        if (targetDays <= 0) {
+          targetTime = now;
+        } else {
+          targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
+        }
         const dateKey = `${targetTime.getMonth()}-${targetTime.getDate()}`;
         
         if (dateKey !== lastDateKey) {

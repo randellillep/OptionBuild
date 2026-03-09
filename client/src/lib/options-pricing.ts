@@ -754,12 +754,12 @@ export function calculateProfitLossAtDate(
     }
     
     // Calculate remaining days to expiration from the given point in time
-    // daysFromNow = 0 means today, so we have leg.expirationDays remaining
-    // daysFromNow = 0.125 means 3 hours from now (0.125 days)
-    // 
-    // Use leg's actual expirationDays - the grid generation handles ensuring
-    // meaningful time intervals for visualization. This keeps current P/L accurate.
-    const daysRemaining = Math.max(0, leg.expirationDays - daysFromNow);
+    // For normal legs: daysRemaining = expirationDays - daysFromNow
+    // For 0DTE (expirationDays <= 0): daysFromNow IS the remaining time
+    //   (grid passes decreasing fractional-day values from session start to close)
+    const daysRemaining = leg.expirationDays <= 0
+      ? Math.max(0, daysFromNow)
+      : Math.max(0, leg.expirationDays - daysFromNow);
     
     // Per-leg volatility: apply the IV shift from the slider relative to each leg's own IV
     // This preserves volatility skew across strikes instead of flattening all legs to one IV
