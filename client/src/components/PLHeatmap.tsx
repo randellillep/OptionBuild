@@ -197,7 +197,6 @@ export function PLHeatmap({
         const targetTime = new Date(now.getTime() + offsetFromNowHours * 3600000);
         
         return targetTime.toLocaleString('en-US', { 
-          timeZone: 'America/New_York',
           hour: 'numeric', 
           minute: '2-digit', 
           hour12: true 
@@ -207,7 +206,6 @@ export function PLHeatmap({
       const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
       
       return targetTime.toLocaleString('en-US', { 
-        timeZone: 'America/New_York',
         hour: 'numeric', 
         minute: '2-digit', 
         hour12: true 
@@ -226,15 +224,6 @@ export function PLHeatmap({
 
   const getTimeSubLabel = (daysValue: number) => {
     if (useHours) {
-      if (targetDays > 0) {
-        const now = new Date();
-        const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
-        const etDateParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', day: 'numeric', weekday: 'short' }).formatToParts(targetTime);
-        const dayNum = etDateParts.find(p => p.type === 'day')?.value || '';
-        const weekdayMap: Record<string, string> = { 'Sun': 'Su', 'Mon': 'M', 'Tue': 'T', 'Wed': 'w', 'Thu': 'Th', 'Fri': 'F', 'Sat': 'Sa' };
-        const wd = etDateParts.find(p => p.type === 'weekday')?.value || '';
-        return `${dayNum} ${weekdayMap[wd] || wd}`;
-      }
       return '';
     } else {
       const today = new Date();
@@ -359,7 +348,7 @@ export function PLHeatmap({
               } else if (useHours) {
                 days.forEach((daysValue) => {
                   const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
-                  const monthLabel = targetTime.toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short' });
+                  const monthLabel = targetTime.toLocaleString('default', { month: 'short' });
                   if (monthLabel !== lastMonth) {
                     monthGroups.push({ label: monthLabel, count: 1 });
                     lastMonth = monthLabel;

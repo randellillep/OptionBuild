@@ -232,12 +232,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
     return calculateStrategyMetrics(legs, symbolInfo.price, volatility, calculatedIV);
   }, [legs, symbolInfo.price, volatility, calculatedIV]);
 
-  const isSavedTrade = useMemo(() => {
-    return legs.some(leg => leg.premiumSource === 'saved');
-  }, [legs]);
-
   const allLegsFullyClosed = useMemo(() => {
-    if (!isSavedTrade) return false;
     const optionLegs = legs.filter(leg => leg.type !== 'stock' && leg.quantity > 0);
     if (optionLegs.length === 0) return false;
     return optionLegs.every(leg => {
@@ -247,10 +242,9 @@ export function useStrategyEngine(rangePercent: number = 14) {
       if (closedQty === 0 && leg.closingTransaction.quantity > 0 && leg.closingTransaction.quantity >= leg.quantity) return true;
       return false;
     });
-  }, [legs, isSavedTrade]);
+  }, [legs]);
 
   const allLegsExpired = useMemo(() => {
-    if (!isSavedTrade) return false;
     const optionLegs = legs.filter(leg => leg.type !== 'stock' && leg.quantity > 0);
     if (optionLegs.length === 0) return false;
     return optionLegs.every(leg => {
@@ -264,7 +258,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       }
       return false;
     });
-  }, [legs, isSavedTrade]);
+  }, [legs]);
 
   const uniqueExpirationDays = useMemo(() => {
     const activeLegs = legs.filter(leg => {
@@ -358,78 +352,41 @@ export function useStrategyEngine(rangePercent: number = 14) {
       } else {
         const now = new Date();
         const expirationTime = new Date(now.getTime() + totalHours * 3600000);
-
-        const getETComponents = (d: Date) => {
-          const parts = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'America/New_York',
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: 'numeric', minute: 'numeric', weekday: 'short', hour12: false
-          }).formatToParts(d);
-          const get = (t: string) => parts.find(p => p.type === t)?.value || '';
-          return {
-            year: parseInt(get('year')), month: parseInt(get('month')),
-            day: parseInt(get('day')), hour: parseInt(get('hour')),
-            minute: parseInt(get('minute')), weekday: get('weekday')
-          };
-        };
-
-        const etTimeToUtcMs = (year: number, month: number, day: number, hourDecimal: number): number => {
-          const h = Math.floor(hourDecimal);
-          const m = Math.round((hourDecimal % 1) * 60);
-          const guess = new Date(year, month - 1, day, h, m, 0, 0);
-          const etOfGuess = getETComponents(guess);
-          const guessETHours = etOfGuess.hour + etOfGuess.minute / 60;
-          const targetETHours = hourDecimal;
-          const diffMs = (targetETHours - guessETHours) * 3600000;
-          const dayDiff = (day - etOfGuess.day);
-          return guess.getTime() + diffMs + dayDiff * 86400000;
-        };
-
-        const etNow = getETComponents(now);
-        const etNowHours = etNow.hour + etNow.minute / 60;
-        const isNowWeekend = etNow.weekday === 'Sat' || etNow.weekday === 'Sun';
-
-        const marketOpenET = 9.5;
-        const marketCloseET = 16;
-        const isWithinSession = !isNowWeekend && etNowHours >= marketOpenET && etNowHours < marketCloseET;
-
-        interface TradingSession { sessionOpenMs: number; sessionCloseMs: number; }
-        const sessions: TradingSession[] = [];
-
-        for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
-          const futureMs = now.getTime() + dayOffset * 86400000;
-          const etDay = getETComponents(new Date(futureMs));
-          if (etDay.weekday === 'Sat' || etDay.weekday === 'Sun') continue;
-
-          const sessionOpenMs = etTimeToUtcMs(etDay.year, etDay.month, etDay.day, marketOpenET);
-          const sessionCloseMs = etTimeToUtcMs(etDay.year, etDay.month, etDay.day, marketCloseET);
-
-          let effectiveOpen = sessionOpenMs;
-          if (dayOffset === 0 && isWithinSession) {
-            effectiveOpen = now.getTime();
-          } else if (dayOffset === 0 && !isWithinSession && etNowHours >= marketCloseET) {
-            continue;
+        
+        const weekdays: Array<{ dayStart: number; dayEnd: number }> = [];
+        let d = new Date(now);
+        while (d.getTime() < expirationTime.getTime()) {
+          const dow = d.getDay();
+          if (dow !== 0 && dow !== 6) {
+            const dayStartMs = d.getTime();
+            const nextDay = new Date(d);
+            nextDay.setDate(nextDay.getDate() + 1);
+            nextDay.setHours(0, 0, 0, 0);
+            const dayEndMs = Math.min(nextDay.getTime(), expirationTime.getTime());
+            const startH = (dayStartMs - now.getTime()) / 3600000 / 24;
+            const endH = (dayEndMs - now.getTime()) / 3600000 / 24;
+            if (endH > startH) {
+              weekdays.push({ dayStart: startH, dayEnd: endH });
+            }
           }
-
-          if (effectiveOpen >= expirationTime.getTime()) break;
-          const effectiveClose = Math.min(sessionCloseMs, expirationTime.getTime());
-          if (effectiveClose <= effectiveOpen) continue;
-
-          sessions.push({ sessionOpenMs: effectiveOpen, sessionCloseMs: effectiveClose });
-          if (sessions.length >= 5) break;
+          const next = new Date(d);
+          next.setDate(next.getDate() + 1);
+          next.setHours(0, 0, 0, 0);
+          d = next;
         }
-
-        if (sessions.length === 0) {
+        
+        if (weekdays.length === 0) {
           timeSteps.push(0);
         } else {
-          const targetColumns = 20;
-          const slotsPerSession = Math.max(2, Math.min(10, Math.round(targetColumns / sessions.length)));
-          for (const session of sessions) {
-            const spanMs = session.sessionCloseMs - session.sessionOpenMs;
-            for (let s = 0; s < slotsPerSession; s++) {
-              const sessionMs = session.sessionOpenMs + (spanMs * s) / (slotsPerSession - 1);
-              const daysFromNow = (sessionMs - now.getTime()) / (24 * 3600000);
-              timeSteps.push(Math.max(0, daysFromNow));
+          const slotsPerDay = Math.max(1, Math.min(5, Math.round(20 / weekdays.length)));
+          for (const wd of weekdays) {
+            const span = wd.dayEnd - wd.dayStart;
+            if (slotsPerDay === 1) {
+              timeSteps.push(wd.dayStart + span / 2);
+            } else {
+              for (let s = 0; s < slotsPerDay; s++) {
+                timeSteps.push(wd.dayStart + (span * s) / (slotsPerDay - 1));
+              }
             }
           }
         }
@@ -459,7 +416,6 @@ export function useStrategyEngine(rangePercent: number = 14) {
     if (useHours) {
       const now = new Date();
       let lastDateKey = '';
-      const weekdayMap: Record<string, string> = { 'Sun': 'Su', 'Mon': 'M', 'Tue': 'T', 'Wed': 'w', 'Thu': 'Th', 'Fri': 'F', 'Sat': 'Sa' };
       
       timeSteps.forEach((daysValue, idx) => {
         let targetTime: Date;
@@ -468,22 +424,28 @@ export function useStrategyEngine(rangePercent: number = 14) {
         } else {
           targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
         }
-        const etParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', day: 'numeric', month: 'numeric', weekday: 'short' }).formatToParts(targetTime);
-        const etDay = etParts.find(p => p.type === 'day')?.value || '';
-        const etMonth = etParts.find(p => p.type === 'month')?.value || '';
-        const etWeekday = etParts.find(p => p.type === 'weekday')?.value || '';
-        const dateKey = `${etMonth}-${etDay}`;
+        const dateKey = `${targetTime.getMonth()}-${targetTime.getDate()}`;
         
         if (dateKey !== lastDateKey) {
-          const weekdayInitial = weekdayMap[etWeekday] || etWeekday.charAt(0);
+          // Generate OptionStrat-style date label: "26 M", "27 T", "28 w", etc.
+          const day = targetTime.getDate();
+          const weekdayFull = targetTime.toLocaleString('default', { weekday: 'short' });
+          // Get weekday initial: Mon->M, Tue->T, Wed->w, Thu->Th, Fri->F, Sat->Sa, Sun->Su
+          const weekdayInitial = weekdayFull === 'Wed' ? 'w' : 
+                                  weekdayFull === 'Thu' ? 'Th' : 
+                                  weekdayFull === 'Sat' ? 'Sa' : 
+                                  weekdayFull === 'Sun' ? 'Su' : 
+                                  weekdayFull.charAt(0);
           
+          // Start new group
           dateGroups.push({
-            dateLabel: `${etDay} ${weekdayInitial}`,
+            dateLabel: `${day} ${weekdayInitial}`,
             startIdx: idx,
             count: 1,
           });
           lastDateKey = dateKey;
         } else {
+          // Increment count of current group
           if (dateGroups.length > 0) {
             dateGroups[dateGroups.length - 1].count++;
           }
