@@ -878,10 +878,10 @@ export default function Builder() {
     setSymbolTransitioning(true);
     if (symbolTransitionTimerRef.current) clearTimeout(symbolTransitionTimerRef.current);
     
-    // Skip if these are saved/loaded legs - don't adjust their strikes
-    const hasSavedLegs = legs.some(leg => leg.premiumSource === 'saved');
-    if (hasSavedLegs) {
-      console.log('[AUTO-ADJUST] Skipping - saved trade legs should keep original strikes');
+    // Skip during saved trade settling - the loaded legs should keep their original strikes
+    // But allow clearing when user searches a NEW ticker after a saved trade is loaded
+    if (savedTradeSettling) {
+      console.log('[AUTO-ADJUST] Skipping - saved trade settling, keeping original strikes');
       prevSymbolRef.current = current;
       return;
     }
@@ -1014,6 +1014,8 @@ export default function Builder() {
     if (!hasFetchedInitialPrice && symbolChangeId === 0) return;
     // Wait for URL params to be processed before creating default legs
     if (isInitialLoading) return;
+    // Don't snap dates while a saved trade is settling - prevents flickering
+    if (savedTradeSettling) return;
     
     const availableDates = optionsExpirationsData.expirations;
     const today = new Date();
@@ -1127,15 +1129,10 @@ export default function Builder() {
     
     setLastProcessedSymbolChangeId(symbolChangeId);
     
-    if (savedTradeSettling) {
-      if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
-      savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 300);
-    }
-    
     if (symbolTransitioning) {
       symbolTransitionTimerRef.current = setTimeout(() => setSymbolTransitioning(false), 3000);
     }
-  }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration, hasFetchedInitialPrice, isInitialLoading]);
+  }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration, hasFetchedInitialPrice, isInitialLoading, savedTradeSettling]);
 
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
   // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration

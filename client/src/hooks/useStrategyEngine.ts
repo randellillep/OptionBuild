@@ -280,7 +280,32 @@ export function useStrategyEngine(rangePercent: number = 14) {
       const totalHours = Math.max(0, targetDays * 24);
       
       if (totalHours <= 0) {
-        timeSteps.push(0);
+        const now = new Date();
+        const etFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false });
+        const etParts = etFormatter.formatToParts(now);
+        const etHour = parseInt(etParts.find(p => p.type === 'hour')?.value || '0');
+        const etMin = parseInt(etParts.find(p => p.type === 'minute')?.value || '0');
+        const etHours = etHour + etMin / 60;
+        
+        const etDayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+        const etDayStr = etDayFormatter.format(now);
+        const isWeekend = etDayStr === 'Sat' || etDayStr === 'Sun';
+        
+        const marketOpenET = 9.5;
+        const marketCloseET = 16;
+        const isMarketHours = !isWeekend && etHours >= marketOpenET && etHours < marketCloseET;
+        
+        if (!isMarketHours) {
+          timeSteps.push(0);
+        } else {
+          const hoursUntilClose = marketCloseET - etHours;
+          const intervalMinutes = hoursUntilClose <= 1 ? 5 : hoursUntilClose <= 3 ? 10 : 15;
+          const minutesRemaining = hoursUntilClose * 60;
+          for (let m = 0; m <= minutesRemaining; m += intervalMinutes) {
+            timeSteps.push(m / (24 * 60));
+          }
+          if (timeSteps.length === 0) timeSteps.push(0);
+        }
       } else {
         const now = new Date();
         const expirationTime = new Date(now.getTime() + totalHours * 3600000);
