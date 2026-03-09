@@ -180,23 +180,30 @@ export function PLHeatmap({
         const marketCloseET = 16;
         const remainingHours = daysValue * 24;
         const clockHoursET = marketCloseET - remainingHours;
-        const clockHour = Math.floor(clockHoursET);
-        const clockMin = Math.round((clockHoursET - clockHour) * 60);
-        const ampm = clockHour >= 12 ? 'pm' : 'am';
-        const displayHour = clockHour > 12 ? clockHour - 12 : (clockHour === 0 ? 12 : clockHour);
-        return `${displayHour}:${clockMin.toString().padStart(2, '0')} ${ampm}`;
+        
+        const etNowFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hour12: false });
+        const etNowParts = etNowFormatter.formatToParts(now);
+        const etNowHour = parseInt(etNowParts.find(p => p.type === 'hour')?.value || '0');
+        const etNowMin = parseInt(etNowParts.find(p => p.type === 'minute')?.value || '0');
+        const etNowHours = etNowHour + etNowMin / 60;
+        
+        const offsetFromNowHours = clockHoursET - etNowHours;
+        const targetTime = new Date(now.getTime() + offsetFromNowHours * 3600000);
+        
+        return targetTime.toLocaleString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit', 
+          hour12: true 
+        }).toLowerCase();
       }
       
       const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
       
-      const etTimeStr = targetTime.toLocaleString('en-US', { 
-        timeZone: 'America/New_York', 
+      return targetTime.toLocaleString('en-US', { 
         hour: 'numeric', 
         minute: '2-digit', 
         hour12: true 
       }).toLowerCase();
-      
-      return etTimeStr;
     } else {
       const today = new Date();
       const targetDate = new Date(today);

@@ -297,7 +297,9 @@ export function useStrategyEngine(rangePercent: number = 14) {
         
         const startET = isWithinSession ? etHours : marketOpenET;
         const sessionMinutes = (marketCloseET - startET) * 60;
-        const intervalMinutes = sessionMinutes <= 60 ? 5 : sessionMinutes <= 180 ? 10 : 15;
+        const targetColumns = 20;
+        const rawInterval = sessionMinutes / targetColumns;
+        const intervalMinutes = rawInterval <= 5 ? 5 : rawInterval <= 10 ? 10 : rawInterval <= 15 ? 15 : 20;
         
         const stepCount = Math.floor(sessionMinutes / intervalMinutes);
         for (let i = 0; i <= stepCount; i++) {
