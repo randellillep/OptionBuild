@@ -372,10 +372,10 @@ export function useStrategyEngine(rangePercent: number = 14) {
         let expirationTime: Date;
         if (nearestExpirationDate) {
           const [ey, em, ed] = nearestExpirationDate.split('-').map(Number);
-          const expDateMidnightLocal = new Date(ey, em - 1, ed);
-          const { hours: expMidnightETH } = getETComponents(expDateMidnightLocal);
-          const msToMarketClose = (marketCloseET - expMidnightETH) * 3600000;
-          expirationTime = new Date(expDateMidnightLocal.getTime() + msToMarketClose);
+          const expNoonUTC = new Date(Date.UTC(ey, em - 1, ed, 12, 0, 0));
+          const { hours: noonETH } = getETComponents(expNoonUTC);
+          const msToMarketClose = (marketCloseET - noonETH) * 3600000;
+          expirationTime = new Date(expNoonUTC.getTime() + msToMarketClose);
         } else {
           expirationTime = new Date(now.getTime() + totalHours * 3600000);
         }
