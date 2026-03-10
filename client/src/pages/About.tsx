@@ -45,7 +45,7 @@ export default function About() {
                 OptionBuild is an options strategy builder and analysis platform designed for traders who want to understand their positions before placing a trade. Whether you're learning options for the first time or managing complex multi-leg strategies, our tools help you visualize risk, model scenarios, and make more informed decisions.
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                The platform is built around the Black-Scholes pricing model and provides real-time P/L heatmaps, payoff charts, Greeks calculations, and a backtesting engine — all running directly in your browser with live market data.
+                The platform provides real-time P/L heatmaps, payoff charts, Greeks calculations, and a backtesting engine — all running directly in your browser with live market data.
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 OptionBuild is free to use. No account is required to access the strategy builder, and there are no paywalls or feature restrictions. We believe every trader should have access to the same quality of analysis tools regardless of account size.
