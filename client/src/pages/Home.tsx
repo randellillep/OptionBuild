@@ -23,7 +23,7 @@ import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation } from "wouter";
 
 import heatmapImg from "@assets/product_heatmap.png";
-import greeksImg from "@assets/product_greeks.png";
+import greeksImg from "@assets/image_1773175921313.png";
 import backtestImg from "@assets/product_backtest.png";
 import strategiesImg from "@assets/product_strategies.png";
 import plChartImg from "@assets/product_pl_chart.png";
