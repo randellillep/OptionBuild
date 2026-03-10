@@ -19,6 +19,7 @@ import AccountSettings from "@/pages/AccountSettings";
 import FAQ from "@/pages/FAQ";
 import ConfirmDelete from "@/pages/ConfirmDelete";
 import Terms from "@/pages/Terms";
+import About from "@/pages/About";
 
 function Router() {
   return (
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/faq" component={FAQ} />
       <Route path="/account/confirm-delete" component={ConfirmDelete} />
       <Route path="/terms" component={Terms} />
+      <Route path="/about" component={About} />
       <Route component={NotFound} />
     </Switch>
   );

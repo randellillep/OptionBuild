@@ -101,7 +101,10 @@ export function Footer() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <h4 className="font-semibold text-sm mb-1 text-primary">Legal</h4>
+              <h4 className="font-semibold text-sm mb-1 text-primary">Company</h4>
+              <Link href="/about" className="text-sm text-white/60 hover:text-white transition-colors" data-testid="link-about">
+                About
+              </Link>
               <Link href="/terms" className="text-sm text-white/60 hover:text-white transition-colors" data-testid="link-terms">
                 Terms & Privacy
               </Link>

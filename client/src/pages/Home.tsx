@@ -344,12 +344,8 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-3 text-sm">Company</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><button onClick={() => setLocation("/about")} className="hover:text-foreground transition-colors">About</button></li>
                 <li><a href="mailto:support@optionbuild.com" className="hover:text-foreground transition-colors">Contact</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-3 text-sm">Legal</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><button onClick={() => setLocation("/terms")} className="hover:text-foreground transition-colors">Terms & Privacy</button></li>
               </ul>
             </div>
