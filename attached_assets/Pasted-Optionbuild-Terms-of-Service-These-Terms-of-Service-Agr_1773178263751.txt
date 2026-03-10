@@ -1,0 +1,57 @@
+Optionbuild – Terms of Service
+
+These Terms of Service (“Agreement”) govern your use of the Optionbuild website and platform (the “Service”). By accessing or using the Service, you acknowledge that you have read, understood, and agree to be bound by this Agreement. If you do not agree with these Terms, you must not use the Service.
+
+Use of the Service
+Optionbuild provides tools and features for analyzing options strategies, including strategy builders, profit/loss charts, Greeks analysis, backtesting, strategy templates, and other educational and analytical tools. The Service is intended solely for informational and educational purposes. You acknowledge that Optionbuild is not a broker, broker-dealer, financial advisor, or investment advisor, and the Service does not provide investment recommendations or financial advice. Any trading decisions made by users are their own responsibility, and Optionbuild does not guarantee the outcome of any trades, simulated or actual.
+
+Broker Integration and Trade Execution
+The Service may allow users to connect their brokerage accounts through supported third-party brokers. Optionbuild acts solely as a technical interface, enabling users to send orders to their connected broker for execution. Optionbuild does not execute trades, hold funds, or manage accounts. All trades submitted through the Service are executed directly by the connected broker and are governed by the broker’s terms and policies. You acknowledge that Optionbuild is not responsible for trade execution, order pricing, slippage, or any losses resulting from trading activity. By connecting your brokerage account, you authorize Optionbuild to communicate with the broker’s systems for the purpose of facilitating user-initiated trades only.
+
+Simulation and Strategy Disclaimers
+All charts, backtests, strategy outputs, and other analytical tools provided by the Service are hypothetical and for informational purposes only. Results derived from simulations may not reflect actual market conditions, including but not limited to liquidity, slippage, or execution speed. Past performance of any strategy or analytical output does not guarantee future results, and you should not rely solely on simulations or analysis provided by the Service when making trading decisions.
+
+Risk Disclosure
+Options trading and other derivative instruments involve substantial risk and may not be suitable for all investors. You may incur significant financial losses, and the use of the Service does not mitigate this risk. You should have a thorough understanding of the characteristics, risks, and potential losses associated with trading options before using the Service. Optionbuild assumes no responsibility for any financial losses, direct or indirect, resulting from trading or relying on the Service.
+
+Market Data Disclaimer
+Market data displayed or made available through the Service may be obtained from third-party vendors. Optionbuild does not guarantee the accuracy, timeliness, completeness, or reliability of such data. Data may be delayed, incomplete, or otherwise inaccurate. Users should independently verify all data before making trading or investment decisions. Optionbuild is not responsible for errors, omissions, or delays in market data provided by third-party sources.
+
+Intellectual Property
+All content, software, algorithms, charts, graphics, icons, logos, designs, and other materials available through the Service are the intellectual property of Optionbuild or its licensors. You may access, view, download, or print materials for personal, non-commercial use only, provided you do not modify, distribute, sell, or create derivative works from such content without prior written permission. All rights not expressly granted are reserved.
+
+Acceptable Use
+You may not reverse engineer, scrape, or otherwise attempt to extract data from the Service, interfere with platform functionality, share your account with others, or otherwise misuse the Service. Optionbuild reserves the right to monitor usage and suspend or terminate access for violations at its discretion.
+
+Privacy
+Personal data collected by Optionbuild is handled according to the Optionbuild Privacy Policy, which is incorporated herein by reference. Personal information may include email address, account credentials, usage metrics, and device information. Optionbuild does not sell personal data and implements technical measures to protect data security. EU users have rights under GDPR, including access, correction, deletion, or restriction of their personal data.
+
+Limitation of Liability
+To the fullest extent permitted by law, Optionbuild and its affiliates, officers, employees, agents, or licensors shall not be liable for any indirect, incidental, consequential, or special damages, including but not limited to trading losses, lost profits, loss of data, or business interruption, arising from or related to your use of or inability to use the Service. Your sole remedy is limited to the Service’s functionality, and Optionbuild’s liability shall not exceed the fees paid by you in the six months preceding any claim.
+
+Termination
+Optionbuild may suspend or terminate your access at any time, with or without notice, for violation of these Terms, misuse of the Service, or any legal or security reason. Users may terminate by discontinuing use of the Service.
+
+Amendments
+Optionbuild may revise these Terms at any time. The latest version will be posted on the website. Continued use constitutes acceptance of updated Terms. If you do not agree, you must immediately stop using the Service.
+
+No Fiduciary Relationship
+Use of the Service does not create any fiduciary or advisory relationship between Optionbuild and the user. All decisions and actions taken by the user are at their sole risk.
+
+Governing Law and Dispute Resolution
+This Agreement is governed by applicable federal law and the laws of the State of New York, without regard to conflict of law principles. Any disputes arising from this Agreement shall be resolved through binding arbitration under the rules of the American Arbitration Association, except as otherwise required by law. Arbitration shall be conducted in English and any decision shall be final and binding. Users retain the right to seek injunctive relief in a court of competent jurisdiction for intellectual property or confidentiality matters.
+
+Contact
+For questions regarding these Terms: support@optionbuild.com
+
+Optionbuild – Privacy Policy
+
+Optionbuild collects and uses personal information to operate and improve the Service. Data collected may include your email address, account credentials, usage statistics, device and browser information, and other analytics. This information is used to provide platform functionality, monitor usage, prevent abuse, and improve user experience. Cookies and similar technologies may be used for session management, personalization, and analytics. Personal data is protected with reasonable security measures. Optionbuild does not sell your personal data. Users in the European Economic Area have rights to access, correct, delete, or restrict the processing of personal information under GDPR.
+
+Optionbuild – Options Trading Risk Disclosure
+
+Options trading carries significant risk and may not be suitable for all investors. Losses can exceed initial investments. Users should understand the mechanics, risks, and characteristics of trading options before engaging. All tools, charts, strategies, and backtests provided by Optionbuild are for informational purposes only and are not a guarantee of trading success or profit. Users are solely responsible for their trading decisions.
+
+Optionbuild – Market Data Disclaimer
+
+Market data provided by Optionbuild may be sourced from third-party vendors. Optionbuild does not guarantee the accuracy, timeliness, or completeness of such data. Delays, errors, or omissions may occur. Users should independently verify all information before executing trades or making investment decisions. Optionbuild is not liable for any losses resulting from reliance on such data.

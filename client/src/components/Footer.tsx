@@ -102,12 +102,12 @@ export function Footer() {
 
             <div className="flex flex-col gap-2">
               <h4 className="font-semibold text-sm mb-1 text-primary">Legal</h4>
-              <span className="text-sm text-white/40 cursor-default">
-                Privacy (Coming Soon)
-              </span>
-              <span className="text-sm text-white/40 cursor-default">
-                Terms (Coming Soon)
-              </span>
+              <Link href="/terms#privacy" className="text-sm text-white/60 hover:text-white transition-colors" data-testid="link-privacy">
+                Privacy
+              </Link>
+              <Link href="/terms" className="text-sm text-white/60 hover:text-white transition-colors" data-testid="link-terms">
+                Terms
+              </Link>
             </div>
           </div>
         </div>
