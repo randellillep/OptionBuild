@@ -89,9 +89,9 @@ export function Footer() {
 
             <div className="flex flex-col gap-2">
               <h4 className="font-semibold text-sm mb-1 text-primary">Learn</h4>
-              <span className="text-sm text-white/40 cursor-default">
-                Tutorials (Coming Soon)
-              </span>
+              <Link href="/tutorial" className="text-sm text-white/60 hover:text-white transition-colors" data-testid="link-tutorial">
+                Tutorials
+              </Link>
               <a href="/blog" className="text-sm text-white/60 hover:text-white transition-colors">
                 Blog
               </a>
