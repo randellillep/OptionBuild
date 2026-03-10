@@ -70,6 +70,10 @@ export default function Builder() {
     const params = new URLSearchParams(window.location.search);
     return !!(params.get('symbol') || params.get('strategy') || sessionStorage.getItem('sharedStrategy'));
   });
+  const [openStrategiesOnMount] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('openStrategies') === '1';
+  });
   
   useEffect(() => {
     if (isInitialLoading) {
@@ -2097,7 +2101,7 @@ export default function Builder() {
 
             {/* Desktop navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              <StrategySelector onSelectStrategy={loadTemplate} />
+              <StrategySelector onSelectStrategy={loadTemplate} initialOpen={openStrategiesOnMount} />
 
               <Button 
                 variant="ghost" 

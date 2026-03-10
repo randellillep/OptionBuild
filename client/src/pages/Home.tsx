@@ -4,7 +4,8 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { StrategyTemplateCard } from "@/components/StrategyTemplateCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 import {
   TrendingUp,
@@ -18,7 +19,6 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
-import { SiAlpaca } from "react-icons/si";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useLocation } from "wouter";
 
@@ -206,7 +206,7 @@ export default function Home() {
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                    <SiAlpaca className="h-4 w-4 text-primary" />
+                    <Layers className="h-4 w-4 text-primary" />
                   </div>
                   <div>
                     <span className="text-sm font-medium">Alpaca</span>
@@ -365,9 +365,12 @@ export default function Home() {
       </footer>
 
       <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl p-1">
+        <DialogContent className="max-w-4xl p-1" aria-describedby={undefined}>
           {previewImage && (
             <div>
+              <VisuallyHidden>
+                <DialogTitle>{previewImage.title}</DialogTitle>
+              </VisuallyHidden>
               <div className="px-4 pt-3 pb-2">
                 <h3 className="font-semibold text-lg">{previewImage.title}</h3>
               </div>
