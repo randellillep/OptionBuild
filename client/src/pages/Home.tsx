@@ -350,8 +350,7 @@ export default function Home() {
             <div>
               <h4 className="font-semibold mb-3 text-sm">Legal</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><button onClick={() => setLocation("/terms#privacy")} className="hover:text-foreground transition-colors">Privacy</button></li>
-                <li><button onClick={() => setLocation("/terms")} className="hover:text-foreground transition-colors">Terms</button></li>
+                <li><button onClick={() => setLocation("/terms")} className="hover:text-foreground transition-colors">Terms & Privacy</button></li>
               </ul>
             </div>
           </div>
