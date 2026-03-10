@@ -6,14 +6,12 @@ interface FeatureCardProps {
   title: string;
   description: string;
   image?: string;
-  onClick?: () => void;
 }
 
-export function FeatureCard({ icon: Icon, title, description, image, onClick }: FeatureCardProps) {
+export function FeatureCard({ icon: Icon, title, description, image }: FeatureCardProps) {
   return (
     <Card
-      className={`overflow-visible ${onClick ? "cursor-pointer hover-elevate active-elevate-2" : ""}`}
-      onClick={onClick}
+      className="overflow-visible"
       data-testid={`card-feature-${title.toLowerCase().replace(/\s+/g, "-")}`}
     >
       {image && (

@@ -276,6 +276,14 @@ export default function Builder() {
     resetToMarketIV();
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const tabParam = params.get('tab');
+    if (tabParam === 'trade') {
+      setAnalysisTab('trade');
+    }
+  }, []);
+
   // Handle URL params from Option Finder (strategy and symbol)
   useEffect(() => {
     if (urlParamsProcessed.current || !searchString) return;

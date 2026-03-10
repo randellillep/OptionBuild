@@ -4,13 +4,11 @@ import { FeatureCard } from "@/components/FeatureCard";
 import { StrategyTemplateCard } from "@/components/StrategyTemplateCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 import {
   TrendingUp,
   Calculator,
-  BookOpen,
+  Search,
   LineChart,
   BarChart3,
   Layers,
@@ -31,7 +29,6 @@ import plChartImg from "@assets/product_pl_chart.png";
 export default function Home() {
   const [, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [previewImage, setPreviewImage] = useState<{ src: string; title: string } | null>(null);
 
   const features = [
     {
@@ -41,22 +38,10 @@ export default function Home() {
       image: heatmapImg,
     },
     {
-      icon: LineChart,
-      title: "P/L Chart",
-      description: "Interactive payoff diagrams showing breakeven points, max profit, and max loss zones with real-time updates as you adjust positions.",
-      image: plChartImg,
-    },
-    {
       icon: Calculator,
-      title: "Greeks Calculator",
+      title: "Options Greeks",
       description: "Track delta, gamma, theta, vega, and rho for your entire position. Understand exactly how your strategy responds to market changes.",
       image: greeksImg,
-    },
-    {
-      icon: BarChart3,
-      title: "Backtesting",
-      description: "Test your strategies against historical data. See win rates, drawdowns, and performance metrics before risking real capital.",
-      image: backtestImg,
     },
     {
       icon: Layers,
@@ -65,9 +50,21 @@ export default function Home() {
       image: strategiesImg,
     },
     {
-      icon: BookOpen,
-      title: "Brokerage Integration",
-      description: "Connect your Alpaca or tastytrade account to execute trades directly from the builder. Paper and live trading supported.",
+      icon: BarChart3,
+      title: "Backtesting",
+      description: "Test your strategies against historical data. See win rates, drawdowns, and performance metrics before risking real capital.",
+      image: backtestImg,
+    },
+    {
+      icon: LineChart,
+      title: "P/L Chart",
+      description: "Interactive payoff diagrams showing breakeven points, max profit, and max loss zones with real-time updates as you adjust positions.",
+      image: plChartImg,
+    },
+    {
+      icon: Search,
+      title: "Option Finder",
+      description: "Search and filter options chains by strike, expiration, and Greeks. Find the best contracts for your strategy quickly.",
       image: null,
     },
   ];
@@ -111,9 +108,13 @@ export default function Home() {
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-nav-features">
               Features
             </a>
-            <a href="#strategies" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-nav-strategies">
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="link-nav-strategies"
+            >
               Strategies
-            </a>
+            </button>
             <button
               onClick={() => setLocation("/tutorial")}
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -151,7 +152,7 @@ export default function Home() {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-border bg-background px-4 py-3 space-y-1">
             <a href="#features" className="block py-2 text-sm font-medium text-muted-foreground" onClick={() => setMobileMenuOpen(false)}>Features</a>
-            <a href="#strategies" className="block py-2 text-sm font-medium text-muted-foreground" onClick={() => setMobileMenuOpen(false)}>Strategies</a>
+            <button onClick={() => { setMobileMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="block py-2 text-sm font-medium text-muted-foreground w-full text-left">Strategies</button>
             <button onClick={() => { setMobileMenuOpen(false); setLocation("/tutorial"); }} className="block py-2 text-sm font-medium text-muted-foreground w-full text-left">Tutorial</button>
             <button onClick={() => { setMobileMenuOpen(false); setLocation("/blog"); }} className="block py-2 text-sm font-medium text-muted-foreground w-full text-left">Blog</button>
             <Button className="w-full mt-2" onClick={() => { setMobileMenuOpen(false); setLocation("/builder"); }}>Launch Builder</Button>
@@ -185,7 +186,6 @@ export default function Home() {
                 title={feature.title}
                 description={feature.description}
                 image={feature.image || undefined}
-                onClick={feature.image ? () => setPreviewImage({ src: feature.image!, title: feature.title }) : () => setLocation("/builder")}
               />
             ))}
           </div>
@@ -223,7 +223,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <Button variant="outline" onClick={() => setLocation("/builder")} data-testid="button-connect-brokerage">
+              <Button variant="outline" onClick={() => setLocation("/builder?tab=trade")} data-testid="button-connect-brokerage">
                 Connect Your Broker
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
@@ -328,7 +328,7 @@ export default function Home() {
               <h4 className="font-semibold mb-3 text-sm">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
-                <li><a href="#strategies" className="hover:text-foreground transition-colors">Strategies</a></li>
+                <li><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-foreground transition-colors">Strategies</button></li>
                 <li><button onClick={() => setLocation("/builder")} className="hover:text-foreground transition-colors">Builder</button></li>
                 <li><button onClick={() => setLocation("/backtest")} className="hover:text-foreground transition-colors">Backtest</button></li>
               </ul>
@@ -364,26 +364,6 @@ export default function Home() {
         </div>
       </footer>
 
-      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl p-1" aria-describedby={undefined}>
-          {previewImage && (
-            <div>
-              <VisuallyHidden>
-                <DialogTitle>{previewImage.title}</DialogTitle>
-              </VisuallyHidden>
-              <div className="px-4 pt-3 pb-2">
-                <h3 className="font-semibold text-lg">{previewImage.title}</h3>
-              </div>
-              <img
-                src={previewImage.src}
-                alt={previewImage.title}
-                className="w-full rounded-b-md"
-                data-testid={`img-preview-${previewImage.title.toLowerCase().replace(/\s+/g, "-")}`}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
