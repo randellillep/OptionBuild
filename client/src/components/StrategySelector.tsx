@@ -29,6 +29,7 @@ import {
 
 interface StrategySelectorProps {
   onSelectStrategy: (strategyIndex: number) => void;
+  initialOpen?: boolean;
 }
 
 function MiniPLChart({ strategy, currentPrice = 100 }: { strategy: ExtendedStrategy; currentPrice?: number }) {
@@ -120,8 +121,8 @@ function StrategyIcon({ sentiment }: { sentiment: string[] }) {
   return <Minus className="h-4 w-4 text-muted-foreground" />;
 }
 
-export function StrategySelector({ onSelectStrategy }: StrategySelectorProps) {
-  const [open, setOpen] = useState(false);
+export function StrategySelector({ onSelectStrategy, initialOpen = false }: StrategySelectorProps) {
+  const [open, setOpen] = useState(initialOpen);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 

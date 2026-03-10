@@ -1,13 +1,14 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, ArrowRight } from "lucide-react";
 
 interface StrategyTemplateCardProps {
   name: string;
   description: string;
   legCount: number;
   riskLevel: "Low" | "Medium" | "High";
+  sentiment?: string;
   onSelect: () => void;
 }
 
@@ -16,6 +17,7 @@ export function StrategyTemplateCard({
   description,
   legCount,
   riskLevel,
+  sentiment,
   onSelect,
 }: StrategyTemplateCardProps) {
   const riskColors = {
@@ -24,46 +26,32 @@ export function StrategyTemplateCard({
     High: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   };
 
-  const icons = {
-    Low: Minus,
-    Medium: TrendingUp,
-    High: TrendingUp,
-  };
-
-  const Icon = icons[riskLevel];
+  const sentimentIcon = sentiment === "bearish" ? TrendingDown : sentiment === "neutral" ? Minus : TrendingUp;
+  const SentimentIcon = sentimentIcon;
 
   return (
-    <Card className="p-6 hover-elevate active-elevate-2 transition-all cursor-pointer" onClick={onSelect}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg mb-1">{name}</h3>
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {description}
-          </p>
+    <Card className="p-5 hover-elevate active-elevate-2 transition-all cursor-pointer flex flex-col" onClick={onSelect}>
+      <div className="flex-1">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-semibold text-base">{name}</h3>
+          <SentimentIcon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
         </div>
+        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+          {description}
+        </p>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
-        <Badge variant="secondary" className="text-xs">
-          {legCount} {legCount === 1 ? "Leg" : "Legs"}
-        </Badge>
-        <Badge className={`text-xs ${riskColors[riskLevel]}`}>
-          <Icon className="h-3 w-3 mr-1" />
-          {riskLevel} Risk
-        </Badge>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Badge variant="secondary" className="text-xs">
+            {legCount} {legCount === 1 ? "Leg" : "Legs"}
+          </Badge>
+          <Badge className={`text-xs ${riskColors[riskLevel]}`}>
+            {riskLevel} Risk
+          </Badge>
+        </div>
+        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
       </div>
-
-      <Button
-        className="w-full"
-        variant="outline"
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect();
-        }}
-        data-testid={`button-select-${name.toLowerCase().replace(/\s+/g, "-")}`}
-      >
-        Build This Strategy
-      </Button>
     </Card>
   );
 }
