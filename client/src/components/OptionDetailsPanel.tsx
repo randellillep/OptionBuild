@@ -137,13 +137,18 @@ export function OptionDetailsPanel({
       : (option.bid > 0 && option.ask > 0) ? (option.bid + option.ask) / 2 
       : 0;
     
-    // ALWAYS calculate IV from market price to match industry standards (OptionStrat)
-    // Don't trust leg.impliedVolatility as it may contain inflated vendor IV
-    // Use at least 0.5 DTE (half a trading day) for very short-dated options
-    const effectiveDTE = Math.max(0.5, leg.expirationDays || 1);
-    
+    // Use leg.impliedVolatility as the primary IV source — this is the same
+    // value used by the dashboard totalGreeks calculation, ensuring the popup
+    // Greeks always match the strategy Greeks panel exactly.
+    // Fall back to back-calculating IV from the market mid only when the stored
+    // IV is absent (e.g. a freshly-added leg with no chain data yet).
     let effectiveIV: number;
-    if (optionMid > 0 && underlyingPrice > 0 && (leg.type === 'call' || leg.type === 'put')) {
+    if (leg.impliedVolatility && leg.impliedVolatility > 0) {
+      effectiveIV = leg.impliedVolatility;
+    } else if (optionMid > 0 && underlyingPrice > 0 && (leg.type === 'call' || leg.type === 'put')) {
+      // No stored IV — back-calculate from market mid with a small DTE floor
+      // to prevent numerical instability near zero time-to-expiration.
+      const effectiveDTE = Math.max(0.001, leg.expirationDays || 1);
       effectiveIV = calculateImpliedVolatility(
         leg.type,
         underlyingPrice,
@@ -151,9 +156,6 @@ export function OptionDetailsPanel({
         effectiveDTE,
         optionMid
       );
-    } else if (leg.impliedVolatility) {
-      // Fallback to stored IV only if we can't calculate from market
-      effectiveIV = leg.impliedVolatility;
     } else {
       effectiveIV = option.iv || volatility;
     }

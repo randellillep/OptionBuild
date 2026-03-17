@@ -16,8 +16,19 @@ export function useOptionsChain({
   side,
   enabled = true,
 }: UseOptionsChainParams) {
+  // Build a compact key — omit undefined params so that queries for the same
+  // symbol+expiration share a single TanStack Query cache entry whether they
+  // come from Builder, SavedTrades, or any other component.
+  const queryKey = [
+    "/api/options/chain",
+    symbol,
+    ...(expiration !== undefined ? [expiration] : []),
+    ...(strike !== undefined ? [strike] : []),
+    ...(side !== undefined ? [side] : []),
+  ] as const;
+
   return useQuery<MarketOptionChainSummary>({
-    queryKey: ["/api/options/chain", symbol, expiration, strike, side],
+    queryKey,
     queryFn: async () => {
       if (!symbol) {
         throw new Error("Symbol is required");
