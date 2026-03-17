@@ -788,7 +788,33 @@ export function calculateProfitLossAtDate(
     }
     
     if (leg.costBasisLocked && leg.premium > 0) {
-      entryValue = leg.premium;
+      // For saved trades with live market data available and time remaining in the scenario,
+      // anchor the heatmap to the actual current market price to eliminate the BS model error.
+      //
+      // Instead of:  P/L = BS(scenario) − entry_premium
+      // We compute:  P/L = [BS(scenario) − BS(current)] + [marketMark − entry_premium]
+      //
+      // This ensures the current-price column shows the actual market-based unrealized P/L
+      // (matching the Unrealized metric bar), while other cells show how P/L changes from
+      // that real starting point under various price/time scenarios.
+      //
+      // At expiration (daysRemaining ≤ 0) we revert to the raw entry_premium so that max
+      // loss/gain at expiration always reflects the actual premium paid.
+      if (
+        leg.marketMark !== undefined &&
+        leg.marketMark > 0 &&
+        leg.expirationDays > 0 &&
+        daysRemaining > 0
+      ) {
+        // Black-Scholes price at the CURRENT moment (full DTE remaining, current underlying)
+        const currentBSPrice = calculateOptionPrice(
+          optionType, underlyingPrice, leg.strike, leg.expirationDays, scenarioVolatility, riskFreeRate
+        );
+        // Shift effective entry by the model error so the current scenario resolves to marketMark
+        entryValue = leg.premium - (leg.marketMark - currentBSPrice);
+      } else {
+        entryValue = leg.premium;
+      }
     } else if (leg.expirationDays <= 0) {
       entryValue = leg.type === "call"
         ? Math.max(underlyingPrice - leg.strike, 0)
