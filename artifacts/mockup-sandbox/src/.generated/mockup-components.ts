@@ -2,6 +2,11 @@
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/hero-variations/CommandCenter.tsx": () => import("../components/mockups/hero-variations/CommandCenter.tsx"),
+  "./components/mockups/hero-variations/CommandCenterR1.tsx": () => import("../components/mockups/hero-variations/CommandCenterR1.tsx"),
+  "./components/mockups/hero-variations/CommandCenterR2.tsx": () => import("../components/mockups/hero-variations/CommandCenterR2.tsx"),
   "./components/mockups/hero-variations/ProductFirst.tsx": () => import("../components/mockups/hero-variations/ProductFirst.tsx"),
-  "./components/mockups/hero-variations/SocialProofLed.tsx": () => import("../components/mockups/hero-variations/SocialProofLed.tsx")
+  "./components/mockups/hero-variations/SocialProofLed.tsx": () => import("../components/mockups/hero-variations/SocialProofLed.tsx"),
+  "./components/mockups/hero-variations-copy-v1Sj6fvN/HeroVariationsCopyV1Sj6fvN.tsx": () => import("../components/mockups/hero-variations-copy-v1Sj6fvN/HeroVariationsCopyV1Sj6fvN.tsx"),
+  "./components/mockups/hero-variations-copy-v1Sj6fvN/ProductFirst.tsx": () => import("../components/mockups/hero-variations-copy-v1Sj6fvN/ProductFirst.tsx"),
+  "./components/mockups/hero-variations-copy-v1Sj6fvN/SocialProofLed.tsx": () => import("../components/mockups/hero-variations-copy-v1Sj6fvN/SocialProofLed.tsx")
 };
