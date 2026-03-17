@@ -938,6 +938,8 @@ export default function Builder() {
   // This ensures each leg gets prices from its own expiration's chain
   const [multiChainData, setMultiChainData] = useState<Map<string, MarketOptionChainSummary>>(new Map());
   const multiChainFetchRef = useRef<string>('');
+  // Increments every 30s to trigger periodic re-fetch of multi-expiration chain data
+  const [multiChainRevision, setMultiChainRevision] = useState(0);
   
   // Compute unique expiration dates from active option legs only
   const uniqueLegExpirationDates = useMemo(() => {
@@ -969,7 +971,7 @@ export default function Builder() {
       return;
     }
 
-    const fetchKey = `${symbolInfo.symbol}-${expirationsNeedingFetch.join(',')}`;
+    const fetchKey = `${symbolInfo.symbol}-${expirationsNeedingFetch.join(',')}-r${multiChainRevision}`;
     if (multiChainFetchRef.current === fetchKey) return;
     multiChainFetchRef.current = fetchKey;
 
@@ -1000,7 +1002,46 @@ export default function Builder() {
     };
 
     fetchChains();
-  }, [symbolInfo.symbol, expirationsNeedingFetch]);
+  }, [symbolInfo.symbol, expirationsNeedingFetch, multiChainRevision]);
+
+  // Two live-update timers:
+  // 1. Every 30s: bump multiChainRevision to re-fetch multi-expiration chain data
+  // 2. Every 60s: recalculate leg.expirationDays from expirationDate so heatmap
+  //    theta decay stays accurate throughout the trading session (critical for 0DTE/1DTE)
+  useEffect(() => {
+    const multiChainTimer = setInterval(() => {
+      setMultiChainRevision(r => r + 1);
+    }, 30000);
+
+    const dteTimer = setInterval(() => {
+      setLegs(currentLegs => {
+        const now = Date.now();
+        let changed = false;
+        const newLegs = currentLegs.map(leg => {
+          if (leg.type === 'stock' || !leg.expirationDate) return leg;
+          const dateOnly = leg.expirationDate.split('T')[0];
+          const parts = dateOnly.split('-').map(Number);
+          if (parts.length !== 3) return leg;
+          const [y, m, d] = parts;
+          // Options expire at 4pm ET = 21:00 UTC (approximation)
+          const expUTC = new Date(Date.UTC(y, m - 1, d, 21, 0, 0));
+          const liveDTE = Math.max(0, (expUTC.getTime() - now) / (1000 * 60 * 60 * 24));
+          // Only update if DTE changed by more than ~1.4 minutes (0.001 days)
+          if (Math.abs(liveDTE - (leg.expirationDays ?? 0)) > 0.001) {
+            changed = true;
+            return { ...leg, expirationDays: liveDTE };
+          }
+          return leg;
+        });
+        return changed ? newLegs : currentLegs;
+      });
+    }, 60000);
+
+    return () => {
+      clearInterval(multiChainTimer);
+      clearInterval(dteTimer);
+    };
+  }, []); // Empty deps - safe because setLegs uses callback form
 
   // Helper: get the correct chain data for a leg based on its expiration
   const getChainForLeg = (leg: OptionLeg): MarketOptionChainSummary | undefined => {
