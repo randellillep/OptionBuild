@@ -301,11 +301,25 @@ export default function Builder() {
         if (savedTradeData) {
           const trade = JSON.parse(savedTradeData);
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
-            // Start settling transition - hides intermediate flashing as dates/strikes snap
-            setSavedTradeSettling(true);
-            if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
-            // Safety fallback: clear after 2s max in case snap-to-nearest doesn't fire
-            savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 2000);
+            // Only settle (fade to 40% opacity) for non-expired trades.
+            // Expired trades have locked legs that snap-to-nearest won't change,
+            // so there is nothing to "settle" and the fade causes visible flickering.
+            const legArr = trade.legs as Partial<OptionLeg>[];
+            const today0 = new Date();
+            today0.setHours(0, 0, 0, 0);
+            const allLegsExpired = legArr.length > 0 && legArr.every((l) => {
+              if (l.type === 'stock') return false;
+              const expDate = l.expirationDate?.split('T')[0];
+              if (!expDate) return false;
+              return new Date(expDate + 'T00:00:00') < today0;
+            });
+            if (!allLegsExpired) {
+              // Start settling transition - hides intermediate flashing as dates/strikes snap
+              setSavedTradeSettling(true);
+              if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
+              // Safety fallback: clear after 2s max in case snap-to-nearest doesn't fire
+              savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 2000);
+            }
             
             // Use the current price passed from SavedTrades (if available) for immediate consistency
             // This ensures the heatmap shows the EXACT same P/L as Total Return in Saved Trades
@@ -1026,8 +1040,13 @@ export default function Builder() {
     if (!hasFetchedInitialPrice && symbolChangeId === 0) return;
     // Wait for URL params to be processed before creating default legs
     if (isInitialLoading) return;
-    // Don't snap dates while a saved trade is settling - prevents flickering
-    if (savedTradeSettling) return;
+    // Don't snap dates while a saved trade is settling - prevents flickering.
+    // Mark the current symbolChangeId as processed so this effect doesn't re-fire
+    // when savedTradeSettling clears — the expired-leg guard already protects leg values.
+    if (savedTradeSettling) {
+      setLastProcessedSymbolChangeId(symbolChangeId);
+      return;
+    }
     
     const availableDates = optionsExpirationsData.expirations;
     const today = new Date();

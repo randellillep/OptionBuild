@@ -657,6 +657,16 @@ export function OptionDetailsPanel({
     ? leg.closingTransaction?.entries?.find(e => e.id === selectedEntryId)
     : null;
 
+  // Check if the option (or the specific entry) has already expired.
+  // If so, the contract no longer exists on the market and cannot be reopened.
+  const isLegExpiredForReopen = (() => {
+    const expDateStr = (selectedEntry?.expirationDate || leg.expirationDate)?.split('T')[0];
+    if (!expDateStr) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(expDateStr + 'T00:00:00') < today;
+  })();
+
   // === Reopen Closed Entry as NEW Separate Leg ===
   // Creates a new separate leg to keep boxes independent, but preserves sort order
   const handleReopenPosition = () => {
@@ -1021,16 +1031,18 @@ export function OptionDetailsPanel({
 
         {/* Actions for Closed Position */}
         <div className="space-y-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-xs h-8 gap-2"
-            onClick={handleReopenPosition}
-            data-testid="button-reopen-position"
-          >
-            <Undo2 className="h-3 w-3" />
-            Reopen Position
-          </Button>
+          {!isLegExpiredForReopen && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-xs h-8 gap-2"
+              onClick={handleReopenPosition}
+              data-testid="button-reopen-position"
+            >
+              <Undo2 className="h-3 w-3" />
+              Reopen Position
+            </Button>
+          )}
 
           <Button
             variant={(selectedEntry?.isExcluded) ? "secondary" : "ghost"}

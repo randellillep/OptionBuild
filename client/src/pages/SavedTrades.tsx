@@ -486,6 +486,7 @@ export default function SavedTrades() {
         ...leg,
         expirationDays,
         premiumSource: 'saved' as const,
+        costBasisLocked: true,          // Prevent market data from overriding entry price/quantity
         marketBid: matchingQuote?.bid,
         marketAsk: matchingQuote?.ask,
         marketMark: matchingQuote?.mid,
