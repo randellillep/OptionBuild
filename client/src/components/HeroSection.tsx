@@ -69,7 +69,7 @@ const PAYOFFS: Record<string, [number, number][]> = {
 };
 
 function PayoffChart({ strategyName, sentimentHex }: { strategyName: string; sentimentHex: string }) {
-  const W = 800, H = 140;
+  const W = 800, H = 200;
   const pts = PAYOFFS[strategyName] ?? PAYOFFS["Long Call"];
   const svgPts = pts.map(([x, y]): [number, number] => [x * W, (1 - y) * H]);
   const linePath = svgPts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
@@ -181,45 +181,92 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
       {/* ── Background effects ── */}
       <style>{`
         @keyframes heroGlowPulse {
-          0%, 100% { opacity: 0.75; }
-          50%       { opacity: 1;    }
+          0%, 100% { opacity: 0.7; transform: scale(1); }
+          50%       { opacity: 1;   transform: scale(1.06); }
         }
-        @keyframes heroGlowDrift {
-          0%, 100% { transform: translate(-50%, -50%) scale(1);    }
-          33%      { transform: translate(-52%, -48%) scale(1.04); }
-          66%      { transform: translate(-48%, -52%) scale(0.97); }
+        @keyframes heroOrb1 {
+          0%        { transform: translate(0px,   0px)   scale(1);    }
+          25%       { transform: translate(50px, -35px)  scale(1.07); }
+          50%       { transform: translate(20px,  30px)  scale(0.95); }
+          75%       { transform: translate(-40px,-10px)  scale(1.03); }
+          100%      { transform: translate(0px,   0px)   scale(1);    }
         }
-        .hero-glow-main  { animation: heroGlowPulse 7s ease-in-out infinite; }
-        .hero-glow-drift { animation: heroGlowDrift 12s ease-in-out infinite; }
+        @keyframes heroOrb2 {
+          0%        { transform: translate(0px,   0px)   scale(1);    opacity: 0.7; }
+          33%       { transform: translate(-60px, 50px)  scale(1.1);  opacity: 1;   }
+          66%       { transform: translate(30px,  20px)  scale(0.92); opacity: 0.8; }
+          100%      { transform: translate(0px,   0px)   scale(1);    opacity: 0.7; }
+        }
+        @keyframes heroOrb3 {
+          0%        { transform: translate(0px,   0px)  scale(1);    }
+          40%       { transform: translate(40px, -55px) scale(1.08); }
+          70%       { transform: translate(-25px, 35px) scale(0.96); }
+          100%      { transform: translate(0px,   0px)  scale(1);    }
+        }
+        @keyframes heroOrb4 {
+          0%        { opacity: 0.5; transform: scale(1);    }
+          50%       { opacity: 1;   transform: scale(1.12); }
+          100%      { opacity: 0.5; transform: scale(1);    }
+        }
+        @keyframes heroScanLine {
+          0%   { transform: translateY(-100%); opacity: 0; }
+          8%   { opacity: 0.18; }
+          92%  { opacity: 0.18; }
+          100% { transform: translateY(2000%); opacity: 0; }
+        }
+        .hero-orb-center { animation: heroGlowPulse 8s ease-in-out infinite; }
+        .hero-orb-1      { animation: heroOrb1 18s ease-in-out infinite; }
+        .hero-orb-2      { animation: heroOrb2 22s ease-in-out infinite 3s; }
+        .hero-orb-3      { animation: heroOrb3 15s ease-in-out infinite 7s; }
+        .hero-orb-4      { animation: heroOrb4 6s ease-in-out infinite; }
+        .hero-scan       { animation: heroScanLine 14s linear infinite 2s; }
       `}</style>
 
       {/* Grid */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.055] dark:opacity-[0.09]"
+        className="absolute inset-0 pointer-events-none opacity-[0.05] dark:opacity-[0.08]"
         style={{
           backgroundImage: "linear-gradient(to right, hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--foreground)) 1px, transparent 1px)",
           backgroundSize: "52px 52px",
-          maskImage: "radial-gradient(ellipse 90% 85% at 50% 45%, black 10%, transparent 72%)",
-          WebkitMaskImage: "radial-gradient(ellipse 90% 85% at 50% 45%, black 10%, transparent 72%)",
+          maskImage: "radial-gradient(ellipse 100% 90% at 50% 45%, black 0%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse 100% 90% at 50% 45%, black 0%, transparent 75%)",
         }}
       />
 
-      {/* Primary glow — large, centered, pulsing */}
+      {/* Scan line — subtle horizontal sweep */}
       <div
-        className="hero-glow-main absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-full"
-        style={{ width: 900, height: 500, background: "radial-gradient(ellipse at center, hsl(var(--primary) / 0.16) 0%, hsl(var(--primary) / 0.06) 40%, transparent 70%)" }}
+        className="hero-scan absolute left-0 right-0 pointer-events-none"
+        style={{ height: 1, background: "linear-gradient(to right, transparent, hsl(var(--primary) / 0.5) 30%, hsl(var(--primary) / 0.5) 70%, transparent)", top: 0 }}
       />
 
-      {/* Secondary accent glow — top-left, blue tinted */}
+      {/* Primary orb — large, centered, breathing */}
       <div
-        className="hero-glow-drift absolute top-[15%] left-[18%] pointer-events-none rounded-full"
-        style={{ width: 480, height: 320, background: "radial-gradient(ellipse at center, hsl(217 70% 55% / 0.08) 0%, transparent 65%)", transform: "translate(-50%, -50%)" }}
+        className="hero-orb-center absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+        style={{ width: 1000, height: 560, background: "radial-gradient(ellipse at center, hsl(var(--primary) / 0.18) 0%, hsl(var(--primary) / 0.07) 38%, transparent 68%)", borderRadius: "50%" }}
       />
 
-      {/* Tertiary glow — bottom-right, faint primary */}
+      {/* Orb 1 — top-left, blue-tinted, drifting */}
       <div
-        className="absolute bottom-[8%] right-[12%] pointer-events-none rounded-full"
-        style={{ width: 380, height: 260, background: "radial-gradient(ellipse at center, hsl(var(--primary) / 0.07) 0%, transparent 60%)" }}
+        className="hero-orb-1 absolute pointer-events-none"
+        style={{ top: "12%", left: "14%", width: 520, height: 340, background: "radial-gradient(ellipse at center, hsl(217 72% 58% / 0.11) 0%, transparent 62%)", borderRadius: "50%" }}
+      />
+
+      {/* Orb 2 — bottom-left, violet, drifting */}
+      <div
+        className="hero-orb-2 absolute pointer-events-none"
+        style={{ bottom: "10%", left: "8%", width: 420, height: 300, background: "radial-gradient(ellipse at center, hsl(260 60% 55% / 0.09) 0%, transparent 60%)", borderRadius: "50%" }}
+      />
+
+      {/* Orb 3 — top-right, primary-tinted, drifting (opposite phase) */}
+      <div
+        className="hero-orb-3 absolute pointer-events-none"
+        style={{ top: "8%", right: "10%", width: 460, height: 300, background: "radial-gradient(ellipse at center, hsl(var(--primary) / 0.08) 0%, transparent 58%)", borderRadius: "50%" }}
+      />
+
+      {/* Orb 4 — bottom-right, small accent, pulsing */}
+      <div
+        className="hero-orb-4 absolute pointer-events-none"
+        style={{ bottom: "6%", right: "6%", width: 280, height: 200, background: "radial-gradient(ellipse at center, hsl(217 70% 60% / 0.08) 0%, transparent 60%)", borderRadius: "50%" }}
       />
 
       <div className="container mx-auto px-4 md:px-6 pt-16 pb-14 md:pt-20 md:pb-18 relative z-10">
@@ -361,7 +408,7 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
           </div>
 
           {/* ── Payoff chart panel ── */}
-          <div className="w-full max-w-3xl border border-border bg-card shadow-xl overflow-hidden">
+          <div className="w-full max-w-4xl border border-border bg-card shadow-xl overflow-hidden">
 
             {/* Chart header — no circles */}
             <div className="flex items-center justify-between px-5 py-2.5 border-b border-border bg-muted/20">
@@ -374,7 +421,7 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
             </div>
 
             {/* Chart */}
-            <div className="h-[140px]">
+            <div className="h-[200px]">
               <PayoffChart strategyName={currentTemplate?.name ?? "Iron Condor"} sentimentHex={sentimentHex} />
             </div>
 
@@ -394,8 +441,8 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
           </div>
 
           {/* ── Tagline below chart ── */}
-          <p className="text-xs text-muted-foreground/40 text-center max-w-md leading-relaxed -mt-2">
-            Professional analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
+          <p className="text-xs text-muted-foreground/55 text-center max-w-md leading-relaxed -mt-2">
+            Professional options analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
           </p>
 
           {/* ── View Templates CTA (hidden, for accessibility / scroll) ── */}
