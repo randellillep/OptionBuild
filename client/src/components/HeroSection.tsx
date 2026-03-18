@@ -208,18 +208,11 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
           50%       { opacity: 1;   transform: scale(1.12); }
           100%      { opacity: 0.5; transform: scale(1);    }
         }
-        @keyframes heroScanLine {
-          0%   { transform: translateY(-100%); opacity: 0; }
-          8%   { opacity: 0.18; }
-          92%  { opacity: 0.18; }
-          100% { transform: translateY(2000%); opacity: 0; }
-        }
         .hero-orb-center { animation: heroGlowPulse 8s ease-in-out infinite; }
         .hero-orb-1      { animation: heroOrb1 18s ease-in-out infinite; }
         .hero-orb-2      { animation: heroOrb2 22s ease-in-out infinite 3s; }
         .hero-orb-3      { animation: heroOrb3 15s ease-in-out infinite 7s; }
         .hero-orb-4      { animation: heroOrb4 6s ease-in-out infinite; }
-        .hero-scan       { animation: heroScanLine 14s linear infinite 2s; }
       `}</style>
 
       {/* Grid */}
@@ -233,10 +226,10 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
         }}
       />
 
-      {/* Scan line — subtle horizontal sweep */}
+      {/* Permanent accent line — always visible at the top of the hero */}
       <div
-        className="hero-scan absolute left-0 right-0 pointer-events-none"
-        style={{ height: 1, background: "linear-gradient(to right, transparent, hsl(var(--primary) / 0.5) 30%, hsl(var(--primary) / 0.5) 70%, transparent)", top: 0 }}
+        className="absolute left-0 right-0 pointer-events-none"
+        style={{ height: 1, top: 0, background: "linear-gradient(to right, transparent 0%, hsl(var(--primary) / 0.55) 20%, hsl(var(--primary) / 0.75) 50%, hsl(var(--primary) / 0.55) 80%, transparent 100%)", boxShadow: "0 0 12px 2px hsl(var(--primary) / 0.3)" }}
       />
 
       {/* Primary orb — large, centered, breathing */}
@@ -441,7 +434,7 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
           </div>
 
           {/* ── Tagline below chart ── */}
-          <p className="text-xs text-muted-foreground/55 text-center max-w-md leading-relaxed -mt-2">
+          <p className="text-xs text-muted-foreground/80 text-center max-w-md leading-relaxed -mt-2">
             Professional options analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
           </p>
 
