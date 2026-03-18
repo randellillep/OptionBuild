@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Zap, BookOpen, ChevronDown, Search, ArrowRight, GitBranch } from "lucide-react";
+import { ChevronDown, Search, ArrowRight } from "lucide-react";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useQuery } from "@tanstack/react-query";
 
@@ -225,16 +225,6 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
       <div className="container mx-auto px-4 md:px-6 pt-16 pb-14 md:pt-20 md:pb-18 relative z-10">
         <div className="flex flex-col items-center gap-6">
 
-          {/* ── Breadcrumb ── */}
-          <div className="flex items-center gap-1.5 font-mono text-[10px]">
-            <GitBranch className="w-3 h-3 text-muted-foreground/60" />
-            <span className="text-muted-foreground/60">options</span>
-            <span className="text-muted-foreground/30">/</span>
-            <span className="text-muted-foreground/60">strategy</span>
-            <span className="text-muted-foreground/30">/</span>
-            <span className="text-primary font-semibold">build</span>
-          </div>
-
           {/* ── Headline ── */}
           <div className="text-center">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight leading-[1.12] text-foreground">
@@ -368,13 +358,6 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
               Build Strategy
               <ArrowRight className="w-4 h-4" />
             </Button>
-            <button
-              className="text-[11px] font-mono text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-              onClick={onGetStarted}
-              data-testid="button-hero-launch"
-            >
-              or launch the full builder →
-            </button>
           </div>
 
           {/* ── Payoff chart panel ── */}
@@ -411,7 +394,7 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
           </div>
 
           {/* ── Tagline below chart ── */}
-          <p className="text-xs text-muted-foreground/60 text-center max-w-md leading-relaxed -mt-2">
+          <p className="text-xs text-muted-foreground/40 text-center max-w-md leading-relaxed -mt-2">
             Professional analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
           </p>
 
@@ -423,23 +406,6 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
           >
             View Templates
           </button>
-
-          {/* ── Feature strip ── */}
-          <div className="w-full max-w-3xl grid grid-cols-3 border border-border/60 bg-muted/[0.04] mt-2">
-            {[
-              { icon: TrendingUp, label: "Real-time P/L Charts",  sub: "Heatmaps across price & time",  color: "text-primary" },
-              { icon: Zap,        label: "Greeks Analysis",        sub: "Δ Γ Θ V ρ — all sensitivities", color: "text-blue-400" },
-              { icon: BookOpen,   label: "30+ Strategy Templates", sub: "Pre-built, fully customizable", color: "text-purple-400" },
-            ].map(({ icon: Icon, label, sub, color }, i) => (
-              <div key={label} className={`flex items-start gap-3 px-4 py-3.5 ${i > 0 ? "border-l border-border/60" : ""}`}>
-                <Icon className={`w-4 h-4 ${color} mt-0.5 shrink-0`} />
-                <div>
-                  <div className="font-mono text-xs font-semibold text-foreground">{label}</div>
-                  <div className="font-mono text-[10px] text-muted-foreground mt-0.5 leading-tight">{sub}</div>
-                </div>
-              </div>
-            ))}
-          </div>
 
         </div>
       </div>
