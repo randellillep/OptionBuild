@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Search, ArrowRight } from "lucide-react";
+import { ChevronDown, Search, ArrowRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { strategyTemplates } from "@/lib/strategy-templates";
 import { useQuery } from "@tanstack/react-query";
 
@@ -30,6 +30,16 @@ function getSentimentColor(sentiment: string) {
   if (sentiment === "Bearish") return "text-rose-400";
   if (sentiment === "Volatile") return "text-purple-400";
   return "text-blue-400";
+}
+
+function StrategyIcon({ sentiments }: { sentiments: string[] }) {
+  if (sentiments.includes("very_bullish") || sentiments.includes("bullish"))
+    return <TrendingUp className="h-3.5 w-3.5 shrink-0 text-emerald-400" />;
+  if (sentiments.includes("very_bearish") || sentiments.includes("bearish"))
+    return <TrendingDown className="h-3.5 w-3.5 shrink-0 text-rose-400" />;
+  if (sentiments.includes("directional"))
+    return <ArrowRight className="h-3.5 w-3.5 shrink-0 text-primary" />;
+  return <Minus className="h-3.5 w-3.5 shrink-0 text-blue-400" />;
 }
 
 const STRATEGY_META: Record<string, {
@@ -365,14 +375,15 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
                 />
               </button>
               {showStrategyDropdown && (
-                <div className="absolute top-[110%] left-1/2 -translate-x-1/2 mt-1 border border-border bg-popover shadow-2xl z-50 min-w-[210px] max-h-[260px] overflow-y-auto">
+                <div className="absolute top-[110%] left-1/2 -translate-x-1/2 mt-1 border border-border bg-popover shadow-2xl z-50 min-w-[220px] max-h-[260px] overflow-y-auto">
                   {strategyTemplates.map((template, index) => (
                     <button
                       key={template.name}
-                      className={`w-full text-left px-4 py-2 text-sm font-mono transition-colors ${index === selectedStrategy ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"}`}
+                      className={`w-full text-left px-4 py-2 text-sm font-mono transition-colors flex items-center gap-2.5 ${index === selectedStrategy ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"}`}
                       onMouseDown={() => { setSelectedStrategy(index); setShowStrategyDropdown(false); }}
                       data-testid={`option-strategy-${index}`}
                     >
+                      <StrategyIcon sentiments={template.metadata.sentiment} />
                       {template.name}
                     </button>
                   ))}
