@@ -21,6 +21,7 @@ export const modules: ModuleMap = {
   "./components/mockups/hero-polish/Polish1.tsx": () => import("../components/mockups/hero-polish/Polish1.tsx"),
   "./components/mockups/hero-polish/Polish2.tsx": () => import("../components/mockups/hero-polish/Polish2.tsx"),
   "./components/mockups/hero-unified/Unified.tsx": () => import("../components/mockups/hero-unified/Unified.tsx"),
+  "./components/mockups/hero-unified-copy-8yjOHJIW/HeroUnifiedCopy8yjOHJIW.tsx": () => import("../components/mockups/hero-unified-copy-8yjOHJIW/HeroUnifiedCopy8yjOHJIW.tsx"),
   "./components/mockups/hero-variations/CommandCenter.tsx": () => import("../components/mockups/hero-variations/CommandCenter.tsx"),
   "./components/mockups/hero-variations/CommandCenterR1.tsx": () => import("../components/mockups/hero-variations/CommandCenterR1.tsx"),
   "./components/mockups/hero-variations/CommandCenterR2.tsx": () => import("../components/mockups/hero-variations/CommandCenterR2.tsx"),
