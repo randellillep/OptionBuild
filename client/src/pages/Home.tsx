@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { HeroSection } from "@/components/HeroSection";
 import { StrategyTemplateCard } from "@/components/StrategyTemplateCard";
 import { Button } from "@/components/ui/button";
@@ -123,7 +123,27 @@ export default function Home() {
   const featuredStrategies = [0, 1, 6, 10, 16, 22, 26, 4, 2].filter(i => i < strategyTemplates.length);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-x-hidden">
+
+      {/* ── Global ambient background ─────────────────────────────────────── */}
+      {/* Faint dot grid */}
+      <div className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          backgroundImage: "radial-gradient(circle, hsl(var(--primary)/0.12) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+          maskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 85%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 85%, transparent 100%)",
+        }}
+      />
+      {/* Top-left orb */}
+      <div className="pointer-events-none fixed z-0 rounded-full"
+        style={{ width: 500, height: 500, top: -100, left: -150, background: "radial-gradient(ellipse, hsl(var(--primary)/0.06) 0%, transparent 70%)" }} />
+      {/* Mid-right orb (features area) */}
+      <div className="pointer-events-none fixed z-0 rounded-full"
+        style={{ width: 600, height: 400, top: "60vh", right: -200, background: "radial-gradient(ellipse, hsl(220 60% 50%/0.05) 0%, transparent 70%)" }} />
+      {/* Lower-left orb (strategies area) */}
+      <div className="pointer-events-none fixed z-0 rounded-full"
+        style={{ width: 500, height: 500, top: "150vh", left: -100, background: "radial-gradient(ellipse, hsl(var(--primary)/0.04) 0%, transparent 70%)" }} />
 
       {/* ── Nav ─────────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
