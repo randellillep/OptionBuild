@@ -41,52 +41,52 @@ function lerp(a: number, b: number, t: number) {
 
 const featuresEditorial = [
   {
-    num: "01", letter: "H",
-    color: "#1abd9c",
-    category: "Visualization",
+    num: "01",
+    icon: "▦",
+    tag: "Price × Time Analysis",
     title: "P/L Heatmap",
-    desc: "A color-coded 50×20 grid maps every profit and loss outcome across price levels and time intervals. See the full landscape before you commit.",
-    highlight: "50 price levels × 20 time intervals",
+    desc: "A color-coded matrix that maps every possible profit and loss outcome across 50 price levels and 20 time intervals. Know exactly where you win before the trade.",
+    highlight: "See profit at every strike price — instantly.",
   },
   {
-    num: "02", letter: "G",
-    color: "#60a5fa",
-    category: "Risk",
+    num: "02",
+    icon: "∂",
+    tag: "Risk Sensitivity",
     title: "Options Greeks",
-    desc: "Delta, gamma, theta, vega, and rho calculated live across your full multi-leg position. Watch how your risk profile shifts as the market moves.",
-    highlight: "Live across all legs — Black-Scholes engine",
+    desc: "Delta, gamma, theta, vega, and rho calculated live across your entire multi-leg position. Watch how your strategy responds as the market moves.",
+    highlight: "Full Greek breakdown. Real market data.",
   },
   {
-    num: "03", letter: "S",
-    color: "#a78bfa",
-    category: "Strategy",
+    num: "03",
+    icon: "◈",
+    tag: "Strategy Library",
     title: "30+ Strategy Templates",
-    desc: "Load any spread, condor, butterfly, or straddle in one click. Every template is fully editable — adjust strikes, expirations, and position size.",
-    highlight: "32 templates · every market view covered",
+    desc: "Pre-built spreads, straddles, iron condors, butterflies, and more. Load any template in one click, then customize strikes, expirations, and quantity.",
+    highlight: "32 templates covering every market view.",
   },
   {
-    num: "04", letter: "B",
-    color: "#fbbf24",
-    category: "Historical",
+    num: "04",
+    icon: "↗",
+    tag: "Historical Simulation",
     title: "Backtesting",
-    desc: "Run your strategy against years of historical data. Win rate, drawdown, Sharpe ratio, and equity curve — all computed before you risk real capital.",
-    highlight: "72% avg win rate · Iron Condors at 30 DTE",
+    desc: "Run any strategy against years of historical data. See win rate, max drawdown, Sharpe ratio, and net P/L before you risk real capital.",
+    highlight: "72% average win rate on short premium.",
   },
   {
-    num: "05", letter: "C",
-    color: "#34d399",
-    category: "Payoff",
+    num: "05",
+    icon: "⌇",
+    tag: "Payoff Visualization",
     title: "P/L Chart",
-    desc: "An interactive payoff diagram that updates the moment you change a strike or expiration. Breakeven lines, max profit, and max loss always annotated.",
-    highlight: "Real-time — drag any strike to simulate",
+    desc: "An interactive payoff diagram that updates in real time as you adjust strikes, expirations, and volatility. Breakeven lines, max profit, and max loss annotated.",
+    highlight: "Real-time diagram. Drag to simulate.",
   },
   {
-    num: "06", letter: "F",
-    color: "#f472b6",
-    category: "Search",
+    num: "06",
+    icon: "⌕",
+    tag: "Chain Filter",
     title: "Option Finder",
-    desc: "Filter 500+ contracts by delta range, IV rank, days to expiry, bid-ask spread, and open interest. Find the right contract in under a second.",
-    highlight: "500+ contracts · 5 simultaneous filters",
+    desc: "Filter the full options chain by strike, expiration, delta, IV rank, and open interest. Surface the best contract for your strategy in seconds.",
+    highlight: "Filter 500+ contracts in under a second.",
   },
 ];
 
@@ -185,72 +185,58 @@ export default function Home() {
         <div className="container mx-auto px-4 md:px-6">
 
           {/* Header */}
-          <div className="mb-10 pb-7 border-b border-border">
+          <div className="mb-10 pb-6 border-b border-border">
             <p className="text-xs font-mono font-semibold tracking-[0.2em] text-primary/80 uppercase mb-3">The Full Toolkit</p>
-            <div className="flex flex-wrap items-end gap-5">
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">
-                Know your exact risk<br className="hidden md:block" /> before any trade opens.
-              </h2>
-              <p className="text-sm text-muted-foreground pb-0.5">Six tools. No guessing.</p>
+            <div className="flex flex-wrap items-end gap-6">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Six tools that cover everything</h2>
+              <p className="text-sm text-muted-foreground pb-1">Professional options analysis. No fluff.</p>
             </div>
           </div>
 
           {/* 2-col editorial grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
             {featuresEditorial.map((f, i) => {
               const isRight = i % 2 === 1;
-              const isLastRow = i >= featuresEditorial.length - 2;
+              const isLast = i >= featuresEditorial.length - 2;
               return (
                 <div
                   key={f.num}
                   data-testid={`card-feature-${f.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                  className="relative flex flex-col overflow-hidden"
+                  className="relative py-8 px-6 group"
                   style={{
-                    padding: "28px 28px 24px",
                     borderRight: !isRight ? "1px solid hsl(var(--border))" : "none",
-                    borderBottom: !isLastRow ? "1px solid hsl(var(--border))" : "none",
+                    borderBottom: !isLast ? "1px solid hsl(var(--border))" : "none",
                   }}
                 >
-                  {/* Ghost ordinal — large, bleeds from lower-right corner */}
+                  {/* Ghost ordinal — top-right, large, uniform primary tint */}
                   <div
-                    className="absolute bottom-0 right-0 font-mono font-black leading-none select-none pointer-events-none"
-                    style={{
-                      fontSize: "7rem",
-                      color: f.color,
-                      opacity: 0.06,
-                      lineHeight: 1,
-                      transform: "translate(12%, 18%)",
-                    }}
+                    className="absolute top-6 right-6 font-mono font-black leading-none select-none text-5xl pointer-events-none text-primary"
+                    style={{ opacity: 0.08 }}
                   >
                     {f.num}
                   </div>
 
-                  {/* Icon box + category label */}
-                  <div className="flex items-center gap-2.5 mb-5">
-                    <div
-                      className="w-7 h-7 rounded flex items-center justify-center text-[11px] font-black font-mono flex-shrink-0"
-                      style={{ background: `${f.color}18`, color: f.color, border: `1px solid ${f.color}30` }}
-                    >
-                      {f.letter}
-                    </div>
-                    <span className="text-[9px] font-mono text-muted-foreground/50 tracking-widest uppercase">{f.category}</span>
+                  {/* Ordinal + tag pill */}
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <span className="font-mono text-sm font-bold text-primary">{f.num}</span>
+                    <span className="text-[9px] font-mono tracking-[0.15em] px-2 py-0.5 rounded bg-primary/[0.08] text-primary border border-primary/20">
+                      {f.tag.toUpperCase()}
+                    </span>
                   </div>
 
-                  {/* Title */}
-                  <h3 className="text-[15px] font-bold tracking-tight mb-2.5">{f.title}</h3>
+                  {/* Icon glyph + title */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg text-primary leading-none">{f.icon}</span>
+                    <h3 className="text-base font-bold">{f.title}</h3>
+                  </div>
 
                   {/* Description */}
-                  <p className="text-[13px] leading-relaxed text-muted-foreground flex-1">{f.desc}</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground mb-4">{f.desc}</p>
 
-                  {/* Highlight proof pill — pinned via flex layout */}
-                  <div className="mt-5">
-                    <div
-                      className="inline-flex items-center gap-1.5 text-[9px] font-mono font-semibold tracking-wide px-2.5 py-1.5 rounded"
-                      style={{ background: `${f.color}0d`, color: f.color, border: `1px solid ${f.color}22` }}
-                    >
-                      <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: f.color }} />
-                      {f.highlight}
-                    </div>
+                  {/* Highlight pill */}
+                  <div className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold tracking-wide px-2.5 py-1.5 rounded bg-muted text-primary border border-primary/20">
+                    <span className="w-1 h-1 rounded-full bg-primary" />
+                    {f.highlight}
                   </div>
                 </div>
               );
@@ -258,8 +244,8 @@ export default function Home() {
           </div>
 
           {/* Footer */}
-          <div className="pt-6 mt-0 border-t border-border flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground/50">Analysis tools only. Options trading involves risk.</p>
+          <div className="mt-0 pt-6 border-t border-border flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground/60">Options trading involves risk. OptionBuild provides analysis tools only.</p>
             <Button onClick={() => setLocation("/builder")} data-testid="button-features-cta">
               Launch Builder <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
             </Button>
