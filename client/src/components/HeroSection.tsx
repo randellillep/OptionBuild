@@ -237,18 +237,15 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
 
           {/* ── Headline ── */}
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold tracking-tight leading-[1.08] text-foreground">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight leading-[1.12] text-foreground">
               Build &amp; Visualize
               <br />
-              <span className="text-primary">Options Strategies</span>
+              <span className="text-foreground/80">Options Strategies</span>
               <span
                 className="inline-block w-[3px] h-[0.78em] bg-primary ml-2 align-middle translate-y-[-3px]"
                 style={{ opacity: cursorOn ? 1 : 0, transition: "opacity 0.07s" }}
               />
             </h1>
-            <p className="text-muted-foreground text-base leading-relaxed mt-4 max-w-xl mx-auto">
-              Professional analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
-            </p>
           </div>
 
           {/* ── Interactive sentence ── */}
@@ -412,6 +409,11 @@ export function HeroSection({ onGetStarted, onBuildStrategy }: HeroSectionProps)
               ))}
             </div>
           </div>
+
+          {/* ── Tagline below chart ── */}
+          <p className="text-xs text-muted-foreground/60 text-center max-w-md leading-relaxed -mt-2">
+            Professional analysis with real-time P/L charts, Greeks calculator, and 30+ strategy templates. Free to start.
+          </p>
 
           {/* ── View Templates CTA (hidden, for accessibility / scroll) ── */}
           <button
