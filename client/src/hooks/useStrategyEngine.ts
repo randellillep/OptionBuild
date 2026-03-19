@@ -181,13 +181,8 @@ export function useStrategyEngine(rangePercent: number = 14) {
     return avgIV;
   }, [legs]);
 
-  // Debounce timer ref for IV sync — prevents heatmap flickering while user drags a strike
-  const ivSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // Auto-sync volatility to calculated IV when legs with IV exist
   // Skip if user has manually set volatility (isManualVolatility = true)
-  // Debounced: waits 280ms after the last change before applying, so rapid drag
-  // events don't re-render the heatmap for every intermediate strike position.
   useEffect(() => {
     // Respect manual volatility setting - don't overwrite user's choice
     if (isManualVolatility) {
@@ -197,21 +192,12 @@ export function useStrategyEngine(rangePercent: number = 14) {
     
     const legsWithIV = legs.filter(leg => leg.impliedVolatility && leg.impliedVolatility > 0);
     console.log('[IV-SYNC] Effect triggered. Legs with IV:', legsWithIV.length, 'calculatedIV:', calculatedIV, `(${(calculatedIV * 100).toFixed(1)}%)`);
-
-    if (ivSyncTimerRef.current) clearTimeout(ivSyncTimerRef.current);
-
     if (legsWithIV.length > 0) {
-      ivSyncTimerRef.current = setTimeout(() => {
-        console.log('[IV-SYNC] Setting volatility to:', calculatedIV);
-        setVolatilityInternal(calculatedIV);
-      }, 280);
+      console.log('[IV-SYNC] Setting volatility to:', calculatedIV);
+      setVolatilityInternal(calculatedIV);
     } else {
       console.log('[IV-SYNC] No legs with IV, skipping sync');
     }
-
-    return () => {
-      if (ivSyncTimerRef.current) clearTimeout(ivSyncTimerRef.current);
-    };
   }, [calculatedIV, legs, isManualVolatility]);
   
   // Reset to market IV (clears manual lock)
