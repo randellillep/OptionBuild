@@ -281,13 +281,29 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const minLegExpiration = Math.min(...uniqueExpirationDays);
     const maxLegExpiration = Math.max(...uniqueExpirationDays);
     const targetDays = minLegExpiration;
+
+    // Detect "fully expired in the past" — distinct from "0DTE today".
+    // When ALL option legs have expirationDate strictly before today midnight,
+    // the position is settled and we show a single frozen column rather than
+    // the intraday 0DTE hourly view which makes no sense for a closed trade.
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const optionLegsForExpCheck = legs.filter(l => l.type !== 'stock');
+    const isFullyExpiredPast = optionLegsForExpCheck.length > 0 && optionLegsForExpCheck.every(l => {
+      if (!l.expirationDate) return l.expirationDays <= 0;
+      return new Date(l.expirationDate.split('T')[0] + 'T00:00:00') < todayMidnight;
+    });
     
     // Match OptionStrat: show hourly intervals for options with 7 days or less
     // This gives traders better visibility into theta decay for weekly options
-    const useHours = targetDays <= 7;
+    const useHours = targetDays <= 7 && !isFullyExpiredPast;
     const timeSteps: number[] = [];
-    
-    if (useHours) {
+
+    // For fully-expired past trades, skip all time-step generation and return
+    // a single frozen column at t=0 (the expiration moment).
+    if (isFullyExpiredPast) {
+      timeSteps.push(0);
+    } else if (useHours) {
       const totalHours = Math.max(0, targetDays * 24);
       
       if (totalHours <= 0) {
@@ -486,6 +502,7 @@ export function useStrategyEngine(rangePercent: number = 14) {
       useHours,
       targetDays,
       dateGroups,
+      isFullyExpired: isFullyExpiredPast,
     };
   }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, nearestExpirationDate, volatility, calculatedIV]);
 

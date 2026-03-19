@@ -1108,6 +1108,41 @@ export function OptionDetailsPanel({
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 space-y-3">
 
+      {/* Expired Summary — shown at the top when this leg has auto-expired with a closing transaction */}
+      {isExpired && leg.closingTransaction?.isEnabled && leg.closingTransaction.entries && leg.closingTransaction.entries.length > 0 && (() => {
+        const entries = leg.closingTransaction.entries;
+        const totalQty = entries.reduce((sum, e) => sum + e.quantity, 0);
+        const avgOpen = entries.reduce((sum, e) => sum + (e.openingPrice ?? leg.premium) * e.quantity, 0) / totalQty;
+        const avgClose = entries.reduce((sum, e) => sum + e.closingPrice * e.quantity, 0) / totalQty;
+        const totalPL = entries.reduce((total, e) => {
+          const cb = e.openingPrice ?? leg.premium;
+          return total + (leg.position === 'long' ? (e.closingPrice - cb) : (cb - e.closingPrice)) * e.quantity * 100;
+        }, 0);
+        const isProfitable = totalPL >= 0;
+        return (
+          <div className={`rounded-md border p-3 space-y-2 ${isProfitable ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800'}`} data-testid="expired-summary">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Expired — Position Settled</span>
+              <span className={`text-sm font-black font-mono ${isProfitable ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`} data-testid="text-expired-pl">
+                {totalPL >= 0 ? '+' : '-'}${Math.abs(Math.round(totalPL)).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+            <div className="flex items-center gap-4 text-xs">
+              <div>
+                <span className="text-muted-foreground">Opened at </span>
+                <span className="font-mono font-semibold">${avgOpen.toFixed(2)}</span>
+              </div>
+              <span className="text-muted-foreground">→</span>
+              <div>
+                <span className="text-muted-foreground">Closed at </span>
+                <span className="font-mono font-semibold">${avgClose.toFixed(2)}</span>
+                {avgClose === 0 && <span className="ml-1 text-muted-foreground/70">(expired worthless)</span>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Quantity and Cost Basis - Side by Side */}
       <div className="grid grid-cols-2 gap-4">
         {/* Quantity Controls */}

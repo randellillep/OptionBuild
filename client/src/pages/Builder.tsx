@@ -2434,10 +2434,14 @@ export default function Builder() {
                   commissionSettings={commissionSettings}
                   numTrades={legs.filter(l => !l.isExcluded).length}
                   totalContracts={legs.filter(l => !l.isExcluded).reduce((sum, l) => sum + Math.abs(l.quantity), 0)}
-                  realizedPL={initialPLFromSavedTrade?.realizedPL ?? realizedPL}
+                  realizedPL={scenarioGrid.isFullyExpired ? realizedPL : (initialPLFromSavedTrade?.realizedPL ?? realizedPL)}
                   unrealizedPL={initialPLFromSavedTrade?.unrealizedPL ?? unrealizedPL}
-                  hasRealizedPL={hasRealizedPL}
-                  hasUnrealizedPL={initialPLFromSavedTrade !== null || hasUnrealizedPL}
+                  hasRealizedPL={scenarioGrid.isFullyExpired ? true : hasRealizedPL}
+                  hasUnrealizedPL={scenarioGrid.isFullyExpired ? false : (initialPLFromSavedTrade !== null || hasUnrealizedPL)}
+                  isFullyExpired={scenarioGrid.isFullyExpired}
+                  expiredDate={scenarioGrid.isFullyExpired
+                    ? (legs.filter(l => l.type !== 'stock' && l.expirationDate)[0]?.expirationDate?.split('T')[0])
+                    : undefined}
                 />
               ) : (
                 <ProfitLossChart 
