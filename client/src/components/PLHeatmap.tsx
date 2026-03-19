@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Table, BarChart3, RotateCcw, LockKeyhole } from "lucide-react";
+import { Table, BarChart3, RotateCcw } from "lucide-react";
 import type { ScenarioPoint } from "@/hooks/useStrategyEngine";
 import type { StrategyMetrics } from "@shared/schema";
 
@@ -43,8 +43,6 @@ interface PLHeatmapProps {
   unrealizedPL?: number;
   hasRealizedPL?: boolean;
   hasUnrealizedPL?: boolean;
-  isFullyExpired?: boolean;
-  expiredDate?: string;
 }
 
 export function PLHeatmap({ 
@@ -72,8 +70,6 @@ export function PLHeatmap({
   unrealizedPL = 0,
   hasRealizedPL = false,
   hasUnrealizedPL = false,
-  isFullyExpired = false,
-  expiredDate,
 }: PLHeatmapProps) {
   const [isDraggingIV, setIsDraggingIV] = useState(false);
   const handlePointerUp = useCallback(() => setIsDraggingIV(false), []);
@@ -238,34 +234,7 @@ export function PLHeatmap({
       {/* Header with metrics and tab buttons */}
       <div className="mb-1.5 flex items-center justify-between">
         <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
-          {isFullyExpired && hasRealizedPL ? (
-            /* Fully expired view — show dominant REALIZED GAIN / LOSS banner */
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <LockKeyhole className={`h-4 w-4 ${realizedPL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} />
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  {realizedPL >= 0 ? 'Realized Gain' : 'Realized Loss'}
-                </span>
-                <span className={`text-xl font-black font-mono ${realizedPL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} data-testid="text-realized-pl">
-                  {realizedPL >= 0 ? '+' : '-'}${Math.abs(Math.round(realizedPL)).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </span>
-              </div>
-              {metrics && metrics.netPremium !== 0 && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground border-l border-border pl-3">
-                  <span>Cost:</span>
-                  <span className="font-mono font-semibold">
-                    ${Math.abs(metrics.netPremium).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    <span className="ml-1 opacity-70">{metrics.netPremium >= 0 ? "(credit)" : "(debit)"}</span>
-                  </span>
-                </div>
-              )}
-              {expiredDate && (
-                <span className="text-xs text-muted-foreground border-l border-border pl-3">
-                  Expired {new Date(expiredDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              )}
-            </div>
-          ) : metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
+          {metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
             <span className="text-sm text-muted-foreground italic">
               This strategy has no enabled items (add options from the Add button)
             </span>
@@ -538,8 +507,8 @@ export function PLHeatmap({
         </table>
       </div>
 
-      {/* Range and IV sliders - responsive layout (hidden for fully expired positions) */}
-      <div className={`mt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 text-[10px] ${isFullyExpired ? 'hidden' : ''}`}>
+      {/* Range and IV sliders - responsive layout */}
+      <div className="mt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 text-[10px]">
         <div className="flex items-center gap-1.5 flex-1">
           <span className="text-muted-foreground whitespace-nowrap w-10 sm:w-auto">Range</span>
           <Slider

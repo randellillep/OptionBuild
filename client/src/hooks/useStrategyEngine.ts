@@ -281,32 +281,13 @@ export function useStrategyEngine(rangePercent: number = 14) {
     const minLegExpiration = Math.min(...uniqueExpirationDays);
     const maxLegExpiration = Math.max(...uniqueExpirationDays);
     const targetDays = minLegExpiration;
-
-    // Detect "fully expired in the past" — distinct from "0DTE today".
-    // When ALL option legs have expirationDate strictly before today midnight,
-    // the position is settled and we show a single frozen column rather than
-    // the intraday 0DTE hourly view which makes no sense for a closed trade.
-    const todayMidnight = new Date();
-    todayMidnight.setHours(0, 0, 0, 0);
-    const optionLegsForExpCheck = legs.filter(l => l.type !== 'stock');
-    const isFullyExpiredPast = optionLegsForExpCheck.length > 0 && optionLegsForExpCheck.every(l => {
-      // Only treat as "fully expired past" when we have an explicit expiration date
-      // that is strictly before today midnight. Without a date, we cannot distinguish
-      // "0DTE today" from "expired yesterday", so we default to NOT expired.
-      if (!l.expirationDate) return false;
-      return new Date(l.expirationDate.split('T')[0] + 'T00:00:00') < todayMidnight;
-    });
     
     // Match OptionStrat: show hourly intervals for options with 7 days or less
     // This gives traders better visibility into theta decay for weekly options
-    const useHours = targetDays <= 7 && !isFullyExpiredPast;
+    const useHours = targetDays <= 7;
     const timeSteps: number[] = [];
-
-    // For fully-expired past trades, skip all time-step generation and return
-    // a single frozen column at t=0 (the expiration moment).
-    if (isFullyExpiredPast) {
-      timeSteps.push(0);
-    } else if (useHours) {
+    
+    if (useHours) {
       const totalHours = Math.max(0, targetDays * 24);
       
       if (totalHours <= 0) {
@@ -505,7 +486,6 @@ export function useStrategyEngine(rangePercent: number = 14) {
       useHours,
       targetDays,
       dateGroups,
-      isFullyExpired: isFullyExpiredPast,
     };
   }, [legs, symbolInfo.price, strikeRange, uniqueExpirationDays, nearestExpirationDate, volatility, calculatedIV]);
 
