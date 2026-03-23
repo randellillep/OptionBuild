@@ -936,6 +936,10 @@ export default function Builder() {
     // with the correct expiration date in a single step (no intermediate dates)
     setLegs([]);
     
+    // Exit historical saved trade mode — the user is now looking at a fresh symbol,
+    // not the saved trade any more. This re-enables chain fetch and snap-to-nearest.
+    setSavedTradeMode(null);
+    
     // Only update prevSymbolRef after successful adjustment
     prevSymbolRef.current = current;
   }, [symbolInfo.symbol, symbolInfo.price]);
