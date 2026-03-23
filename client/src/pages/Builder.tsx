@@ -57,6 +57,7 @@ export default function Builder() {
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
   const [isExecuteTradeOpen, setIsExecuteTradeOpen] = useState(false);
+  const [legConfigVersion, setLegConfigVersion] = useState(0);
   const [analysisTab, setAnalysisTab] = useState("greeks");
   const analysisTabsRef = useRef<HTMLDivElement>(null);
   const [commissionSettings, setCommissionSettings] = useState<CommissionSettings>({
@@ -1550,7 +1551,7 @@ export default function Builder() {
       if (symbolTransitionTimerRef.current) clearTimeout(symbolTransitionTimerRef.current);
       setTimeout(() => setSymbolTransitioning(false), 150);
     }
-  }, [optionsChainData, multiChainData, selectedExpirationDate, symbolInfo?.price, volatility, symbolChangeId, lastProcessedSymbolChangeId]);
+  }, [optionsChainData, multiChainData, selectedExpirationDate, symbolInfo?.price, volatility, symbolChangeId, lastProcessedSymbolChangeId, legConfigVersion]);
 
   // Ensure all legs have valid premiums (fallback to theoretical even when chain data partial)
   // IMPORTANT: Use callback pattern to get current legs state and avoid race conditions
@@ -1901,6 +1902,10 @@ export default function Builder() {
     if ('expirationDate' in updates || 'expirationDays' in updates) {
       setLastEditedLegId(id);
     }
+    // If config-significant fields change (strike, type, expiration), we need to
+    // re-run the market data effect so the new leg config gets matched to fresh
+    // quote data. Increment legConfigVersion to trigger that effect.
+    const isConfigChange = 'strike' in updates || 'type' in updates || 'expirationDate' in updates;
     setLegs(prevLegs => prevLegs.map((leg) => {
       if (leg.id !== id) return leg;
       
@@ -1915,8 +1920,22 @@ export default function Builder() {
         entries: leg.closingTransaction.entries?.map(entry => ({ ...entry }))
       } : undefined;
       
+      // When the user moves the strike, changes the type, or changes the expiration,
+      // clear stale market data so the heatmap shows correct theoretical P/L immediately
+      // instead of a mix of new config + old market data.
+      const marketDataClear = isConfigChange ? {
+        marketMark: undefined,
+        marketBid: undefined,
+        marketAsk: undefined,
+        marketLast: undefined,
+        impliedVolatility: undefined,
+        costBasisLocked: false,
+        premiumSource: undefined,
+      } : {};
+      
       return { 
         ...leg, 
+        ...marketDataClear,
         ...updates,
         // Use the update's closingTransaction if explicitly provided (even if undefined),
         // otherwise preserve the existing one
@@ -1925,6 +1944,9 @@ export default function Builder() {
           : preservedClosingTransaction
       };
     }));
+    if (isConfigChange) {
+      setLegConfigVersion(v => v + 1);
+    }
     // Clear frozen P/L values so live calculations take over
     setInitialPLFromSavedTrade(null);
   };
