@@ -95,6 +95,13 @@ Preferred communication style: Simple, everyday language.
 - **Auto-close persistence**: When the Saved Trades page loads, expired legs without closing transactions are automatically closed (using saved market data or intrinsic value) and the updated legs are persisted back to the database via `PATCH /api/trades/:id`. This means closing prices are permanently stored, not recalculated each time.
 - **"Expired or Closed" filter**: Saved Trades page Show filter has three options: "Active" (default), "Expired or Closed", and "All". Trade status is determined per-leg: a trade is "expired/closed" only when ALL legs are either expired or fully closed via closing transactions.
 - `updateSavedTrade(id, userId, updates)` method in storage allows partial updates to saved trades (legs, price, expirationDate).
+- **OptionStrat-style historical view**: When `savedTradeMode === 'expired' || 'closed'` (`isHistoricalSavedTrade`):
+  - ExpirationTimeline is replaced with a static date label showing the expiration date + "Expired" (blue) or "Closed" (amber) badge.
+  - PLHeatmap shows a single column with fixed realized P/L value for all price rows (color-coded by profit/loss).
+  - PLHeatmap column header shows the actual date (e.g., "Mar 18") with "Expired"/"Closed" sub-label.
+  - Metrics bar shows "Realized P/L: +$X" instead of strategy metrics.
+  - Month/date group rows hidden. Live chain fetch and snap/auto-adjust effects disabled.
+  - Strike ladder leg badges: clicking closed-entry badges opens Open Price / Close Price view (`isClosedView=true`).
 
 ## Backtesting Engine (tastytrade-aligned)
 

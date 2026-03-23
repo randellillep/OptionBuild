@@ -46,6 +46,7 @@ interface PLHeatmapProps {
   savedTradeMode?: 'live' | 'expired' | 'closed';
   entryUnderlyingPrice?: number;
   exitUnderlyingPrice?: number;
+  selectedExpirationDate?: string;
 }
 
 export function PLHeatmap({ 
@@ -76,6 +77,7 @@ export function PLHeatmap({
   savedTradeMode,
   entryUnderlyingPrice,
   exitUnderlyingPrice,
+  selectedExpirationDate,
 }: PLHeatmapProps) {
   const [isDraggingIV, setIsDraggingIV] = useState(false);
   const handlePointerUp = useCallback(() => setIsDraggingIV(false), []);
@@ -94,13 +96,24 @@ export function PLHeatmap({
   const isHistoricalExpired = savedTradeMode === 'expired';
   const isHistorical = isHistoricalClosed || isHistoricalExpired;
 
-  // For expired trades, show only a single "At Expiry" column (all columns have the same
-  // intrinsic-value P/L since time value = 0 at expiry)
-  const displayGrid = isHistoricalExpired && grid.length > 0 && grid[0].length > 0
-    ? grid.map(row => [row[row.length - 1]])
+  // Compute how many days from TODAY the actual expiration date is (negative = past).
+  // Used to show the correct date label in the single historical column.
+  const expiryDaysFromNow: number = (() => {
+    if (!selectedExpirationDate) return 0;
+    const [y, m, d] = selectedExpirationDate.split('-').map(Number);
+    const expDate = new Date(y, m - 1, d);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  })();
+
+  // For historical trades, show only a single column filled with the fixed realized P/L.
+  // The P/L is realized and doesn't depend on underlying price, so every row has the same value.
+  const displayGrid = isHistorical && grid.length > 0
+    ? grid.map(row => [{ strike: row[0]?.strike ?? 0, daysToExpiration: 0, pnl: realizedPL }])
     : grid;
-  const displayDays = isHistoricalExpired && days.length > 0
-    ? [days[days.length - 1]]
+  const displayDays = isHistorical && days.length > 0
+    ? [expiryDaysFromNow]
     : days;
 
   // Find the row index closest to the entry underlying price (for the "Entry" marker)
@@ -144,7 +157,11 @@ export function PLHeatmap({
     return Math.round(value).toLocaleString('en-US', { maximumFractionDigits: 0 });
   };
 
-  const allPnlValues = grid.flatMap(row => row.map(cell => adjustPnl(cell.pnl)));
+  // For historical trades, all cells have the same realized P/L so use it directly.
+  // This ensures full color saturation (not washed out).
+  const allPnlValues = isHistorical
+    ? [adjustPnl(realizedPL)]
+    : grid.flatMap(row => row.map(cell => adjustPnl(cell.pnl)));
   const maxAbsPnl = Math.max(...allPnlValues.map(Math.abs));
 
   const getPnlStyle = (rawPnl: number): React.CSSProperties => {
@@ -289,7 +306,14 @@ export function PLHeatmap({
       {/* Header with metrics and tab buttons */}
       <div className="mb-1.5 flex items-center justify-between">
         <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
-          {metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
+          {isHistorical ? (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Realized P/L:</span>
+              <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} data-testid="text-realized-pl-header">
+                {realizedPL >= 0 ? '+' : '-'}${Math.abs(Math.round(realizedPL)).toLocaleString()}
+              </span>
+            </div>
+          ) : metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
             <span className="text-sm text-muted-foreground italic">
               This strategy has no enabled items (add options from the Add button)
             </span>
@@ -377,7 +401,7 @@ export function PLHeatmap({
               const monthGroups: Array<{ label: string; count: number }> = [];
               let lastMonth = '';
 
-              if (isHistoricalExpired) {
+              if (isHistorical) {
                 return null;
               } else if (useHours) {
                 displayDays.forEach((daysValue) => {
@@ -421,8 +445,8 @@ export function PLHeatmap({
                 </tr>
               );
             })()}
-            {/* Date group row (only shown when useHours is true and NOT in expired historical mode) */}
-            {useHours && !isHistoricalExpired && dateGroups.length > 0 && (
+            {/* Date group row (only shown when useHours is true and NOT in historical mode) */}
+            {useHours && !isHistorical && dateGroups.length > 0 && (
               <tr>
                 <th 
                   colSpan={2} 
@@ -461,13 +485,18 @@ export function PLHeatmap({
               >
                 %
               </th>
-              {isHistoricalExpired ? (
+              {isHistorical ? (
                 <th
                   scope="col"
-                  className="text-[9px] font-semibold text-center px-0.5 py-1 border-b border-border bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  className={`text-[9px] font-semibold text-center px-0.5 py-1 border-b border-border ${
+                    isHistoricalExpired
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                  }`}
                   data-testid="header-at-expiry"
                 >
-                  At Expiry
+                  <div className="whitespace-nowrap">{getTimeLabel(expiryDaysFromNow)}</div>
+                  <div className="text-[8px] font-normal opacity-75">{isHistoricalExpired ? 'Expired' : 'Closed'}</div>
                 </th>
               ) : (
                 displayDays.map((day, idx) => {
