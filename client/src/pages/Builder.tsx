@@ -941,10 +941,13 @@ export default function Builder() {
   }, [symbolInfo.symbol, symbolInfo.price]);
 
   // Options chain for the STRATEGY (requires user to select expiration)
+  // Disabled for expired/closed historical saved trades — the expired date no longer has chain
+  // data, and fetching it from the API would return wrong (future) expiration quotes.
+  const isHistoricalSavedTrade = savedTradeMode === 'expired' || savedTradeMode === 'closed';
   const { data: optionsChainData, isLoading: isLoadingChain, error: chainError } = useOptionsChain({
     symbol: symbolInfo.symbol,
     expiration: selectedExpirationDate || undefined,
-    enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
+    enabled: !!symbolInfo.symbol && !!selectedExpirationDate && !isHistoricalSavedTrade,
   });
 
   // Separate options chain for EXPECTED MOVE - fetched WITHOUT expiration filter
@@ -983,7 +986,7 @@ export default function Builder() {
   }, [uniqueLegExpirationDates, selectedExpirationDate]);
 
   useEffect(() => {
-    if (!symbolInfo.symbol || expirationsNeedingFetch.length === 0) {
+    if (!symbolInfo.symbol || expirationsNeedingFetch.length === 0 || isHistoricalSavedTrade) {
       if (multiChainData.size > 0) {
         setMultiChainData(new Map());
         multiChainFetchRef.current = '';
@@ -1105,6 +1108,12 @@ export default function Builder() {
     // Mark the current symbolChangeId as processed so this effect doesn't re-fire
     // when savedTradeSettling clears — the expired-leg guard already protects leg values.
     if (savedTradeSettling) {
+      setLastProcessedSymbolChangeId(symbolChangeId);
+      return;
+    }
+    // For expired/closed historical saved trades, preserve the original leg expirations
+    // and strikes exactly as saved — never snap to the nearest available date/strike.
+    if (savedTradeMode === 'expired' || savedTradeMode === 'closed') {
       setLastProcessedSymbolChangeId(symbolChangeId);
       return;
     }
@@ -2402,7 +2411,7 @@ export default function Builder() {
                 activeLegsExpirations={legs.some(l => l.type !== 'stock' && l.quantity > 0) ? uniqueExpirationDays : []}
                 expirationColorMap={expirationColorMap}
                 legExpirationDates={legExpirationDates}
-                suppressAutoSelect={symbolTransitioning}
+                suppressAutoSelect={symbolTransitioning || savedTradeMode === 'expired' || savedTradeMode === 'closed'}
               />
 
               <EquityPanel

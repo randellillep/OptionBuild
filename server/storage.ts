@@ -63,18 +63,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+    try {
+      const [user] = await db
+        .insert(users)
+        .values(userData)
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            ...userData,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      return user;
+    } catch (err: any) {
+      // Email uniqueness conflict: same user authenticated with a different provider ID.
+      // Update the existing record by email so the account is preserved.
+      if (err.code === '23505' && userData.email) {
+        const [existing] = await db
+          .update(users)
+          .set({ ...userData, updatedAt: new Date() })
+          .where(eq(users.email, userData.email))
+          .returning();
+        if (existing) return existing;
+      }
+      throw err;
+    }
   }
 
   async getOptionsChainCache(cacheKey: string): Promise<MarketOptionChainSummary | undefined> {
