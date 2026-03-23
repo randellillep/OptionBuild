@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { Footer } from "@/components/Footer";
-import { TrendingUp, Download, Star, Settings, ArrowLeft, Trash2 } from "lucide-react";
+import { TrendingUp, Download, Star, Settings, ArrowLeft, Trash2, RefreshCw } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -148,6 +148,41 @@ export default function SavedTrades() {
     });
   }, [isLegFullyClosed]);
 
+  // Determine the state of a trade dynamically at runtime (per spec)
+  // closed: all legs have exit data (closing transactions)
+  // expired: no exit data but all legs are past expiry date
+  // live: some or all legs are before expiry
+  const getTradeState = useCallback((trade: SavedTrade): 'live' | 'expired' | 'closed' => {
+    const rawLegs = (trade.legs as OptionLeg[]) || [];
+    if (rawLegs.length === 0) return 'live';
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    const allClosed = rawLegs.every(leg => isLegFullyClosed(leg));
+    if (allClosed) return 'closed';
+    const allExpired = rawLegs.every(leg => {
+      if (isLegFullyClosed(leg)) return true;
+      const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
+      if (!expDateStr) return false;
+      return new Date(expDateStr + 'T00:00:00') < todayDate;
+    });
+    if (allExpired) return 'expired';
+    return 'live';
+  }, [isLegFullyClosed]);
+
+  // Get the exit underlying price from stored closing entries (underlyingPriceAtClose)
+  const getExitUnderlyingPrice = useCallback((trade: SavedTrade): number | undefined => {
+    const rawLegs = (trade.legs as OptionLeg[]) || [];
+    for (const leg of rawLegs) {
+      const entries = leg.closingTransaction?.entries || [];
+      for (const entry of entries) {
+        if ((entry as any).underlyingPriceAtClose != null) {
+          return (entry as any).underlyingPriceAtClose as number;
+        }
+      }
+    }
+    return undefined;
+  }, []);
+
   const autoClosedTradesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -201,6 +236,7 @@ export default function SavedTrades() {
                 closedAt: expDateStr || new Date().toISOString().split('T')[0],
                 expirationDate: leg.expirationDate,
                 type: leg.type,
+                underlyingPriceAtClose: price, // Store underlying at expiry for historical accuracy
               }],
             },
           };
@@ -500,6 +536,10 @@ export default function SavedTrades() {
     const { realizedPL, unrealizedPL } = calculateRealizedUnrealizedPL(enrichedLegs, currentPrice || 0, avgIV);
     const totalReturnValue = realizedPL + unrealizedPL;
     
+    // Determine the trade state for heatmap rendering in Builder
+    const tradeState = getTradeState(trade);
+    const exitUnderlyingPrice = getExitUnderlyingPrice(trade);
+
     // Store enriched trade data with current price and pre-calculated Total Return
     // Builder will use _totalReturn directly for the heatmap's current-scenario cell
     const enrichedTrade = {
@@ -509,9 +549,46 @@ export default function SavedTrades() {
       _totalReturn: totalReturnValue, // Pass exact Total Return value for immediate consistency
       _realizedPL: realizedPL,
       _unrealizedPL: unrealizedPL,
+      _savedTradeMode: tradeState, // 'live' | 'expired' | 'closed' — for heatmap rendering
+      _entryUnderlyingPrice: trade.price, // Underlying at save/entry time
+      _exitUnderlyingPrice: exitUnderlyingPrice, // Underlying at close/expiry (if available)
     };
     
     localStorage.setItem('loadTrade', JSON.stringify(enrichedTrade));
+    setLocation('/builder?loadSaved=true');
+  };
+
+  // "Reopen" a closed/expired trade as a fresh live simulation
+  // Creates a clone without exit data so Builder fetches current market prices
+  // The original saved trade is NOT modified
+  const reopenTradeInBuilder = (trade: SavedTrade, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rawLegs = (trade.legs as OptionLeg[]) || [];
+    const currentPrice = currentPrices[trade.symbol] || trade.price;
+
+    // Strip closing transactions — the simulation starts fresh from today
+    const strippedLegs = rawLegs.map(leg => ({
+      ...leg,
+      premiumSource: 'saved' as const,
+      costBasisLocked: true, // Keep original entry premium as cost basis
+      closingTransaction: undefined, // Remove exit data
+      expirationDays: 30, // Will be recalculated in Builder from expirationDate
+      marketBid: undefined,
+      marketAsk: undefined,
+      marketMark: undefined,
+      marketLast: undefined,
+    }));
+
+    const reopenPayload = {
+      ...trade,
+      legs: strippedLegs,
+      _currentPrice: currentPrice,
+      _savedTradeMode: 'live', // Always live for a reopen
+      _entryUnderlyingPrice: trade.price,
+      _isReopen: true, // Signals Builder that this is a reopened simulation
+    };
+
+    localStorage.setItem('loadTrade', JSON.stringify(reopenPayload));
     setLocation('/builder?loadSaved=true');
   };
 
@@ -634,6 +711,8 @@ export default function SavedTrades() {
                   {filteredTrades.map((trade) => {
                     const totalReturn = calculateTotalReturn(trade);
                     const expInfo = getDaysUntilExpiration(trade.expirationDate);
+                    const tradeState = getTradeState(trade);
+                    const isHistorical = tradeState === 'closed' || tradeState === 'expired';
                     
                     return (
                       <tr 
@@ -692,18 +771,32 @@ export default function SavedTrades() {
                           )}
                         </td>
                         <td className="py-2 sm:py-3 px-2 text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive"
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              deleteTrade(trade.id);
-                            }}
-                            data-testid={`button-delete-${trade.id}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            {isHistorical && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-primary"
+                                onClick={(e) => reopenTradeInBuilder(trade, e)}
+                                title="Reopen as live simulation"
+                                data-testid={`button-reopen-${trade.id}`}
+                              >
+                                <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                deleteTrade(trade.id);
+                              }}
+                              data-testid={`button-delete-${trade.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );

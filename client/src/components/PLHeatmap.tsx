@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Table, BarChart3, RotateCcw } from "lucide-react";
+import { Table, BarChart3, RotateCcw, Lock, TrendingDown } from "lucide-react";
 import type { ScenarioPoint } from "@/hooks/useStrategyEngine";
 import type { StrategyMetrics } from "@shared/schema";
 
@@ -43,6 +43,9 @@ interface PLHeatmapProps {
   unrealizedPL?: number;
   hasRealizedPL?: boolean;
   hasUnrealizedPL?: boolean;
+  savedTradeMode?: 'live' | 'expired' | 'closed';
+  entryUnderlyingPrice?: number;
+  exitUnderlyingPrice?: number;
 }
 
 export function PLHeatmap({ 
@@ -70,6 +73,9 @@ export function PLHeatmap({
   unrealizedPL = 0,
   hasRealizedPL = false,
   hasUnrealizedPL = false,
+  savedTradeMode,
+  entryUnderlyingPrice,
+  exitUnderlyingPrice,
 }: PLHeatmapProps) {
   const [isDraggingIV, setIsDraggingIV] = useState(false);
   const handlePointerUp = useCallback(() => setIsDraggingIV(false), []);
@@ -82,6 +88,40 @@ export function PLHeatmap({
   const ivShift = calculatedIV ? impliedVolatility - calculatedIV : 0;
   const ivShiftText = ivShift > 0 ? `+${ivShift.toFixed(1)}%` : `${ivShift.toFixed(1)}%`;
   const ivSliderPercent = ((impliedVolatility - 5) / (150 - 5)) * 100;
+
+  // Historical trade mode flags
+  const isHistoricalClosed = savedTradeMode === 'closed';
+  const isHistoricalExpired = savedTradeMode === 'expired';
+  const isHistorical = isHistoricalClosed || isHistoricalExpired;
+
+  // For expired trades, show only a single "At Expiry" column (all columns have the same
+  // intrinsic-value P/L since time value = 0 at expiry)
+  const displayGrid = isHistoricalExpired && grid.length > 0 && grid[0].length > 0
+    ? grid.map(row => [row[row.length - 1]])
+    : grid;
+  const displayDays = isHistoricalExpired && days.length > 0
+    ? [days[days.length - 1]]
+    : days;
+
+  // Find the row index closest to the entry underlying price (for the "Entry" marker)
+  let entryRowIdx = -1;
+  if (isHistorical && entryUnderlyingPrice != null) {
+    let minDiff = Infinity;
+    strikes.forEach((strike, idx) => {
+      const diff = Math.abs(strike - entryUnderlyingPrice);
+      if (diff < minDiff) { minDiff = diff; entryRowIdx = idx; }
+    });
+  }
+
+  // Find the row index closest to the exit underlying price (for the "Exit" marker on closed trades)
+  let exitRowIdx = -1;
+  if (isHistoricalClosed && exitUnderlyingPrice != null) {
+    let minDiff = Infinity;
+    strikes.forEach((strike, idx) => {
+      const diff = Math.abs(strike - exitUnderlyingPrice);
+      if (diff < minDiff) { minDiff = diff; exitRowIdx = idx; }
+    });
+  }
 
   // Calculate total commissions to subtract from P&L
   const multiplier = commissionSettings.roundTrip ? 2 : 1;
@@ -231,6 +271,21 @@ export function PLHeatmap({
 
   return (
     <Card className="p-2" data-testid="pl-heatmap">
+      {/* Historical trade banner — shown for closed/expired saved trades */}
+      {isHistoricalClosed && (
+        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300" data-testid="banner-historical-closed">
+          <Lock className="h-3.5 w-3.5 shrink-0" />
+          <span className="text-[11px] font-medium">Historical — Closed Trade.</span>
+          <span className="text-[11px] text-amber-700 dark:text-amber-400">Realized P/L is fixed and does not depend on current market conditions.</span>
+        </div>
+      )}
+      {isHistoricalExpired && (
+        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-blue-800 dark:text-blue-300" data-testid="banner-historical-expired">
+          <TrendingDown className="h-3.5 w-3.5 shrink-0" />
+          <span className="text-[11px] font-medium">Historical — Expired Trade.</span>
+          <span className="text-[11px] text-blue-700 dark:text-blue-400">Showing payoff at expiry across price levels. Time dimension is not applicable.</span>
+        </div>
+      )}
       {/* Header with metrics and tab buttons */}
       <div className="mb-1.5 flex items-center justify-between">
         <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
@@ -321,9 +376,11 @@ export function PLHeatmap({
               const now = new Date();
               const monthGroups: Array<{ label: string; count: number }> = [];
               let lastMonth = '';
-              
-              if (useHours) {
-                days.forEach((daysValue) => {
+
+              if (isHistoricalExpired) {
+                return null;
+              } else if (useHours) {
+                displayDays.forEach((daysValue) => {
                   const targetTime = new Date(now.getTime() + daysValue * 24 * 60 * 60 * 1000);
                   const monthLabel = targetTime.toLocaleString('default', { month: 'short' });
                   if (monthLabel !== lastMonth) {
@@ -334,7 +391,7 @@ export function PLHeatmap({
                   }
                 });
               } else {
-                days.forEach((day) => {
+                displayDays.forEach((day) => {
                   const targetDate = new Date(now);
                   targetDate.setDate(targetDate.getDate() + day);
                   const monthLabel = targetDate.toLocaleString('default', { month: 'short' });
@@ -364,8 +421,8 @@ export function PLHeatmap({
                 </tr>
               );
             })()}
-            {/* Date group row (only shown when useHours is true — day labels spanning their hourly columns) */}
-            {useHours && dateGroups.length > 0 && (
+            {/* Date group row (only shown when useHours is true and NOT in expired historical mode) */}
+            {useHours && !isHistoricalExpired && dateGroups.length > 0 && (
               <tr>
                 <th 
                   colSpan={2} 
@@ -404,36 +461,46 @@ export function PLHeatmap({
               >
                 %
               </th>
-              {days.map((day, idx) => {
-                const today = new Date();
-                const targetDate = new Date(today);
-                targetDate.setDate(targetDate.getDate() + day);
-                const dateDay = targetDate.getDate();
-                const weekdayLabel = getTimeSubLabel(day);
-                return (
-                  <th
-                    key={idx}
-                    scope="col"
-                    className={`text-[9px] font-normal text-center px-0.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
-                      getColumnSeparatorClass(idx)
-                    }`}
-                    data-testid={`header-time-${idx}`}
-                  >
-                    {useHours ? (
-                      <>
-                        <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
-                        {weekdayLabel && (
-                          <div className="text-[8px] text-muted-foreground/60 font-normal leading-tight">{weekdayLabel}</div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{dateDay} {weekdayLabel}</div>
-                      </>
-                    )}
-                  </th>
-                );
-              })}
+              {isHistoricalExpired ? (
+                <th
+                  scope="col"
+                  className="text-[9px] font-semibold text-center px-0.5 py-1 border-b border-border bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  data-testid="header-at-expiry"
+                >
+                  At Expiry
+                </th>
+              ) : (
+                displayDays.map((day, idx) => {
+                  const today = new Date();
+                  const targetDate = new Date(today);
+                  targetDate.setDate(targetDate.getDate() + day);
+                  const dateDay = targetDate.getDate();
+                  const weekdayLabel = getTimeSubLabel(day);
+                  return (
+                    <th
+                      key={idx}
+                      scope="col"
+                      className={`text-[9px] font-normal text-center px-0.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
+                        getColumnSeparatorClass(idx)
+                      }`}
+                      data-testid={`header-time-${idx}`}
+                    >
+                      {useHours ? (
+                        <>
+                          <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
+                          {weekdayLabel && (
+                            <div className="text-[8px] text-muted-foreground/60 font-normal leading-tight">{weekdayLabel}</div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{dateDay} {weekdayLabel}</div>
+                        </>
+                      )}
+                    </th>
+                  );
+                })
+              )}
             </tr>
           </thead>
           <tbody>
@@ -449,10 +516,14 @@ export function PLHeatmap({
                 }
               });
               
-              return grid.map((row, rowIdx) => {
+              return displayGrid.map((row, rowIdx) => {
               const strike = strikes[rowIdx];
               const percentChange = ((strike - currentPrice) / currentPrice) * 100;
-              const isClosestToCurrentPrice = rowIdx === closestRowIdx;
+              // For historical trades, don't highlight the "current price" row since market
+              // conditions are irrelevant — use entry price row instead
+              const isClosestToCurrentPrice = !isHistorical && rowIdx === closestRowIdx;
+              const isEntryRow = rowIdx === entryRowIdx;
+              const isExitRow = rowIdx === exitRowIdx;
               
               // Format strike price: show 2 decimals if value has meaningful decimals, otherwise show whole number
               const hasDecimals = strike % 1 !== 0;
@@ -460,20 +531,28 @@ export function PLHeatmap({
                 ? strike.toFixed(2) 
                 : strike.toFixed(0);
               
-              // Current price row gets a dashed border below it to mark it
-              const currentPriceRowStyle = isClosestToCurrentPrice 
-                ? 'border-b-2 border-b-black/70 dark:border-b-white/70 border-dashed' 
-                : '';
+              // Row border styles: current price (live), entry price (historical), exit price (closed)
+              const rowBorderStyle = isClosestToCurrentPrice
+                ? 'border-b-2 border-b-black/70 dark:border-b-white/70 border-dashed'
+                : isEntryRow
+                  ? 'border-b-2 border-b-amber-500/80 dark:border-b-amber-400/80 border-dashed'
+                  : isExitRow
+                    ? 'border-b-2 border-b-blue-500/80 dark:border-b-blue-400/80 border-dashed'
+                    : '';
               
               return (
-                <tr key={rowIdx} className={`h-[24px] heatmap-row ${currentPriceRowStyle}`}>
+                <tr key={rowIdx} className={`h-[24px] heatmap-row ${rowBorderStyle}`}>
                   <td
                     className={`text-[10px] font-mono font-semibold px-1.5 py-1 border-b border-border sticky left-0 z-10 whitespace-nowrap bg-slate-50 dark:bg-slate-900/70 heatmap-price-label transition-colors ${
-                      isClosestToCurrentPrice ? 'text-foreground dark:text-white font-bold' : ''
+                      isClosestToCurrentPrice ? 'text-foreground dark:text-white font-bold' :
+                      isEntryRow ? 'text-amber-700 dark:text-amber-400 font-bold' :
+                      isExitRow ? 'text-blue-700 dark:text-blue-400 font-bold' : ''
                     }`}
                     data-testid={`strike-${strike.toFixed(2)}`}
                   >
                     ${strikeDisplay}
+                    {isEntryRow && <span className="text-[8px] ml-0.5 opacity-70">↑entry</span>}
+                    {isExitRow && !isEntryRow && <span className="text-[8px] ml-0.5 opacity-70">↓exit</span>}
                   </td>
                   <td
                     className={`text-[10px] font-mono text-right pl-2 pr-1.5 py-1 border-b border-border bg-slate-50 dark:bg-slate-900/70 heatmap-price-label transition-colors ${
@@ -493,7 +572,7 @@ export function PLHeatmap({
                         key={colIdx}
                         className="text-[10px] font-mono text-center px-0 py-1 border-b border-border/20 text-white heatmap-cell"
                         style={getPnlStyle(cell.pnl)}
-                        data-testid={`cell-${strike.toFixed(2)}-${days[colIdx]}`}
+                        data-testid={`cell-${strike.toFixed(2)}-${displayDays[colIdx]}`}
                       >
                         {displayValue}
                       </td>
@@ -522,17 +601,18 @@ export function PLHeatmap({
           />
           <span className="font-mono w-12 text-right">±{range.toFixed(1)}%</span>
         </div>
-        <div className="flex items-center gap-1.5 flex-1">
+        <div className={`flex items-center gap-1.5 flex-1 ${isHistorical ? 'opacity-40 pointer-events-none' : ''}`}>
           <span className="text-muted-foreground whitespace-nowrap w-10 sm:w-auto">IV</span>
           <div className="relative flex-1">
             <Slider
               value={[impliedVolatility]}
-              onValueChange={(v) => onVolatilityChange(v[0])}
-              onPointerDown={() => setIsDraggingIV(true)}
+              onValueChange={(v) => !isHistorical && onVolatilityChange(v[0])}
+              onPointerDown={() => !isHistorical && setIsDraggingIV(true)}
               min={5}
               max={150}
               step={0.1}
               className="flex-1"
+              disabled={isHistorical}
               data-testid="slider-volatility"
             />
             {calculatedIV > 0 && (

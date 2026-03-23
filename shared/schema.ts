@@ -68,6 +68,7 @@ export interface ClosingEntry {
   type?: OptionType;       // Option type at time of close (immutable - doesn't change when leg switches call/put)
   isExcluded?: boolean;    // Whether this closed portion is excluded from P/L calculations
   visualOrder?: number;    // Stable visual position (0, 1, 2...) preserved when entries are removed
+  underlyingPriceAtClose?: number; // Underlying asset price at the time of close/expiry (for historical accuracy)
 }
 
 // Represents all closing transactions for an option leg

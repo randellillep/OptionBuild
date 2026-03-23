@@ -1,0 +1,40 @@
+The system must support saving, loading, and simulating options trades with accurate historical and live behavior.
+
+When a user creates an options strategy, it consists of multiple legs. Each leg must include: type (call or put), side (long or short), strike price, premium (entry price), and number of contracts.
+
+When the user clicks “Save Trade”, the system must store an immutable snapshot of the trade. This snapshot must include:
+- the full strategy (all legs with their entry premiums),
+- the entry data (date and underlying price at entry),
+- the expiry date.
+
+The system must not store any derived or calculated values such as heatmap data, live PnL, Greeks, or simulations. All visualizations must always be calculated at runtime.
+
+A trade can be closed in two ways. First, if the user manually closes the trade before expiry, the system must store exit data, including the exit date, underlying price at exit, and optionally the option premiums at exit. The system must also store the realized PnL. Second, if the trade is not manually closed and reaches expiry, the system must store the underlying price at expiry.
+
+A trade is considered closed if it has exit data. If there is no exit data and the current date is past the expiry date, the trade is considered expired. Otherwise, the trade is considered live. This state must always be determined dynamically at runtime and must not be stored explicitly.
+
+When a user opens a saved trade, the heatmap must reflect the exact market state at the moment the trade was saved or closed.
+
+For closed trades, the heatmap must display the realized outcome based on the exit data. The PnL is fixed and must not depend on current market conditions. The heatmap should be rendered as a constant value where every cell shows the same realized PnL.
+
+For expired trades, the heatmap must display the payoff based on the underlying price at expiry. The time dimension is no longer relevant, so the heatmap can be rendered as a single column or a flat row representing payoff across different price levels.
+
+For live trades, the heatmap must use current market data, including the current underlying price, implied volatility, and time to expiry. It must display a full dynamic heatmap across price and time.
+
+The system must never use current market data when rendering saved closed or expired trades. Historical trades must always reflect historical outcomes only.
+
+When the user clicks “Reopen” on a saved trade, the system must create a new simulation instance. This must be a clone of the original strategy, including all legs and entry reference data, but it must not use exit or expiry outcomes for calculations. The original saved trade must remain unchanged.
+
+The reopened trade must run in live mode, meaning the system must fetch current market data (underlying price, implied volatility, and time to expiry) and render a fully dynamic heatmap as if the trade were active today.
+
+The system must visually display reference markers on the heatmap. These include:
+- the entry price (always shown),
+- the exit price if the trade was manually closed,
+- the expiry price if the trade expired,
+- the current market price when in live or reopened mode.
+
+These markers help the user understand where the trade started, where it ended, and where the market is now.
+
+The core principle of the system is that saved trades represent historical truth, while reopened trades represent live simulations. Historical data must never be affected by current market conditions, and live simulations must never modify historical records.
+
+In summary, the system must store only raw trade data (strategy, entry, exit or expiry), determine trade state dynamically, render heatmaps based on that state, and allow reopening trades as new live simulations without modifying the original data.

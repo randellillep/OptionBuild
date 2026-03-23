@@ -89,6 +89,11 @@ export default function Builder() {
     realizedPL: number;
     unrealizedPL: number;
   } | null>(null);
+
+  // Store the saved trade mode and reference prices for heatmap rendering
+  const [savedTradeMode, setSavedTradeMode] = useState<'live' | 'expired' | 'closed' | null>(null);
+  const [savedTradeEntryPrice, setSavedTradeEntryPrice] = useState<number | null>(null);
+  const [savedTradeExitPrice, setSavedTradeExitPrice] = useState<number | null>(null);
   
   // Store frozen Expected Move calculation in a stable cache
   // This is captured ONCE per symbol and NEVER affected by IV slider or strategy changes
@@ -501,6 +506,20 @@ export default function Builder() {
                 realizedPL: trade._realizedPL,
                 unrealizedPL: trade._unrealizedPL,
               });
+            }
+
+            // Set saved trade mode and reference prices for heatmap rendering
+            // This controls whether the heatmap renders as closed/expired/live historical view
+            if (trade._savedTradeMode) {
+              setSavedTradeMode(trade._savedTradeMode as 'live' | 'expired' | 'closed');
+            }
+            if (trade._entryUnderlyingPrice != null) {
+              setSavedTradeEntryPrice(trade._entryUnderlyingPrice as number);
+            }
+            if (trade._exitUnderlyingPrice != null) {
+              setSavedTradeExitPrice(trade._exitUnderlyingPrice as number);
+            } else {
+              setSavedTradeExitPrice(null);
             }
             
             localStorage.removeItem('loadTrade');
@@ -1896,6 +1915,7 @@ export default function Builder() {
     });
     setLastEditedLegId(newId);
     setInitialPLFromSavedTrade(null);
+    setSavedTradeMode(null);
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
@@ -1949,6 +1969,7 @@ export default function Builder() {
     }
     // Clear frozen P/L values so live calculations take over
     setInitialPLFromSavedTrade(null);
+    setSavedTradeMode(null);
   };
 
   const removeLeg = (id: string) => {
@@ -1977,6 +1998,7 @@ export default function Builder() {
       return deepCopyLeg(leg, { quantity: closedQty });
     }));
     setInitialPLFromSavedTrade(null);
+    setSavedTradeMode(null);
   };
 
   // Handler for clicking a date on the main ExpirationTimeline
@@ -2460,6 +2482,9 @@ export default function Builder() {
                   unrealizedPL={initialPLFromSavedTrade?.unrealizedPL ?? unrealizedPL}
                   hasRealizedPL={hasRealizedPL}
                   hasUnrealizedPL={initialPLFromSavedTrade !== null || hasUnrealizedPL}
+                  savedTradeMode={savedTradeMode ?? undefined}
+                  entryUnderlyingPrice={savedTradeEntryPrice ?? undefined}
+                  exitUnderlyingPrice={savedTradeExitPrice ?? undefined}
                 />
               ) : (
                 <ProfitLossChart 
