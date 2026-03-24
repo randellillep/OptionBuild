@@ -307,11 +307,29 @@ export function PLHeatmap({
       <div className="mb-1.5 flex items-center justify-between">
         <div className="flex items-center gap-4" data-testid="strategy-metrics-bar">
           {isHistorical ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground">Realized P/L:</span>
-              <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} data-testid="text-realized-pl-header">
-                {realizedPL >= 0 ? '+' : '-'}${Math.abs(Math.round(realizedPL)).toLocaleString()}
-              </span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Realized P/L:</span>
+                <span className={`text-base font-bold font-mono ${realizedPL >= 0 ? 'text-emerald-500' : 'text-rose-500'}`} data-testid="text-realized-pl-header">
+                  {realizedPL >= 0 ? '+' : '-'}${Math.abs(Math.round(realizedPL)).toLocaleString()}
+                </span>
+              </div>
+              {entryUnderlyingPrice != null && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Entry:</span>
+                  <span className="text-sm font-semibold font-mono text-amber-600 dark:text-amber-400" data-testid="text-entry-price">
+                    ${entryUnderlyingPrice.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {isHistoricalClosed && exitUnderlyingPrice != null && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">Exit:</span>
+                  <span className="text-sm font-semibold font-mono text-blue-600 dark:text-blue-400" data-testid="text-exit-price">
+                    ${exitUnderlyingPrice.toFixed(2)}
+                  </span>
+                </div>
+              )}
             </div>
           ) : metrics && metrics.maxProfit === null && metrics.maxLoss === null && metrics.netPremium === 0 ? (
             <span className="text-sm text-muted-foreground italic">

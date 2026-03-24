@@ -2492,6 +2492,7 @@ export default function Builder() {
                 onChangeGlobalExpiration={setSelectedExpiration}
                 expirationColorMap={expirationColorMap}
                 getChainForLeg={getChainForLeg}
+                isHistoricalMode={isHistoricalSavedTrade}
               />
 
               {activeTab === "heatmap" ? (

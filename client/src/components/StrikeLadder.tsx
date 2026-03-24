@@ -25,6 +25,7 @@ interface StrikeLadderProps {
   onChangeGlobalExpiration?: (days: number, date: string) => void;
   expirationColorMap?: Map<number, string>;
   getChainForLeg?: (leg: OptionLeg) => any;
+  isHistoricalMode?: boolean;
 }
 
 export function StrikeLadder({ 
@@ -43,6 +44,7 @@ export function StrikeLadder({
   onChangeGlobalExpiration,
   expirationColorMap,
   getChainForLeg,
+  isHistoricalMode = false,
 }: StrikeLadderProps) {
   const expirationDateColorMap = useMemo(() => {
     if (!expirationColorMap || expirationColorMap.size === 0) return undefined;
@@ -472,7 +474,8 @@ export function StrikeLadder({
     const quantity = leg.quantity;
     const remainingQty = quantity - closingQty;
     
-    if (hasClosing && remainingQty <= 0) return null;
+    // In historical mode, always show the badge even if fully closed (so the position is visible on the bar)
+    if (hasClosing && remainingQty <= 0 && !isHistoricalMode) return null;
     
     const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
     const rawPositionPercent = getStrikePosition(leg.strike);
@@ -642,7 +645,8 @@ export function StrikeLadder({
             availableExpirations={allAvailableExpirations}
             onChangeGlobalExpiration={onChangeGlobalExpiration}
             expirationDateColorMap={expirationDateColorMap}
-            isClosedView={false}
+            isClosedView={isHistoricalMode && hasClosing && remainingQty <= 0}
+            selectedEntryId={isHistoricalMode && hasClosing && remainingQty <= 0 ? (leg.closingTransaction?.entries?.[0]?.id ?? null) : undefined}
             onUpdateLeg={(updates) => onUpdateLeg(leg.id, updates)}
             onUpdateQuantity={(quantity) => onUpdateLeg(leg.id, { quantity })}
             onReopenAsNewLeg={onAddLeg}
@@ -1149,31 +1153,32 @@ export function StrikeLadder({
             // Use leg's stable visualOrder (falls back to 0 for legacy legs)
             const legVisualOrder = leg.visualOrder ?? 0;
             
-            // Add closed entry badges - ALWAYS show these, even if leg.quantity is 0
+            // Add closed entry badges — skip in historical mode (the open badge handles this via isClosedView popup)
             const entries = leg.closingTransaction?.entries || [];
-            entries.forEach((entry) => {
-              // Use entry's visualOrder if it exists, otherwise leg's
-              const entryVisualOrder = entry.visualOrder ?? legVisualOrder;
-              allBadges.push({
-                type: 'closed',
-                leg,
-                entry,
-                strike: entry.strike,
-                position,
-                visualOrder: entryVisualOrder, // Use entry's unique visualOrder
+            if (!isHistoricalMode) {
+              entries.forEach((entry) => {
+                const entryVisualOrder = entry.visualOrder ?? legVisualOrder;
+                allBadges.push({
+                  type: 'closed',
+                  leg,
+                  entry,
+                  strike: entry.strike,
+                  position,
+                  visualOrder: entryVisualOrder,
+                });
               });
-            });
+            }
             
             // Skip legs with quantity 0 for OPEN badges only
             // (closed entries were already added above)
             if (leg.quantity <= 0) return;
             
-            // Add open badge if leg has remaining quantity
+            // Add open badge if leg has remaining quantity, OR in historical mode (so closed positions are visible on the bar)
             const closingQty = leg.closingTransaction?.isEnabled 
               ? entries.reduce((sum, e) => sum + e.quantity, 0)
               : 0;
             const remainingQty = leg.quantity - closingQty;
-            if (remainingQty > 0) {
+            if (remainingQty > 0 || isHistoricalMode) {
               allBadges.push({
                 type: 'open',
                 leg,
