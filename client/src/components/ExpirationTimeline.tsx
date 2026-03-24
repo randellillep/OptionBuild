@@ -267,7 +267,7 @@ export function ExpirationTimeline({
     <div className="bg-muted/30 rounded-md px-2 py-1.5 border border-border">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-[10px] font-semibold text-muted-foreground">
-          {activeLegsExpirations.length > 1 ? 'EXPIRATIONS:' : 'EXPIRATION:'}
+          {new Set(activeLegsExpirations.map(d => Math.round(d))).size > 1 ? 'EXPIRATIONS:' : 'EXPIRATION:'}
         </span>
         <span className="text-[10px] font-bold text-foreground">{expirationsLabel}</span>
         {isLoading && (

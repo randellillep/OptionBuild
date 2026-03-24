@@ -242,7 +242,9 @@ export function useStrategyEngine(rangePercent: number = 14) {
       }
       return true;
     });
-    const days = Array.from(new Set(activeLegs.map(leg => leg.expirationDays))).sort((a, b) => a - b);
+    // Round to integer days to prevent floating-point drift from creating duplicate
+    // "expirations" when all legs actually share the same calendar date.
+    const days = Array.from(new Set(activeLegs.map(leg => Math.round(leg.expirationDays)))).sort((a, b) => a - b);
     return days.length > 0 ? days : [30];
   }, [legs]);
 

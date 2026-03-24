@@ -188,7 +188,9 @@ export default function Builder() {
       }
       return true;
     });
-    const uniqueDaysArr = Array.from(new Set(activeOptionLegs.map(l => l.expirationDays)));
+    // Normalize to integer days to avoid floating-point drift causing spurious
+    // multi-expiration color coding (e.g. 16.98 vs 17.01 on the same calendar date).
+    const uniqueDaysArr = Array.from(new Set(activeOptionLegs.map(l => Math.round(l.expirationDays))));
     if (uniqueDaysArr.length < 2) {
       if (uniqueDaysArr.length <= 1) {
         legColorAssignments.current.clear();
@@ -219,13 +221,15 @@ export default function Builder() {
       }
     }
     
-    // Build the days->color map. For each unique expiration day, use the color
-    // of the earliest leg (by position) that has that expiration.
+    // Build the days->color map keyed by ROUNDED integer days.
+    // This ensures legs that share a calendar date always map to the same key
+    // regardless of fractional DTE differences from periodic recalculation.
     const map = new Map<number, string>();
     for (const leg of activeOptionLegs) {
-      if (!map.has(leg.expirationDays)) {
+      const roundedDays = Math.round(leg.expirationDays);
+      if (!map.has(roundedDays)) {
         const color = legColorAssignments.current.get(leg.id);
-        if (color) map.set(leg.expirationDays, color);
+        if (color) map.set(roundedDays, color);
       }
     }
     
