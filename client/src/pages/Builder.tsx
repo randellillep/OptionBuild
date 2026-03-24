@@ -153,6 +153,9 @@ export default function Builder() {
   // One-shot flag: set when loading an expired/closed trade whose all-legs-expired check
   // prevents savedTradeSettling from being set. Cleared after first AUTO-ADJUST skip.
   const isLoadingHistoricalTradeRef = useRef(false);
+  // Ref so the auto-snap effect can read selectedExpirationDays without re-triggering on every
+  // user calendar-click (the effect should only fire when open-leg dates change, not on clicks).
+  const selectedExpirationDaysRef = useRef(selectedExpirationDays);
 
   // Smooth transition during symbol changes - prevents flickering as
   // multiple effects fire sequentially (AUTO-ADJUST → snap-to-nearest → chain load → premium update)
@@ -1260,11 +1263,19 @@ export default function Builder() {
     }
   }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration, hasFetchedInitialPrice, isInitialLoading, savedTradeSettling]);
 
-  // Auto-snap: when the currently selected expiration has no open legs (e.g. the user just
-  // sold/closed the only leg at that date), move the selection to the nearest open leg's date.
+  // Keep selectedExpirationDays ref in sync so the auto-snap can read it without
+  // having it in the dependency array (prevents snap-back when user clicks a date).
+  selectedExpirationDaysRef.current = selectedExpirationDays;
+
+  // Auto-snap: when uniqueExpirationDays changes (a leg is sold/closed) and the currently
+  // selected date no longer has an open leg, snap to the nearest open-leg date.
+  // IMPORTANT: selectedExpirationDays is intentionally NOT in the deps — we use the ref
+  // so that explicit user calendar-clicks are never overridden by this snap.
   useEffect(() => {
     // Never snap during saved-trade settling or historical mode.
     if (savedTradeSettling || savedTradeMode === 'expired' || savedTradeMode === 'closed') return;
+    // Nothing to snap to if there are no active legs (uniqueExpirationDays defaults to [30]).
+    if (uniqueExpirationDays.length === 0) return;
     // Determine whether there are actual open (not fully-closed) option legs.
     const openLegs = legs.filter(l => {
       if (l.type === 'stock' || l.quantity <= 0 || !l.expirationDate) return false;
@@ -1277,9 +1288,8 @@ export default function Builder() {
       }
       return true;
     });
-    // Nothing to snap to if there are no open legs (uniqueExpirationDays defaults to [30]).
     if (openLegs.length === 0) return;
-    const roundedSelected = Math.round(selectedExpirationDays || 0);
+    const roundedSelected = Math.round(selectedExpirationDaysRef.current || 0);
     // If selected date IS an active-leg date, nothing to do.
     if (uniqueExpirationDays.some(d => Math.round(d) === roundedSelected)) return;
     // Selected date has no open legs — snap to nearest active-leg date.
@@ -1293,7 +1303,8 @@ export default function Builder() {
     const nearestLeg = openLegs.find(l => Math.round(l.expirationDays) === Math.round(nearest));
     const nearestDate = nearestLeg?.expirationDate?.split('T')[0] || '';
     setSelectedExpiration(nearest, nearestDate);
-  }, [uniqueExpirationDays, selectedExpirationDays, savedTradeSettling, savedTradeMode, legs, setSelectedExpiration]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uniqueExpirationDays, savedTradeSettling, savedTradeMode, legs, setSelectedExpiration]);
 
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
   // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration
