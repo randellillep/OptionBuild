@@ -150,6 +150,9 @@ export default function Builder() {
   // dates/strikes snap to available values and chain data loads
   const [savedTradeSettling, setSavedTradeSettling] = useState(false);
   const savedTradeSettlingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // One-shot flag: set when loading an expired/closed trade whose all-legs-expired check
+  // prevents savedTradeSettling from being set. Cleared after first AUTO-ADJUST skip.
+  const isLoadingHistoricalTradeRef = useRef(false);
 
   // Smooth transition during symbol changes - prevents flickering as
   // multiple effects fire sequentially (AUTO-ADJUST → snap-to-nearest → chain load → premium update)
@@ -329,6 +332,10 @@ export default function Builder() {
               if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
               // Safety fallback: clear after 2s max in case snap-to-nearest doesn't fire
               savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 2000);
+            } else {
+              // Expired trades skip savedTradeSettling (no snap flash), but we still
+              // need to block AUTO-ADJUST from clearing the loaded legs (one-shot flag).
+              isLoadingHistoricalTradeRef.current = true;
             }
             
             // Use the current price passed from SavedTrades (if available) for immediate consistency
@@ -922,19 +929,20 @@ export default function Builder() {
       return; // Don't update prevSymbolRef - wait for valid price
     }
     
+    // Skip during saved trade settling - the loaded legs should keep their original strikes
+    // Also skip when loading an expired/closed historical trade (one-shot flag — cleared here)
+    if (savedTradeSettling || isLoadingHistoricalTradeRef.current) {
+      console.log('[AUTO-ADJUST] Skipping - saved trade settling or historical trade load, keeping original legs');
+      isLoadingHistoricalTradeRef.current = false; // Consume the one-shot flag
+      prevSymbolRef.current = current;
+      return;
+    }
+    
     console.log('[AUTO-ADJUST] Symbol changed, clearing legs for clean transition');
     
     // Start smooth transition - dims UI while data loads
     setSymbolTransitioning(true);
     if (symbolTransitionTimerRef.current) clearTimeout(symbolTransitionTimerRef.current);
-    
-    // Skip during saved trade settling - the loaded legs should keep their original strikes
-    // But allow clearing when user searches a NEW ticker after a saved trade is loaded
-    if (savedTradeSettling) {
-      console.log('[AUTO-ADJUST] Skipping - saved trade settling, keeping original strikes');
-      prevSymbolRef.current = current;
-      return;
-    }
     
     // Clear legs entirely - snap-to-nearest will create the ATM leg
     // with the correct expiration date in a single step (no intermediate dates)
