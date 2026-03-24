@@ -99,6 +99,20 @@ export function ExpirationTimeline({
     });
     return set;
   }, [legExpirationDates, todayMidnight]);
+
+  // Track ALL leg-derived day counts (expired + future).
+  // Used to prevent auto-select from overriding a selection that already matches a
+  // saved leg's date — even when that date is not in the API expiration list.
+  const legAllDaysSet = useMemo(() => {
+    const set = new Set<number>();
+    legExpirationDates.forEach(info => {
+      const [y, m, d] = info.date.split('-').map(Number);
+      const expDate = new Date(y, m - 1, d);
+      const dayCount = Math.round((expDate.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
+      set.add(dayCount);
+    });
+    return set;
+  }, [legExpirationDates, todayMidnight]);
   
   const parseDateLocal = (dateStr: string): Date => {
     const [y, m, d] = dateStr.split('-').map(Number);
@@ -205,9 +219,13 @@ export function ExpirationTimeline({
     if (suppressAutoSelect) return;
     
     const roundedSelected = selectedDays !== null ? Math.round(selectedDays) : null;
+    // Don't auto-select if the current selection already matches a leg-derived date
+    // (even if that date is not in the API expiration list). This prevents an infinite
+    // loop between auto-snap (which snaps to a leg date) and auto-select (which would
+    // override back to the nearest API date).
     const shouldAutoSelect = 
       selectedDays === null || 
-      (roundedSelected !== null && !allDays.includes(roundedSelected));
+      (roundedSelected !== null && !allDays.includes(roundedSelected) && !legAllDaysSet.has(roundedSelected));
     
     if (shouldAutoSelect) {
       // Prefer first non-expired date when auto-selecting
@@ -232,7 +250,7 @@ export function ExpirationTimeline({
       const handler = onAutoSelect || onSelectDays;
       handler(targetDays, targetDateStr);
     }
-  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect, suppressAutoSelect]);
+  }, [allDays, activeDaysToDateMap, selectedDays, onSelectDays, onAutoSelect, suppressAutoSelect, legAllDaysSet]);
 
   // Format expirations label: "2d, 11d" for multiple, or "30d" for single
   // Show "0d" for expired legs (they have expirationDays capped at 0)

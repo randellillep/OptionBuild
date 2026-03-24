@@ -2530,7 +2530,7 @@ export default function Builder() {
                 activeLegsExpirations={legs.some(l => l.type !== 'stock' && l.quantity > 0) ? uniqueExpirationDays : []}
                 expirationColorMap={expirationColorMap}
                 legExpirationDates={legExpirationDates}
-                suppressAutoSelect={symbolTransitioning || savedTradeMode === 'expired' || savedTradeMode === 'closed'}
+                suppressAutoSelect={symbolTransitioning || savedTradeMode === 'expired' || savedTradeMode === 'closed' || savedTradeSettling}
               />
               )}
 
