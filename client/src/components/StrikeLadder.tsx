@@ -535,15 +535,11 @@ export function StrikeLadder({
       const allExpDates = new Set<string>();
       for (const l of legs) {
         if (l.type === 'stock') continue;
-        // Only count OPEN (not fully closed) legs' own expiration dates.
-        // Closing entry dates are excluded — a rolled/sold leg's close date
-        // should not make all-same-expiry open badges show a redundant subscript.
-        const lEntries = l.closingTransaction?.entries || [];
-        const lClosedQty = lEntries.length > 0
-          ? lEntries.reduce((sum, e) => sum + e.quantity, 0)
-          : (l.closingTransaction?.quantity || 0);
-        const lIsFullyClosed = l.closingTransaction?.isEnabled && lClosedQty >= l.quantity;
-        if (!lIsFullyClosed && l.expirationDate) allExpDates.add(l.expirationDate);
+        // Count ALL legs' own expirationDate (open AND sold/closed).
+        // This ensures sold legs with a different date still show their subscript.
+        // Only closing ENTRY dates (from rolls) are excluded — those don't
+        // represent the leg's actual traded expiration.
+        if (l.expirationDate) allExpDates.add(l.expirationDate);
       }
       return allExpDates.size >= 2;
     })();
@@ -863,13 +859,9 @@ export function StrikeLadder({
       const allExpDates = new Set<string>();
       for (const l of legs) {
         if (l.type === 'stock') continue;
-        // Only count OPEN legs' own expiration dates (same rule as hasAnyDifferentExpirations).
-        const lEntries = l.closingTransaction?.entries || [];
-        const lClosedQty = lEntries.length > 0
-          ? lEntries.reduce((sum, e) => sum + e.quantity, 0)
-          : (l.closingTransaction?.quantity || 0);
-        const lIsFullyClosed = l.closingTransaction?.isEnabled && lClosedQty >= l.quantity;
-        if (!lIsFullyClosed && l.expirationDate) allExpDates.add(l.expirationDate);
+        // Count ALL legs' own expirationDate (open AND sold/closed) — same rule as
+        // hasAnyDifferentExpirations. Only closing entry dates from rolls are excluded.
+        if (l.expirationDate) allExpDates.add(l.expirationDate);
       }
       return allExpDates.size >= 2;
     })();

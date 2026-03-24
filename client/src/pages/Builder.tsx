@@ -1260,6 +1260,41 @@ export default function Builder() {
     }
   }, [symbolChangeId, optionsExpirationsData, legs, setLegs, setSelectedExpiration, hasFetchedInitialPrice, isInitialLoading, savedTradeSettling]);
 
+  // Auto-snap: when the currently selected expiration has no open legs (e.g. the user just
+  // sold/closed the only leg at that date), move the selection to the nearest open leg's date.
+  useEffect(() => {
+    // Never snap during saved-trade settling or historical mode.
+    if (savedTradeSettling || savedTradeMode === 'expired' || savedTradeMode === 'closed') return;
+    // Determine whether there are actual open (not fully-closed) option legs.
+    const openLegs = legs.filter(l => {
+      if (l.type === 'stock' || l.quantity <= 0 || !l.expirationDate) return false;
+      if (l.closingTransaction?.isEnabled) {
+        const entries = l.closingTransaction.entries || [];
+        const closedQty = entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (l.closingTransaction.quantity || 0);
+        if (closedQty >= l.quantity) return false;
+      }
+      return true;
+    });
+    // Nothing to snap to if there are no open legs (uniqueExpirationDays defaults to [30]).
+    if (openLegs.length === 0) return;
+    const roundedSelected = Math.round(selectedExpirationDays || 0);
+    // If selected date IS an active-leg date, nothing to do.
+    if (uniqueExpirationDays.some(d => Math.round(d) === roundedSelected)) return;
+    // Selected date has no open legs — snap to nearest active-leg date.
+    let nearest = uniqueExpirationDays[0];
+    let minDiff = Math.abs(nearest - roundedSelected);
+    for (const d of uniqueExpirationDays) {
+      const diff = Math.abs(d - roundedSelected);
+      if (diff < minDiff) { minDiff = diff; nearest = d; }
+    }
+    // Resolve the date string from any open leg at the nearest expiration.
+    const nearestLeg = openLegs.find(l => Math.round(l.expirationDays) === Math.round(nearest));
+    const nearestDate = nearestLeg?.expirationDate?.split('T')[0] || '';
+    setSelectedExpiration(nearest, nearestDate);
+  }, [uniqueExpirationDays, selectedExpirationDays, savedTradeSettling, savedTradeMode, legs, setSelectedExpiration]);
+
   // Calculate frozen Expected Move INDEPENDENTLY of the strategy
   // Uses the NEAREST available expiration from the options chain, NOT the strategy expiration
   // This value is NEVER affected by IV slider or strategy changes - purely market data
