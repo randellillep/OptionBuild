@@ -2049,9 +2049,14 @@ export default function Builder() {
     if (isConfigChange) {
       setLegConfigVersion(v => v + 1);
     }
-    // Clear frozen P/L values so live calculations take over
+    // Clear frozen P/L snapshot so the heatmap recalculates from current leg state.
     setInitialPLFromSavedTrade(null);
-    setSavedTradeMode(null);
+    // Only exit historical viewing mode for structural changes (strike/type/expiration).
+    // Non-structural updates — price edits, exclude toggles, closing-transaction adjustments —
+    // must keep the trade in historical mode so the heatmap stays at the expiration date.
+    if (isConfigChange) {
+      setSavedTradeMode(null);
+    }
   };
 
   const removeLeg = (id: string) => {
