@@ -607,7 +607,7 @@ export function StrikeLadder({
                     x{hasClosing ? remainingQty : quantity}
                   </div>
                 )}
-                {(hasMultipleExpirations || hasAnyClosedLegs || hasClosedEntriesWithDifferentExp || hasAnyDifferentExpirations) && expirationSubscript && (
+                {hasAnyDifferentExpirations && expirationSubscript && (
                   <div
                     className="absolute -top-2 -right-2 text-[8px] font-bold text-white rounded-sm px-1 py-px z-[100] leading-tight"
                     style={{ backgroundColor: expirationColor || '#64748b' }}
