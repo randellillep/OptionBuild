@@ -520,8 +520,14 @@ export function StrikeLadder({
     // Map is keyed by rounded integer days, so round here to match.
     const expirationColor = expirationColorMap?.get(Math.round(leg.expirationDays));
     const hasMultipleExpirations = expirationColorMap && expirationColorMap.size >= 2;
-    const hasAnyClosedLegs = legs.some(l => l.type !== 'stock' && l.closingTransaction?.isEnabled && 
-      (l.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0) >= l.quantity);
+    const hasAnyClosedLegs = legs.some(l => {
+      if (l.type === 'stock' || !l.closingTransaction?.isEnabled) return false;
+      const lEntries = l.closingTransaction.entries || [];
+      const lClosedQty = lEntries.length > 0
+        ? lEntries.reduce((sum, e) => sum + e.quantity, 0)
+        : (l.closingTransaction.quantity || 0);
+      return lClosedQty >= l.quantity;
+    });
     const hasClosedEntriesWithDifferentExp = hasClosing && (leg.closingTransaction?.entries || []).some(
       e => e.expirationDate && e.expirationDate !== leg.expirationDate
     );
@@ -529,12 +535,15 @@ export function StrikeLadder({
       const allExpDates = new Set<string>();
       for (const l of legs) {
         if (l.type === 'stock') continue;
-        if (l.expirationDate) allExpDates.add(l.expirationDate);
-        if (l.closingTransaction?.entries) {
-          for (const e of l.closingTransaction.entries) {
-            if (e.expirationDate) allExpDates.add(e.expirationDate);
-          }
-        }
+        // Only count OPEN (not fully closed) legs' own expiration dates.
+        // Closing entry dates are excluded — a rolled/sold leg's close date
+        // should not make all-same-expiry open badges show a redundant subscript.
+        const lEntries = l.closingTransaction?.entries || [];
+        const lClosedQty = lEntries.length > 0
+          ? lEntries.reduce((sum, e) => sum + e.quantity, 0)
+          : (l.closingTransaction?.quantity || 0);
+        const lIsFullyClosed = l.closingTransaction?.isEnabled && lClosedQty >= l.quantity;
+        if (!lIsFullyClosed && l.expirationDate) allExpDates.add(l.expirationDate);
       }
       return allExpDates.size >= 2;
     })();
@@ -854,12 +863,13 @@ export function StrikeLadder({
       const allExpDates = new Set<string>();
       for (const l of legs) {
         if (l.type === 'stock') continue;
-        if (l.expirationDate) allExpDates.add(l.expirationDate);
-        if (l.closingTransaction?.entries) {
-          for (const e of l.closingTransaction.entries) {
-            if (e.expirationDate) allExpDates.add(e.expirationDate);
-          }
-        }
+        // Only count OPEN legs' own expiration dates (same rule as hasAnyDifferentExpirations).
+        const lEntries = l.closingTransaction?.entries || [];
+        const lClosedQty = lEntries.length > 0
+          ? lEntries.reduce((sum, e) => sum + e.quantity, 0)
+          : (l.closingTransaction?.quantity || 0);
+        const lIsFullyClosed = l.closingTransaction?.isEnabled && lClosedQty >= l.quantity;
+        if (!lIsFullyClosed && l.expirationDate) allExpDates.add(l.expirationDate);
       }
       return allExpDates.size >= 2;
     })();

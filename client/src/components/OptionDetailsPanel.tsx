@@ -582,6 +582,9 @@ export function OptionDetailsPanel({
       marketMark: undefined,
       marketLast: undefined,
     });
+
+    // Also update the global selected expiration so the top calendar moves to the new date.
+    onChangeGlobalExpiration?.(diffDays, newExpirationDate);
     
     setShowExpirationPicker(false);
   };
