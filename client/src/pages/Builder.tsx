@@ -2379,7 +2379,15 @@ export default function Builder() {
         <div className="space-y-2">
           <TradingViewSearch 
             symbolInfo={symbolInfo} 
-            onSymbolChange={setSymbolInfo}
+            onSymbolChange={(info) => {
+              if (info.symbol !== symbolInfo.symbol && isHistoricalSavedTrade) {
+                setSavedTradeMode(null);
+                setInitialPLFromSavedTrade(null);
+                setSavedTradeEntryPrice(null);
+                setSavedTradeExitPrice(null);
+              }
+              setSymbolInfo(info);
+            }}
             onSaveTrade={() => setIsSaveTradeOpen(true)}
             onExecuteTrade={() => setIsExecuteTradeOpen(true)}
             legsCount={legs.length}
