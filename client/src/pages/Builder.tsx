@@ -2091,10 +2091,22 @@ export default function Builder() {
     setSelectedExpiration(days, dateStr);
     
     setLegs(currentLegs => {
-      const optionLegs = currentLegs.filter(l => l.type !== "stock");
-      if (optionLegs.length === 0) return currentLegs;
+      // Helper: is a leg fully closed (all quantity sold/closed)?
+      const isFullyClosed = (leg: OptionLeg) => {
+        if (!leg.closingTransaction?.isEnabled) return false;
+        const entries = leg.closingTransaction.entries || [];
+        const closedQty = entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (leg.closingTransaction.quantity || 0);
+        return closedQty >= leg.quantity;
+      };
+
+      // Only consider OPEN (not fully-closed) option legs for single-expiration detection.
+      // Fully-closed legs have a historical expiration date that must not be overwritten.
+      const activeOptionLegs = currentLegs.filter(l => l.type !== "stock" && l.quantity > 0 && !isFullyClosed(l));
+      if (activeOptionLegs.length === 0) return currentLegs;
       
-      const uniqueExpDates = new Set(optionLegs.map(l => l.expirationDate).filter(Boolean));
+      const uniqueExpDates = new Set(activeOptionLegs.map(l => l.expirationDate).filter(Boolean));
       const isSingleExpiration = uniqueExpDates.size <= 1;
       
       // Multi-expiration: only change a specific leg if we're tracking one
@@ -2113,10 +2125,11 @@ export default function Builder() {
         });
       }
       
-      // Single-expiration: move all legs together
-      // Clear costBasisLocked so auto-update can refresh premiums for the new date
+      // Single-expiration: move all ACTIVE (not fully-closed) legs together.
+      // Fully-closed/sold legs retain their historical expiration dates.
       return currentLegs.map(leg => {
         if (leg.type === "stock") return leg;
+        if (isFullyClosed(leg)) return leg;
         return deepCopyLeg(leg, {
           expirationDays: days,
           expirationDate: dateStr,
