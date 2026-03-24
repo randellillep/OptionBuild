@@ -236,15 +236,22 @@ export function ExpirationTimeline({
 
   // Format expirations label: "2d, 11d" for multiple, or "30d" for single
   // Show "0d" for expired legs (they have expirationDays capped at 0)
+  // Deduplicates after rounding so near-identical float values don't produce "17d, 17d"
   const expirationsLabel = useMemo(() => {
     if (activeLegsExpirations.length === 0) {
       return `${Math.round(selectedExpirationDays)}d`;
     }
     const sorted = [...activeLegsExpirations].sort((a, b) => a - b);
-    return sorted.map(d => {
+    const seen = new Set<number>();
+    const labels: string[] = [];
+    for (const d of sorted) {
       const rounded = Math.round(d);
-      return rounded <= 0 ? '0d' : `${rounded}d`;
-    }).join(', ');
+      if (!seen.has(rounded)) {
+        seen.add(rounded);
+        labels.push(rounded <= 0 ? '0d' : `${rounded}d`);
+      }
+    }
+    return labels.join(', ');
   }, [activeLegsExpirations, selectedExpirationDays]);
 
   // Check if a date has an active leg (rounded comparison to handle fractional vs integer days)

@@ -688,13 +688,22 @@ export function OptionDetailsPanel({
       
       const reopenExpDate = entryToReopen.expirationDate || leg.expirationDate;
       const reopenExpDays = (() => {
+        // If the entry's expiration matches the leg's expiration date, reuse the leg's
+        // exact expirationDays value to avoid floating-point mismatches that cause
+        // duplicate "17d, 17d" labels and spurious multi-expiration color coding.
+        const entryDateStr = (entryToReopen.expirationDate || '').split('T')[0];
+        const legDateStr = (leg.expirationDate || '').split('T')[0];
+        if (!entryToReopen.expirationDate || entryDateStr === legDateStr) {
+          return leg.expirationDays;
+        }
+        // Only recalculate when the entry genuinely has a different expiration date
         if (!reopenExpDate) return leg.expirationDays;
         const expD = new Date(reopenExpDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         expD.setHours(0, 0, 0, 0);
         const diff = expD.getTime() - today.getTime();
-        return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+        return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
       })();
       
       const newLeg: Omit<OptionLeg, "id"> = {
