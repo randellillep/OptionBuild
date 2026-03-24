@@ -314,14 +314,6 @@ export function PLHeatmap({
                   {realizedPL >= 0 ? '+' : '-'}${Math.abs(Math.round(realizedPL)).toLocaleString()}
                 </span>
               </div>
-              {entryUnderlyingPrice != null && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">Entry:</span>
-                  <span className="text-sm font-semibold font-mono text-amber-600 dark:text-amber-400" data-testid="text-entry-price">
-                    ${entryUnderlyingPrice.toFixed(2)}
-                  </span>
-                </div>
-              )}
               {isHistoricalClosed && exitUnderlyingPrice != null && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-muted-foreground">Exit:</span>

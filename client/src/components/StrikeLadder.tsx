@@ -604,17 +604,22 @@ export function StrikeLadder({
                   {strikeText}
                   {isExpired && <Check className="w-3.5 h-3.5" />}
                 </div>
-                {(hasClosing ? remainingQty : quantity) > 1 && (
-                  <div 
-                    className="absolute -top-2 -left-2 text-[8px] font-bold text-white bg-gray-600 rounded-sm px-1 py-px z-[100] leading-tight"
-                  >
-                    x{hasClosing ? remainingQty : quantity}
-                  </div>
-                )}
-                {hasAnyDifferentExpirations && expirationSubscript && (
+                {(() => {
+                  // In historical mode show original quantity; otherwise show remaining
+                  const displayQty = isHistoricalMode ? quantity : (hasClosing ? remainingQty : quantity);
+                  return displayQty > 1 ? (
+                    <div 
+                      className="absolute -top-2 -left-2 text-[8px] font-bold text-white bg-gray-600 rounded-sm px-1 py-px z-[100] leading-tight"
+                    >
+                      x{displayQty}
+                    </div>
+                  ) : null;
+                })()}
+                {/* Show expiration date in historical mode always, or when multiple expirations */}
+                {(isHistoricalMode || hasAnyDifferentExpirations) && expirationSubscript && (
                   <div
                     className="absolute -top-2 -right-2 text-[8px] font-bold text-white rounded-sm px-1 py-px z-[100] leading-tight"
-                    style={{ backgroundColor: expirationColor || '#64748b' }}
+                    style={{ backgroundColor: isHistoricalMode ? '#2563eb' : (expirationColor || '#64748b') }}
                   >{expirationSubscript}</div>
                 )}
               </div>
