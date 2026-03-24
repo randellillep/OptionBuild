@@ -248,7 +248,8 @@ export default function Builder() {
     return legs
       .filter(l => {
         if (l.type === 'stock' || !l.expirationDate || l.quantity <= 0) return false;
-        if (l.premiumSource === 'saved') return true;
+        // Always exclude fully sold/closed legs from the calendar — regardless of whether
+        // they came from the database (premiumSource='saved') or were built live.
         if (l.closingTransaction?.isEnabled) {
           const closedQty = (l.closingTransaction.entries || []).reduce((sum: number, e: any) => sum + e.quantity, 0);
           if (closedQty >= l.quantity) return false;
