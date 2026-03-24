@@ -133,17 +133,30 @@ export function StrikeLadder({
   const prevDataKeyRef = useRef<string>("");
   
   useEffect(() => {
-    const dataKey = `${symbol}-${strikeRange.min.toFixed(0)}-${strikeRange.max.toFixed(0)}`;
+    const optLegs = legs.filter(l => l.type !== 'stock');
+    // In historical mode, include mode + leg strikes in the key so that
+    // switching from a live trade to an expired one (same symbol/range)
+    // always recenters on the actual position instead of keeping the old pan offset.
+    const legStrikesKey = isHistoricalMode && optLegs.length > 0
+      ? optLegs.map(l => l.strike).sort((a, b) => a - b).join(',')
+      : '';
+    const modeKey = isHistoricalMode ? `h-${legStrikesKey}` : 'l';
+    const dataKey = `${symbol}-${strikeRange.min.toFixed(0)}-${strikeRange.max.toFixed(0)}-${modeKey}`;
     
     if (dataKey !== prevDataKeyRef.current) {
       const zf = calculateAdaptiveZoomFactor(strikeRange.min, strikeRange.max, strikeIncrement);
-      const centerOff = calculateCenterPanOffset(strikeRange.min, strikeRange.max, currentPrice, zf);
+      // In historical mode, center the view on the average strike of the legs
+      // so the position badge is always visible (not pushed off-screen by a prior pan).
+      const centerTarget = isHistoricalMode && optLegs.length > 0
+        ? optLegs.reduce((sum, l) => sum + l.strike, 0) / optLegs.length
+        : currentPrice;
+      const centerOff = calculateCenterPanOffset(strikeRange.min, strikeRange.max, centerTarget, zf);
       setPanOffset(centerOff);
       setLastMovedLeg(null);
       prevDataKeyRef.current = dataKey;
       prevSymbolRef.current = symbol;
     }
-  }, [symbol, strikeRange.min, strikeRange.max, currentPrice, strikeIncrement]);
+  }, [symbol, strikeRange.min, strikeRange.max, currentPrice, strikeIncrement, isHistoricalMode, legs]);
 
   const fullRange = strikeRange.max - strikeRange.min;
   const zoomFactor = calculateAdaptiveZoomFactor(strikeRange.min, strikeRange.max, strikeIncrement);
