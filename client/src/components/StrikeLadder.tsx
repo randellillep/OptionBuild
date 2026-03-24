@@ -531,21 +531,17 @@ export function StrikeLadder({
     const hasClosedEntriesWithDifferentExp = hasClosing && (leg.closingTransaction?.entries || []).some(
       e => e.expirationDate && e.expirationDate !== leg.expirationDate
     );
-    // For OPEN badges: only consider OPEN legs' dates.
-    // Sold legs at a different date should NOT force open badges to show a subscript
-    // when all open legs actually share the same expiration.
     const hasAnyDifferentExpirations = (() => {
-      const openExpDates = new Set<string>();
+      const allExpDates = new Set<string>();
       for (const l of legs) {
         if (l.type === 'stock') continue;
-        const lEntries = l.closingTransaction?.entries || [];
-        const lClosedQty = lEntries.length > 0
-          ? lEntries.reduce((sum, e) => sum + e.quantity, 0)
-          : (l.closingTransaction?.quantity || 0);
-        const lIsFullyClosed = l.closingTransaction?.isEnabled && lClosedQty >= l.quantity;
-        if (!lIsFullyClosed && l.expirationDate) openExpDates.add(l.expirationDate);
+        // Count ALL legs' own expirationDate (open AND sold/closed).
+        // This ensures sold legs with a different date still show their subscript.
+        // Only closing ENTRY dates (from rolls) are excluded — those don't
+        // represent the leg's actual traded expiration.
+        if (l.expirationDate) allExpDates.add(l.expirationDate);
       }
-      return openExpDates.size >= 2;
+      return allExpDates.size >= 2;
     })();
     
     // Format expiration date as short subscript (M/D format)
@@ -859,25 +855,15 @@ export function StrikeLadder({
     const anyEntryHasDifferentExp = (leg.closingTransaction?.entries || []).some(
       e => e.expirationDate && e.expirationDate !== leg.expirationDate
     );
-    // For CLOSED badges: show date if open legs have multiple different dates,
-    // OR if this closed leg is at a different date from the open legs.
-    // This way a sold leg correctly shows its date when it differs from the open trade,
-    // but stays hidden when everything (open and sold) shares the same date.
     const closedHasAnyDifferentExpirations = (() => {
-      const openExpDates = new Set<string>();
+      const allExpDates = new Set<string>();
       for (const l of legs) {
         if (l.type === 'stock') continue;
-        const lEntries = l.closingTransaction?.entries || [];
-        const lClosedQty = lEntries.length > 0
-          ? lEntries.reduce((sum, e) => sum + e.quantity, 0)
-          : (l.closingTransaction?.quantity || 0);
-        const lIsFullyClosed = l.closingTransaction?.isEnabled && lClosedQty >= l.quantity;
-        if (!lIsFullyClosed && l.expirationDate) openExpDates.add(l.expirationDate);
+        // Count ALL legs' own expirationDate (open AND sold/closed) — same rule as
+        // hasAnyDifferentExpirations. Only closing entry dates from rolls are excluded.
+        if (l.expirationDate) allExpDates.add(l.expirationDate);
       }
-      if (openExpDates.size >= 2) return true;
-      // This sold leg is at a different date than the open legs
-      if (openExpDates.size >= 1 && leg.expirationDate && !openExpDates.has(leg.expirationDate)) return true;
-      return false;
+      return allExpDates.size >= 2;
     })();
     const closedExpirationSubscript = (() => {
       if (!anyEntryHasDifferentExp && !closedHasAnyDifferentExpirations) return '';
