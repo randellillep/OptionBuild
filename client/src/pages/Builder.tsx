@@ -1713,7 +1713,20 @@ export default function Builder() {
   // Auto-sync selected expiration when it becomes orphaned (e.g., after deleting legs)
   // This prevents phantom timeline highlights on dates that no longer have any legs
   useEffect(() => {
-    const activeOptionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
+    // Only count genuinely OPEN (not fully sold/closed) legs for orphan detection.
+    // Sold/closed legs must not pull the selected date back to their date — the user
+    // should be free to pick a new expiration even when the only remaining legs are sold.
+    const activeOptionLegs = legs.filter(l => {
+      if (l.type === 'stock' || l.quantity <= 0 || !l.expirationDate) return false;
+      if (l.closingTransaction?.isEnabled) {
+        const entries = l.closingTransaction.entries || [];
+        const closedQty = entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (l.closingTransaction.quantity || 0);
+        if (closedQty >= l.quantity) return false;
+      }
+      return true;
+    });
     if (activeOptionLegs.length === 0) return;
     
     const remainingDates = new Set(activeOptionLegs.map(l => l.expirationDate).filter(Boolean));
