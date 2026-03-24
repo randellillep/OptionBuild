@@ -237,7 +237,11 @@ export function useStrategyEngine(rangePercent: number = 14) {
       if (leg.type === 'stock') return false;
       if (leg.quantity <= 0) return false;
       if (leg.closingTransaction?.isEnabled) {
-        const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
+        // Mirror StrikeLadder fallback: entries-sum first, then top-level quantity
+        const entries = leg.closingTransaction.entries || [];
+        const closedQty = entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (leg.closingTransaction.quantity || 0);
         if (closedQty >= leg.quantity) return false;
       }
       return true;

@@ -186,7 +186,11 @@ export default function Builder() {
       if (l.type === "stock") return false;
       if (l.quantity <= 0) return false;
       if (l.closingTransaction?.isEnabled) {
-        const closedQty = (l.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
+        // Mirror StrikeLadder fallback: entries-sum first, then top-level quantity
+        const entries = l.closingTransaction.entries || [];
+        const closedQty = entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (l.closingTransaction.quantity || 0);
         if (closedQty >= l.quantity) return false;
       }
       return true;
@@ -250,8 +254,12 @@ export default function Builder() {
         if (l.type === 'stock' || !l.expirationDate || l.quantity <= 0) return false;
         // Always exclude fully sold/closed legs from the calendar — regardless of whether
         // they came from the database (premiumSource='saved') or were built live.
+        // Mirror StrikeLadder fallback: entries-sum first, then top-level quantity.
         if (l.closingTransaction?.isEnabled) {
-          const closedQty = (l.closingTransaction.entries || []).reduce((sum: number, e: any) => sum + e.quantity, 0);
+          const entries = l.closingTransaction.entries || [];
+          const closedQty = entries.length > 0
+            ? entries.reduce((sum: number, e: any) => sum + e.quantity, 0)
+            : (l.closingTransaction.quantity || 0);
           if (closedQty >= l.quantity) return false;
         }
         return true;
@@ -983,7 +991,11 @@ export default function Builder() {
     legs.forEach(leg => {
       if (leg.type === 'stock' || leg.quantity <= 0 || !leg.expirationDate) return;
       if (leg.closingTransaction?.isEnabled) {
-        const closedQty = (leg.closingTransaction.entries || []).reduce((sum, e) => sum + e.quantity, 0);
+        // Mirror StrikeLadder fallback: entries-sum first, then top-level quantity
+        const entries = leg.closingTransaction.entries || [];
+        const closedQty = entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (leg.closingTransaction.quantity || 0);
         if (closedQty >= leg.quantity) return;
       }
       dates.add(leg.expirationDate);
