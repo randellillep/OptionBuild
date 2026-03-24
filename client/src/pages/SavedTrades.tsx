@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Footer } from "@/components/Footer";
 import { TrendingUp, Download, Star, Settings, ArrowLeft, Trash2, RefreshCw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -167,6 +168,23 @@ export default function SavedTrades() {
     });
     if (allExpired) return 'expired';
     return 'live';
+  }, [isLegFullyClosed]);
+
+  // Returns true if the trade has at least one option leg whose expiration is still
+  // in the future AND which has not been fully closed (sold). These are the only legs
+  // that can be meaningfully "reopened" as a live simulation — expired contracts no
+  // longer exist and cannot be traded again.
+  const hasAnyReopenableLegs = useCallback((trade: SavedTrade): boolean => {
+    const rawLegs = (trade.legs as OptionLeg[]) || [];
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
+    return rawLegs.some(leg => {
+      if (leg.type === 'stock') return false; // Stock positions always re-openable if kept
+      if (isLegFullyClosed(leg)) return false; // Already sold — not an open position to reopen
+      const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
+      if (!expDateStr) return false;
+      return new Date(expDateStr + 'T00:00:00') >= todayDate;
+    });
   }, [isLegFullyClosed]);
 
   // Get the exit underlying price from stored closing entries (underlyingPriceAtClose)
@@ -565,19 +583,46 @@ export default function SavedTrades() {
     e.stopPropagation();
     const rawLegs = (trade.legs as OptionLeg[]) || [];
     const currentPrice = currentPrices[trade.symbol] || trade.price;
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
 
-    // Strip closing transactions — the simulation starts fresh from today
-    const strippedLegs = rawLegs.map(leg => ({
-      ...leg,
-      premiumSource: 'saved' as const,
-      costBasisLocked: true, // Keep original entry premium as cost basis
-      closingTransaction: undefined, // Remove exit data
-      expirationDays: 30, // Will be recalculated in Builder from expirationDate
-      marketBid: undefined,
-      marketAsk: undefined,
-      marketMark: undefined,
-      marketLast: undefined,
-    }));
+    // Only include legs that are still relevant for a live simulation:
+    //   1. Non-expired open legs → strip closing transactions so Builder fetches live prices
+    //   2. Fully-closed (manually sold) legs with future expirations → keep as historical sub-legs
+    // Expired non-closed legs are excluded — those contracts no longer exist
+    const strippedLegs = rawLegs
+      .filter(leg => {
+        if (leg.type === 'stock') return true; // Always keep stock positions
+        const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
+        const isExpiredDate = expDateStr
+          ? new Date(expDateStr + 'T00:00:00') < todayDate
+          : false;
+        // Exclude expired non-closed legs (nothing left to simulate)
+        if (isExpiredDate && !isLegFullyClosed(leg)) return false;
+        return true;
+      })
+      .map(leg => {
+        const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
+        const isExpiredDate = expDateStr
+          ? new Date(expDateStr + 'T00:00:00') < todayDate
+          : false;
+        // Fully-closed legs (sold) and expired ones keep their record as-is
+        if (isLegFullyClosed(leg) || isExpiredDate) {
+          return { ...leg, premiumSource: 'saved' as const, costBasisLocked: true };
+        }
+        // Open legs with future expirations: strip exit data for fresh live pricing
+        return {
+          ...leg,
+          premiumSource: 'saved' as const,
+          costBasisLocked: true,
+          closingTransaction: undefined,
+          expirationDays: 30, // Will be recalculated in Builder from expirationDate
+          marketBid: undefined,
+          marketAsk: undefined,
+          marketMark: undefined,
+          marketLast: undefined,
+        };
+      });
 
     const reopenPayload = {
       ...trade,
@@ -772,18 +817,32 @@ export default function SavedTrades() {
                         </td>
                         <td className="py-2 sm:py-3 px-2 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {isHistorical && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-primary"
-                                onClick={(e) => reopenTradeInBuilder(trade, e)}
-                                title="Reopen as live simulation"
-                                data-testid={`button-reopen-${trade.id}`}
-                              >
-                                <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                              </Button>
-                            )}
+                            {isHistorical && (() => {
+                              const canReopen = hasAnyReopenableLegs(trade);
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className={`h-7 w-7 sm:h-8 sm:w-8 ${canReopen ? 'text-muted-foreground hover:text-primary' : 'text-muted-foreground/40 cursor-not-allowed'}`}
+                                        onClick={canReopen ? (e) => reopenTradeInBuilder(trade, e) : (e) => e.stopPropagation()}
+                                        disabled={!canReopen}
+                                        data-testid={`button-reopen-${trade.id}`}
+                                      >
+                                        <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px] text-center text-xs">
+                                    {canReopen
+                                      ? "Reopen as live simulation"
+                                      : "All contracts have expired — nothing left to reopen"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })()}
                             <Button
                               variant="ghost"
                               size="icon"
