@@ -107,14 +107,21 @@ export function PLHeatmap({
     return Math.round((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   })();
 
-  // For historical trades, show only a single column filled with the fixed realized P/L.
-  // The P/L is realized and doesn't depend on underlying price, so every row has the same value.
+  // For historical trades, fill ALL columns with the fixed realized P/L.
+  // Every cell shows the same value since P/L is locked and doesn't depend on time or price.
+  // The expiration date column is visually highlighted in the header.
   const displayGrid = isHistorical && grid.length > 0
-    ? grid.map(row => [{ strike: row[0]?.strike ?? 0, daysToExpiration: 0, pnl: realizedPL }])
+    ? grid.map(row => row.map(cell => ({ ...cell, pnl: realizedPL })))
     : grid;
-  const displayDays = isHistorical && days.length > 0
-    ? [expiryDaysFromNow]
-    : days;
+  const displayDays = days;
+
+  // For historical trades: index of the column closest to the actual expiration date.
+  const expiryColIdx = isHistorical && displayDays.length > 0
+    ? displayDays.reduce(
+        (best, day, idx) => Math.abs(day - expiryDaysFromNow) < Math.abs(displayDays[best] - expiryDaysFromNow) ? idx : best,
+        0
+      )
+    : -1;
 
   // Find the row index closest to the entry underlying price (for the "Entry" marker)
   let entryRowIdx = -1;
@@ -495,21 +502,9 @@ export function PLHeatmap({
               >
                 %
               </th>
-              {isHistorical ? (
-                <th
-                  scope="col"
-                  className={`text-[9px] font-semibold text-center px-0.5 py-1 border-b border-border ${
-                    isHistoricalExpired
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                      : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                  }`}
-                  data-testid="header-at-expiry"
-                >
-                  <div className="whitespace-nowrap">{getTimeLabel(expiryDaysFromNow)}</div>
-                  <div className="text-[8px] font-normal opacity-75">{isHistoricalExpired ? 'Expired' : 'Closed'}</div>
-                </th>
-              ) : (
+              {(
                 displayDays.map((day, idx) => {
+                  const isExpiryCol = isHistorical && idx === expiryColIdx;
                   const today = new Date();
                   const targetDate = new Date(today);
                   targetDate.setDate(targetDate.getDate() + day);
@@ -519,22 +514,29 @@ export function PLHeatmap({
                     <th
                       key={idx}
                       scope="col"
-                      className={`text-[9px] font-normal text-center px-0.5 py-1 border-b border-border bg-slate-100 dark:bg-slate-800/50 ${
-                        getColumnSeparatorClass(idx)
+                      className={`text-[9px] font-semibold text-center px-0.5 py-1 border-b border-border ${getColumnSeparatorClass(idx)} ${
+                        isExpiryCol
+                          ? isHistoricalExpired
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                            : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                          : 'bg-slate-100 dark:bg-slate-800/50 font-normal'
                       }`}
-                      data-testid={`header-time-${idx}`}
+                      data-testid={isExpiryCol ? 'header-at-expiry' : `header-time-${idx}`}
                     >
                       {useHours ? (
                         <>
-                          <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
+                          <div className="leading-tight whitespace-nowrap">{getTimeLabel(day)}</div>
                           {weekdayLabel && (
-                            <div className="text-[8px] text-muted-foreground/60 font-normal leading-tight">{weekdayLabel}</div>
+                            <div className="text-[8px] font-normal opacity-75 leading-tight">{weekdayLabel}</div>
                           )}
                         </>
                       ) : (
                         <>
-                          <div className="text-[9px] text-muted-foreground leading-tight whitespace-nowrap">{dateDay} {weekdayLabel}</div>
+                          <div className="leading-tight whitespace-nowrap">{dateDay} {weekdayLabel}</div>
                         </>
+                      )}
+                      {isExpiryCol && (
+                        <div className="text-[8px] font-normal opacity-75">{isHistoricalExpired ? 'Expired' : 'Closed'}</div>
                       )}
                     </th>
                   );
