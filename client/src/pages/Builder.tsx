@@ -283,6 +283,24 @@ export default function Builder() {
       .filter(Boolean) as { date: string; days: number; isExpired: boolean; isToday: boolean }[];
   }, [legs]);
 
+  // Furthest leg expiration in days-from-today, INCLUDING sold/closed legs.
+  // Used to cap the ExpirationTimeline so dates far past all positions don't show.
+  // Returns null when there are no legs at all (shows all API dates).
+  const maxLegExpirationDays = useMemo(() => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const optLegs = legs.filter(l => l.type !== 'stock' && l.expirationDate && l.quantity > 0);
+    if (optLegs.length === 0) return null;
+    let max = -Infinity;
+    for (const l of optLegs) {
+      const dateStr = l.expirationDate!.split('T')[0];
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const days = Math.round((new Date(y, m - 1, d).getTime() - todayStart.getTime()) / 86400000);
+      if (days > max) max = days;
+    }
+    return max === -Infinity ? null : max;
+  }, [legs]);
+
   const volatilityPercent = Math.round(volatility * 1000) / 10;
   const calculatedIVPercent = Math.round(calculatedIV * 1000) / 10;
   
@@ -2554,6 +2572,7 @@ export default function Builder() {
                 expirationColorMap={expirationColorMap}
                 legExpirationDates={legExpirationDates}
                 suppressAutoSelect={symbolTransitioning || savedTradeMode === 'expired' || savedTradeMode === 'closed' || savedTradeSettling}
+                maxLegExpirationDays={maxLegExpirationDays}
               />
               )}
 
