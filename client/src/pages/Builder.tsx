@@ -94,24 +94,8 @@ export default function Builder() {
     unrealizedPL: number;
   } | null>(null);
 
-  // Store the saved trade mode and reference prices for heatmap rendering.
-  // Lazy-initialized from localStorage so the correct mode ('closed', 'expired', 'live')
-  // is available on the very first render — before the loadSaved useEffect fires.
-  // Without this, savedTradeMode starts as null and the live ExpirationTimeline
-  // renders briefly, allowing market-data effects to fire in the wrong context.
-  const [savedTradeMode, setSavedTradeMode] = useState<'live' | 'expired' | 'closed' | null>(() => {
-    try {
-      if (!window.location.search.includes('loadSaved=true')) return null;
-      const raw = localStorage.getItem('loadTrade');
-      if (!raw) return null;
-      const parsed = JSON.parse(raw) as { _savedTradeMode?: string };
-      const m = parsed._savedTradeMode;
-      if (m === 'live' || m === 'expired' || m === 'closed') return m;
-      return null;
-    } catch {
-      return null;
-    }
-  });
+  // Store the saved trade mode and reference prices for heatmap rendering
+  const [savedTradeMode, setSavedTradeMode] = useState<'live' | 'expired' | 'closed' | null>(null);
   const [savedTradeEntryPrice, setSavedTradeEntryPrice] = useState<number | null>(null);
   const [savedTradeExitPrice, setSavedTradeExitPrice] = useState<number | null>(null);
   
@@ -343,40 +327,26 @@ export default function Builder() {
         if (savedTradeData) {
           const trade = JSON.parse(savedTradeData);
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
-            // Only settle (fade to 40% opacity) for live open trades.
-            // Expired AND fully-closed (sold) trades have locked legs — snap-to-nearest
-            // won't change them and the auto-select timeline must stay suppressed.
-            // Allowing settling for closed trades lets effects fire that can overwrite
-            // savedTradeMode and show the live ExpirationTimeline incorrectly.
+            // Only settle (fade to 40% opacity) for non-expired trades.
+            // Expired trades have locked legs that snap-to-nearest won't change,
+            // so there is nothing to "settle" and the fade causes visible flickering.
             const legArr = trade.legs as Partial<OptionLeg>[];
             const today0 = new Date();
             today0.setHours(0, 0, 0, 0);
-            const isLegDone = (l: Partial<OptionLeg>): boolean => {
-              // Fully sold/closed: closing transaction covers the full quantity
-              if (l.closingTransaction?.isEnabled) {
-                const entriesQty = (l.closingTransaction.entries || []).reduce(
-                  (sum: number, e: { quantity?: number }) => sum + (e.quantity || 0), 0
-                );
-                if (entriesQty >= (l.quantity || 0)) return true;
-                if (l.closingTransaction.quantity && l.closingTransaction.quantity >= (l.quantity || 0)) return true;
-              }
-              // Or past its expiration date
+            const allLegsExpired = legArr.length > 0 && legArr.every((l) => {
+              if (l.type === 'stock') return false;
               const expDate = l.expirationDate?.split('T')[0];
               if (!expDate) return false;
               return new Date(expDate + 'T00:00:00') < today0;
-            };
-            const allLegsExpiredOrClosed = legArr.length > 0 && legArr.every((l) => {
-              if (l.type === 'stock') return false;
-              return isLegDone(l);
             });
-            if (!allLegsExpiredOrClosed) {
+            if (!allLegsExpired) {
               // Start settling transition - hides intermediate flashing as dates/strikes snap
               setSavedTradeSettling(true);
               if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
               // Safety fallback: clear after 2s max in case snap-to-nearest doesn't fire
               savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 2000);
             } else {
-              // Expired/closed trades skip savedTradeSettling (no snap flash), but we still
+              // Expired trades skip savedTradeSettling (no snap flash), but we still
               // need to block AUTO-ADJUST from clearing the loaded legs (one-shot flag).
               isLoadingHistoricalTradeRef.current = true;
             }
