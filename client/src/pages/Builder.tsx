@@ -283,22 +283,40 @@ export default function Builder() {
       .filter(Boolean) as { date: string; days: number; isExpired: boolean; isToday: boolean }[];
   }, [legs]);
 
-  // Furthest leg expiration in days-from-today, INCLUDING sold/closed legs.
-  // Used to cap the ExpirationTimeline so dates far past all positions don't show.
-  // Returns null when there are no legs at all (shows all API dates).
+  // Furthest expiration of OPEN (non-fully-closed) option legs, in days from today.
+  // Used to cap the ExpirationTimeline — only dates up to (max + 14 days) are shown.
+  //   null  → no legs at all; show all API expiration dates
+  //   0     → all legs are sold/fully-closed; cap at 14 days from today so
+  //            far-out dates (e.g. Apr 24 after selling an Apr 24 leg) disappear
+  //   N > 0 → furthest open leg N days out; cap at N + 14
   const maxLegExpirationDays = useMemo(() => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const optLegs = legs.filter(l => l.type !== 'stock' && l.expirationDate && l.quantity > 0);
     if (optLegs.length === 0) return null;
+
+    // A leg is fully closed when closingTransaction is enabled and
+    // the closed quantity covers the full quantity of the leg.
+    const openLegs = optLegs.filter(l => {
+      if (!l.closingTransaction?.isEnabled) return true;
+      const entries = l.closingTransaction.entries || [];
+      const closedQty = entries.length > 0
+        ? entries.reduce((sum: number, e: any) => sum + (e.quantity || 0), 0)
+        : (l.closingTransaction.quantity || 0);
+      return closedQty < l.quantity;
+    });
+
+    // All legs sold/closed → tight cap so sold-leg dates drop off the timeline
+    if (openLegs.length === 0) return 0;
+
     let max = -Infinity;
-    for (const l of optLegs) {
+    for (const l of openLegs) {
       const dateStr = l.expirationDate!.split('T')[0];
       const [y, m, d] = dateStr.split('-').map(Number);
       const days = Math.round((new Date(y, m - 1, d).getTime() - todayStart.getTime()) / 86400000);
       if (days > max) max = days;
     }
-    return max === -Infinity ? null : max;
+    return max === -Infinity ? 0 : max;
   }, [legs]);
 
   const volatilityPercent = Math.round(volatility * 1000) / 10;

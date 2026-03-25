@@ -18,7 +18,7 @@ interface ExpirationTimelineProps {
   expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
   legExpirationDates?: LegExpirationInfo[]; // Leg expiration dates to inject (including expired)
   suppressAutoSelect?: boolean; // Suppress auto-select during symbol transitions
-  maxLegExpirationDays?: number | null; // Furthest leg expiration in days from today (includes sold/closed legs)
+  maxLegExpirationDays?: number | null; // Furthest OPEN leg expiration days from today; 0 = all sold/closed; null = no legs
 }
 
 interface OptionsExpirationsResponse {
@@ -177,7 +177,7 @@ export function ExpirationTimeline({
 
   // When the user has legs, cap the timeline so that dates far beyond the furthest
   // leg expiration don't clutter the display. Show up to furthest leg date + 14 days.
-  // maxLegExpirationDays comes from Builder and includes ALL legs (open + sold/closed),
+  // maxLegExpirationDays comes from Builder and reflects OPEN legs only (sold/closed excluded).
   // so a fully-sold position still correctly limits the date range.
   // If there are no legs at all, show all available market dates.
   const allDays = useMemo(() => {
