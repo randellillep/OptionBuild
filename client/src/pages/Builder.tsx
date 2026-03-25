@@ -327,26 +327,40 @@ export default function Builder() {
         if (savedTradeData) {
           const trade = JSON.parse(savedTradeData);
           if (trade.symbol && trade.legs && Array.isArray(trade.legs)) {
-            // Only settle (fade to 40% opacity) for non-expired trades.
-            // Expired trades have locked legs that snap-to-nearest won't change,
-            // so there is nothing to "settle" and the fade causes visible flickering.
+            // Only settle (fade to 40% opacity) for live open trades.
+            // Expired AND fully-closed (sold) trades have locked legs — snap-to-nearest
+            // won't change them and the auto-select timeline must stay suppressed.
+            // Allowing settling for closed trades lets effects fire that can overwrite
+            // savedTradeMode and show the live ExpirationTimeline incorrectly.
             const legArr = trade.legs as Partial<OptionLeg>[];
             const today0 = new Date();
             today0.setHours(0, 0, 0, 0);
-            const allLegsExpired = legArr.length > 0 && legArr.every((l) => {
-              if (l.type === 'stock') return false;
+            const isLegDone = (l: Partial<OptionLeg>): boolean => {
+              // Fully sold/closed: closing transaction covers the full quantity
+              if (l.closingTransaction?.isEnabled) {
+                const entriesQty = (l.closingTransaction.entries || []).reduce(
+                  (sum: number, e: { quantity?: number }) => sum + (e.quantity || 0), 0
+                );
+                if (entriesQty >= (l.quantity || 0)) return true;
+                if (l.closingTransaction.quantity && l.closingTransaction.quantity >= (l.quantity || 0)) return true;
+              }
+              // Or past its expiration date
               const expDate = l.expirationDate?.split('T')[0];
               if (!expDate) return false;
               return new Date(expDate + 'T00:00:00') < today0;
+            };
+            const allLegsExpiredOrClosed = legArr.length > 0 && legArr.every((l) => {
+              if (l.type === 'stock') return false;
+              return isLegDone(l);
             });
-            if (!allLegsExpired) {
+            if (!allLegsExpiredOrClosed) {
               // Start settling transition - hides intermediate flashing as dates/strikes snap
               setSavedTradeSettling(true);
               if (savedTradeSettlingTimerRef.current) clearTimeout(savedTradeSettlingTimerRef.current);
               // Safety fallback: clear after 2s max in case snap-to-nearest doesn't fire
               savedTradeSettlingTimerRef.current = setTimeout(() => setSavedTradeSettling(false), 2000);
             } else {
-              // Expired trades skip savedTradeSettling (no snap flash), but we still
+              // Expired/closed trades skip savedTradeSettling (no snap flash), but we still
               // need to block AUTO-ADJUST from clearing the loaded legs (one-shot flag).
               isLoadingHistoricalTradeRef.current = true;
             }
