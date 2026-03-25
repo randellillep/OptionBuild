@@ -2028,7 +2028,10 @@ export default function Builder() {
     });
     setLastEditedLegId(newId);
     setInitialPLFromSavedTrade(null);
-    setSavedTradeMode(null);
+    // Historical mode is sticky — only a symbol change can break it.
+    if (savedTradeMode !== 'closed' && savedTradeMode !== 'expired') {
+      setSavedTradeMode(null);
+    }
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
@@ -2082,10 +2085,11 @@ export default function Builder() {
     }
     // Clear frozen P/L snapshot so the heatmap recalculates from current leg state.
     setInitialPLFromSavedTrade(null);
-    // Only exit historical viewing mode for structural changes (strike/type/expiration).
-    // Non-structural updates — price edits, exclude toggles, closing-transaction adjustments —
-    // must keep the trade in historical mode so the heatmap stays at the expiration date.
-    if (isConfigChange) {
+    // Only exit historical viewing mode for structural changes (strike/type/expiration),
+    // and only when NOT in a locked historical (closed/expired) state.
+    // Closed/expired trades are sticky — dragging a badge, changing a strike, etc.
+    // must never accidentally flip the view back to the live ExpirationTimeline.
+    if (isConfigChange && savedTradeMode !== 'closed' && savedTradeMode !== 'expired') {
       setSavedTradeMode(null);
     }
   };
@@ -2116,7 +2120,10 @@ export default function Builder() {
       return deepCopyLeg(leg, { quantity: closedQty });
     }));
     setInitialPLFromSavedTrade(null);
-    setSavedTradeMode(null);
+    // Historical mode is sticky — only a symbol change can break it.
+    if (savedTradeMode !== 'closed' && savedTradeMode !== 'expired') {
+      setSavedTradeMode(null);
+    }
   };
 
   // Handler for clicking a date on the main ExpirationTimeline
