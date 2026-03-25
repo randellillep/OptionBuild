@@ -170,22 +170,21 @@ export default function SavedTrades() {
     return 'live';
   }, [isLegFullyClosed]);
 
-  // Returns true if the trade has at least one option leg whose expiration is still
-  // in the future AND which has not been fully closed (sold). These are the only legs
-  // that can be meaningfully "reopened" as a live simulation — expired contracts no
-  // longer exist and cannot be traded again.
+  // Returns true if the trade has at least one option leg whose expiration date is
+  // still in the future. The check is purely date-based: if the contract hasn't
+  // expired yet it still exists in the market, regardless of whether the user has
+  // already closed (sold) their own position.
   const hasAnyReopenableLegs = useCallback((trade: SavedTrade): boolean => {
     const rawLegs = (trade.legs as OptionLeg[]) || [];
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
     return rawLegs.some(leg => {
-      if (leg.type === 'stock') return false; // Stock positions always re-openable if kept
-      if (isLegFullyClosed(leg)) return false; // Already sold — not an open position to reopen
+      if (leg.type === 'stock') return false;
       const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
       if (!expDateStr) return false;
       return new Date(expDateStr + 'T00:00:00') >= todayDate;
     });
-  }, [isLegFullyClosed]);
+  }, []);
 
   // Get the exit underlying price from stored closing entries (underlyingPriceAtClose)
   const getExitUnderlyingPrice = useCallback((trade: SavedTrade): number | undefined => {
@@ -586,43 +585,30 @@ export default function SavedTrades() {
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
 
-    // Only include legs that are still relevant for a live simulation:
-    //   1. Non-expired open legs → strip closing transactions so Builder fetches live prices
-    //   2. Fully-closed (manually sold) legs with future expirations → keep as historical sub-legs
-    // Expired non-closed legs are excluded — those contracts no longer exist
+    // Only include legs whose contracts still exist in the market (future expiration date).
+    // Purely date-based: if the expiration date hasn't passed, the contract is still
+    // tradeable — regardless of whether the user previously sold their own position.
+    // All such legs have their closing transactions stripped so the Builder simulates
+    // a fresh entry at today's market prices.
     const strippedLegs = rawLegs
       .filter(leg => {
-        if (leg.type === 'stock') return true; // Always keep stock positions
+        if (leg.type === 'stock') return true;
         const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
-        const isExpiredDate = expDateStr
-          ? new Date(expDateStr + 'T00:00:00') < todayDate
-          : false;
-        // Exclude expired non-closed legs (nothing left to simulate)
-        if (isExpiredDate && !isLegFullyClosed(leg)) return false;
-        return true;
+        if (!expDateStr) return false;
+        // Keep only legs whose contracts haven't expired yet
+        return new Date(expDateStr + 'T00:00:00') >= todayDate;
       })
-      .map(leg => {
-        const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
-        const isExpiredDate = expDateStr
-          ? new Date(expDateStr + 'T00:00:00') < todayDate
-          : false;
-        // Fully-closed legs (sold) and expired ones keep their record as-is
-        if (isLegFullyClosed(leg) || isExpiredDate) {
-          return { ...leg, premiumSource: 'saved' as const, costBasisLocked: true };
-        }
-        // Open legs with future expirations: strip exit data for fresh live pricing
-        return {
-          ...leg,
-          premiumSource: 'saved' as const,
-          costBasisLocked: true,
-          closingTransaction: undefined,
-          expirationDays: 30, // Will be recalculated in Builder from expirationDate
-          marketBid: undefined,
-          marketAsk: undefined,
-          marketMark: undefined,
-          marketLast: undefined,
-        };
-      });
+      .map(leg => ({
+        ...leg,
+        premiumSource: 'saved' as const,
+        costBasisLocked: true,
+        closingTransaction: undefined, // Strip exit data — simulate fresh entry
+        expirationDays: 30, // Will be recalculated in Builder from expirationDate
+        marketBid: undefined,
+        marketAsk: undefined,
+        marketMark: undefined,
+        marketLast: undefined,
+      }));
 
     const reopenPayload = {
       ...trade,
