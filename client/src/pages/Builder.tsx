@@ -56,6 +56,10 @@ export default function Builder() {
   const [range, setRange] = useState(14);
   const [activeTab, setActiveTab] = useState<"heatmap" | "chart">("heatmap");
   const [isSaveTradeOpen, setIsSaveTradeOpen] = useState(false);
+  const [currentSavedTradeId, setCurrentSavedTradeId] = useState<string | null>(null);
+  const [currentSavedTradeName, setCurrentSavedTradeName] = useState<string | null>(null);
+  const [currentSavedTradeDescription, setCurrentSavedTradeDescription] = useState<string | null>(null);
+  const [currentSavedTradeGroup, setCurrentSavedTradeGroup] = useState<string | null>(null);
   const [isExecuteTradeOpen, setIsExecuteTradeOpen] = useState(false);
   const [legConfigVersion, setLegConfigVersion] = useState(0);
   const [analysisTab, setAnalysisTab] = useState("greeks");
@@ -540,6 +544,19 @@ export default function Builder() {
               setSavedTradeExitPrice(trade._exitUnderlyingPrice as number);
             } else {
               setSavedTradeExitPrice(null);
+            }
+
+            // Track the loaded trade so Save dialog can offer "Overwrite" vs "Save as New"
+            if (trade.id && !trade._isReopen) {
+              setCurrentSavedTradeId(trade.id as string);
+              setCurrentSavedTradeName((trade.name as string) || null);
+              setCurrentSavedTradeDescription((trade.description as string) || null);
+              setCurrentSavedTradeGroup((trade.tradeGroup as string) || null);
+            } else {
+              setCurrentSavedTradeId(null);
+              setCurrentSavedTradeName(null);
+              setCurrentSavedTradeDescription(null);
+              setCurrentSavedTradeGroup(null);
             }
             
             localStorage.removeItem('loadTrade');
@@ -2477,6 +2494,12 @@ export default function Builder() {
                 setSavedTradeEntryPrice(null);
                 setSavedTradeExitPrice(null);
               }
+              if (info.symbol !== symbolInfo.symbol) {
+                setCurrentSavedTradeId(null);
+                setCurrentSavedTradeName(null);
+                setCurrentSavedTradeDescription(null);
+                setCurrentSavedTradeGroup(null);
+              }
               setSymbolInfo(info);
             }}
             onSaveTrade={() => setIsSaveTradeOpen(true)}
@@ -2703,6 +2726,10 @@ export default function Builder() {
         legs={legs}
         selectedExpirationDate={selectedExpirationDate}
         isAuthenticated={isAuthenticated}
+        currentTradeId={currentSavedTradeId}
+        currentTradeName={currentSavedTradeName}
+        currentTradeDescription={currentSavedTradeDescription}
+        currentTradeGroup={currentSavedTradeGroup}
       />
 
       <ExecuteTradeModal

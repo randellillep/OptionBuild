@@ -225,6 +225,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { id } = req.params;
       const updateSchema = z.object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+        tradeGroup: z.string().optional(),
         legs: z.array(z.any()).optional(),
         price: z.number().optional(),
         expirationDate: z.string().nullable().optional(),

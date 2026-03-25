@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Info, Copy, Check } from "lucide-react";
+import { Info, Copy, Check, Save, FilePlus } from "lucide-react";
 import type { OptionLeg } from "@shared/schema";
 
 interface SaveTradeModalProps {
@@ -19,28 +19,60 @@ interface SaveTradeModalProps {
   legs: OptionLeg[];
   selectedExpirationDate: string | null;
   isAuthenticated?: boolean;
+  currentTradeId?: string | null;
+  currentTradeName?: string | null;
+  currentTradeDescription?: string | null;
+  currentTradeGroup?: string | null;
 }
 
-export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpirationDate, isAuthenticated = false }: SaveTradeModalProps) {
+export function SaveTradeModal({
+  isOpen,
+  onClose,
+  symbolInfo,
+  legs,
+  selectedExpirationDate,
+  isAuthenticated = false,
+  currentTradeId = null,
+  currentTradeName = null,
+  currentTradeDescription = null,
+  currentTradeGroup = null,
+}: SaveTradeModalProps) {
   const [tradeName, setTradeName] = useState("");
   const [description, setDescription] = useState("");
   const [group, setGroup] = useState("all");
   const [isSaving, setIsSaving] = useState(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [saveSuccessful, setSaveSuccessful] = useState(false);
+  const [savedTradeName, setSavedTradeName] = useState("");
   const { toast } = useToast();
+
+  const isEditing = !!currentTradeId;
+
+  // Prefill form when opening with an existing saved trade
+  useEffect(() => {
+    if (isOpen) {
+      if (isEditing) {
+        setTradeName(currentTradeName || "");
+        setDescription(currentTradeDescription || "");
+        setGroup(currentTradeGroup || "all");
+      } else {
+        setTradeName("");
+        setDescription("");
+        setGroup("all");
+      }
+    }
+  }, [isOpen, isEditing, currentTradeName, currentTradeDescription, currentTradeGroup]);
 
   const generateDefaultName = () => {
     if (legs.length === 0) return `${symbolInfo.symbol} Trade`;
-    
     const leg = legs[0];
-    const expDate = selectedExpirationDate 
+    const expDate = selectedExpirationDate
       ? new Date(selectedExpirationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
       : '';
     const strikeStr = leg.strike.toString();
     const typeStr = leg.type === 'call' ? 'Call' : 'Put';
     const positionStr = leg.position === 'long' ? 'Long' : 'Short';
-    
     return `${symbolInfo.symbol} ${expDate} ${strikeStr} ${positionStr} ${typeStr}`;
   };
 
@@ -63,7 +95,6 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
         ct: leg.closingTransaction,
       })),
     };
-    
     const encoded = btoa(JSON.stringify(tradeData));
     const baseUrl = window.location.origin;
     return `${baseUrl}/share/${encoded}`;
@@ -71,21 +102,12 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
 
   const handleSaveForGuest = () => {
     setIsSaving(true);
-    
     try {
       const link = generateShareLink();
       setShareLink(link);
-      
-      toast({
-        title: "Share link created",
-        description: "Copy the link to share this strategy with others.",
-      });
-    } catch (error) {
-      toast({
-        title: "Error creating share link",
-        description: "There was a problem creating your share link. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Share link created", description: "Copy the link to share this strategy with others." });
+    } catch {
+      toast({ title: "Error creating share link", description: "There was a problem creating your share link. Please try again.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -96,24 +118,15 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
       try {
         await navigator.clipboard.writeText(shareLink);
         setCopied(true);
-        toast({
-          title: "Link copied",
-          description: "Share link has been copied to your clipboard.",
-        });
+        toast({ title: "Link copied", description: "Share link has been copied to your clipboard." });
         setTimeout(() => setCopied(false), 2000);
       } catch {
-        toast({
-          title: "Failed to copy",
-          description: "Please copy the link manually.",
-          variant: "destructive",
-        });
+        toast({ title: "Failed to copy", description: "Please copy the link manually.", variant: "destructive" });
       }
     }
   };
 
-  const [saveSuccessful, setSaveSuccessful] = useState(false);
-  const [savedTradeName, setSavedTradeName] = useState("");
-
+  // Create new trade
   const saveMutation = useMutation({
     mutationFn: async (tradeData: {
       name: string;
@@ -129,33 +142,61 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trades'] });
-      // Generate share link and show success state
       const link = generateShareLink();
       setShareLink(link);
       setSavedTradeName(variables.name);
       setSaveSuccessful(true);
     },
     onError: () => {
-      toast({
-        title: "Error saving trade",
-        description: "There was a problem saving your trade. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error saving trade", description: "There was a problem saving your trade. Please try again.", variant: "destructive" });
     },
   });
 
-  const handleSave = () => {
-    const tradeData = {
-      name: tradeName || generateDefaultName(),
-      description,
-      tradeGroup: group,
-      symbol: symbolInfo.symbol,
-      price: symbolInfo.price,
-      legs,
-      expirationDate: selectedExpirationDate,
-    };
+  // Overwrite existing trade
+  const overwriteMutation = useMutation({
+    mutationFn: async (tradeData: {
+      name: string;
+      description: string;
+      tradeGroup: string;
+      legs: OptionLeg[];
+      price: number;
+      expirationDate: string | null;
+    }) => {
+      const response = await apiRequest('PATCH', `/api/trades/${currentTradeId}`, tradeData);
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trades'] });
+      setSavedTradeName(variables.name);
+      setSaveSuccessful(true);
+      toast({ title: "Trade updated", description: "Your changes have been saved to the existing trade." });
+    },
+    onError: () => {
+      toast({ title: "Error updating trade", description: "There was a problem saving your changes. Please try again.", variant: "destructive" });
+    },
+  });
 
-    saveMutation.mutate(tradeData);
+  const buildPayload = () => ({
+    name: tradeName || generateDefaultName(),
+    description,
+    tradeGroup: group,
+    symbol: symbolInfo.symbol,
+    price: symbolInfo.price,
+    legs,
+    expirationDate: selectedExpirationDate,
+  });
+
+  const handleOverwrite = () => {
+    const payload = buildPayload();
+    overwriteMutation.mutate(payload);
+  };
+
+  const handleSaveAsNew = () => {
+    saveMutation.mutate(buildPayload());
+  };
+
+  const handleSave = () => {
+    saveMutation.mutate(buildPayload());
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -164,17 +205,11 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
       setCopied(false);
       setSaveSuccessful(false);
       setSavedTradeName("");
-      setTradeName("");
-      setDescription("");
-      setGroup("all");
       onClose();
     }
   };
 
-  const handleBackToEditor = () => {
-    handleOpenChange(false);
-  };
-
+  const handleBackToEditor = () => handleOpenChange(false);
   const handleViewSavedTrades = () => {
     handleOpenChange(false);
     window.location.href = '/saved-trades';
@@ -187,68 +222,33 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
           <DialogHeader>
             <DialogTitle>Share this Trade</DialogTitle>
           </DialogHeader>
-
           <Alert className="border-primary/20 bg-primary/5">
             <Info className="h-4 w-4 text-primary" />
             <AlertDescription className="text-sm">
               Consider <a href="/api/login" className="text-primary font-medium hover:underline">creating a free account</a> to view and track your saved trades, making it easy to "paper trade" options by saving trades and watching how they perform over time.
             </AlertDescription>
           </Alert>
-
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="trade-name" className="text-sm">
-                Trade Name: <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Input
-                id="trade-name"
-                value={tradeName}
-                onChange={(e) => setTradeName(e.target.value)}
-                placeholder={generateDefaultName()}
-                data-testid="input-trade-name"
-              />
+              <Label htmlFor="trade-name" className="text-sm">Trade Name: <span className="text-muted-foreground">(optional)</span></Label>
+              <Input id="trade-name" value={tradeName} onChange={(e) => setTradeName(e.target.value)} placeholder={generateDefaultName()} data-testid="input-trade-name" />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="trade-description" className="text-sm">
-                Trade Description: <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Textarea
-                id="trade-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter your reasoning, notes, or due diligence here"
-                className="min-h-[100px] resize-y"
-                data-testid="input-trade-description"
-              />
+              <Label htmlFor="trade-description" className="text-sm">Trade Description: <span className="text-muted-foreground">(optional)</span></Label>
+              <Textarea id="trade-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Enter your reasoning, notes, or due diligence here" className="min-h-[100px] resize-y" data-testid="input-trade-description" />
             </div>
-
             {shareLink ? (
               <div className="space-y-2">
                 <Label className="text-sm">Share Link:</Label>
                 <div className="flex gap-2">
-                  <Input 
-                    value={shareLink} 
-                    readOnly 
-                    className="font-mono text-xs"
-                    data-testid="input-share-link"
-                  />
-                  <Button 
-                    size="icon" 
-                    variant="outline" 
-                    onClick={handleCopyLink}
-                    data-testid="button-copy-link"
-                  >
+                  <Input value={shareLink} readOnly className="font-mono text-xs" data-testid="input-share-link" />
+                  <Button size="icon" variant="outline" onClick={handleCopyLink} data-testid="button-copy-link">
                     {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
             ) : (
-              <Button
-                onClick={handleSaveForGuest}
-                disabled={isSaving}
-                data-testid="button-save-trade-confirm"
-              >
+              <Button onClick={handleSaveForGuest} disabled={isSaving} data-testid="button-save-trade-confirm">
                 {isSaving ? "Creating link..." : "Save trade"}
               </Button>
             )}
@@ -258,72 +258,48 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
     );
   }
 
-  // Show success state after saving
-  if (saveSuccessful && shareLink) {
+  // Success state (new save or overwrite)
+  if (saveSuccessful) {
     return (
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md" data-testid="modal-save-trade-success">
           <DialogHeader>
             <DialogTitle>Save & Share this Trade</DialogTitle>
           </DialogHeader>
-
           <Alert className="border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/30">
             <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <AlertDescription className="text-sm text-emerald-700 dark:text-emerald-300">
               <strong>Your trade was saved successfully!</strong> You can share a link to it with others or track its performance from the saved trades page.
             </AlertDescription>
           </Alert>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label className="text-sm">Link:</Label>
-              <div className="flex gap-2">
-                <Input 
-                  value={shareLink} 
-                  readOnly 
-                  className="font-mono text-xs"
-                  data-testid="input-share-link"
-                />
-                <Button 
-                  size="icon" 
-                  variant="outline" 
-                  onClick={handleCopyLink}
-                  data-testid="button-copy-link"
-                >
-                  {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-                </Button>
+          {shareLink && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="text-sm">Link:</Label>
+                <div className="flex gap-2">
+                  <Input value={shareLink} readOnly className="font-mono text-xs" data-testid="input-share-link" />
+                  <Button size="icon" variant="outline" onClick={handleCopyLink} data-testid="button-copy-link">
+                    {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button 
-                onClick={handleCopyLink}
-                variant="default"
-                data-testid="button-copy-link-main"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Copy Link
+          )}
+          <div className="flex flex-wrap gap-2 pt-2">
+            {shareLink && (
+              <Button onClick={handleCopyLink} variant="default" data-testid="button-copy-link-main">
+                <Copy className="h-4 w-4 mr-2" />Copy Link
               </Button>
-              <Button 
-                onClick={handleViewSavedTrades}
-                variant="outline"
-                data-testid="button-view-saved-trades"
-              >
-                View Saved Trades
-              </Button>
-              <Button 
-                onClick={handleBackToEditor}
-                variant="outline"
-                data-testid="button-back-to-editor"
-              >
-                Back to Editor
-              </Button>
-            </div>
+            )}
+            <Button onClick={handleViewSavedTrades} variant="outline" data-testid="button-view-saved-trades">View Saved Trades</Button>
+            <Button onClick={handleBackToEditor} variant="outline" data-testid="button-back-to-editor">Back to Editor</Button>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
+
+  const isPending = saveMutation.isPending || overwriteMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -361,11 +337,9 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
           </div>
 
           <div className="flex items-center gap-3">
-            <Label htmlFor="trade-group" className="text-sm shrink-0">
-              Group:
-            </Label>
+            <Label htmlFor="trade-group" className="text-sm shrink-0">Group:</Label>
             <Select value={group} onValueChange={setGroup}>
-              <SelectTrigger className="w-[120px]" data-testid="select-trade-group">
+              <SelectTrigger className="w-[140px]" data-testid="select-trade-group">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -378,13 +352,35 @@ export function SaveTradeModal({ isOpen, onClose, symbolInfo, legs, selectedExpi
             </Select>
           </div>
 
-          <Button
-            onClick={handleSave}
-            disabled={saveMutation.isPending}
-            data-testid="button-save-trade-confirm"
-          >
-            {saveMutation.isPending ? "Saving..." : "Save trade"}
-          </Button>
+          {isEditing ? (
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button
+                onClick={handleOverwrite}
+                disabled={isPending}
+                data-testid="button-overwrite-trade"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {overwriteMutation.isPending ? "Saving..." : "Overwrite Existing Trade"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleSaveAsNew}
+                disabled={isPending}
+                data-testid="button-save-as-new-trade"
+              >
+                <FilePlus className="h-4 w-4 mr-2" />
+                {saveMutation.isPending ? "Saving..." : "Save as New Trade"}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={handleSave}
+              disabled={isPending}
+              data-testid="button-save-trade-confirm"
+            >
+              {isPending ? "Saving..." : "Save trade"}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
