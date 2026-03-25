@@ -2564,7 +2564,7 @@ export default function Builder() {
                 expirationColorMap={expirationColorMap}
                 legExpirationDates={legExpirationDates}
                 suppressAutoSelect={symbolTransitioning || isHistoricalSavedTrade || savedTradeSettling}
-                historicalBadge={savedTradeMode === 'expired' ? 'Expired' : undefined}
+                historicalBadge={isHistoricalSavedTrade ? (savedTradeMode === 'expired' ? 'Expired' : 'Closed') : undefined}
               />
 
               <EquityPanel

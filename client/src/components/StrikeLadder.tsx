@@ -486,7 +486,21 @@ export function StrikeLadder({
       : 0;
     const quantity = leg.quantity;
     const remainingQty = quantity - closingQty;
-
+    
+    // In historical mode, always show the badge even if fully closed (so the position is visible on the bar)
+    if (hasClosing && remainingQty <= 0 && !isHistoricalMode) return null;
+    
+    const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
+    const rawPositionPercent = getStrikePosition(leg.strike);
+    const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
+    const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
+    const isBeingDragged = draggedLeg === leg.id;
+    const canDrag = !isExcluded;
+    
+    const openBgColor = isCall ? '#35B534' : '#B5312B';
+    
+    const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
+    
     // Check if leg is expired (expirationDays < 0 means past expiration)
     const isExpired = (() => {
       if (leg.expirationDays !== undefined && leg.expirationDays < 0) {
@@ -501,23 +515,6 @@ export function StrikeLadder({
       }
       return false;
     })();
-    
-    // Show the badge when:
-    //  - historical mode (expired saved trade): always visible
-    //  - isExpired: leg's expiration date is in the past — keep showing even after savedTradeMode clears
-    //  - otherwise: hide fully-closed (remainingQty=0) badges in live view
-    if (hasClosing && remainingQty <= 0 && !isHistoricalMode && !isExpired) return null;
-    
-    const testId = `badge-${leg.type}${position === 'short' ? '-short' : ''}-${leg.strike.toFixed(0)}`;
-    const rawPositionPercent = getStrikePosition(leg.strike);
-    const positionPercent = Math.max(3, Math.min(97, rawPositionPercent));
-    const isOutOfView = rawPositionPercent < 0 || rawPositionPercent > 100;
-    const isBeingDragged = draggedLeg === leg.id;
-    const canDrag = !isExcluded;
-    
-    const openBgColor = isCall ? '#35B534' : '#B5312B';
-    
-    const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
     // Get expiration color for multi-expiration visual coding (OptionStrat-style)
     // Map is keyed by rounded integer days, so round here to match.
@@ -636,9 +633,8 @@ export function StrikeLadder({
                     </div>
                   ) : null;
                 })()}
-                {/* Show expiration date in historical mode, multiple expirations, or when this leg
-                    is expired/closed — so the date always shows on expired option badges */}
-                {(isHistoricalMode || hasAnyDifferentExpirations || isExpired || !!leg.closingTransaction?.isEnabled) && expirationSubscript && (
+                {/* Show expiration date in historical mode always, or when multiple expirations */}
+                {(isHistoricalMode || hasAnyDifferentExpirations) && expirationSubscript && (
                   <div
                     className="absolute -top-2 -right-2 text-[8px] font-bold text-white rounded-sm px-1 py-px z-[100] leading-tight"
                     style={{ backgroundColor: isHistoricalMode ? '#2563eb' : (expirationColor || '#64748b') }}

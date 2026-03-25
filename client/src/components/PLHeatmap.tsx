@@ -92,12 +92,9 @@ export function PLHeatmap({
   const ivSliderPercent = ((impliedVolatility - 5) / (150 - 5)) * 100;
 
   // Historical trade mode flags
-  // Closed (manually sold) trades display as a normal live view — no amber indicators,
-  // no locked-cell grid, no banner. Only trades that expired on their own (past the
-  // expiration date without a manual close) get the historical expired treatment.
-  const isHistoricalClosed = false;
+  const isHistoricalClosed = savedTradeMode === 'closed';
   const isHistoricalExpired = savedTradeMode === 'expired';
-  const isHistorical = isHistoricalExpired;
+  const isHistorical = isHistoricalClosed || isHistoricalExpired;
 
   // Compute how many days from TODAY the actual expiration date is (negative = past).
   // Used to show the correct date label in the single historical column.
