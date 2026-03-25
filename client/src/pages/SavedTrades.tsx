@@ -160,15 +160,19 @@ export default function SavedTrades() {
     if (rawLegs.length === 0) return 'live';
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
-    const allClosed = rawLegs.every(leg => isLegFullyClosed(leg));
-    if (allClosed) return 'closed';
-    const allExpired = rawLegs.every(leg => {
-      if (isLegFullyClosed(leg)) return true;
+    // Check expiration date FIRST — if all options have past their expiration date
+    // the trade is 'expired' regardless of whether the user also manually closed it.
+    // This ensures an expired+sold trade opens in the correct historical expired view.
+    const allExpiredByDate = rawLegs.every(leg => {
+      if (leg.type === 'stock') return true; // stocks don't expire by date
       const expDateStr = (leg.expirationDate || trade.expirationDate)?.split('T')[0];
       if (!expDateStr) return false;
       return new Date(expDateStr + 'T00:00:00') < todayDate;
     });
-    if (allExpired) return 'expired';
+    if (allExpiredByDate) return 'expired';
+    // Not expired by date — check if manually closed before expiry
+    const allClosed = rawLegs.every(leg => isLegFullyClosed(leg));
+    if (allClosed) return 'closed';
     return 'live';
   }, [isLegFullyClosed]);
 
