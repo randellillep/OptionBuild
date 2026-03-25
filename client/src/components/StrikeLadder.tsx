@@ -552,6 +552,11 @@ export function StrikeLadder({
     };
     const expirationSubscript = formatExpirationSubscript(leg.expirationDate);
 
+    // Show subscript when leg's expiration differs from the globally-selected timeline date
+    const legExpDateStr = leg.expirationDate?.split('T')[0];
+    const globalExpDateStr = expirationDate?.split('T')[0];
+    const legDiffersFromSelected = !!(legExpDateStr && globalExpDateStr && legExpDateStr !== globalExpDateStr);
+
     const badgeHeight = 28;
     
     const topPosition = position === 'long' 
@@ -633,8 +638,9 @@ export function StrikeLadder({
                     </div>
                   ) : null;
                 })()}
-                {/* Show expiration date in historical mode always, or when multiple expirations */}
-                {(isHistoricalMode || hasAnyDifferentExpirations) && expirationSubscript && (
+                {/* Show expiration date in historical mode always, when multiple expirations,
+                    or when this leg's expiration differs from the globally-selected timeline date */}
+                {(isHistoricalMode || hasAnyDifferentExpirations || legDiffersFromSelected) && expirationSubscript && (
                   <div
                     className="absolute -top-2 -right-2 text-[8px] font-bold text-white rounded-sm px-1 py-px z-[100] leading-tight"
                     style={{ backgroundColor: isHistoricalMode ? '#2563eb' : (expirationColor || '#64748b') }}
