@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Footer } from "@/components/Footer";
 import { TrendingUp, Download, Star, Settings, ArrowLeft, Trash2, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,6 +21,7 @@ export default function SavedTrades() {
   const [group, setGroup] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [showFilter, setShowFilter] = useState("active");
+  const [tradeToDelete, setTradeToDelete] = useState<string | null>(null);
 
   const { data: trades = [], isLoading } = useQuery<SavedTrade[]>({
     queryKey: ['/api/trades'],
@@ -833,9 +835,9 @@ export default function SavedTrades() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive"
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                deleteTrade(trade.id);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTradeToDelete(trade.id);
                               }}
                               data-testid={`button-delete-${trade.id}`}
                             >
@@ -854,6 +856,30 @@ export default function SavedTrades() {
       </main>
 
       <Footer />
+
+      <AlertDialog open={!!tradeToDelete} onOpenChange={(open) => { if (!open) setTradeToDelete(null); }}>
+        <AlertDialogContent data-testid="dialog-confirm-delete">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this trade?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the trade and all its history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (tradeToDelete) deleteTrade(tradeToDelete);
+                setTradeToDelete(null);
+              }}
+              data-testid="button-confirm-delete"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
