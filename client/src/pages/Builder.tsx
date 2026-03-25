@@ -94,8 +94,24 @@ export default function Builder() {
     unrealizedPL: number;
   } | null>(null);
 
-  // Store the saved trade mode and reference prices for heatmap rendering
-  const [savedTradeMode, setSavedTradeMode] = useState<'live' | 'expired' | 'closed' | null>(null);
+  // Store the saved trade mode and reference prices for heatmap rendering.
+  // Lazy-initialized from localStorage so the correct mode ('closed', 'expired', 'live')
+  // is available on the very first render — before the loadSaved useEffect fires.
+  // Without this, savedTradeMode starts as null and the live ExpirationTimeline
+  // renders briefly, allowing market-data effects to fire in the wrong context.
+  const [savedTradeMode, setSavedTradeMode] = useState<'live' | 'expired' | 'closed' | null>(() => {
+    try {
+      if (!window.location.search.includes('loadSaved=true')) return null;
+      const raw = localStorage.getItem('loadTrade');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { _savedTradeMode?: string };
+      const m = parsed._savedTradeMode;
+      if (m === 'live' || m === 'expired' || m === 'closed') return m;
+      return null;
+    } catch {
+      return null;
+    }
+  });
   const [savedTradeEntryPrice, setSavedTradeEntryPrice] = useState<number | null>(null);
   const [savedTradeExitPrice, setSavedTradeExitPrice] = useState<number | null>(null);
   
