@@ -18,7 +18,6 @@ interface ExpirationTimelineProps {
   expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
   legExpirationDates?: LegExpirationInfo[]; // Leg expiration dates to inject (including expired)
   suppressAutoSelect?: boolean; // Suppress auto-select during symbol transitions
-  maxLegExpirationDays?: number | null; // Furthest OPEN leg expiration days from today; 0 = all sold/closed; null = no legs
 }
 
 interface OptionsExpirationsResponse {
@@ -73,7 +72,6 @@ export function ExpirationTimeline({
   expirationColorMap,
   legExpirationDates = [],
   suppressAutoSelect = false,
-  maxLegExpirationDays = null,
 }: ExpirationTimelineProps) {
   const today = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -172,19 +170,8 @@ export function ExpirationTimeline({
   }, [expirationDates, todayMidnight]);
   
   // Use API data if available, otherwise use calculated Friday expirations
-  const rawAllDays = apiExpirationDays.length > 0 ? apiExpirationDays : calculatedExpirationDays;
+  const allDays = apiExpirationDays.length > 0 ? apiExpirationDays : calculatedExpirationDays;
   const activeDaysToDateMap = apiExpirationDays.length > 0 ? daysToDateMap : calculatedDaysToDateMap;
-
-  // When the user has legs, cap the timeline so that dates far beyond the furthest
-  // leg expiration don't clutter the display. Show up to furthest leg date + 14 days.
-  // maxLegExpirationDays comes from Builder and reflects OPEN legs only (sold/closed excluded).
-  // so a fully-sold position still correctly limits the date range.
-  // If there are no legs at all, show all available market dates.
-  const allDays = useMemo(() => {
-    if (maxLegExpirationDays === null || maxLegExpirationDays === undefined) return rawAllDays;
-    const cap = maxLegExpirationDays + 14;
-    return rawAllDays.filter((d: number) => d <= cap);
-  }, [rawAllDays, maxLegExpirationDays]);
   
   const getDaysLabel = (days: number) => {
     const targetDate = new Date(todayMidnight);
