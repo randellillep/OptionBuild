@@ -2554,6 +2554,26 @@ export default function Builder() {
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 items-start">
             <div className="lg:col-span-3 space-y-2">
+              {isHistoricalSavedTrade ? (
+                <div className="flex items-center gap-2 px-1 py-1 text-sm" data-testid="historical-expiration-label">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Expiration:</span>
+                  {selectedExpirationDate && (() => {
+                    const [y, m, d] = selectedExpirationDate.split('-').map(Number);
+                    const dateObj = new Date(y, m - 1, d);
+                    const label = dateObj.toLocaleString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+                    return (
+                      <span className="font-semibold text-foreground font-mono">{label}</span>
+                    );
+                  })()}
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${
+                    savedTradeMode === 'expired'
+                      ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                      : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                  }`}>
+                    {savedTradeMode === 'expired' ? 'Expired' : 'Closed'}
+                  </span>
+                </div>
+              ) : (
               <ExpirationTimeline
                 expirationDays={uniqueExpirationDays}
                 selectedDays={selectedExpirationDays}
@@ -2563,9 +2583,9 @@ export default function Builder() {
                 activeLegsExpirations={legs.some(l => l.type !== 'stock' && l.quantity > 0) ? uniqueExpirationDays : []}
                 expirationColorMap={expirationColorMap}
                 legExpirationDates={legExpirationDates}
-                suppressAutoSelect={symbolTransitioning || isHistoricalSavedTrade || savedTradeSettling}
-                historicalBadge={isHistoricalSavedTrade ? (savedTradeMode === 'expired' ? 'Expired' : 'Closed') : undefined}
+                suppressAutoSelect={symbolTransitioning || savedTradeMode === 'expired' || savedTradeMode === 'closed' || savedTradeSettling}
               />
+              )}
 
               <EquityPanel
                 legs={legs}

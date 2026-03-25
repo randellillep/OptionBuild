@@ -18,7 +18,6 @@ interface ExpirationTimelineProps {
   expirationColorMap?: Map<number, string>; // Color mapping for multi-expiration visual coding
   legExpirationDates?: LegExpirationInfo[]; // Leg expiration dates to inject (including expired)
   suppressAutoSelect?: boolean; // Suppress auto-select during symbol transitions
-  historicalBadge?: 'Expired' | 'Closed'; // Badge shown for historical saved trades
 }
 
 interface OptionsExpirationsResponse {
@@ -73,7 +72,6 @@ export function ExpirationTimeline({
   expirationColorMap,
   legExpirationDates = [],
   suppressAutoSelect = false,
-  historicalBadge,
 }: ExpirationTimelineProps) {
   const today = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -290,15 +288,6 @@ export function ExpirationTimeline({
           {new Set(activeLegsExpirations.map(d => Math.round(d))).size > 1 ? 'EXPIRATIONS:' : 'EXPIRATION:'}
         </span>
         <span className="text-[10px] font-bold text-foreground">{expirationsLabel}</span>
-        {historicalBadge && (
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-            historicalBadge === 'Expired'
-              ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-              : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
-          }`} data-testid="historical-expiration-badge">
-            {historicalBadge}
-          </span>
-        )}
         {isLoading && (
           <span className="text-[10px] text-muted-foreground">(Loading...)</span>
         )}
