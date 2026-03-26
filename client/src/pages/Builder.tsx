@@ -254,33 +254,30 @@ export default function Builder() {
     todayStart.setHours(0, 0, 0, 0);
     const seen = new Set<string>();
     return legs
-      .filter(l => {
-        if (l.type === 'stock' || !l.expirationDate || l.quantity <= 0) return false;
-        // Always exclude fully sold/closed legs from the calendar — regardless of whether
-        // they came from the database (premiumSource='saved') or were built live.
-        // Mirror StrikeLadder fallback: entries-sum first, then top-level quantity.
-        if (l.closingTransaction?.isEnabled) {
-          const entries = l.closingTransaction.entries || [];
-          const closedQty = entries.length > 0
-            ? entries.reduce((sum: number, e: any) => sum + e.quantity, 0)
-            : (l.closingTransaction.quantity || 0);
-          if (closedQty >= l.quantity) return false;
-        }
-        return true;
-      })
+      .filter(l => l.type !== 'stock' && !!l.expirationDate && l.quantity > 0)
       .map(l => {
         const date = l.expirationDate!.split('T')[0];
         if (seen.has(date)) return null;
         seen.add(date);
         const expDate = new Date(date + 'T00:00:00');
+        // Check if this date's leg is fully sold/closed
+        let isClosed = false;
+        if (l.closingTransaction?.isEnabled) {
+          const entries = l.closingTransaction.entries || [];
+          const closedQty = entries.length > 0
+            ? entries.reduce((sum: number, e: any) => sum + e.quantity, 0)
+            : (l.closingTransaction.quantity || 0);
+          isClosed = closedQty >= l.quantity;
+        }
         return {
           date,
           days: l.expirationDays,
           isExpired: expDate < todayStart,
           isToday: expDate.getTime() === todayStart.getTime(),
+          isClosed,
         };
       })
-      .filter(Boolean) as { date: string; days: number; isExpired: boolean; isToday: boolean }[];
+      .filter(Boolean) as { date: string; days: number; isExpired: boolean; isToday: boolean; isClosed: boolean }[];
   }, [legs]);
 
   const volatilityPercent = Math.round(volatility * 1000) / 10;

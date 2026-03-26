@@ -6,6 +6,7 @@ interface LegExpirationInfo {
   days: number;
   isExpired: boolean;
   isToday?: boolean;
+  isClosed?: boolean; // Leg was fully sold/closed (but contract may still exist in market)
 }
 
 interface ExpirationTimelineProps {
@@ -91,6 +92,21 @@ export function ExpirationTimeline({
     const set = new Set<number>();
     legExpirationDates.forEach(info => {
       if (info.isExpired) {
+        const [y, m, d] = info.date.split('-').map(Number);
+        const expDate = new Date(y, m - 1, d);
+        const dayCount = Math.round((expDate.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
+        set.add(dayCount);
+      }
+    });
+    return set;
+  }, [legExpirationDates, todayMidnight]);
+
+  // Track which day counts are fully closed/sold legs (so we can show them in the timeline
+  // without the active-leg highlight, but still visually indicate a closed position exists)
+  const closedDaysSet = useMemo(() => {
+    const set = new Set<number>();
+    legExpirationDates.forEach(info => {
+      if (info.isClosed) {
         const [y, m, d] = info.date.split('-').map(Number);
         const expDate = new Date(y, m - 1, d);
         const dayCount = Math.round((expDate.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
@@ -272,13 +288,22 @@ export function ExpirationTimeline({
     return labels.join(', ');
   }, [activeLegsExpirations, selectedExpirationDays]);
 
-  // Check if a date has an active leg (rounded comparison to handle fractional vs integer days)
-  // Also check injected expired leg dates by matching the date string
+  // Check if a date has an active (non-closed) leg
   const hasActiveLeg = (days: number) => {
+    if (closedDaysSet.has(days) && !activeLegsExpirations.some(d => Math.round(d) === days)) return false;
     if (activeLegsExpirations.some(d => Math.round(d) === days)) return true;
     const dateStr = activeDaysToDateMap.get(days);
-    if (dateStr && legExpirationDates.some(info => info.date === dateStr)) return true;
+    if (dateStr && legExpirationDates.some(info => info.date === dateStr && !info.isClosed)) return true;
     return false;
+  };
+
+  // Check if a date corresponds only to a fully closed/sold leg (no active open leg)
+  const hasOnlyClosedLeg = (days: number) => {
+    if (!closedDaysSet.has(days)) return false;
+    if (activeLegsExpirations.some(d => Math.round(d) === days)) return false;
+    const dateStr = activeDaysToDateMap.get(days);
+    if (dateStr && legExpirationDates.some(info => info.date === dateStr && !info.isClosed)) return false;
+    return true;
   };
 
   return (
@@ -308,6 +333,7 @@ export function ExpirationTimeline({
               {group.dates.map(({ day, days }, idx) => {
                 const isSelected = (selectedDays !== null && Math.round(selectedDays) === days) || (selectedDays === null && days === allDays[0]);
                 const hasLeg = hasActiveLeg(days);
+                const isClosedOnly = hasOnlyClosedLeg(days);
                 const isExpiredDate = expiredDaysSet.has(days);
                 
                 let expirationColor: string | undefined;
@@ -329,6 +355,8 @@ export function ExpirationTimeline({
                     className={`relative flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-[10px] font-semibold transition-colors border-r border-border last:border-r-0 ${
                       isExpiredDate && hasLeg
                         ? 'bg-muted-foreground/60 text-muted line-through'
+                        : isClosedOnly
+                        ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 line-through'
                         : hasLeg && expirationColor
                         ? ''
                         : hasLeg
