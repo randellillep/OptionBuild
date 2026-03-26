@@ -561,8 +561,10 @@ export function StrikeLadder({
       ? `calc(50% - ${46 + verticalOffset}px)`
       : `calc(50% + ${18 + verticalOffset}px)`;
     
-    // Badge color is ALWAYS call/put color (green/red) - never changes based on expiration
-    const badgeColor = openBgColor;
+    // Fully closed/expired legs in historical mode use a muted grey so they visually
+    // read as "this position is done" rather than still being open.
+    const isClosed = isHistoricalMode && hasClosing && remainingQty <= 0;
+    const badgeColor = isClosed ? '#64748b' : openBgColor;
     
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
     // Level 0 (original) should render on top of level 1 (newer positions)
