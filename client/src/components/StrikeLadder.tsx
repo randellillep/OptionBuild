@@ -500,7 +500,10 @@ export function StrikeLadder({
     const isBeingDragged = draggedLeg === leg.id;
     const canDrag = !isExcluded;
     
+    // Active (open) legs use vivid call/put colors; expired/closed historical legs
+    // use a darker toned-down shade of the same hue so they read as "settled".
     const openBgColor = isCall ? '#35B534' : '#B5312B';
+    const closedBgColor = isCall ? '#1e6b1e' : '#6b1e1b';
     
     const strikeText = `${leg.strike % 1 === 0 ? leg.strike.toFixed(0) : leg.strike.toFixed(2).replace(/\.?0+$/, '')}${isCall ? 'C' : 'P'}`;
     
@@ -561,7 +564,8 @@ export function StrikeLadder({
       ? `calc(50% - ${46 + verticalOffset}px)`
       : `calc(50% + ${18 + verticalOffset}px)`;
     
-    const badgeColor = openBgColor;
+    const isClosed = isHistoricalMode && hasClosing && remainingQty <= 0;
+    const badgeColor = isClosed ? closedBgColor : openBgColor;
     
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
     // Level 0 (original) should render on top of level 1 (newer positions)
