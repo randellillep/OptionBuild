@@ -2007,11 +2007,7 @@ export default function Builder() {
     });
     setLastEditedLegId(newId);
     setInitialPLFromSavedTrade(null);
-    // Keep historical mode when adding new legs on top of an expired/closed saved trade
-    // so the original expired legs continue to show as grey/closed on the strike ladder.
-    if (savedTradeMode !== 'expired' && savedTradeMode !== 'closed') {
-      setSavedTradeMode(null);
-    }
+    setSavedTradeMode(null);
   };
 
   const updateLeg = (id: string, updates: Partial<OptionLeg>) => {
@@ -2101,9 +2097,7 @@ export default function Builder() {
       return deepCopyLeg(leg, { quantity: closedQty });
     }));
     setInitialPLFromSavedTrade(null);
-    if (savedTradeMode !== 'expired' && savedTradeMode !== 'closed') {
-      setSavedTradeMode(null);
-    }
+    setSavedTradeMode(null);
   };
 
   // Handler for clicking a date on the main ExpirationTimeline
