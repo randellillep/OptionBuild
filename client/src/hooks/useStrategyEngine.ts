@@ -253,9 +253,18 @@ export function useStrategyEngine(rangePercent: number = 14) {
   }, [legs]);
 
   const nearestExpirationDate = useMemo(() => {
+    // Must match the uniqueExpirationDays filter exactly — exclude fully-closed legs so that
+    // an expired/auto-closed leg doesn't pull the heatmap timeline into the past.
     const activeLegs = legs.filter(leg => {
       if (leg.type === 'stock') return false;
       if (leg.quantity <= 0) return false;
+      if (leg.closingTransaction?.isEnabled) {
+        const entries = leg.closingTransaction.entries || [];
+        const closedQty = entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.quantity, 0)
+          : (leg.closingTransaction.quantity || 0);
+        if (closedQty >= leg.quantity) return false;
+      }
       return true;
     });
     if (activeLegs.length === 0) return null;
