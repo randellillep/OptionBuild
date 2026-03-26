@@ -256,7 +256,7 @@ export function StrikeLadder({
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
     // Saved-trade legs (premiumSource='saved') are locked to their original strikes —
     // dragging them would rewrite history. Newly-added legs (no premiumSource) are fine to drag.
-    if (leg.premiumSource === 'saved' || leg.costBasisLocked) return;
+    if (leg.premiumSource === 'saved') return;
     e.preventDefault();
     e.stopPropagation();
     // Don't start drag immediately - wait for movement
