@@ -564,7 +564,7 @@ export function StrikeLadder({
       ? `calc(50% - ${46 + verticalOffset}px)`
       : `calc(50% + ${18 + verticalOffset}px)`;
     
-    const isClosed = isHistoricalMode && hasClosing && remainingQty <= 0;
+    const isClosed = hasClosing && remainingQty <= 0;
     const badgeColor = isClosed ? closedBgColor : openBgColor;
     
     const isPopoverOpenForThis = popoverOpen && selectedLeg?.id === leg.id && !isClosedBadgeClick;
