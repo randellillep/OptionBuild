@@ -2067,10 +2067,12 @@ export default function Builder() {
     }
     // Clear frozen P/L snapshot so the heatmap recalculates from current leg state.
     setInitialPLFromSavedTrade(null);
-    // Only exit historical viewing mode for structural changes (strike/type/expiration).
+    // Only exit historical viewing mode for structural changes (strike/type/expiration),
+    // and only when NOT already in historical (expired/closed) mode.
+    // Historical trades are read-only records — their config cannot be changed retroactively.
     // Non-structural updates — price edits, exclude toggles, closing-transaction adjustments —
-    // must keep the trade in historical mode so the heatmap stays at the expiration date.
-    if (isConfigChange) {
+    // must always keep the trade in historical mode.
+    if (isConfigChange && savedTradeMode !== 'expired' && savedTradeMode !== 'closed') {
       setSavedTradeMode(null);
     }
   };
