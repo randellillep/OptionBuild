@@ -254,9 +254,9 @@ export function StrikeLadder({
   const dragThreshold = 5; // pixels before drag starts
 
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
-    // In historical mode (expired/closed trade) dragging is not allowed — the strike
-    // is fixed to the original trade record and cannot be changed retroactively.
-    if (isHistoricalMode) return;
+    // Saved-trade legs (premiumSource='saved') are locked to their original strikes —
+    // dragging them would rewrite history. Newly-added legs (no premiumSource) are fine to drag.
+    if (leg.premiumSource === 'saved' || leg.costBasisLocked) return;
     e.preventDefault();
     e.stopPropagation();
     // Don't start drag immediately - wait for movement

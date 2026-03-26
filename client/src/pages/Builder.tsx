@@ -977,14 +977,14 @@ export default function Builder() {
     prevSymbolRef.current = current;
   }, [symbolInfo.symbol, symbolInfo.price]);
 
-  // Options chain for the STRATEGY (requires user to select expiration)
-  // Disabled for expired/closed historical saved trades — the expired date no longer has chain
-  // data, and fetching it from the API would return wrong (future) expiration quotes.
+  // Options chain for the STRATEGY (requires user to select expiration).
+  // Always enabled — with the OptionStrat-style approach, the ExpirationTimeline auto-selects
+  // the nearest FUTURE date even for expired/closed saved trades, so a valid chain exists.
   const isHistoricalSavedTrade = savedTradeMode === 'expired' || savedTradeMode === 'closed';
   const { data: optionsChainData, isLoading: isLoadingChain, error: chainError } = useOptionsChain({
     symbol: symbolInfo.symbol,
     expiration: selectedExpirationDate || undefined,
-    enabled: !!symbolInfo.symbol && !!selectedExpirationDate && !isHistoricalSavedTrade,
+    enabled: !!symbolInfo.symbol && !!selectedExpirationDate,
   });
 
   // Separate options chain for EXPECTED MOVE - fetched WITHOUT expiration filter
@@ -1027,7 +1027,7 @@ export default function Builder() {
   }, [uniqueLegExpirationDates, selectedExpirationDate]);
 
   useEffect(() => {
-    if (!symbolInfo.symbol || expirationsNeedingFetch.length === 0 || isHistoricalSavedTrade) {
+    if (!symbolInfo.symbol || expirationsNeedingFetch.length === 0) {
       if (multiChainData.size > 0) {
         setMultiChainData(new Map());
         multiChainFetchRef.current = '';
@@ -1152,12 +1152,6 @@ export default function Builder() {
       setLastProcessedSymbolChangeId(symbolChangeId);
       return;
     }
-    // For expired/closed historical saved trades, preserve the original leg expirations
-    // and strikes exactly as saved — never snap to the nearest available date/strike.
-    if (savedTradeMode === 'expired' || savedTradeMode === 'closed') {
-      setLastProcessedSymbolChangeId(symbolChangeId);
-      return;
-    }
     
     const availableDates = optionsExpirationsData.expirations;
     const today = new Date();
@@ -1279,8 +1273,8 @@ export default function Builder() {
   // Auto-snap: when the currently selected expiration has no open legs (e.g. the user just
   // sold/closed the only leg at that date), move the selection to the nearest open leg's date.
   useEffect(() => {
-    // Never snap during saved-trade settling or historical mode.
-    if (savedTradeSettling || savedTradeMode === 'expired' || savedTradeMode === 'closed') return;
+    // Never snap during saved-trade settling.
+    if (savedTradeSettling) return;
     // Determine whether there are actual open (not fully-closed) option legs.
     const openLegs = legs.filter(l => {
       if (l.type === 'stock' || l.quantity <= 0 || !l.expirationDate) return false;
@@ -2494,6 +2488,9 @@ export default function Builder() {
                 setInitialPLFromSavedTrade(null);
                 setSavedTradeEntryPrice(null);
                 setSavedTradeExitPrice(null);
+                // Clear the expired/closed legs — they belong to the old symbol.
+                // The auto-adjust will create fresh legs for the new symbol.
+                setLegs([]);
               }
               if (info.symbol !== symbolInfo.symbol) {
                 setCurrentSavedTradeId(null);
@@ -2525,26 +2522,6 @@ export default function Builder() {
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 items-start">
             <div className="lg:col-span-3 space-y-2">
-              {isHistoricalSavedTrade ? (
-                <div className="flex items-center gap-2 px-1 py-1 text-sm" data-testid="historical-expiration-label">
-                  <span className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Expiration:</span>
-                  {selectedExpirationDate && (() => {
-                    const [y, m, d] = selectedExpirationDate.split('-').map(Number);
-                    const dateObj = new Date(y, m - 1, d);
-                    const label = dateObj.toLocaleString('default', { month: 'short', day: 'numeric', year: 'numeric' });
-                    return (
-                      <span className="font-semibold text-foreground font-mono">{label}</span>
-                    );
-                  })()}
-                  <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${
-                    savedTradeMode === 'expired'
-                      ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-                      : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
-                  }`}>
-                    {savedTradeMode === 'expired' ? 'Expired' : 'Closed'}
-                  </span>
-                </div>
-              ) : (
               <ExpirationTimeline
                 expirationDays={uniqueExpirationDays}
                 selectedDays={selectedExpirationDays}
@@ -2554,9 +2531,8 @@ export default function Builder() {
                 activeLegsExpirations={legs.some(l => l.type !== 'stock' && l.quantity > 0) ? uniqueExpirationDays : []}
                 expirationColorMap={expirationColorMap}
                 legExpirationDates={legExpirationDates}
-                suppressAutoSelect={symbolTransitioning || savedTradeMode === 'expired' || savedTradeMode === 'closed' || savedTradeSettling}
+                suppressAutoSelect={symbolTransitioning || savedTradeSettling}
               />
-              )}
 
               <EquityPanel
                 legs={legs}
@@ -2636,7 +2612,7 @@ export default function Builder() {
                   unrealizedPL={initialPLFromSavedTrade?.unrealizedPL ?? unrealizedPL}
                   hasRealizedPL={hasRealizedPL}
                   hasUnrealizedPL={initialPLFromSavedTrade !== null || hasUnrealizedPL}
-                  savedTradeMode={savedTradeMode ?? undefined}
+                  savedTradeMode={isHistoricalSavedTrade ? undefined : (savedTradeMode ?? undefined)}
                   entryUnderlyingPrice={savedTradeEntryPrice ?? undefined}
                   exitUnderlyingPrice={savedTradeExitPrice ?? undefined}
                   selectedExpirationDate={selectedExpirationDate ?? undefined}
