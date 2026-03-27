@@ -806,9 +806,12 @@ export function calculateProfitLossAtDate(
         leg.expirationDays > 0 &&
         daysRemaining > 0
       ) {
-        // Black-Scholes price at the CURRENT moment (full DTE remaining, current underlying)
+        // Black-Scholes price at the CURRENT moment (full DTE remaining, current underlying).
+        // Use legIV (the base IV, without the IV-slider shift) so that the anchor doesn't
+        // cancel out the IV change in the subtraction below.  Only scenarioValue should
+        // move when the slider changes; the anchor should stay fixed at current-moment legIV.
         const currentBSPrice = calculateOptionPrice(
-          optionType, underlyingPrice, leg.strike, leg.expirationDays, scenarioVolatility, riskFreeRate
+          optionType, underlyingPrice, leg.strike, leg.expirationDays, legIV, riskFreeRate
         );
         // Shift effective entry by the model error so the current scenario resolves to marketMark
         entryValue = leg.premium - (leg.marketMark - currentBSPrice);
