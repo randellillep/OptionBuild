@@ -109,7 +109,7 @@ export function AddLegDropdown({ currentPrice, onAddLeg, optionsChainData, selec
       strike,
       quantity: 1,
       premium: 3.5,
-      expirationDays: selectedExpirationDays || 30,
+      expirationDays: selectedExpirationDays ?? 30,
       expirationDate: selectedExpirationDate || undefined,
       premiumSource: 'theoretical' as const,
       entryUnderlyingPrice: currentPrice,
