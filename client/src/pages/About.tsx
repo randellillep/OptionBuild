@@ -83,7 +83,7 @@ export default function About() {
               Brokerage integration
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-              OptionBuild supports connecting your Alpaca or tastytrade account so you can build a strategy, review the analysis, and place the trade — all without leaving the platform. Both paper trading and live trading are supported. Your credentials are stored securely on the server and are never exposed to the browser.
+              OptionBuild supports connecting your Alpaca account so you can build a strategy, review the analysis, and place the trade — all without leaving the platform. Both paper trading and live trading are supported. Your credentials are stored securely on the server and are never exposed to the browser.
             </p>
 
             <div className="text-center pt-6 border-t border-border">

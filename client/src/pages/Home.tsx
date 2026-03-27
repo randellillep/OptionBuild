@@ -387,7 +387,6 @@ export default function Home() {
               <div className="space-y-3 mb-7">
                 {[
                   { name: "Alpaca", desc: "Paper + Live Trading", Icon: Zap },
-                  { name: "tastytrade", desc: "Sandbox + Live Trading", Icon: TrendingUp },
                 ].map(({ name, desc, Icon }) => (
                   <div key={name} className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-md border border-border bg-muted/30 flex items-center justify-center">

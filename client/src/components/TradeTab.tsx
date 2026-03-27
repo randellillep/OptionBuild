@@ -60,7 +60,7 @@ export function TradeTab() {
   const [showSecret, setShowSecret] = useState(false);
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [tradeSubtab, setTradeSubtab] = useState<"positions" | "orders">("positions");
-  const [selectedBroker, setSelectedBroker] = useState<"alpaca" | "tastytrade">("alpaca");
+  const selectedBroker = "alpaca" as const;
 
   const { data: statusData, isLoading: isLoadingStatus } = useQuery<{ connections: BrokerageConnection[] }>({
     queryKey: ['/api/brokerage/status'],
@@ -111,7 +111,7 @@ export function TradeTab() {
       return await res.json();
     },
     onSuccess: () => {
-      const brokerLabel = selectedBroker === "tastytrade" ? "tastytrade" : "Alpaca";
+      const brokerLabel = "Alpaca";
       toast({ title: "Broker connected", description: `Your ${brokerLabel} account has been linked.` });
       setApiKey("");
       setApiSecret("");
@@ -274,43 +274,23 @@ export function TradeTab() {
             <span className="text-xs font-medium">Connect Brokerage</span>
           </div>
           <div className="space-y-3">
-            <div className="flex gap-1.5">
-              <Button
-                variant={selectedBroker === "alpaca" ? "default" : "outline"}
-                size="sm"
-                onClick={() => { setSelectedBroker("alpaca"); setApiKey(""); setApiSecret(""); }}
-                className="flex-1"
-                data-testid="button-broker-alpaca"
-              >
-                Alpaca
-              </Button>
-              <Button
-                variant={selectedBroker === "tastytrade" ? "default" : "outline"}
-                size="sm"
-                onClick={() => { setSelectedBroker("tastytrade"); setApiKey(""); setApiSecret(""); }}
-                className="flex-1"
-                data-testid="button-broker-tastytrade"
-              >
-                tastytrade
-              </Button>
-            </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">{selectedBroker === "tastytrade" ? "Username" : "API Key"}</Label>
+              <Label className="text-xs">API Key</Label>
               <Input
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={selectedBroker === "tastytrade" ? "your@email.com" : "PKXXXXXXXXXXXXXXXX"}
+                placeholder="PKXXXXXXXXXXXXXXXX"
                 data-testid="input-api-key"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">{selectedBroker === "tastytrade" ? "Password" : "API Secret"}</Label>
+              <Label className="text-xs">API Secret</Label>
               <div className="flex gap-1.5">
                 <Input
                   type={showSecret ? "text" : "password"}
                   value={apiSecret}
                   onChange={(e) => setApiSecret(e.target.value)}
-                  placeholder={selectedBroker === "tastytrade" ? "Your password" : "Your API secret key"}
+                  placeholder="Your API secret key"
                   className="flex-1"
                   data-testid="input-api-secret"
                 />
@@ -326,10 +306,7 @@ export function TradeTab() {
                 data-testid="switch-paper-trading"
               />
               <Label className="text-xs">
-                {selectedBroker === "tastytrade"
-                  ? (isPaper ? "Sandbox" : "Live Trading")
-                  : (isPaper ? "Paper Trading" : "Live Trading")
-                }
+                {isPaper ? "Paper Trading" : "Live Trading"}
               </Label>
               {!isPaper && (
                 <Badge variant="destructive" className="text-[10px]">
@@ -349,7 +326,7 @@ export function TradeTab() {
               ) : (
                 <Plug className="h-3.5 w-3.5 mr-1.5" />
               )}
-              Connect {selectedBroker === "tastytrade" ? (isPaper ? "Sandbox" : "Live") : (isPaper ? "Paper" : "Live")} Account
+              Connect {isPaper ? "Paper" : "Live"} Account
             </Button>
           </div>
         </Card>

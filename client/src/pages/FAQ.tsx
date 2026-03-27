@@ -39,12 +39,12 @@ const faqItems = [
   {
     question: "Can I execute trades directly?",
     answer:
-      "Yes, OptionBuild supports trade execution through brokerage integrations with Alpaca and tastytrade. Once you connect your brokerage account, you can execute trades directly from the strategy builder without leaving the platform.",
+      "Yes, OptionBuild supports trade execution through Alpaca. Once you connect your brokerage account, you can execute trades directly from the strategy builder without leaving the platform.",
   },
   {
     question: "How do I connect my brokerage account?",
     answer:
-      "Go to the Strategy Builder and look for the brokerage connection option. You can connect your Alpaca or tastytrade account by providing your API credentials. Once connected, you can view positions and execute trades directly from the platform. Your credentials are securely stored and never shared.",
+      "Go to the Strategy Builder and look for the brokerage connection option. You can connect your Alpaca account by providing your API key and secret. Once connected, you can view positions and execute trades directly from the platform. Your credentials are securely stored and never shared.",
   },
   {
     question: "Is my data secure?",
