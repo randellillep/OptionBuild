@@ -212,11 +212,11 @@ export default function Builder() {
     
     // Remove assignments for legs that no longer exist
     const activeLegIds = new Set(activeOptionLegs.map(l => l.id));
-    for (const key of legColorAssignments.current.keys()) {
+    Array.from(legColorAssignments.current.keys()).forEach(key => {
       if (!activeLegIds.has(key)) {
         legColorAssignments.current.delete(key);
       }
-    }
+    });
     
     // Assign a color to each leg (by leg ID) in order of appearance
     for (const leg of activeOptionLegs) {
@@ -1026,12 +1026,25 @@ export default function Builder() {
     return uniqueLegExpirationDates.filter(d => d !== selectedExpirationDate);
   }, [uniqueLegExpirationDates, selectedExpirationDate]);
 
+  // Clear multiChainData when the symbol changes so stale data from the old
+  // symbol never leaks into the new one.  We do NOT clear on an empty
+  // expirationsNeedingFetch because legs are briefly empty while the user drags
+  // a strike — clearing + re-fetching on every drag creates the rapid-refetch loop.
+  const lastMultiChainSymbolRef = useRef<string>('');
+  useEffect(() => {
+    if (!symbolInfo.symbol) return;
+    if (lastMultiChainSymbolRef.current !== symbolInfo.symbol) {
+      lastMultiChainSymbolRef.current = symbolInfo.symbol;
+      setMultiChainData(new Map());
+      multiChainFetchRef.current = '';
+    }
+  }, [symbolInfo.symbol]);
+
   useEffect(() => {
     if (!symbolInfo.symbol || expirationsNeedingFetch.length === 0) {
-      if (multiChainData.size > 0) {
-        setMultiChainData(new Map());
-        multiChainFetchRef.current = '';
-      }
+      // Don't clear multiChainData here — legs may be transiently empty (e.g. while
+      // dragging a strike), and clearing would immediately re-trigger a fetch loop.
+      // Clearing is handled by the symbol-change effect above.
       return;
     }
 
@@ -1136,12 +1149,13 @@ export default function Builder() {
     staleTime: 1000 * 60 * 60, // Cache for 1 hour
   });
 
-  // When symbol changes, snap leg expirations to nearest valid date for the new symbol
-  // If legs are empty (cleared by AUTO-ADJUST), create fresh ATM leg with correct date
+  // When symbol changes: set the default expiration date and (if legs exist) snap their
+  // dates to nearest valid dates for the new symbol.  No phantom ATM leg is created when
+  // legs are empty — the empty heatmap shows zeros until the user manually adds options.
   useEffect(() => {
     if (symbolChangeId <= lastProcessedSymbolChangeId) return;
     if (!optionsExpirationsData?.expirations || optionsExpirationsData.expirations.length === 0) return;
-    // Wait for real price before creating initial ATM leg (avoid using hardcoded default)
+    // Wait for real price so the preferred-expiration calculation has a valid underlying price
     if (!hasFetchedInitialPrice && symbolChangeId === 0) return;
     // Wait for URL params to be processed before creating default legs
     if (isInitialLoading) return;
@@ -1185,37 +1199,18 @@ export default function Builder() {
     
     const optionLegs = legs.filter(l => l.type !== 'stock' && l.quantity > 0);
     
-    if (optionLegs.length === 0 && symbolInfo.price > 0) {
-      const atmStrike = roundStrike(symbolInfo.price, 'nearest');
+    if (optionLegs.length === 0) {
+      // No legs yet — just set the default expiration date and show an empty heatmap.
+      // Do NOT auto-create a phantom ATM leg: that fights the user's expiration selection
+      // (the auto-snap at line 1275 would keep snapping back to the phantom leg's date).
+      // This matches OptionStrat's behavior: empty strategy = empty heatmap, user adds legs freely.
       const expDays = recalcDays(preferredFutureDate);
-      const theoreticalDTE = Math.max(14, expDays);
-      const newPremium = Math.max(0.01, Number(
-        calculateOptionPrice('call', symbolInfo.price, atmStrike, theoreticalDTE, 0.3).toFixed(2)
-      ));
-      
-      console.log(`[SNAP] Creating ATM leg: ${atmStrike}C, exp ${preferredFutureDate}, premium $${newPremium}`);
-      
-      const newLeg: OptionLeg = {
-        id: `auto-${Date.now()}`,
-        type: 'call',
-        position: 'long',
-        strike: atmStrike,
-        quantity: 1,
-        premium: newPremium,
-        expirationDays: expDays,
-        expirationDate: preferredFutureDate,
-        visualOrder: 0,
-      };
-      
-      setLegs([newLeg]);
       setSelectedExpiration(expDays, preferredFutureDate);
       setLastProcessedSymbolChangeId(symbolChangeId);
-      
-      // Safety timeout - premium update effect will clear it sooner when chain loads
       if (symbolTransitioning) {
         symbolTransitionTimerRef.current = setTimeout(() => {
           setSymbolTransitioning(false);
-        }, 3000);
+        }, 1500);
       }
       return;
     }

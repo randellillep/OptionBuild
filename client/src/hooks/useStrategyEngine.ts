@@ -249,8 +249,11 @@ export function useStrategyEngine(rangePercent: number = 14) {
     // Round to integer days to prevent floating-point drift from creating duplicate
     // "expirations" when all legs actually share the same calendar date.
     const days = Array.from(new Set(activeLegs.map(leg => Math.round(leg.expirationDays)))).sort((a, b) => a - b);
-    return days.length > 0 ? days : [30];
-  }, [legs]);
+    // When no legs, use the user-selected expiration from the timeline so that the empty
+    // heatmap shows the correct date columns (OptionStrat behavior).
+    if (days.length > 0) return days;
+    return [selectedExpirationDays !== null ? Math.round(selectedExpirationDays) : 30];
+  }, [legs, selectedExpirationDays]);
 
   const nearestExpirationDate = useMemo(() => {
     // Must match the uniqueExpirationDays filter exactly — exclude fully-closed legs so that
@@ -267,10 +270,14 @@ export function useStrategyEngine(rangePercent: number = 14) {
       }
       return true;
     });
-    if (activeLegs.length === 0) return null;
+    if (activeLegs.length === 0) {
+      // No legs yet — use the user's timeline selection so the empty heatmap
+      // shows the correct date column headers (matches OptionStrat behavior).
+      return selectedExpirationDate || null;
+    }
     const nearest = activeLegs.reduce((a, b) => a.expirationDays < b.expirationDays ? a : b);
     return nearest.expirationDate?.split('T')[0] || null;
-  }, [legs]);
+  }, [legs, selectedExpirationDate]);
 
   const strikeRange = useMemo(() => {
     // Center around current price using the range percent - user has full control
