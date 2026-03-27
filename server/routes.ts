@@ -2652,7 +2652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const confirmUrl = `${baseUrl}/account/confirm-delete?token=${token}`;
 
       await resend.emails.send({
-        from: "OptionBuild <onboarding@resend.dev>",
+        from: "OptionBuild <no-reply@send.optionbuild.com>",
         to: user.email,
         subject: "Confirm Account Deletion - OptionBuild",
         html: `
