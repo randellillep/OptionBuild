@@ -1204,8 +1204,29 @@ export default function Builder() {
       // Do NOT auto-create a phantom ATM leg: that fights the user's expiration selection
       // (the auto-snap at line 1275 would keep snapping back to the phantom leg's date).
       // This matches OptionStrat's behavior: empty strategy = empty heatmap, user adds legs freely.
-      const expDays = recalcDays(preferredFutureDate);
-      setSelectedExpiration(expDays, preferredFutureDate);
+      //
+      // Preserve the user's previously selected date across ticker changes:
+      // If they had April 2 selected on AAPL, switching to V should keep April 2 (or nearest).
+      let targetDate = preferredFutureDate;
+      if (selectedExpirationDate && selectedExpirationDate >= todayStr) {
+        if (availableDates.includes(selectedExpirationDate)) {
+          // Exact match — keep it
+          targetDate = selectedExpirationDate;
+        } else {
+          // Find the closest future date to the previously selected date
+          const targetTime = new Date(selectedExpirationDate).getTime();
+          const pool = futureDates.length > 0 ? futureDates : availableDates;
+          let nearestDate = pool[0];
+          let minDiff = Math.abs(new Date(pool[0]).getTime() - targetTime);
+          for (const d of pool) {
+            const diff = Math.abs(new Date(d).getTime() - targetTime);
+            if (diff < minDiff) { minDiff = diff; nearestDate = d; }
+          }
+          targetDate = nearestDate;
+        }
+      }
+      const expDays = recalcDays(targetDate);
+      setSelectedExpiration(expDays, targetDate);
       setLastProcessedSymbolChangeId(symbolChangeId);
       if (symbolTransitioning) {
         symbolTransitionTimerRef.current = setTimeout(() => {
