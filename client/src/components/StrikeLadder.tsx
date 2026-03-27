@@ -254,9 +254,18 @@ export function StrikeLadder({
   const dragThreshold = 5; // pixels before drag starts
 
   const handleBadgePointerDown = (leg: OptionLeg, e: React.PointerEvent) => {
-    // Saved-trade legs (premiumSource='saved') are locked to their original strikes —
-    // dragging them would rewrite history. Newly-added legs (no premiumSource) are fine to drag.
-    if (leg.premiumSource === 'saved') return;
+    // Fully-closed saved-trade legs are locked — dragging a settled position would rewrite
+    // history. Open saved-trade legs (no closing, or partial closing) remain draggable.
+    if (leg.premiumSource === 'saved') {
+      const hasClosing = leg.closingTransaction?.isEnabled;
+      const closingQty = hasClosing
+        ? ((leg.closingTransaction?.entries?.length ?? 0) > 0
+            ? (leg.closingTransaction!.entries!.reduce((s, e) => s + (e.quantity || 0), 0))
+            : (leg.closingTransaction?.quantity || 0))
+        : 0;
+      const remainingQty = (leg.quantity || 1) - closingQty;
+      if (hasClosing && remainingQty <= 0) return;
+    }
     e.preventDefault();
     e.stopPropagation();
     // Don't start drag immediately - wait for movement
